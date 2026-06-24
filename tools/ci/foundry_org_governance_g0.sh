@@ -66,6 +66,19 @@ require_file "tools/org/test_validate_packets.py" "PACKET_VALIDATOR_TEST_MISSING
 require_file "tools/org/test_intake_bundle.py" "INTAKE_BUNDLE_TEST_MISSING"
 require_file "tools/org/test_context_grant.py" "CONTEXT_GRANT_TEST_MISSING"
 require_file "tools/org/status_drift.py" "STATUS_DRIFT_TOOL_MISSING"
+require_file "docs/plans/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_PLAN_MISSING"
+require_file "docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_TRIAL_MISSING"
+require_file "docs/org/HUMAN_DIRECTIVE_V0.md" "HUMAN_DIRECTIVE_DOC_MISSING"
+require_file "docs/org/MERGE_GATE_V0.md" "MERGE_GATE_DOC_MISSING"
+require_file "docs/research/SLICE_NAMESPACING.md" "SLICE_NAMESPACING_DOC_MISSING"
+require_file "docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md" "R_OFFERS_1_DOC_MISSING"
+require_file "schemas/org/human_directive_v0.schema.json" "HUMAN_DIRECTIVE_SCHEMA_MISSING"
+require_file "schemas/org/merge_request_v0.schema.json" "MERGE_REQUEST_SCHEMA_MISSING"
+require_file "tools/org/validate_human_directive.py" "HUMAN_DIRECTIVE_VALIDATOR_MISSING"
+require_file "tools/org/validate_merge.py" "MERGE_VALIDATOR_MISSING"
+require_file "tools/org/render_g0_9.py" "G0_9_RENDERER_MISSING"
+require_file "tools/org/test_validate_merge.py" "MERGE_VALIDATOR_TEST_MISSING"
+require_file "tools/org/test_validate_human_directive.py" "HUMAN_DIRECTIVE_TEST_MISSING"
 
 grep -q 'No ambient project authority' docs/org/ORG_CONSTITUTION.md \
   || fail "ORG_AMBIENT_AUTHORITY_GUARD_MISSING" "org constitution must reject ambient project authority"
@@ -282,6 +295,61 @@ grep -q 'PASS/HIL-APPLIANCE' "$G0_8_1_TRIAL" \
 grep -q 'no merge, no release, no self-approval, no HIL actuation, and no public support authority' "$G0_8_1_TRIAL" \
   || fail "G0_8_1_AUTHORITY_BOUNDARY_MISSING" "G0.8.1 trial must preserve authority denials"
 
+echo "$GATE_ID: INFO step=render_g0_9"
+python3 tools/org/render_g0_9.py --root "$ROOT_DIR"
+
+echo "$GATE_ID: INFO step=validate_g0_9_packets"
+python3 tools/org/validate_packets.py --root "$ROOT_DIR" \
+  --schema-dir schemas/org \
+  --packet-dir out/org/examples-g0-9 \
+  --out out/org/g0_9_packet_validation.json
+
+echo "$GATE_ID: INFO step=validate_human_directive"
+python3 tools/org/validate_human_directive.py --root "$ROOT_DIR" \
+  --directive out/org/human_directive_proceed_with_all.json \
+  --out out/org/human_directive_validation.json
+
+echo "$GATE_ID: INFO step=negative_human_directive_validation"
+python3 tools/org/test_validate_human_directive.py --root "$ROOT_DIR" \
+  --work-dir out/org/directive-negative
+
+echo "$GATE_ID: INFO step=validate_merge_gate"
+python3 tools/org/validate_merge.py --root "$ROOT_DIR" \
+  --merge-request out/org/examples-g0-9/merge_request_g0_9_slice_namespacing.json \
+  --out out/org/merge_validation.json
+
+echo "$GATE_ID: INFO step=negative_merge_validation"
+python3 tools/org/test_validate_merge.py --root "$ROOT_DIR" \
+  --work-dir out/org/merge-negative
+
+echo "$GATE_ID: INFO step=validate_g0_9_loop_trial"
+G0_9_TRIAL="docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md"
+grep -q '^Outcome: PASS/LOOP-LOCAL$' "$G0_9_TRIAL" \
+  || fail "G0_9_OUTCOME_MISSING" "G0.9 trial must record PASS/LOOP-LOCAL outcome"
+grep -q '^authority_level: A2-local$' "$G0_9_TRIAL" \
+  || fail "G0_9_AUTHORITY_MISSING" "G0.9 trial must record A2-local authority"
+grep -q '^separation_of_duties: enforced$' "$G0_9_TRIAL" \
+  || fail "G0_9_SEPARATION_MISSING" "G0.9 trial must record enforced separation of duties"
+grep -q '^research_blocks_implementation: enforced$' "$G0_9_TRIAL" \
+  || fail "G0_9_RESEARCH_BLOCK_MISSING" "G0.9 trial must record enforced research-blocks-implementation"
+grep -q '^loop_closure: local$' "$G0_9_TRIAL" \
+  || fail "G0_9_LOOP_CLOSURE_MISSING" "G0.9 trial must record local loop closure"
+grep -q '^remote_merge_precondition: pending$' "$G0_9_TRIAL" \
+  || fail "G0_9_REMOTE_PRECONDITION_MISSING" "G0.9 trial must record pending remote merge precondition"
+grep -q 'MR-2026-06-23-g0-9-slice-namespacing' "$G0_9_TRIAL" \
+  || fail "G0_9_MERGE_REQUEST_MISSING" "G0.9 trial must cite the merge request"
+grep -q 'no merge, no release, no self-approval, no HIL actuation, and no public support authority' "$G0_9_TRIAL" \
+  || fail "G0_9_AUTHORITY_BOUNDARY_MISSING" "G0.9 trial must preserve authority denials"
+grep -q 'PASS/LOOP-LOCAL' "$G0_9_TRIAL" \
+  || fail "G0_9_LOOP_LOCAL_MISSING" "G0.9 trial must distinguish LOOP-LOCAL evidence level"
+grep -q 'PASS/MERGE` claim' "$G0_9_TRIAL" \
+  || fail "G0_9_MERGE_CLAIM_GUARD_MISSING" "G0.9 trial must reject a PASS/MERGE overclaim"
+
+grep -q 'requires_rq' docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md \
+  || fail "R_OFFERS_1_REQUIRES_RQ_MISSING" "R-OFFERS-1 must bind requires_rq"
+grep -q 'R-OFFERS-1' docs/research/SLICE_NAMESPACING.md \
+  || fail "SLICE_NAMESPACING_R_OFFERS_1_MISSING" "namespacing doc must allocate R-OFFERS-1"
+
 echo "$GATE_ID: METRIC status_drift=pass"
 echo "$GATE_ID: METRIC current_task_validation=pass"
 echo "$GATE_ID: METRIC context_grant=pass"
@@ -295,5 +363,11 @@ echo "$GATE_ID: METRIC intake_only_agent_trial=pass_plan"
 echo "$GATE_ID: METRIC bounded_context_trial=pass_patch_plan"
 echo "$GATE_ID: METRIC bounded_implementation_trial=pass_patch"
 echo "$GATE_ID: METRIC authority_serial_claim_hygiene=pass_patch"
+echo "$GATE_ID: METRIC g0_9_packets=pass"
+echo "$GATE_ID: METRIC human_directive=pass"
+echo "$GATE_ID: METRIC human_directive_negative=pass"
+echo "$GATE_ID: METRIC merge_gate=pass"
+echo "$GATE_ID: METRIC merge_gate_negative=pass"
+echo "$GATE_ID: METRIC first_a2_to_a3_loop=pass_loop_local"
 echo "$GATE_ID: PASS scaffold"
 echo "$GATE_ID: ok"

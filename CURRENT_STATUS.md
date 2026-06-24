@@ -113,6 +113,18 @@ Recent completed milestones: S13.0 persistent storage contract + `harness.block`
 - Claim boundary: A2-local only; no merge, release, self-approval, HIL
   actuation, or public support authority.
 
+**G0.9 First A2->A3 loop + research-blocks-implementation + human directives + slice namespacing (2026-06-23):**
+- Plan: `docs/plans/2026-06-23-g0-9-first-a2-to-a3-loop.md`.
+- Closed the first end-to-end `A2 -> A3` work loop on a real change (slice namespacing) with separated implementer/reviewer roles, an evidence-bearing board vote, green required gates, and `validate_merge.py` enforcing all A3 preconditions.
+- Outcome is `PASS/LOOP-LOCAL`, not `PASS/MERGE`: a real remote merge still requires GitHub branch protection plus merge credentials (a separate A3-authority decision). This is the org analogue of `PASS/QEMU` vs `PASS/METAL`.
+- Research-blocks-implementation: `requires_rq`/`doctrine_area` on `WorkOrderV0`; doctrine-level work is blocked until a referenced research question supports implementation. Proven by negative gate: a merge request whose work order declares `requires_rq: [RQ-0001]` is rejected while `RQ-0001` is still open research.
+- Slice namespacing: `S##` (OS), `R-<PROGRAM>-<n>` (research), `G#` (org) in `docs/research/SLICE_NAMESPACING.md`; `status_drift.py` now enforces no cross-namespace collision. The offers airlock/leakage-meter prototype is `R-OFFERS-1`, not `S12.0`.
+- `HumanDirectiveV0`: typed, hashed founder vision-injection primitive (`docs/org/HUMAN_DIRECTIVE_V0.md`, `schemas/org/human_directive_v0.schema.json`); a directive grants vision input only and targets the board.
+- `MergeRequestV0` (`schemas/org/merge_request_v0.schema.json`) + `docs/org/MERGE_GATE_V0.md` define the A3 conditional-merge gate.
+- `R-OFFERS-1` declared as a research-bound slice (`docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md`) with its honest claim boundary; implementation blocked pending `RQ-0001`.
+- Evidence: `docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md`.
+- Claim boundary: A2-local only; no merge, no release, no self-approval, no HIL actuation, and no public support authority (LOOP-LOCAL, not a remote merge).
+
 ### S11.2-pre: IDL/Wire Contract Integrity Gate (COMPLETE)
 **Completion Date:** 2026-06-17
 - Gate: `foundry_idl_lint.sh` / `just idl-lint` **PASS**.
