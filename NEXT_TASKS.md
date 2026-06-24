@@ -37,6 +37,16 @@ It must not grant merge, release, self-approval, HIL actuation, or public
 support authority without a later explicit decision.
 
 **Recently scaffolded (2026-06-23):**
+- G0.9 first A2->A3 loop: closed the first end-to-end work loop on a real change
+  with separated implementer/reviewer roles, an evidence-bearing vote, green
+  gates, and the A3 merge gate (`validate_merge.py`). Outcome is `PASS/LOOP-LOCAL`
+  (not `PASS/MERGE`; remote merge needs branch protection + credentials, a
+  separate A3 decision). Added `requires_rq`/`doctrine_area` so research blocks
+  doctrine-level implementation (proven: requires open `RQ-0001` is rejected),
+  slice namespacing (`S##`/`R-<PROGRAM>-<n>`/`G#`) enforced by `status_drift.py`
+  (offers airlock is `R-OFFERS-1`), `HumanDirectiveV0` for founder vision
+  injection, `MergeRequestV0`/`MERGE_GATE_V0.md`, and `R-OFFERS-1` as a
+  research-bound slice honestly blocked on `RQ-0001`.
 - G0.8.1 implementation authority and serial observer claim hygiene: code-writing
   trials are now classified as A2-local, not A1. The serial observer validates
   `RAMEN_HIL_RUN_ID`, rejects empty transcripts, records `serial_input_kind`,

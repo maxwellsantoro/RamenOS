@@ -51,6 +51,16 @@
       "items": { "type": "string", "minLength": 1 }
     },
     "claim_level_allowed": { "type": "string", "minLength": 1 },
-    "rollback_plan": { "type": "string", "minLength": 1 }
+    "rollback_plan": { "type": "string", "minLength": 1 },
+    "requires_rq": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Research questions that must support implementation before this work lands (research-blocks-implementation)."
+    },
+    "doctrine_area": {
+      "type": "string",
+      "minLength": 1,
+      "description": "If set, marks this work as doctrine-level; requires_rq must be non-empty and satisfied."
+    }
   }
 }

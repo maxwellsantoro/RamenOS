@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramenos.local/schemas/org/human_directive_v0.schema.json",
+  "title": "HumanDirectiveV0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_kind",
+    "directive_id",
+    "repo_sha",
+    "from_role",
+    "authority",
+    "directive",
+    "proposal_target",
+    "constraints",
+    "claim_boundary"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "packet_kind": { "const": "human_directive_v0" },
+    "directive_id": { "type": "string", "minLength": 1 },
+    "repo_sha": { "type": "string", "minLength": 1 },
+    "from_role": { "const": "Founder/Vision Channel" },
+    "authority": {
+      "type": "string",
+      "enum": ["vision_input", "escalation", "priority_change"]
+    },
+    "directive": { "type": "string", "minLength": 1 },
+    "proposal_target": { "const": "board" },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "claim_boundary": { "type": "string", "minLength": 1 }
+  }
+}

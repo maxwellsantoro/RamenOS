@@ -70,6 +70,19 @@ REQUIRED_FILES = [
     "tools/org/test_validate_packets.py",
     "tools/org/test_intake_bundle.py",
     "tools/org/test_context_grant.py",
+    "docs/plans/2026-06-23-g0-9-first-a2-to-a3-loop.md",
+    "docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md",
+    "docs/org/HUMAN_DIRECTIVE_V0.md",
+    "docs/org/MERGE_GATE_V0.md",
+    "docs/research/SLICE_NAMESPACING.md",
+    "docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md",
+    "schemas/org/human_directive_v0.schema.json",
+    "schemas/org/merge_request_v0.schema.json",
+    "tools/org/validate_human_directive.py",
+    "tools/org/validate_merge.py",
+    "tools/org/render_g0_9.py",
+    "tools/org/test_validate_merge.py",
+    "tools/org/test_validate_human_directive.py",
 ]
 
 
@@ -167,6 +180,33 @@ def main() -> int:
         "agents_no_stale_active_s13_2",
         not stale_active,
         "AGENTS.md active track must not point at completed S13.2",
+    )
+
+    # Slice namespacing (G0.9): research-bound slices must not reuse OS S-numbers.
+    slices_dir = root / "docs/research/slices"
+    if slices_dir.is_dir():
+        for slice_file in sorted(slices_dir.glob("*.md")):
+            text = slice_file.read_text(encoding="utf-8")
+            heading = first_match(r"^# (.+)$", text)
+            add_check(
+                checks,
+                f"research_slice_not_os_number:{slice_file.name}",
+                not re.match(r"^S\d", heading),
+                f"{slice_file.name} heading '{heading}' must use a research namespace, not an OS S-number",
+            )
+    offers_slice = read(root, "docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md")
+    add_check(
+        checks,
+        "offers_airlock_is_r_offers_1",
+        offers_slice.startswith("# R-OFFERS-1"),
+        "offers airlock prototype must be namespaced R-OFFERS-1, not S12.0",
+    )
+    namespacing = read(root, "docs/research/SLICE_NAMESPACING.md")
+    add_check(
+        checks,
+        "slice_namespacing_declares_three_namespaces",
+        "`S##`" in namespacing and "`R-<PROGRAM>-<n>`" in namespacing and "`G#`" in namespacing,
+        "SLICE_NAMESPACING.md must declare the S## / R-<PROGRAM>-<n> / G# namespaces",
     )
 
     status = "pass" if all(check["ok"] for check in checks) else "fail"

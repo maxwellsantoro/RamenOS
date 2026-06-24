@@ -34,3 +34,11 @@ repomix-output.xml
 # Python cache artifacts
 __pycache__/
 *.pyc
+
+# Secrets — GitHub App keys, tokens, credentials. Never commit.
+*.pem
+*.key
+secrets/
+*.token
+.env
+.env.*

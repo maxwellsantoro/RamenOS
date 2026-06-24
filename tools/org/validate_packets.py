@@ -20,7 +20,42 @@ SCHEMA_BY_KIND = {
     "handoff_packet_v0": "handoff_packet_v0.schema.json",
     "board_vote_v0": "board_vote_v0.schema.json",
     "board_packet_v0": "board_packet_v0.schema.json",
+    "merge_request_v0": "merge_request_v0.schema.json",
+    "human_directive_v0": "human_directive_v0.schema.json",
 }
+
+# Research-blocks-implementation: work touching these doctrine areas must bind a
+# landed research question (requires_rq) before it may merge.
+DOCTRINE_KEYWORDS = [
+    "offer",
+    "airlock",
+    "obscontract",
+    "leakage",
+    "noninterference",
+    "service boundary",
+    "capability boundary",
+]
+
+
+def is_doctrine_text(blob: str) -> bool:
+    blob = blob.lower()
+    return any(
+        re.search(rf"(?<![\w-]){re.escape(keyword)}(?![\w-])", blob)
+        for keyword in DOCTRINE_KEYWORDS
+    )
+
+
+def rq_supports_implementation(root: Path, rq_id: str) -> bool:
+    """A research question supports implementation only once it has advanced past
+    open research (status in the ready set). An open RQ blocks its consumers."""
+    ready_tokens = {"prototype-plan", "measured", "productized", "landed", "closed"}
+    candidates = sorted((root / "docs/research/questions").glob(f"{rq_id}-*.md"))
+    if not candidates:
+        return False
+    text = candidates[0].read_text(encoding="utf-8").lower()
+    match = re.search(r"\*\*status:\*\*\s*(.+)", text)
+    status = match.group(1).strip() if match else ""
+    return any(token in status for token in ready_tokens)
 
 EVIDENCE_BUCKETS = [
     "design_evidence_refs",
@@ -191,6 +226,16 @@ def custom_validate(errors: list[str], root: Path, path: Path, packet: dict[str,
         task_blob = " ".join([packet.get("task", ""), *packet.get("constraints", [])]).lower()
         if "hil" in task_blob and "evidence" not in task_blob:
             fail(errors, path, "HIL work orders must mention evidence constraints")
+        requires = packet.get("requires_rq") or []
+        doctrine_blob = " ".join(
+            [packet.get("task", ""), *packet.get("scope", []), *packet.get("constraints", [])]
+        )
+        is_doctrine = bool(packet.get("doctrine_area")) or is_doctrine_text(doctrine_blob)
+        if is_doctrine and not requires:
+            fail(errors, path, "doctrine-level work requires non-empty requires_rq")
+        for rq in requires:
+            if not rq_supports_implementation(root, rq):
+                fail(errors, path, f"requires_rq not satisfied (open research): {rq}")
 
     if kind == "handoff_packet_v0":
         if packet.get("from_role") == packet.get("to_role"):

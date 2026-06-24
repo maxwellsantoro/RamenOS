@@ -92,3 +92,10 @@ jobs:
         env:
           SKIP_E2E_ASSERTIONS: "1"
         run: bash tools/ci/foundry_ci_extended.sh
+
+  org-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Foundry org governance gate (G0)
+        run: bash tools/ci/foundry_org_governance_g0.sh
