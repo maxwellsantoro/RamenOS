@@ -136,12 +136,35 @@ rm -f "$sup_log"
 
 plan_path="$plan_dir/launch_plan.json"
 installed_root="$ROOT_DIR/out/installed"
+compat_log_rel="qemu_compat_s2.log"
+log="$installed_root/logs/compat/$compat_log_rel"
+
+# Start store_service (emit-plan requires it via store_service IPC). Modeled on foundry_artifact_s1.sh.
+S2_STORE_SOCKET="$ROOT_DIR/out/compat_s2/store.sock"
+S2_STORE_LOG="$LOG_DIR/store_service_compat_s2.log"
+rm -f "$S2_STORE_SOCKET"
+RAMEN_STORE_DEV_MODE=1 RAMEN_STORE_ACCESS_POLICY=AllowAll RAMEN_STORE_SOCKET="$S2_STORE_SOCKET" RAMEN_STORE_ROOT="$installed_root/artifacts" \
+  cargo run -p store_service >"$S2_STORE_LOG" 2>&1 &
+S2_STORE_PID=$!
+cleanup_store() { kill "$S2_STORE_PID" >/dev/null 2>&1 || true; wait "$S2_STORE_PID" >/dev/null 2>&1 || true; }
+trap cleanup_store EXIT
+for _ in $(seq 1 100); do [[ -S "$S2_STORE_SOCKET" ]] && break; sleep 0.1; done
+if [[ ! -S "$S2_STORE_SOCKET" ]]; then
+  echo "FOUNDRY_COMPAT_S2: store_service socket not ready"; cat "$S2_STORE_LOG"; exit 1
+fi
 
 cargo run -p store_cli -- emit-plan \
   --catalog "$ROOT_DIR/store/catalog.json" \
   --program-id "ramen.compat.hello" \
   --out "$plan_path" \
-  --installed-root "$installed_root"
+  --installed-root "$installed_root" \
+  --store-socket "$S2_STORE_SOCKET"
+
+
+# Ingest kernel/initrd/artifact into the store so the plan's content_ids have blobs.
+for img in "$plan_dir/kernel/bzImage" "$plan_dir/initrd.cpio.gz" "$plan_dir/artifact.img"; do
+  cargo run -p store_cli -- ingest --src "$img" --installed-root "$installed_root" --store-socket "$S2_STORE_SOCKET" >/dev/null
+done
 
 PLAN_PATH="$plan_path" INSTALLED_ROOT="$installed_root" python3 - <<'PY'
 import json
@@ -208,7 +231,8 @@ PY
 cargo run -p runtime_supervisor -- \
   --plan "$plan_path" \
   --installed-root "$installed_root" \
-  --compat-log-path "$log" >"$sup_log" 2>&1 &
+  --store-socket "$S2_STORE_SOCKET" \
+  --compat-log-path "$compat_log_rel" >"$sup_log" 2>&1 &
 
 pid=$!
 if ! wait_for_log "$log" 15; then

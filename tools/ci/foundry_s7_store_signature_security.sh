@@ -120,6 +120,7 @@ cat > "$TEST_KEYS/trusted_keys" <<'EOF'
 EOF
 
 # Start store service with trusted keys
+chmod 600 "$TEST_KEYS/trusted_keys"
 export RAMEN_STORE_TRUSTED_KEYS="$TEST_KEYS/trusted_keys"
 unset RAMEN_STORE_DEV_MODE
 

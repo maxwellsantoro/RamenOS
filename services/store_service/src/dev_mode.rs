@@ -34,15 +34,20 @@ pub fn is_dev_mode_enabled() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn dev_mode_disabled_by_default() {
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
         std::env::remove_var("RAMEN_STORE_DEV_MODE");
         assert!(!is_dev_mode_enabled());
     }
 
     #[test]
     fn dev_mode_enabled_with_boolish_env() {
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
         std::env::set_var("RAMEN_STORE_DEV_MODE", "1");
         assert!(is_dev_mode_enabled());
         std::env::remove_var("RAMEN_STORE_DEV_MODE");

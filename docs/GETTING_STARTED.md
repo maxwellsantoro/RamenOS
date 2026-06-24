@@ -244,7 +244,7 @@ just clippy-strict
 ### Cloning the Repository
 
 ```bash
-git clone https://github.com/your-org/RamenOS.git
+git clone https://github.com/maxwellsantoro/RamenOS.git
 cd RamenOS
 ```
 

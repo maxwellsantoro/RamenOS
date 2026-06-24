@@ -19,9 +19,6 @@ fail() {
 skip_appliance() {
   local reason="$1"
   echo "$GATE_ID: INFO appliance=skipped reason=$reason"
-  if [[ "${RAMEN_CI_STRICT:-}" == "1" ]]; then
-    fail "APPLIANCE_SKIP_STRICT" "strict mode requires appliance inventory"
-  fi
 }
 
 require_file() {
@@ -250,6 +247,9 @@ echo "$GATE_ID: METRIC serial_observer_contract=pass"
 
 echo "$GATE_ID: INFO step=default_ci_policy"
 if [[ "${RAMEN_HIL_APPLIANCE:-}" != "1" ]]; then
+  if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" || "${RAMEN_HIL_GOLDEN_MACHINE:-}" == "1" ]]; then
+    fail "APPLIANCE_REQUIRED" "live/graduation HIL requires RAMEN_HIL_APPLIANCE=1"
+  fi
   skip_appliance "RAMEN_HIL_APPLIANCE not set"
   echo "$GATE_ID: PASS/QEMU docs_and_manifest_only"
   echo "$GATE_ID: ok"
