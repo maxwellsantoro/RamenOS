@@ -1,0 +1,45 @@
+[package]
+name = "runtime_supervisor"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+# V-006: POSIX runner executes shell scripts directly via `sh`, which is a HIGH SEVERITY
+# security vulnerability. This feature should ONLY be enabled for development/testing,
+# NEVER in production builds. Shell scripts can execute arbitrary commands on the host
+# system with the same privileges as runtime_supervisor.
+#
+# Security Risks:
+# - Arbitrary command execution on host system
+# - No sandboxing - runs with full runtime_supervisor privileges
+# - No input validation
+# - Can read/write arbitrary files on host filesystem
+# - Can access network resources, environment variables, and system resources
+#
+# This feature is DEPRECATED and will be removed in S10 after native runner implementation.
+# See: docs/plans/security_remediation_v006_v007_v012.md
+posix_runner_v0_dev = []
+
+[dependencies]
+kernel_api = { path = "../kernel_api" }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# V-007 Phase 2: Store service client for IPC-based artifact verification
+store_service = { path = "../services/store_service" }
+artifact_store_schema = { path = "../artifact_store_schema" }
+# S10.1: Native WASM runner for production workloads
+native_runner = { path = "../services/native_runner" }
+execution_fabric = { path = "../services/execution_fabric" }
+anyhow = "1"
+ctrlc = "3"
+libc = "0.2"
+# Security: seccomp BPF filter for syscall restriction (fixes NEW-005)
+[target.'cfg(target_os = "linux")'.dependencies]
+seccompiler = "0.4"
+
+[dev-dependencies]
+# S10.1: WASM text format for tests
+wat = "1"
+kernel_harness_proxy = { path = "../services/kernel_harness_proxy" }

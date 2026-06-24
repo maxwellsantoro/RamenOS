@@ -1,0 +1,11 @@
+namespace = "harness.ping"
+version = "1"
+protocol = 1
+
+[message.ping]
+msg_type = 1
+fields = ["nonce:u64"]
+
+[message.pong]
+msg_type = 2
+fields = ["nonce:u64"]

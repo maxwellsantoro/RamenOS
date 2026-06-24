@@ -1,0 +1,38 @@
+# Tier-1 golden machine contract (S12).
+# Source of truth for Foundry gates and HIL operators.
+
+schema_version = 1
+tier = 1
+status = "reference"
+
+[machine]
+id = "intel-nuc-12-reference"
+family = "Intel NUC 12/13"
+arch = "x86_64"
+boot_firmware = "uefi"
+
+[requirements]
+# All must be true for Tier-1 graduation evidence.
+iommu = "vtd"          # Intel VT-d; ACPI DMAR required on HIL
+framebuffer = "uefi_gop"
+serial = "uart_or_usb"
+storage = "nvme_pcie"  # inventory in S12; boot proof in S13
+usb = "xhci"           # inventory in S12; native stack in S14
+
+[serial_markers]
+boot_banner = "RamenOS"
+gop_ok = "golden_machine: gop_probe ok"
+hil_boot_ok = "golden_machine: hil_boot ok"
+iommu_ok = "golden_machine: iommu_present=1"
+
+[hil]
+# Physical gates run only when RAMEN_HIL_GOLDEN_MACHINE=1.
+reference_machine_id = "intel-nuc-12-reference"
+default_ci = "skip"
+
+[hil.appliance]
+# Raspberry Pi-class controller for serial observation, power/reset actuation,
+# evidence bundles, and later KVM/virtual-media control. The appliance is lab
+# infrastructure, not part of the target TCB.
+manifest = "hardware/hil_appliance_v0.toml"
+required_for_graduation_ci = true

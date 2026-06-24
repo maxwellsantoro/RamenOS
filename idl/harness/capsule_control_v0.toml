@@ -1,0 +1,27 @@
+namespace = "capsule.control"
+version = "0"
+protocol = 512 # 0x200
+
+[message.hello]
+msg_type = 1
+fields = ["capsule_id:u64", "backend_caps:u32", "version_major:u16", "version_minor:u16"]
+
+[message.hello_reply]
+msg_type = 2
+fields = ["session_id:u64", "status:u32", "reserved:u32"]
+
+[message.health]
+msg_type = 3
+fields = ["session_id:u64"]
+
+[message.health_reply]
+msg_type = 4
+fields = ["session_id:u64", "status:u32", "error_count:u32"]
+
+[message.shutdown]
+msg_type = 5
+fields = ["session_id:u64", "reason:u32", "reserved:u32"]
+
+[message.shutdown_reply]
+msg_type = 6
+fields = ["session_id:u64", "status:u32", "reserved:u32"]

@@ -1,0 +1,30 @@
+[package]
+name = "artifact_store_schema"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+time = { version = "0.3", optional = true, features = ["formatting", "parsing"] }
+toml = { version = "0.8", optional = true }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+# V-007 Phase 4: Cryptographic signature verification (Ed25519 implemented)
+ed25519-dalek = { version = "2", optional = true, features = ["std"] }
+sha2 = { version = "0.10", default-features = false, features = ["oid"] }
+base64 = { version = "0.21", optional = true }
+rand = { version = "0.8", optional = true }
+
+[features]
+default = ["std"]
+std = [
+    "serde/std",
+    "serde_json/std",
+    "time",
+    "toml",
+    "hex/std",
+    "ed25519-dalek",
+    "base64",
+    "rand",
+]

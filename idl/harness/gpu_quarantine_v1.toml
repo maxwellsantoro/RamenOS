@@ -1,0 +1,35 @@
+namespace = "gpu.quarantine"
+version = "1"
+protocol = 784 # 0x310
+
+[message.start_quarantine_domain]
+msg_type = 1
+fields = ["request_id:u64", "domain_id:u64", "restart_policy:u32", "gpu_profile:u32"]
+
+[message.start_quarantine_domain_reply]
+msg_type = 2
+fields = ["request_id:u64", "domain_id:u64", "status:u32", "generation:u32"]
+
+[message.stop_quarantine_domain]
+msg_type = 3
+fields = ["request_id:u64", "domain_id:u64"]
+
+[message.stop_quarantine_domain_reply]
+msg_type = 4
+fields = ["request_id:u64", "domain_id:u64", "status:u32", "generation:u32"]
+
+[message.export_display]
+msg_type = 5
+fields = ["request_id:u64", "domain_id:u64", "display_cap_token_high:u64", "display_cap_token_low:u64", "width:u32", "height:u32"]
+
+[message.export_display_reply]
+msg_type = 6
+fields = ["request_id:u64", "domain_id:u64", "surface_id:u64", "status:u32", "stride:u32", "format:u32", "reserved:u32"]
+
+[message.report_scanout]
+msg_type = 7
+fields = ["request_id:u64", "domain_id:u64", "surface_id:u64", "frame_seq:u64"]
+
+[message.report_scanout_reply]
+msg_type = 8
+fields = ["request_id:u64", "acked_frame_seq:u64", "status:u32", "reserved:u32"]

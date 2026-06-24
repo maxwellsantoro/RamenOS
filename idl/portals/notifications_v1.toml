@@ -1,0 +1,11 @@
+namespace = "portal.notifications"
+version = "1"
+protocol = 288 # 0x120
+
+[message.post_notification]
+msg_type = 1
+fields = ["request_id:u64", "channel:u32", "title_len:u32", "body_len:u32"]
+
+[message.post_notification_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "notification_id:u64", "reserved:u32"]

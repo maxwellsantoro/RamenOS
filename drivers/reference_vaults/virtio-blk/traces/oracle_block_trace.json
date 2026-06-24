@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "trace_id": "sha256:4501e4b16fed0b0d279e1a1b119fcf69794a36b124c94f68a990207cdf970e9d",
+    "oracle": "linux-virtio-blk",
+    "device_model": "virtio-blk-pci",
+    "harness": "harness.block",
+    "harness_version": "1",
+    "capture_tool": "virtio_blk_sector_oracle_capture"
+  },
+  "events": [
+    {
+      "seq": 1,
+      "kind": "read_blocks",
+      "timestamp_ns": 2390184507,
+      "request_id": 1,
+      "lba": 0,
+      "block_count": 1,
+      "block_size": 512,
+      "shm_cap": 4096,
+      "offset": 0,
+      "len": 512,
+      "payload_hex": "001326394c5f728598abbed1e4f70a1d304356697c8fa2b5c8dbee0114273a4d60738699acbfd2e5f80b1e3144576a7d90a3b6c9dcef0215283b4e6174879aadc0d3e6f90c1f3245586b7e91a4b7caddf00316293c4f6275889baec1d4e7fa0d203346596c7f92a5b8cbdef104172a3d506376899cafc2d5e8fb0e2134475a6d8093a6b9ccdff205182b3e5164778a9db0c3d6e9fc0f2235485b6e8194a7bacde0f306192c3f5265788b9eb1c4d7eafd102336495c6f8295a8bbcee1f4071a2d405366798c9fb2c5d8ebfe1124374a5d708396a9bccfe2f5081b2e4154677a8da0b3c6d9ecff1225384b5e718497aabdd0e3f6091c2f4255687b8ea1b4c7daed001326394c5f728598abbed1e4f70a1d304356697c8fa2b5c8dbee0114273a4d60738699acbfd2e5f80b1e3144576a7d90a3b6c9dcef0215283b4e6174879aadc0d3e6f90c1f3245586b7e91a4b7caddf00316293c4f6275889baec1d4e7fa0d203346596c7f92a5b8cbdef104172a3d506376899cafc2d5e8fb0e2134475a6d8093a6b9ccdff205182b3e5164778a9db0c3d6e9fc0f2235485b6e8194a7bacde0f306192c3f5265788b9eb1c4d7eafd102336495c6f8295a8bbcee1f4071a2d405366798c9fb2c5d8ebfe1124374a5d708396a9bccfe2f5081b2e4154677a8da0b3c6d9ecff1225384b5e718497aabdd0e3f6091c2f4255687b8ea1b4c7daed",
+      "status": 0,
+      "bytes": 512,
+      "result": "ok"
+    },
+    {
+      "seq": 2,
+      "kind": "write_blocks",
+      "timestamp_ns": 2395516358,
+      "request_id": 2,
+      "lba": 1,
+      "block_count": 1,
+      "block_size": 512,
+      "shm_cap": 4096,
+      "offset": 512,
+      "len": 512,
+      "payload_hex": "00376ea5dc134a81b8ef265d94cb023970a7de154c83baf1285f96cd043b72a9e0174e85bcf32a6198cf063d74abe2195087bef52c639ad1083f76ade41b5289c0f72e659cd30a4178afe61d548bc2f930679ed50c437ab1e81f568dc4fb3269a0d70e457cb3ea21588fc6fd346ba2d910477eb5ec235a91c8ff366da4db124980b7ee255c93ca01386fa6dd144b82b9f0275e95cc033a71a8df164d84bbf2296097ce053c73aae1184f86bdf42b6299d0073e75ace31a5188bff62d649bd2094077aee51c538ac1f82f669dd40b4279b0e71e558cc3fa31689fd60d447bb2e920578ec5fc336aa1d80f467db4eb225990c7fe356ca3da11487fb6ed245b92c900376ea5dc134a81b8ef265d94cb023970a7de154c83baf1285f96cd043b72a9e0174e85bcf32a6198cf063d74abe2195087bef52c639ad1083f76ade41b5289c0f72e659cd30a4178afe61d548bc2f930679ed50c437ab1e81f568dc4fb3269a0d70e457cb3ea21588fc6fd346ba2d910477eb5ec235a91c8ff366da4db124980b7ee255c93ca01386fa6dd144b82b9f0275e95cc033a71a8df164d84bbf2296097ce053c73aae1184f86bdf42b6299d0073e75ace31a5188bff62d649bd2094077aee51c538ac1f82f669dd40b4279b0e71e558cc3fa31689fd60d447bb2e920578ec5fc336aa1d80f467db4eb225990c7fe356ca3da11487fb6ed245b92c9",
+      "status": 0,
+      "bytes": 512,
+      "result": "ok"
+    }
+  ]
+}

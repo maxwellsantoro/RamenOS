@@ -1,0 +1,50 @@
+{
+  "entries": [
+    {
+      "program_id": "ramen.demo.hello",
+      "runner": "native_stub",
+      "notes": "S0 placeholder"
+    },
+    {
+      "program_id": "ramen.compat.hello",
+      "runner": "linux_vm_v0",
+      "notes": "S2 compat capsule stub",
+      "compat_capsule": {
+        "kernel_path": "out/compat_s2/kernel/bzImage",
+        "initrd_path": "out/compat_s2/initrd.cpio.gz",
+        "artifact_disks": [
+          {
+            "path": "out/compat_s2/artifact.img",
+            "mount_policy": "read_only",
+            "device_type": "virtio_blk"
+          }
+        ],
+        "cmdline": "console=ttyS0",
+        "resources": {
+          "memory_mb": 512,
+          "cpus": 1
+        }
+      }
+    },
+    {
+      "program_id": "ramen.posix.hello",
+      "runner": "posix_runner_v0",
+      "notes": "Post-S5 POSIX runner v0 sentinel"
+    },
+    {
+      "program_id": "ramen.gpu.scanout",
+      "runner": "gpu_quarantine_v1",
+      "notes": "S7 GPU quarantine display export handshake",
+      "gpu_quarantine": {
+        "domain_id": 700,
+        "display_cap_token_high": 1,
+        "display_cap_token_low": 2,
+        "width": 1280,
+        "height": 720,
+        "gpu_profile": 1
+      },
+      "expected_display_cap_token_high": 1,
+      "expected_display_cap_token_low": 2
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramenos.local/schemas/org/intake_manifest_v0.schema.json",
+  "title": "IntakeManifestV0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_kind",
+    "repo_sha",
+    "packet_validation_status",
+    "artifacts",
+    "granted_context",
+    "authorized_new_paths"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "manifest_kind": { "const": "intake_manifest_v0" },
+    "repo_sha": { "type": "string", "minLength": 1 },
+    "packet_validation_status": { "const": "pass" },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brief",
+        "board_packet",
+        "work_order",
+        "handoff",
+        "vote",
+        "current_task",
+        "validation_report",
+        "context_grant"
+      ],
+      "properties": {
+        "brief": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "board_packet": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "work_order": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "vote": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "current_task": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "validation_report": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        },
+        "context_grant": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" }
+          }
+        }
+      }
+    },
+    "granted_context": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "access"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" },
+          "access": { "type": "string", "enum": ["read", "patch"] }
+        }
+      }
+    },
+    "authorized_new_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

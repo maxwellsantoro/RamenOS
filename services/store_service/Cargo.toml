@@ -1,0 +1,39 @@
+[package]
+name = "store_service"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "store_service"
+path = "src/main.rs"
+
+[dependencies]
+kernel_api = { path = "../../kernel_api" }
+artifact_store_core = { path = "../../artifact_store_core" }
+artifact_store_schema = { path = "../../artifact_store_schema" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1.3"  # V-007 Phase 2: IPC serialization
+anyhow = "1.0"   # For error context in framing
+hex = "0.4"
+sha2 = "0.10"
+thiserror = "1.0"  # V-007 Phase 2: Error types
+time = { version = "0.3", features = ["formatting"] }  # V-007 Phase 3: Audit logging timestamps
+libc = "0.2"  # V-007 Phase 4: SO_PEERCRED Unix credentials
+ed25519-dalek = { version = "2", features = ["std"] }  # V-007 Phase 6: Ed25519 signature verification
+base64 = "0.21"  # V-007 Phase 6: Base64 encoding for public keys
+
+[features]
+default = []
+## Enable development mode with fallback signing key.
+## WARNING: This feature MUST NOT be enabled in production builds.
+## It allows unsigned/insecure key fallback for development only.
+dev_insecure = []
+
+[dev-dependencies]
+tempfile = "3"  # V-007 Phase 5: For testing domain visibility registry
+rand = "0.8"  # V-007 Phase 6: For generating test keypairs
+
+[lib]
+# V-007 Phase 2: Export client library for use by other services
+path = "src/lib.rs"

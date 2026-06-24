@@ -1,0 +1,24 @@
+# Echo Harness v1 - Capability-based harness protocol
+#
+# This version uses cap_handle for capability-based access control.
+# Native WASM manifests should declare harness.echo_v1 for echo access.
+
+namespace = "harness.echo"
+version = "1"
+protocol = 529 # 0x211
+
+[message.echo_request]
+msg_type = 1
+fields = ["cap_handle:u64", "request_id:u64", "payload_len:u32", "reserved:u32"]
+
+[message.echo_request_reply]
+msg_type = 2
+fields = ["cap_handle:u64", "request_id:u64", "payload_len:u32", "status:u32"]
+
+[message.echo_reply]
+msg_type = 3
+fields = ["cap_handle:u64", "request_id:u64", "status:u32", "payload_len:u32"]
+
+[message.echo_reply_reply]
+msg_type = 4
+fields = ["cap_handle:u64", "request_id:u64", "status:u32", "reserved:u32"]

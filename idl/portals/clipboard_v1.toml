@@ -1,0 +1,11 @@
+namespace = "portal.clipboard"
+version = "1"
+protocol = 272 # 0x110
+
+[message.read_clipboard]
+msg_type = 1
+fields = ["request_id:u64", "format:u32"]
+
+[message.read_clipboard_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "content_id_hash:u64", "size_bytes:u64"]

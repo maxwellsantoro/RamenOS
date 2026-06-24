@@ -1,0 +1,42 @@
+# Example trusted keys file for store_service
+#
+# V-007 Phase 5: Production signature validation
+#
+# This file contains Ed25519 public keys that are trusted to sign artifacts.
+# Each line should contain a base64-encoded Ed25519 public key (32 bytes).
+#
+# Format:
+#   - Lines starting with # are comments (ignored)
+#   - Empty lines are ignored
+#   - Each non-comment line must be a base64-encoded Ed25519 public key
+#
+# Usage:
+#   1. Generate a keypair:
+#      cargo run --example generate_ed25519_keypair
+#
+#   2. Add the PUBLIC KEY (base64) to this file
+#
+#   3. Set environment variable:
+#      export RAMEN_STORE_TRUSTED_KEYS=/path/to/trusted_keys
+#
+#   4. Start store_service:
+#      It will load trusted keys and enforce RequireSignature policy
+#
+# Security Notes:
+#   - Keep PRIVATE KEYS secret and offline
+#   - Only add public keys to this file
+#   - Use one key per signer (build system, release manager, etc.)
+#   - Rotate keys periodically (document rotation procedure)
+#   - Use strong key generation (Ed25519, cryptographically secure random)
+#
+# Example (DO NOT USE IN PRODUCTION - these are placeholder keys):
+# x0EJNLqqx4xFYWbqbMxKPex5Lvy5Y3jxGVjHfPbUQHY=
+
+# Production keys (add your actual keys below):
+# <PASTE_BASE64_PUBLIC_KEY_HERE>
+
+# Backup signing key (optional):
+# <PASTE_BACKUP_PUBLIC_KEY_HERE>
+
+# Build system signing key (optional):
+# <PASTE_BUILD_SYSTEM_PUBLIC_KEY_HERE>

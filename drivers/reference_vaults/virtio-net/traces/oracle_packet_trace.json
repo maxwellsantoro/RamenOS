@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "trace_id": "sha256:482af3005a3520aa7b98e9e80286875eb3abd88a3e8fb7b9e95ec54bdbcb953d",
+    "oracle": "linux-virtio-net",
+    "device_model": "virtio-net-pci",
+    "harness": "harness.net",
+    "harness_version": "1",
+    "capture_tool": "virtio_net_packet_oracle_capture"
+  },
+  "events": [
+    {
+      "seq": 1,
+      "kind": "send_packet",
+      "timestamp_ns": 2667670840,
+      "request_id": 1,
+      "shm_cap": 4096,
+      "offset": 0,
+      "len": 42,
+      "payload_hex": "ffffffffffff525400123456080600010800060400015254001234560a00020f0000000000000a000202",
+      "status": 0,
+      "bytes": 42,
+      "result": "ok",
+      "notes": "live ARP probe transmit"
+    },
+    {
+      "seq": 2,
+      "kind": "receive_packet",
+      "timestamp_ns": 2672049862,
+      "request_id": 2,
+      "shm_cap": 4096,
+      "offset": 2048,
+      "len": 42,
+      "payload_hex": "52540012345652550a0002020806000108000604000252550a0002020a0002025254001234560a00020f",
+      "status": 0,
+      "bytes": 42,
+      "result": "ok",
+      "notes": "live ARP reply receive"
+    }
+  ]
+}

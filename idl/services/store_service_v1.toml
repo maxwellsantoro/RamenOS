@@ -1,0 +1,46 @@
+# Store Service v1 IDL Contract
+# Provides IPC-based artifact storage operations
+# All store operations go through this service to maintain "kernel ≠ services ≠ store" boundary
+
+namespace = "store.service"
+version = "1"
+protocol = 1024 # 0x400
+
+[message.get_manifest]
+msg_type = 1
+fields = ["request_id:u64", "content_id_hash:bytes32", "capability_token:u64"]
+
+[message.get_manifest_reply]
+msg_type = 2
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "schema_version:u32",
+    "size_bytes:u64",
+    "manifest_shm_cap:u64",
+    "manifest_size:u64",
+]
+
+[message.get_blob]
+msg_type = 3
+fields = ["request_id:u64", "content_id_hash:bytes32", "capability_token:u64"]
+
+[message.get_blob_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32", "blob_shm_cap:u64", "blob_size:u64"]
+
+[message.verify_artifact]
+msg_type = 5
+fields = ["request_id:u64", "content_id_hash:bytes32", "capability_token:u64"]
+
+[message.verify_artifact_reply]
+msg_type = 6
+fields = ["request_id:u64", "status:u32", "valid:u32"]
+
+[message.ingest_artifact]
+msg_type = 7
+fields = ["request_id:u64", "kind:u32", "channel:u32", "src_shm_cap:u64", "src_len:u64", "capability_token:u64"]
+
+[message.ingest_artifact_reply]
+msg_type = 8
+fields = ["request_id:u64", "status:u32", "content_id_hash:bytes32", "size_bytes:u64"]

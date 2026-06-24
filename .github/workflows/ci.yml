@@ -1,0 +1,94 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  foundry:
+    runs-on: ubuntu-latest
+    env:
+      S2_COMPAT_KERNEL_URL: https://github.com/${{ github.repository }}/releases/download/compat-kernel-v6.6.50/compat-kernel.deb
+      S2_COMPAT_KERNEL_SHA256: cd62738b1a85029517d7aa64018454e78c0492391ea7b0334d1b254587c358cc
+      RAMEN_CI_STRICT: "1"
+      LINT_ALLOW_WARNINGS: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf python3 gcc cpio gzip e2fsprogs curl
+
+      - name: Prepare S2 compat kernel cache dir
+        run: mkdir -p out/compat_s2/kernel
+
+      - name: Cache pinned S2 compat kernel
+        uses: actions/cache@v4
+        with:
+          path: out/compat_s2/kernel
+          key: ${{ runner.os }}-s2-compat-kernel-${{ env.S2_COMPAT_KERNEL_SHA256 }}
+          restore-keys: |
+            ${{ runner.os }}-s2-compat-kernel-
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
+          rustup component add rust-src llvm-tools rustfmt clippy
+          rustup target add x86_64-unknown-none aarch64-unknown-none x86_64-unknown-uefi aarch64-unknown-uefi
+
+      - name: Generate IDL bindings
+        run: bash tools/ci/run_codegen.sh
+
+      - name: Lint Baseline (workspace clippy)
+        run: |
+          bash tools/ci/foundry_lint_baseline.sh
+
+      - name: Lint Strict Tranche 1
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche1.sh
+
+      - name: Lint Strict Tranche 2
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche2.sh
+
+      - name: Lint Strict Tranche 3
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche3.sh
+
+      - name: Lint Strict Tranche 4
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche4.sh
+
+      - name: Lint Strict Tranche 5
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche5.sh
+
+      - name: Lint Strict Tranche 6
+        run: |
+          bash tools/ci/foundry_lint_strict_tranche6.sh
+
+      - name: Workspace tests
+        run: cargo test --workspace --exclude kernel_uefi --exclude kernel_aarch64
+
+      - name: Foundry S0+S1+S2+S3+S4+S5+S6+S7+S8-Phase1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          S7_MIN_PROTOCOL_EVENTS: "6"
+          S7_MIN_PROTOCOL_PAIRS: "3"
+          S7_MIN_SCENARIO_EVENTS: "4"
+          S7_MIN_OBSERVED_CAPS: "1"
+          S7_MIN_CAP_GRANTED: "1"
+          S7_MIN_CAP_USED: "1"
+          S7_MIN_EXPORT_WIDTH: "1280"
+          S7_MIN_EXPORT_HEIGHT: "720"
+          S7_EVIDENCE_POLICY_PATH: evidence_policy.toml
+        run: |
+          set -x
+          tools/ci/foundry_all_s0_s1_s2_s3_s4_s5_s6.sh
+
+      - name: Foundry CI extended (S7 security + S9/S10 + S11 gates)
+        env:
+          SKIP_E2E_ASSERTIONS: "1"
+        run: bash tools/ci/foundry_ci_extended.sh

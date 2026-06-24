@@ -1,0 +1,15 @@
+[package]
+name = "kernel_aarch64"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "kernel_aarch64"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+kernel = { path = "../kernel", features = ["test_protocols"] }
+
+[build-dependencies]

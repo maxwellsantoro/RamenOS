@@ -1,0 +1,14 @@
+[package]
+name = "gpu_manager"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+kernel_api = { path = "../../kernel_api" }
+store_service = { path = "../store_service" }
+
+[dev-dependencies]
+tempfile = "3"

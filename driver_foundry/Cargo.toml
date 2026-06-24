@@ -1,0 +1,11 @@
+[package]
+name = "driver_foundry"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+artifact_store_schema = { path = "../artifact_store_schema" }
+kernel_api = { path = "../kernel_api" }
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"

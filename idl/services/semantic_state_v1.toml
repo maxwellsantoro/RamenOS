@@ -1,0 +1,56 @@
+# Semantic State Service v1
+#
+# Provides structured introspection of the operating system state.
+# Designed for AI agent ingestion via JSON/Markdown.
+
+namespace = "services.semantic_state"
+version = "1"
+protocol = 10
+
+[meta]
+description = "System-wide state discovery and observability"
+
+# Request a full platform state snapshot.
+# The reply contains a shared memory capability handle containing the 
+# serialized PlatformSnapshotV0 (JSON or Markdown).
+[message.get_snapshot]
+msg_type = 1
+fields = [
+    "cap_handle:u64",
+    "request_id:u64",
+    "format:u32", # 0 = JSON, 1 = Markdown
+]
+
+[message.get_snapshot_reply]
+msg_type = 2
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "shm_cap:u64",    # Capability handle for the shared memory region
+    "shm_size:u64",   # Size of the data within the region
+]
+
+# Subscription for semantic events (Push model)
+[message.subscribe]
+msg_type = 3
+fields = [
+    "request_id:u64",
+    "event_mask:u32", # Bitmask of events to watch
+]
+
+[message.subscribe_reply]
+msg_type = 4
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "subscription_id:u64",
+]
+
+# Service -> Agent: Push notification of state change
+[message.state_changed_event]
+msg_type = 5
+fields = [
+    "subscription_id:u64",
+    "event_type:u32",
+    "shm_cap:u64",
+]

@@ -1,0 +1,58 @@
+# --- Generated Code (High Token Savings) ---
+# The LLM can read the .toml files in idl/ to understand the contract.
+# The generated Rust structs are verbose and redundant.
+kernel_api/src/generated/
+tools/capsule/generated/
+
+# --- Lock Files & Configs ---
+Cargo.lock
+.claude/
+.vscode/
+.idea/
+.gitignore
+justfile
+rust-toolchain.toml
+evidence_policy.toml
+
+# --- Tests & Benchmarks ---
+**/tests/
+**/*_test.rs
+**/benches/
+**/*_bench.rs
+**/examples/
+
+# --- CI/CD & Tools ---
+.github/
+foundry/
+tools/
+drivers/
+runners/
+
+# --- Archives & Planning ---
+archive/
+plans/
+store/
+
+# --- Documentation (keep only essential) ---
+docs/
+*.md
+!README.md
+!CONSTITUTION.md
+!AGENTS.md
+
+# --- Build Scripts & Linker Files ---
+**/build.rs
+**/*.ld
+**/*.s
+
+# --- Binary & Data Files ---
+**/*.bin
+**/*.o
+**/*.a
+**/*.json
+!idl/**/*.toml
+!store/catalog.json
+
+# --- Build Artifacts ---
+out/
+target/

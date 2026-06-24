@@ -1,0 +1,45 @@
+# Network device harness v1.
+#
+# Packet bytes travel through shared memory; the control plane carries only
+# handles, offsets, lengths, request IDs, and status values.
+
+namespace = "harness.net"
+version = "1"
+protocol = 800 # 0x320
+
+[meta]
+description = "Native network device harness for Driver Factory distillation"
+
+[message.send_packet]
+msg_type = 1
+fields = [
+    "request_id:u64",
+    "data_shm_cap:u64",
+    "data_offset:u64",
+    "data_len:u32",
+]
+
+[message.send_packet_reply]
+msg_type = 2
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "bytes_sent:u32",
+]
+
+[message.receive_packet]
+msg_type = 3
+fields = [
+    "request_id:u64",
+    "buffer_shm_cap:u64",
+    "buffer_offset:u64",
+    "buffer_len:u32",
+]
+
+[message.receive_packet_reply]
+msg_type = 4
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "bytes_received:u32",
+]

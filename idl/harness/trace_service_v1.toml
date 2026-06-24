@@ -1,0 +1,35 @@
+namespace = "trace.service"
+version = "1"
+protocol = 9
+
+[message.create_trace_buffer]
+msg_type = 1
+fields = ["request_id:u64", "domain_id:u64", "size:u32"]
+
+[message.create_trace_buffer_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "trace_cap:u64"]
+
+[message.destroy_trace_buffer]
+msg_type = 3
+fields = ["request_id:u64", "trace_cap:u64"]
+
+[message.destroy_trace_buffer_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32"]
+
+[message.read_trace]
+msg_type = 5
+fields = ["request_id:u64", "trace_cap:u64", "offset:u64", "length:u32"]
+
+[message.read_trace_reply]
+msg_type = 6
+fields = ["request_id:u64", "status:u32", "data_len:u32"]
+
+[message.get_trace_info]
+msg_type = 7
+fields = ["request_id:u64", "trace_cap:u64"]
+
+[message.get_trace_info_reply]
+msg_type = 8
+fields = ["request_id:u64", "status:u32", "domain_id:u64", "size:u32", "read_offset:u64", "write_offset:u64"]

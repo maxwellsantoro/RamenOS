@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+  "kernel",
+  "kernel_api",
+  "kernel_aarch64",
+  "kernel_uefi",
+  "idl_codegen",
+  "runtime_supervisor",
+  "store_cli",
+  "artifact_store_core",
+  "artifact_store_schema",
+  "services/portals",
+  "services/domain_manager",
+  "services/capsule_relay",
+  "services/semantic_state",
+  "services/store_service",  # V-007 Phase 2: Store service
+  "services/gpu_manager",  # GPU quarantine service (extracted from domain_manager)
+  "services/trace_client",  # V-012 Phase 5: User-space trace service client
+  "services/native_runner",  # S10.0: Native WASM runner
+  "services/kernel_harness_proxy",  # S10.5.1: Host kernel harness proxy
+  "services/execution_fabric",  # S10.4: Execution fabric simulation service
+  "driver_foundry",  # S11: Driver Factory host replay tooling
+  "sdk",  # V-006 Phase 4: Native WASM SDK
+  "examples/hello_wasm",  # V-006 Phase 4: Hello World WASM example
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"

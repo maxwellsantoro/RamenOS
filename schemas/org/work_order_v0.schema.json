@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramenos.local/schemas/org/work_order_v0.schema.json",
+  "title": "WorkOrderV0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_kind",
+    "work_order_id",
+    "repo_sha",
+    "role",
+    "authority_level",
+    "task",
+    "scope",
+    "context_refs",
+    "constraints",
+    "required_gates",
+    "claim_level_allowed",
+    "rollback_plan"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "packet_kind": { "const": "work_order_v0" },
+    "work_order_id": { "type": "string", "minLength": 1 },
+    "repo_sha": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "authority_level": {
+      "type": "string",
+      "enum": ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+    },
+    "task": { "type": "string", "minLength": 1 },
+    "scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "context_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "required_gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "claim_level_allowed": { "type": "string", "minLength": 1 },
+    "rollback_plan": { "type": "string", "minLength": 1 }
+  }
+}

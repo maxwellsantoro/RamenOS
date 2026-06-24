@@ -1,0 +1,41 @@
+# S13 persistent storage contract.
+# Source of truth for Foundry gates and Driver Factory agents.
+
+schema_version = 1
+slice = "S13"
+status = "reference"
+
+[oracle]
+# QEMU stepping stone — mirrors S11 virtio-net choice.
+device = "virtio-blk-pci"
+environment = "qemu_linux_capsule"
+harness = "harness.block"
+idl = "idl/harness/block_v1.toml"
+vault = "drivers/reference_vaults/virtio-blk"
+
+[metal]
+# Graduation target on Tier-1 golden machine class.
+device = "nvme_pcie"
+boot_firmware = "uefi"
+partition_scheme = "gpt_ab_slots"
+requires_golden_machine = true
+golden_machine_manifest = "hardware/golden_machine_v0.toml"
+
+[metal.ab_slot]
+# UEFI vendor variable consumed by kernel_uefi/src/ab_slot_probe.rs
+uefi_vendor_guid = "a3b8c14e-5f20-4d71-9e62-1308ab080000"
+uefi_variable = "RamenAbSlot"
+# Payload v1: byte0=schema(1), byte1=active_slot(0=A|1=B), byte2=rollback_ready(1=ok)
+schema_version = 1
+boot_nonce_variable = "RamenBootNonce"
+
+[serial_markers]
+block_read_ok = "persistent_storage: block_read ok"
+block_write_ok = "persistent_storage: block_write ok"
+harness_ok = "persistent_storage: harness.block ok"
+nvme_boot_ok = "persistent_storage: nvme_boot ok"
+atomic_update_ok = "persistent_storage: atomic_update ok"
+
+[hil]
+# Metal NVMe gates run only when RAMEN_HIL_GOLDEN_MACHINE=1.
+default_ci = "skip"

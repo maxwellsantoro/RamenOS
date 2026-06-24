@@ -1,0 +1,27 @@
+namespace = "portal.file_picker"
+version = "1"
+protocol = 256 # 0x100
+
+[message.open_file_ro]
+msg_type = 1
+fields = ["request_id:u64", "purpose:u32", "allow_multiple:u8", "reserved0:u8", "reserved1:u16"]
+
+[message.open_file_ro_reply]
+msg_type = 2
+fields = ["request_id:u64", "token:u64", "status:u32", "reserved:u32"]
+
+[message.resolve_token]
+msg_type = 3
+fields = ["token:u64"]
+
+[message.resolve_token_reply]
+msg_type = 4
+fields = ["token:u64", "status:u32", "reserved:u32", "content_id_hash:u64", "size_bytes:u64"]
+
+[message.cancel]
+msg_type = 5
+fields = ["token:u64"]
+
+[message.cancel_reply]
+msg_type = 6
+fields = ["token:u64", "status:u32", "reserved:u32"]

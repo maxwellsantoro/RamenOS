@@ -1,0 +1,91 @@
+# HIL appliance controller contract (S12.4 / S13.9).
+# Source of truth for Raspberry Pi-class lab controller requirements.
+
+schema_version = 1
+tier = 1
+status = "serial_observer_scaffold"
+role = "hil_appliance_controller"
+gate = "tools/ci/foundry_hil_appliance_s12_4.sh"
+
+[naming]
+long = "HIL Appliance Controller"
+short = "HIL appliance"
+code_prefix = "hil_appliance"
+env_prefix = "RAMEN_HIL_APPLIANCE"
+slice = "S12.4 / S13.9 HIL Appliance Controller"
+
+[controller]
+id = "pi-hil-01"
+family = "raspberry-pi"
+os = "linux"
+network = "ethernet_preferred"
+trust_boundary = "lab_infrastructure_not_target_tcb"
+
+[requirements]
+ssh = true
+persistent_logs = true
+serial_capture = "usb_rs232_default"
+power_control = "relay_front_panel"
+reset_control = "relay_front_panel"
+evidence_bundle = true
+
+[serial]
+default_device = "/dev/ttyUSB0"
+baud = 115200
+data_bits = 8
+parity = "none"
+stop_bits = 1
+safe_default = "target_com_or_db9_to_usb_rs232_adapter"
+raw_gpio_uart = "ttl_3v3_only"
+forbidden = "direct_pi_gpio_to_rs232_db9"
+
+[relay]
+channels = ["pwr_sw", "reset_sw"]
+default_power_relay = "pwr_sw"
+default_reset_relay = "reset_sw"
+press_ms = 500
+hard_power_recovery = "optional_smart_plug_or_pdu"
+
+[kvm.future]
+video_capture = "uvc_hdmi_capture"
+hid_injection = "usb_hid_gadget"
+virtual_media = "usb_mass_storage_gadget_or_boot_media_mux"
+
+[evidence]
+schema = "docs/HIL_APPLIANCE_EVIDENCE_V0.md"
+kind = "hil_appliance_run_v0"
+run_id_prefix = "hil_appliance"
+dir = "out/evidence"
+required_fields = [
+  "schema_version",
+  "evidence_kind",
+  "evidence_level",
+  "run_id",
+  "appliance_id",
+  "target_id",
+  "git_sha",
+  "gate",
+  "started_at_unix_ms",
+  "ended_at_unix_ms",
+  "serial_device",
+  "serial_input_kind",
+  "serial_log_sha256",
+  "controller_log_sha256",
+  "power_events",
+  "artifact_hashes",
+  "serial_markers_observed",
+  "target_hil_evidence_markers",
+  "gate_evidence",
+  "result",
+]
+
+[env]
+enable = "RAMEN_HIL_APPLIANCE=1"
+appliance_id = "RAMEN_HIL_APPLIANCE_ID"
+target_id = "RAMEN_HIL_TARGET_ID"
+serial_dev = "RAMEN_HIL_SERIAL_DEV"
+power_relay = "RAMEN_HIL_POWER_RELAY"
+reset_relay = "RAMEN_HIL_RESET_RELAY"
+evidence_dir = "RAMEN_HIL_EVIDENCE_DIR"
+
+default_ci = "docs_and_manifest_only"

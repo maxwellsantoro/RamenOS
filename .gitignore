@@ -1,0 +1,36 @@
+# Rust
+target/
+**/target/
+Cargo.lock
+*.rlib
+
+# Generated
+**/generated/
+**/*.generated.rs
+!kernel_api/src/generated/
+!kernel_api/src/generated/*.generated.rs
+!sdk/src/generated/
+!sdk/src/generated/mod.rs
+
+# OS images / artifacts (later)
+out/
+dist/
+*.img
+*.iso
+
+# macOS metadata
+.DS_Store
+._*
+.idea/
+.vscode/
+
+# Git worktrees
+.worktrees/
+
+# Logs
+*.log
+repomix-output.xml
+
+# Python cache artifacts
+__pycache__/
+*.pyc

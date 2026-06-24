@@ -1,0 +1,58 @@
+# Execution Fabric v1 — capability-scheduled execution control plane
+#
+# S10.4 contract slice: artifact-based messages, simulation-first.
+
+namespace = "services.execution_fabric"
+version = "1"
+protocol = 11
+
+[meta]
+description = "Policy/control service for resource leases and execution lifecycle"
+
+[message.register_node]
+msg_type = 1
+fields = ["request_id:u64", "node_manifest_hash:bytes32", "capability_token:u64"]
+
+[message.register_node_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "node_id:u64"]
+
+[message.report_node_load]
+msg_type = 3
+fields = ["request_id:u64", "node_id:u64", "load_snapshot_hash:bytes32", "capability_token:u64"]
+
+[message.report_node_load_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32"]
+
+[message.request_lease]
+msg_type = 5
+fields = ["request_id:u64", "resource_request_hash:bytes32", "capability_token:u64"]
+
+[message.request_lease_reply]
+msg_type = 6
+fields = ["request_id:u64", "status:u32", "lease_id:u64", "lease_hash:bytes32"]
+
+[message.submit_execution]
+msg_type = 7
+fields = ["request_id:u64", "execution_request_hash:bytes32", "lease_id:u64", "capability_token:u64"]
+
+[message.submit_execution_reply]
+msg_type = 8
+fields = ["request_id:u64", "status:u32", "execution_id:u64", "execution_trace_hash:bytes32"]
+
+[message.attach_execution]
+msg_type = 9
+fields = ["request_id:u64", "execution_id:u64", "capability_token:u64"]
+
+[message.attach_execution_reply]
+msg_type = 10
+fields = ["request_id:u64", "status:u32", "stream_id:u64"]
+
+[message.cancel_execution]
+msg_type = 11
+fields = ["request_id:u64", "execution_id:u64", "capability_token:u64"]
+
+[message.cancel_execution_reply]
+msg_type = 12
+fields = ["request_id:u64", "status:u32"]

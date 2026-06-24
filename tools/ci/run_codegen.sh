@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Generate all IDL bindings (single source of truth for justfile, CI, and preflight).
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
+
+run_codegen() {
+  cargo run -p idl_codegen -- "$@"
+}
+
+run_codegen --in idl/harness/ping_harness.toml --out kernel_api/src/generated/ping_harness.generated.rs
+run_codegen --in idl/harness/capsule_control_v0.toml --out kernel_api/src/generated/capsule_control_v0.generated.rs
+run_codegen --in idl/harness/capsule_control_v0.toml --out tools/capsule/generated/capsule_control_v0.h
+run_codegen --in idl/harness/echo_harness_v0.toml --out kernel_api/src/generated/echo_harness_v0.generated.rs
+run_codegen --in idl/portals/file_picker_v1.toml --out kernel_api/src/generated/portal_file_picker.generated.rs
+run_codegen --in idl/portals/clipboard_v1.toml --out kernel_api/src/generated/portal_clipboard.generated.rs
+run_codegen --in idl/portals/notifications_v1.toml --out kernel_api/src/generated/portal_notifications.generated.rs
+run_codegen --in idl/portals/screen_capture_v1.toml --out kernel_api/src/generated/portal_screen_capture.generated.rs
+run_codegen --in idl/harness/domain_manager_v1.toml --out kernel_api/src/generated/domain_manager_v1.generated.rs
+run_codegen --in idl/harness/gpu_quarantine_v1.toml --out kernel_api/src/generated/gpu_quarantine_v1.generated.rs
+run_codegen --in idl/harness/net_v1.toml --out kernel_api/src/generated/net_v1.generated.rs
+run_codegen --in idl/harness/block_v1.toml --out kernel_api/src/generated/block_v1.generated.rs
+run_codegen --in idl/harness/shmem_control_v1.toml --out kernel_api/src/generated/shmem_control_v1.generated.rs
+run_codegen --in idl/services/store_service_v1.toml --out kernel_api/src/generated/store_service_v1.generated.rs
+run_codegen --in idl/harness/trace_service_v1.toml --out kernel_api/src/generated/trace_service_v1.generated.rs
+run_codegen --in idl/harness/echo_harness_v1.toml --out kernel_api/src/generated/echo_harness_v1.generated.rs
+run_codegen --in idl/harness/trace_service_v2.toml --out kernel_api/src/generated/trace_service_v2.generated.rs
+run_codegen --in idl/services/semantic_state_v1.toml --out kernel_api/src/generated/semantic_state_v1.generated.rs
+run_codegen --in idl/harness/semantic_store_v1.toml --out kernel_api/src/generated/semantic_store_v1.generated.rs
+run_codegen --in idl/services/execution_fabric_v1.toml --out kernel_api/src/generated/execution_fabric_v1.generated.rs
+run_codegen --in idl/harness/echo_harness_v0.toml --out sdk/src/generated/harness_echo_v0.rs --lang wasm-imports
+run_codegen --in idl/services/semantic_state_v1.toml --out sdk/src/generated/services_semantic_state_v1.rs --lang wasm-imports
+run_codegen --in idl/harness/shmem_control_v1.toml --out sdk/src/generated/harness_shmem_control_v1.rs --lang wasm-imports
+run_codegen --in idl/services/semantic_state_v1.toml --out services/native_runner/src/generated/services_semantic_state_v1_host.rs --lang wasm-host
+run_codegen --in idl/harness/shmem_control_v1.toml --out services/native_runner/src/generated/harness_shmem_control_v1_host.rs --lang wasm-host
+run_codegen --in idl/harness/echo_harness_v1.toml --out services/native_runner/src/generated/harness_echo_v1_host.rs --lang wasm-host
+run_codegen --in idl/harness/trace_service_v2.toml --out services/native_runner/src/generated/harness_trace_v2_host.rs --lang wasm-host
+
+echo "CODEGEN: ok"

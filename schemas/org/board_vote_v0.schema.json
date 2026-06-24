@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramenos.local/schemas/org/board_vote_v0.schema.json",
+  "title": "BoardVoteV0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_kind",
+    "vote_id",
+    "proposal_id",
+    "repo_sha",
+    "role",
+    "vote",
+    "claim_checked",
+    "evidence",
+    "blocking_conditions"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "packet_kind": { "const": "board_vote_v0" },
+    "vote_id": { "type": "string", "minLength": 1 },
+    "proposal_id": { "type": "string", "minLength": 1 },
+    "repo_sha": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "vote": {
+      "type": "string",
+      "enum": ["approve", "reject", "abstain", "block"]
+    },
+    "claim_checked": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_evidence_refs",
+        "gate_evidence_refs",
+        "claim_evidence_refs",
+        "hil_evidence_refs",
+        "release_evidence_refs"
+      ],
+      "properties": {
+        "design_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "gate_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "claim_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "hil_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "release_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "blocking_conditions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

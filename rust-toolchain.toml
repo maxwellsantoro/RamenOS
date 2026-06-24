@@ -1,0 +1,12 @@
+[toolchain]
+# Use nightly for bare-metal work; pinned to 2026-02-08.
+# Rotation cadence: monthly or when new unstable features are needed.
+# Document rotation in CHANGELOG.md.
+channel = "nightly-2026-02-08"
+components = ["rust-src", "llvm-tools", "rustfmt", "clippy"]
+targets = [
+  "x86_64-unknown-none",
+  "aarch64-unknown-none",
+  "x86_64-unknown-uefi",
+  "aarch64-unknown-uefi",
+]

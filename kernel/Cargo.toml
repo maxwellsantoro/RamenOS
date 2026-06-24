@@ -1,0 +1,18 @@
+[package]
+name = "kernel"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+kernel_api = { path = "../kernel_api" }
+spin = "0.9"
+
+[features]
+default = []
+# Enable debug/test protocols (e.g., PING protocol exemption from capability validation)
+# This should ONLY be enabled for development/testing, never in production builds
+test_protocols = []

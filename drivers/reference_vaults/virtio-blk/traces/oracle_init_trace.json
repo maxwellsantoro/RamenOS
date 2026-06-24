@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "trace_id": "sha256:eb816f3657bb580734d22600b8e3d6f56e27567ac001ac63585798b2659bd8ac",
+    "oracle": "linux-virtio-blk",
+    "device_model": "virtio-blk-pci",
+    "pci_vendor_id": 6900,
+    "pci_device_id": 4097,
+    "pci_bdf": "0000:00:04.0",
+    "capture_tool": "virtio_blk_oracle_capture"
+  },
+  "events": [
+    {
+      "seq": 1,
+      "kind": "pci_config_read",
+      "timestamp_ns": 2172289135,
+      "bar": 255,
+      "offset": 0,
+      "width": 2,
+      "value": 6900,
+      "result": "ok"
+    },
+    {
+      "seq": 2,
+      "kind": "pci_config_read",
+      "timestamp_ns": 2174396768,
+      "bar": 255,
+      "offset": 2,
+      "width": 2,
+      "value": 4097,
+      "result": "ok"
+    },
+    {
+      "seq": 3,
+      "kind": "mmio_read",
+      "timestamp_ns": 2177320260,
+      "bar": 0,
+      "offset": 18,
+      "width": 2,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 4,
+      "kind": "mmio_write",
+      "timestamp_ns": 2177760183,
+      "bar": 0,
+      "offset": 18,
+      "width": 2,
+      "value": 1,
+      "result": "ok"
+    },
+    {
+      "seq": 5,
+      "kind": "mmio_write",
+      "timestamp_ns": 2178372077,
+      "bar": 0,
+      "offset": 18,
+      "width": 2,
+      "value": 3,
+      "result": "ok"
+    },
+    {
+      "seq": 6,
+      "kind": "mmio_read",
+      "timestamp_ns": 2178775007,
+      "bar": 0,
+      "offset": 0,
+      "width": 2,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 7,
+      "kind": "mmio_read",
+      "timestamp_ns": 2179219929,
+      "bar": 0,
+      "offset": 2,
+      "width": 2,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 8,
+      "kind": "mmio_write",
+      "timestamp_ns": 2179631857,
+      "bar": 0,
+      "offset": 4,
+      "width": 4,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 9,
+      "kind": "mmio_read",
+      "timestamp_ns": 2180046785,
+      "bar": 0,
+      "offset": 20,
+      "width": 4,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 10,
+      "kind": "mmio_read",
+      "timestamp_ns": 2180433718,
+      "bar": 0,
+      "offset": 24,
+      "width": 4,
+      "value": 33,
+      "result": "ok"
+    },
+    {
+      "seq": 11,
+      "kind": "mmio_write",
+      "timestamp_ns": 2180975624,
+      "bar": 0,
+      "offset": 14,
+      "width": 2,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 12,
+      "kind": "mmio_read",
+      "timestamp_ns": 2181374554,
+      "bar": 0,
+      "offset": 12,
+      "width": 2,
+      "value": 0,
+      "result": "ok"
+    },
+    {
+      "seq": 13,
+      "kind": "mmio_write",
+      "timestamp_ns": 2181768486,
+      "bar": 0,
+      "offset": 12,
+      "width": 2,
+      "value": 256,
+      "result": "ok"
+    },
+    {
+      "seq": 14,
+      "kind": "mmio_write",
+      "timestamp_ns": 2182162417,
+      "bar": 0,
+      "offset": 8,
+      "width": 4,
+      "value": 1048576,
+      "result": "ok"
+    },
+    {
+      "seq": 15,
+      "kind": "mmio_write",
+      "timestamp_ns": 2182564347,
+      "bar": 0,
+      "offset": 18,
+      "width": 2,
+      "value": 7,
+      "result": "ok"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramenos.local/schemas/org/context_grant_v0.schema.json",
+  "title": "ContextGrantV0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "grant_kind",
+    "task_id",
+    "work_order_id",
+    "repo_sha",
+    "authority_level",
+    "purpose",
+    "granted_context",
+    "authorized_new_paths",
+    "required_for_patch_plan",
+    "not_granted",
+    "context_expansion_policy"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "grant_kind": { "const": "context_grant_v0" },
+    "task_id": { "type": "string", "minLength": 1 },
+    "work_order_id": { "type": "string", "minLength": 1 },
+    "repo_sha": { "type": "string", "minLength": 1 },
+    "authority_level": { "type": "string", "enum": ["A0", "A1", "A2"] },
+    "purpose": { "type": "string", "enum": ["patch_plan", "patch"] },
+    "granted_context": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "access"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "sha256:[0-9a-f]{64}" },
+          "access": { "type": "string", "enum": ["read", "patch"] }
+        }
+      }
+    },
+    "authorized_new_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "required_for_patch_plan": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "not_granted": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "context_expansion_policy": { "type": "string", "minLength": 1 }
+  }
+}

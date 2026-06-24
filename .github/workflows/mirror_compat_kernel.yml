@@ -1,0 +1,60 @@
+name: Mirror compat kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. compat-kernel-v6.6.50)"
+        required: true
+        default: "compat-kernel-v6.6.50"
+      url:
+        description: "Upstream .deb URL"
+        required: true
+        default: "https://kernel.ubuntu.com/~kernel-ppa/mainline/v6.6.50/amd64/linux-image-unsigned-6.6.50-060650-generic_6.6.50-060650.202409080634_amd64.deb"
+      sha256:
+        description: "SHA256 of the .deb"
+        required: true
+        default: "cd62738b1a85029517d7aa64018454e78c0492391ea7b0334d1b254587c358cc"
+      asset_name:
+        description: "Asset filename in the release"
+        required: true
+        default: "compat-kernel.deb"
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl coreutils dpkg
+
+      - name: Download .deb
+        run: |
+          mkdir -p out/compat_kernel_mirror
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 10 --max-time 300 \
+            "${{ inputs.url }}" -o "out/compat_kernel_mirror/${{ inputs.asset_name }}"
+
+      - name: Verify SHA256
+        run: |
+          echo "${{ inputs.sha256 }}  out/compat_kernel_mirror/${{ inputs.asset_name }}" | sha256sum -c -
+
+      - name: Create/Update release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          body: |
+            Pinned compat kernel for deterministic S2 CI.
+            Source: ${{ inputs.url }}
+            SHA256: ${{ inputs.sha256 }}
+            License: Ubuntu kernel binaries (GPL); see upstream sources for corresponding source.
+          files: out/compat_kernel_mirror/${{ inputs.asset_name }}
+          fail_on_unmatched_files: true

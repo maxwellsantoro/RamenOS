@@ -1,0 +1,14 @@
+[package]
+name = "portals"
+version = "0.0.0"
+edition = "2021"
+default-run = "portals"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+kernel_api = { path = "../../kernel_api" }
+artifact_store_schema = { path = "../../artifact_store_schema" }
+store_service = { path = "../store_service" }
+hex = "0.4"

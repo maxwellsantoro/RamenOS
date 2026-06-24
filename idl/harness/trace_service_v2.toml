@@ -1,0 +1,27 @@
+# Trace Service v2 - Capability-based harness protocol
+#
+# This version uses cap_handle for capability-based access control.
+# Lifecycle operations (create/destroy/get_info) are handled through
+# the capability broker, not this harness protocol.
+#
+# Native WASM manifests should declare harness.trace_v2 for trace access.
+
+namespace = "harness.trace"
+version = "2"
+protocol = 530 # 0x212
+
+[message.trace_read]
+msg_type = 1
+fields = ["cap_handle:u64", "offset:u64", "max_len:u32", "reserved:u32"]
+
+[message.trace_read_reply]
+msg_type = 2
+fields = ["cap_handle:u64", "data_len:u32", "status:u32", "reserved:u32"]
+
+[message.trace_write]
+msg_type = 3
+fields = ["cap_handle:u64", "data_len:u32", "reserved:u32", "reserved2:u32"]
+
+[message.trace_write_reply]
+msg_type = 4
+fields = ["cap_handle:u64", "status:u32", "reserved:u32", "reserved2:u32"]

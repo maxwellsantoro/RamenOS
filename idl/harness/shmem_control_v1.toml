@@ -1,0 +1,57 @@
+namespace = "shared_memory.control"
+version = "1"
+protocol = 8
+
+[message.create_region]
+msg_type = 1
+fields = ["request_id:u64", "owner_domain_id:u64", "size_bytes:u64", "flags:u32", "page_size:u32"]
+
+[message.create_region_reply]
+msg_type = 2
+fields = ["request_id:u64", "region_id:u64", "shm_cap:u64", "phys_addr:u64", "status:u32", "reserved:u32"]
+
+[message.map_region]
+msg_type = 3
+fields = ["request_id:u64", "caller_domain_id:u64", "region_id:u64", "target_domain_id:u64", "shm_cap:u64", "rights:u32", "cache_mode:u32"]
+
+[message.map_region_reply]
+msg_type = 4
+fields = ["request_id:u64", "region_id:u64", "mapping_id:u64", "status:u32", "reserved:u32"]
+
+[message.unmap_region]
+msg_type = 5
+# P1 fix: Add caller_domain_id for authorization
+# The caller must be the owner of the region to unmap it
+fields = ["request_id:u64", "caller_domain_id:u64", "mapping_id:u64", "target_domain_id:u64"]
+
+[message.unmap_region_reply]
+msg_type = 6
+fields = ["request_id:u64", "mapping_id:u64", "status:u32", "reserved:u32"]
+
+[message.close_region]
+msg_type = 7
+# P1 fix: Add caller_domain_id for authorization
+# The caller must be the owner of the region to close it
+fields = ["request_id:u64", "caller_domain_id:u64", "region_id:u64"]
+
+[message.close_region_reply]
+msg_type = 8
+fields = ["request_id:u64", "region_id:u64", "status:u32", "reserved:u32"]
+
+# WASM Guest Bridge: Read from shared memory into linear memory
+[message.shmem_read]
+msg_type = 9
+fields = ["shm_cap:u64", "offset:u64", "len:u32"]
+
+[message.shmem_read_reply]
+msg_type = 10
+fields = ["status:u32", "bytes_read:u32"]
+
+# WASM Guest Bridge: Write to shared memory from linear memory
+[message.shmem_write]
+msg_type = 11
+fields = ["shm_cap:u64", "offset:u64", "data_offset:u64", "len:u32"]
+
+[message.shmem_write_reply]
+msg_type = 12
+fields = ["status:u32", "bytes_written:u32"]

@@ -1,0 +1,44 @@
+# Context copy for Driver Factory agents.
+# Source of truth: /idl/harness/block_v1.toml
+
+namespace = "harness.block"
+version = "1"
+protocol = 801 # 0x321
+
+[message.read_blocks]
+msg_type = 1
+fields = [
+    "request_id:u64",
+    "lba:u64",
+    "block_count:u32",
+    "block_size:u32",
+    "buffer_shm_cap:u64",
+    "buffer_offset:u64",
+]
+
+[message.read_blocks_reply]
+msg_type = 2
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "bytes_read:u32",
+]
+
+[message.write_blocks]
+msg_type = 3
+fields = [
+    "request_id:u64",
+    "lba:u64",
+    "block_count:u32",
+    "block_size:u32",
+    "data_shm_cap:u64",
+    "data_offset:u64",
+]
+
+[message.write_blocks_reply]
+msg_type = 4
+fields = [
+    "request_id:u64",
+    "status:u32",
+    "bytes_written:u32",
+]

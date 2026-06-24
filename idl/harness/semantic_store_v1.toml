@@ -1,0 +1,26 @@
+# Semantic Store v1 — structured metadata queries over projection storage
+#
+# Phase 1 (S10.3): path and tag queries against the semantic index.
+
+namespace = "harness.semantic_store"
+version = "1"
+protocol = 12
+
+[meta]
+description = "Semantic index queries for projection storage"
+
+[message.query_by_path]
+msg_type = 1
+fields = ["cap_handle:u64", "request_id:u64", "path_shm_cap:u64", "path_len:u32"]
+
+[message.query_by_path_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "content_id_hash:bytes32"]
+
+[message.query_by_tag]
+msg_type = 3
+fields = ["cap_handle:u64", "request_id:u64", "tag_shm_cap:u64", "tag_len:u32"]
+
+[message.query_by_tag_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32", "result_shm_cap:u64", "result_len:u32", "content_id_count:u32"]

@@ -1,0 +1,19 @@
+[package]
+name = "domain_manager"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+kernel_api = { path = "../../kernel_api" }
+clap = { version = "4", features = ["derive"] }
+# V-007 Phase 2: Store service client for IPC-based artifact operations
+store_service = { path = "../store_service" }
+# Converge to canonical schema types from artifact_store_schema
+# See: docs/plans/investigation_deep_security_review_2026-02-13.md
+artifact_store_schema = { path = "../../artifact_store_schema" }
+semantic_state = { path = "../semantic_state" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+rand = "0.8"

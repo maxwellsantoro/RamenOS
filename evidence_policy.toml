@@ -1,0 +1,5 @@
+schema_version = 1
+max_bytes = 262144
+kinds = ["trace_artifact_v0", "observed_caps_v0", "scenario_trace", "crash_context_v0"]
+redact_literals = ["SECRET_TOKEN", "api_key=", "authorization: bearer "]
+replacement = "[REDACTED]"

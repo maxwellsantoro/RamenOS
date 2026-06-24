@@ -1,0 +1,11 @@
+[package]
+name = "hello_wasm"
+version = "0.0.0"
+edition = "2021"
+description = "Hello World WASM example using RamenOS SDK"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ramen_sdk = { path = "../../sdk" }

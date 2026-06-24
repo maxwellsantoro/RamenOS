@@ -1,0 +1,12 @@
+[package]
+name = "ramen_sdk"
+version = "0.0.0"
+edition = "2021"
+description = "RamenOS SDK for native WASM development"
+
+[dependencies]
+# No external dependencies for core SDK
+
+[features]
+default = []
+std = []

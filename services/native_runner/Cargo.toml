@@ -1,0 +1,31 @@
+# services/native_runner/Cargo.toml
+[package]
+name = "native_runner"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+# Feature for testing real kernel IPC (requires a running kernel socket)
+test_kernel_ipc = []
+
+[lib]
+name = "native_runner"
+path = "src/lib.rs"
+
+[[bin]]
+name = "native_runner"
+path = "src/bin/native_runner.rs"
+
+[dependencies]
+wasmtime = "27"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+kernel_api = { path = "../../kernel_api" }
+memmap2 = "0.9"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"
+wat = "1"

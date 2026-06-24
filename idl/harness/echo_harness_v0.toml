@@ -1,0 +1,11 @@
+namespace = "harness.echo"
+version = "0"
+protocol = 528 # 0x210
+
+[message.echo_request]
+msg_type = 1
+fields = ["request_id:u64", "payload_len:u32", "reserved:u32"]
+
+[message.echo_reply]
+msg_type = 2
+fields = ["request_id:u64", "payload_len:u32", "status:u32"]

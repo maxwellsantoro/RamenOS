@@ -1,0 +1,44 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$TOOL_INPUT_file_path\"; if [[ \"$file\" == *Cargo.lock ]] || [[ \"$file\" == *.generated.rs ]]; then echo 'BLOCK: Do not edit lock files or generated code directly. Use cargo for lock files and just codegen for generated code.' >&2; exit 2; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$TOOL_INPUT_file_path\"; if [[ \"$file\" == *CONSTITUTION.md ]]; then echo 'BLOCK: CONSTITUTION.md is an invariant document. Changes require explicit user approval and a DECISIONS.md entry.' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$TOOL_INPUT_file_path\"; if [[ \"$file\" == *.rs ]]; then rustfmt \"$file\" 2>/dev/null; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$TOOL_INPUT_file_path\"; if [[ \"$file\" == *.rs ]]; then crate_dir=$(dirname \"$file\"); while [[ ! -f \"$crate_dir/Cargo.toml\" ]] && [[ \"$crate_dir\" != \"/\" ]]; do crate_dir=$(dirname \"$crate_dir\"); done; pkg=$(grep '^name' \"$crate_dir/Cargo.toml\" 2>/dev/null | head -1 | sed 's/.*\"\\(.*\\)\"/\\1/'); if [[ -n \"$pkg\" ]] && [[ \"$pkg\" != \"kernel_uefi\" ]] && [[ \"$pkg\" != \"kernel_aarch64\" ]]; then cargo clippy -p \"$pkg\" -- -D warnings 2>&1 | tail -20; fi; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+schema_version: 1
+task_id: S12.4.1
+slug: s12_4_1_serial_observer
+active_track: S12.4 HIL appliance v0 physical loop
+active_task: Harden S12.4.1 serial observer authority and evidence semantics under G0.8.1
+work_order_id: WO-2026-06-23-g0-8-1-serial-observer-claim-hygiene
+handoff_id: HO-2026-06-23-planner-to-implementer-g0-8-1
+vote_id: BV-2026-06-23-foundry-evidence-g0-8-1
+packet_id: BP-2026-06-23-g0-8-1
+from_role: Planner
+to_role: Implementer
+work_order_role: Implementer
+vote_role: Foundry Evidence Officer
+authority_level: A2
+claim_level_allowed: scaffold
+next_gate: just hil-appliance
+requested_output: Patch plus gate result summary for the S12.4.1 scaffold
+rollback_plan: Revert only files touched by this work order
+claim_boundary: A2-local only; no merge, no release, no self-approval, no HIL actuation, and no public support authority
+context_refs:
+  - CURRENT_STATUS.md
+  - NEXT_TASKS.md
+  - docs/org/current_task.yaml
+  - docs/plans/2026-06-22-hil-appliance-controller.md
+  - docs/plans/2026-06-23-research-backed-ramenorg.md
+  - docs/plans/2026-06-23-g0-4-read-only-steward-heartbeat.md
+  - docs/plans/2026-06-23-g0-5-agent-intake-freshness-binding.md
+  - docs/plans/2026-06-23-g0-6-intake-only-agent-trial.md
+  - docs/plans/2026-06-23-g0-7-bounded-context-grant.md
+  - docs/plans/2026-06-23-g0-8-bounded-implementation-trial.md
+  - EVIDENCE_LEVELS.md
+  - docs/HIL_APPLIANCE_EVIDENCE_V0.md
+  - tools/hil/appliance_capture_serial.sh
+context_grant_refs:
+  - CURRENT_STATUS.md
+  - NEXT_TASKS.md
+  - EVIDENCE_LEVELS.md
+  - docs/plans/2026-06-22-hil-appliance-controller.md
+  - docs/HIL_APPLIANCE_EVIDENCE_V0.md
+  - tools/hil/hil_gate_common.sh
+  - tools/hil/appliance_capture_serial.sh
+  - tools/ci/foundry_hil_appliance_s12_4.sh
+  - hardware/hil_appliance_v0.toml
+authorized_new_paths:
+scope:
+  - tools/hil
+  - tools/ci
+  - hardware
+  - NEXT_TASKS.md
+  - CURRENT_STATUS.md
+constraints:
+  - Do not claim PASS/METAL from stale serial logs
+  - Appliance evidence wraps per-gate evidence and does not replace it
+  - Pi GPIO UART is TTL-only; do not wire directly to RS-232
+  - G0.8.1 is A2-local and grants no merge, no release, no self-approval, no HIL actuation, and no public support authority
+required_gates:
+  - just hil-appliance
+  - just foundry-org-governance-g0
+parallel_tracks:
+  - G0 Org Kernel
+  - RQ-0001
+  - RQ-0002
+claims:
+  - S12.4.1 is the next active OS task | NEXT_TASKS.md
+  - G0.8.1 is A2-local only | docs/org/AUTHORITY_LEVELS.md
+design_evidence_refs:
+  - schemas/org/current_task_v0.schema.json
+  - schemas/org/work_order_v0.schema.json
+  - schemas/org/handoff_packet_v0.schema.json
+  - schemas/org/board_vote_v0.schema.json
+  - schemas/org/board_packet_v0.schema.json
+  - schemas/org/intake_manifest_v0.schema.json
+  - schemas/org/context_grant_v0.schema.json
+  - tools/org/validate_packets.py
+  - tools/org/test_validate_packets.py
+  - tools/org/render_board_brief.py
+  - tools/org/validate_intake_manifest.py
+  - tools/org/test_intake_bundle.py
+  - tools/org/render_context_grant.py
+  - tools/org/validate_context_grant.py
+  - tools/org/test_context_grant.py
+  - docs/org/current_task.yaml
+  - docs/org/BOARD_BRIEF_V0.md
+  - docs/org/INTAKE_BUNDLE_V0.md
+  - docs/org/CONTEXT_GRANT_V0.md
+  - docs/plans/2026-06-23-g0-8-bounded-implementation-trial.md
+  - docs/plans/2026-06-23-g0-8-1-implementation-authority-serial-claim-hygiene.md
+gate_evidence_refs:
+  - tools/ci/foundry_org_governance_g0.sh
+  - tools/ci/foundry_hil_appliance_s12_4.sh
+claim_evidence_refs:
+  - NEXT_TASKS.md
+  - docs/org/trials/2026-06-23-g0-6-intake-only-agent-trial.md
+  - docs/org/trials/2026-06-23-g0-7-bounded-context-patch-plan.md
+  - docs/org/trials/2026-06-23-g0-8-bounded-implementation-trial.md
+  - docs/org/trials/2026-06-23-g0-8-1-authority-serial-claim-hygiene.md
+hil_evidence_refs:
+release_evidence_refs:

@@ -1,0 +1,11 @@
+namespace = "portal.screen_capture"
+version = "1"
+protocol = 304 # 0x130
+
+[message.capture_frame]
+msg_type = 1
+fields = ["request_id:u64", "display_id:u32", "quality:u16", "reserved:u16"]
+
+[message.capture_frame_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "content_id_hash:u64", "size_bytes:u64"]
