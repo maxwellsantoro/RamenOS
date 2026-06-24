@@ -67,6 +67,7 @@ def cmd_oversize(path: str) -> None:
     sock.connect(path)
     time.sleep(0.5)
     sock.sendall(struct.pack("<I", 5000))
+    time.sleep(1.0)
 
 
 def main() -> int:
