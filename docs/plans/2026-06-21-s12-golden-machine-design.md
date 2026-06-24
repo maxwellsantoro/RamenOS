@@ -1,7 +1,7 @@
 # S12: First Metal (Golden Machine)
 
-**Last Updated:** 2026-06-21
-**Status:** Active (S12.1 GOP probe complete; S12.2 HIL next)
+**Last Updated:** 2026-06-24
+**Status:** Active reference; S12.0-S12.3 landed, S12.4 appliance loop active
 **Gate:** `tools/ci/foundry_s12_golden_machine_s12_0.sh`
 **Related:** `docs/HARDWARE_STRATEGY.md`, `ROADMAP.md` §12, `hardware/golden_machine_v0.toml`
 

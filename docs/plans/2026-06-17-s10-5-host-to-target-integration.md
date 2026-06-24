@@ -1,9 +1,9 @@
 # S10.5: Host-to-Target Integration
 
-**Last Updated:** 2026-06-17
-**Status:** Active (S10.5.0–S10.5.2 complete; S10.5.3+ deferred)
+**Last Updated:** 2026-06-24
+**Status:** Reference design; S10.5.0-S10.5.2 complete, later phases deferred
 **Gate:** `tools/ci/foundry_host_target_s10_5.sh` (in `foundry_ci_extended.sh`)
-**Related:** ROADMAP.md §5/§13, `docs/plans/2026-06-17-s10-2-1-subscribe-reactor.md`, CONSTITUTION.md
+**Related:** ROADMAP.md §5/§13, `docs/archive/plans/2026-06-17-s10-2-1-subscribe-reactor.md`, CONSTITUTION.md
 
 ---
 

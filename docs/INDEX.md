@@ -1,87 +1,104 @@
 # Documentation Index
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **Status:** Active
 
-## Authoritative Runtime Docs
-- `AGENTS.md` - contributor/agent operating constraints and active execution track.
-- `CURRENT_STATUS.md` - latest milestone state and validated completion evidence.
-- `NEXT_TASKS.md` - execution backlog and near-term implementation sequence.
-- `ROADMAP.md` - slice-level sequencing and medium/long-range priorities.
-- `docs/AGENTIC_WORKFLOW.md` - Guidelines for building the OS with AI coding agents.
-- `docs/org/ORG_CONSTITUTION.md` - RamenOrg governance invariants and G0 definition of done.
-- `docs/research/INDEX.md` - research-backed OS program index.
-- `RISKS.md` - active risk register and mitigations.
-- `DECISIONS.md` - ADR-lite decision log.
-- `CHANGELOG.md` - release and unreleased change history.
+This is the navigation hub for maintained documentation. Completed plans and
+investigations are preserved under [archive](archive/README.md), where they are
+historical and non-authoritative.
 
-## Architecture and Contracts
-- `CONSTITUTION.md` - non-negotiable platform invariants.
-- `PLATFORM_OVERVIEW.md` - high-level architecture.
-- `SLICES.md` - slice definitions.
-- `STORE_SPEC.md` - store platform specification.
-- `DRIVER_CAPSULE_SPEC.md` - capsule boundary specification.
-- `docs/HARDWARE_STRATEGY.md` - Tiered hardware and Golden Machine policy.
-- `idl/` - typed IDL contracts used by codegen and runtime boundaries.
+## Start Here
 
-## Active Plans
-- `docs/plans/2026-02-20-s10-3-projection-storage.md` - S10.3 Projection Storage (phases S10.3.0-S10.3.4 complete).
-- `docs/plans/2026-06-17-s10-3-1-projection-index-backend.md` - S10.3.1 projection index backend decision and gate.
-- `docs/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md` - S10.3.3 read-only VFS projection (virtio-9p decision + gate).
-- `docs/plans/2026-06-17-s10-3-4-cow-projection-writes.md` - S10.3.4 CoW projection writes (complete).
-- `docs/plans/2026-06-17-s10-4-execution-fabric.md` - S10.4 Execution Fabric (v0 scaffold + S10.4.1 wiring complete).
-- `docs/plans/2026-06-17-s10-2-1-subscribe-reactor.md` - S10.2.1 subscribe reactor (complete).
-- `docs/plans/2026-06-17-s10-2-v1-1-cap-filtered-snapshots.md` - S10.2 v1.1 capability-filtered snapshots (complete).
-- `docs/plans/2026-06-17-s10-5-1-broker-kernel-bridge.md` - S10.5.1 broker/proxy harness bridge (complete).
-- `docs/plans/2026-06-17-s10-5-2-qemu-ipc-bridge.md` - S10.5.2 QEMU IPC bridge (complete).
-- `docs/plans/2026-06-17-s10-5-host-to-target-integration.md` - S10.5 host→QEMU integration (S10.5.0-S10.5.2 complete).
-- `docs/plans/2026-02-20-s11-driver-factory-mvp.md` - S11 Driver Factory MVP (complete).
-- `docs/plans/2026-06-21-s12-golden-machine-design.md` - S12 First Metal / golden machine (S12.0 scaffold complete).
-- `docs/plans/2026-06-21-s13-persistent-storage-design.md` - S13 Persistent Storage (S13.0 contract scaffold).
-- `docs/plans/2026-06-22-hil-appliance-controller.md` - S12.4 / S13.9 HIL Appliance Controller scaffold.
-- `docs/plans/2026-06-23-research-backed-ramenorg.md` - G0 RamenOrg / research-backed OS planning track.
-- `docs/plans/2026-06-23-g0-1-board-packet-validators.md` - G0.1 board packet and packet-validator scaffold.
-- `docs/plans/2026-06-23-g0-2-active-task-cross-packet.md` - G0.2 active-task source and cross-packet consistency scaffold.
-- `docs/plans/2026-06-23-g0-3-current-task-negative-fixtures.md` - G0.3 current-task schema, vote SHA binding, and negative validator cases.
-- `docs/plans/2026-06-23-g0-3-1-governance-label-claim-boundary.md` - G0.3.1 governance label and claim-boundary hygiene.
-- `docs/plans/2026-06-23-g0-4-read-only-steward-heartbeat.md` - G0.4 read-only steward heartbeat and board brief.
-- `docs/plans/2026-06-23-g0-5-agent-intake-freshness-binding.md` - G0.5 hash-bound agent intake bundle.
-- `docs/plans/2026-06-23-g0-6-intake-only-agent-trial.md` - G0.6 fresh-agent intake-only usage trial.
-- `docs/plans/2026-06-23-g0-7-bounded-context-grant.md` - G0.7 bounded context grant and patch-plan trial.
-- `docs/plans/2026-06-23-g0-8-bounded-implementation-trial.md` - G0.8 bounded implementation trial for S12.4.1.
-- `docs/plans/2026-06-23-g0-8-1-implementation-authority-serial-claim-hygiene.md` - G0.8.1 authority and serial evidence hygiene.
+| Need | Document |
+|------|----------|
+| Project overview and first commands | [README](../README.md) |
+| Landed state | [Current Status](../CURRENT_STATUS.md) |
+| Next executable work | [Next Tasks](../NEXT_TASKS.md) |
+| Medium-range direction | [Roadmap](../ROADMAP.md) |
+| Slice definitions | [Vertical Slices](../SLICES.md) |
+| Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
+| Terms and concepts | [Glossary](GLOSSARY.md) |
+
+The operational source of truth is
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) plus
+[NEXT_TASKS.md](../NEXT_TASKS.md). `ROADMAP.md` is directional.
+
+## Architecture and Policy
+
+- [Constitution](../CONSTITUTION.md): non-negotiable platform invariants.
+- [Platform Overview](../PLATFORM_OVERVIEW.md): OS, Foundry, and Store shape.
+- [Store Spec](../STORE_SPEC.md): package intelligence and launch-plan model.
+- [Driver Capsule Spec](../DRIVER_CAPSULE_SPEC.md): quarantined legacy-driver boundary.
+- [Hardware Strategy](HARDWARE_STRATEGY.md): Tier-1 and Golden Machine policy.
+- [Evidence Levels](../EVIDENCE_LEVELS.md): allowed gate and hardware claims.
+- [Decisions](../DECISIONS.md): ADR-lite decision log.
+- [Risks](../RISKS.md): active risk register.
+- [Security Status](../SECURITY_STATUS.md): current security posture and residual risk.
+
+## Contracts and Artifact Formats
+
+- [Evidence Policy V0](EVIDENCE_POLICY_V0.md)
+- [Claim Artifact V0](CLAIM_V0.md)
+- [Trace Artifact V0](TRACE_ARTIFACT_V0.md)
+- [Observed Capabilities V0](OBSERVED_CAPS_V0.md)
+- [Queue Item V0](QUEUE_ITEM_V0.md)
+- [Compat Capsule V0](COMPAT_CAPSULE_V0.md)
+- [Ring Buffer V0](RING_BUFFER_V0.md)
+- [Multi-Domain Architecture](MULTI_DOMAIN.md)
+- [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
+- [`idl/`](../idl/): canonical typed interfaces and generated-binding inputs.
+
+## Active and Gate-Bound Plans
+
+These files remain under `docs/plans/` because they describe current work,
+deferred design surfaces, or contracts consumed directly by Foundry gates.
+
+### OS and Hardware
+
+- [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
+- [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
+- [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)
+- [Host-to-target integration](plans/2026-06-17-s10-5-host-to-target-integration.md)
+- [Driver Factory MVP](plans/2026-02-20-s11-driver-factory-mvp.md)
+- [Golden Machine](plans/2026-06-21-s12-golden-machine-design.md)
+- [Persistent storage](plans/2026-06-21-s13-persistent-storage-design.md)
+- [HIL Appliance Controller](plans/2026-06-22-hil-appliance-controller.md)
+
+Completed S10 sub-plans are archived; parent architecture documents stay active.
+Gate-bound S10.5 bridge plans remain beside their parent because Foundry checks
+consume their stable paths.
+
+### Security Operations
+
+- [POSIX runner residual risks](plans/posix_runner_remaining_risks.md)
+- [Security remediation program](plans/security_remediation_v006_v007_v012.md)
+- [Store service IPC design](plans/v007_phase2_store_service_ipc_design.md)
+
+These older documents remain active because gates, runtime warnings, or security
+guidance still cite their stable paths.
 
 ## RamenOrg and Research
-- `docs/org/ROLE_CHARTER.md` - role authority and veto domains.
-- `docs/org/AUTHORITY_LEVELS.md` - staged autonomy levels A0-A6.
-- `docs/org/current_task.yaml` - machine-readable active task for packet rendering.
-- `docs/org/CURRENT_TASK_V0.md` - current-task source contract.
-- `docs/org/HEARTBEATS.md` - recurring artifact-producing loops.
-- `docs/org/WORK_ORDER_V0.md` - bounded task packet schema.
-- `docs/org/HANDOFF_PACKET_V0.md` - agent-to-agent handoff schema.
-- `docs/org/BOARD_VOTE_V0.md` - evidence-backed vote schema.
-- `docs/org/BOARD_PACKET_V0.md` - read-only board packet schema.
-- `docs/org/BOARD_BRIEF_V0.md` - generated human-readable board brief contract.
-- `docs/org/INTAKE_BUNDLE_V0.md` - hash-bound agent intake bundle and manifest contract.
-- `docs/org/CONTEXT_GRANT_V0.md` - bounded context grant contract.
-- `docs/org/trials/2026-06-23-g0-6-intake-only-agent-trial.md` - isolated agent trial evidence and findings.
-- `docs/org/trials/2026-06-23-g0-7-bounded-context-patch-plan.md` - bounded context patch-plan trial evidence and findings.
-- `docs/org/trials/2026-06-23-g0-8-bounded-implementation-trial.md` - bounded implementation trial evidence and findings.
-- `docs/org/trials/2026-06-23-g0-8-1-authority-serial-claim-hygiene.md` - G0.8.1 authority and serial evidence hygiene trial.
-- `docs/org/CLAIM_SAFETY.md` - claim-level discipline for org and research outputs.
-- `docs/research/RESEARCH_PROGRAM.md` - operational model for research-backed development.
-- `docs/research/questions/RQ-0001-offer-boundaries.md` - offer-shaped service boundary research question.
-- `docs/research/questions/RQ-0002-ai-org-kernel.md` - AI-governed Org Kernel research question.
 
-## Operations and Security
-- `SECURITY_STATUS.md` - security posture summary and remediation status.
-- `runtime_supervisor/POSIX_RUNNER_SECURITY.md` - POSIX runner security model and controls.
-- `docs/EVIDENCE_POLICY_V0.md` - evidence policy contract.
-- `docs/LINT_DEBT.md` - lint governance and debt tracking.
+- [RamenOrg Constitution](org/ORG_CONSTITUTION.md)
+- [Authority Levels](org/AUTHORITY_LEVELS.md)
+- [Role Charter](org/ROLE_CHARTER.md)
+- [Current Task contract](org/CURRENT_TASK_V0.md) and
+  [machine-readable task](org/current_task.yaml)
+- [Work Order](org/WORK_ORDER_V0.md), [Handoff Packet](org/HANDOFF_PACKET_V0.md),
+  [Board Vote](org/BOARD_VOTE_V0.md), and [Board Packet](org/BOARD_PACKET_V0.md)
+- [Board Brief](org/BOARD_BRIEF_V0.md), [Intake Bundle](org/INTAKE_BUNDLE_V0.md),
+  and [Context Grant](org/CONTEXT_GRANT_V0.md)
+- [Claim Safety](org/CLAIM_SAFETY.md) and [Heartbeats](org/HEARTBEATS.md)
+- [Research index](research/INDEX.md) and [program](research/RESEARCH_PROGRAM.md)
+- [RamenOrg plan](plans/2026-06-23-research-backed-ramenorg.md)
 
-## Historical / Archived Material
-- `docs/archive/README.md` - archive policy for tracked documentation.
-- `docs/archive/plans/` - superseded plans and historical design/investigation documents.
+The G0 milestone plans and trial reports remain in place because the governance
+gate validates their exact paths.
 
-## Usage Notes
-- Prefer files in this index for planning and implementation decisions.
+## Maintenance
+
+- Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
+- Update `NEXT_TASKS.md` when execution order changes.
+- Move completed, non-gate-bound plans to `docs/archive/plans/`.
+- Repair inbound links in the same change as any move.
+- Do not duplicate current status in design docs; link to the authoritative pair.

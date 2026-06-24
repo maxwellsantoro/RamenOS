@@ -1,5 +1,8 @@
-# STORE_SPEC
-Package Intelligence Store v1
+# Store Specification
+
+**Last Updated:** 2026-06-24
+**Status:** Architecture reference
+**Version:** Package Intelligence Store v1
 
 ## 0) Goals
 The Store must:

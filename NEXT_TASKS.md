@@ -1,183 +1,79 @@
-# NEXT_TASKS
+# Next Tasks
 
-**Last Updated:** 2026-06-23
-**Status:** Active
+**Last Updated:** 2026-06-24
+**Status:** Active and authoritative for execution order
 
-> **Authoritative pair:** `CURRENT_STATUS.md` (what landed) + this file (what's next).
-> Completed slice checklists live in `SLICES.md`. Historical security waves are archived below.
+> [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
+> what to execute next. [ROADMAP.md](ROADMAP.md) is directional, not operational.
 
-## Active execution track
+## Active Execution Track
 
-**Now:** Implement the Raspberry Pi-class HIL appliance v0 physical loop: serial observer first, then power/reset actuator. S13 metal HIL graduation should run through the appliance once that loop is stable.
+**Now:** Implement the S12.4 HIL appliance v0 physical loop: stabilize the serial observer, then add the power/reset actuator. Run S13 metal HIL graduation through the appliance once that loop is stable.
 
-| Priority | Task | Gate / doc |
-|----------|------|------------|
-| P0 | S12.4.1 HIL appliance serial observer | `tools/hil/appliance_capture_serial.sh` + `RAMEN_HIL_APPLIANCE=1 just hil-appliance` |
-| P1 | S12.4.2 HIL appliance power/reset actuator | `tools/hil/appliance_press_power.sh`, `tools/hil/appliance_press_reset.sh`, controller evidence JSON |
-| P2 | S13 metal HIL graduation through appliance-mediated live capture | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` |
-| P3 | Physical S12 HIL graduation through appliance-mediated live capture | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` |
-| P4 | S14 USB xHCI + HID design pass | `ROADMAP.md` §S14; do not implement until appliance loop is stable |
+| Priority | Task | Completion signal |
+|----------|------|-------------------|
+| P0 | S12.4.1 HIL appliance serial observer | `RAMEN_HIL_APPLIANCE=1 just hil-appliance` captures live serial and emits valid controller evidence |
+| P1 | S12.4.2 HIL appliance power/reset actuator | Power and reset scripts are fail-safe, dry-run tested, and represented in controller evidence JSON |
+| P2 | S13 metal HIL graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance |
+| P3 | S12 physical graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
+| P4 | S14 USB xHCI and HID design pass | Approved short plan, IDL boundary, and Foundry gate definition before implementation |
 
-## Parallel project-control / research track
+### P0 Acceptance Criteria
 
-This track is first-class, but it does not supersede the OS execution track above.
-It exists so RamenOrg and research-backed planning stop living only in chat.
+- `tools/hil/appliance_capture_serial.sh` captures from the configured appliance
+  serial device without accepting stale graduation logs.
+- Empty transcripts and unsafe run ids fail closed.
+- Output distinguishes `PASS/HIL-LOG` replay from live
+  `PASS/HIL-APPLIANCE` evidence.
+- `just hil-appliance` remains green in its default docs/manifest mode and its
+  opt-in appliance mode.
+- No `PASS/METAL` claim is emitted without the required target provenance.
 
-| Priority | Task | Gate / doc |
-|----------|------|------------|
-| GP0 | G0.8.1 implementation authority and serial claim hygiene | `docs/plans/2026-06-23-g0-8-1-implementation-authority-serial-claim-hygiene.md`, `just foundry-org-governance-g0` |
-| GP1 | RQ-0002 AI-governed Org Kernel research packet | `docs/research/questions/RQ-0002-ai-org-kernel.md`, `tools/org/render_board_packet.py` |
-| GP2 | RQ-0001 offer-shaped service boundary research packet | `docs/research/questions/RQ-0001-offer-boundaries.md`, future offer-boundary design pass |
-| GP3 | Identity-level role separation | Future agent identity and review-domain model; no authority increase |
-| GP4 | Fresh implementation agent reproduction | Repeat G0.8.1 with an isolated agent bundle before widening authority; no authority increase |
+### P1 Acceptance Criteria
 
-**Authority guard:** G0 remains A0/A1 for board, planning, docs, and research.
-G0.8.1 admits A2-local implementation trials only inside an active work order.
-It must not grant merge, release, self-approval, HIL actuation, or public
-support authority without a later explicit decision.
+- Add `tools/hil/appliance_press_power.sh` and
+  `tools/hil/appliance_press_reset.sh`.
+- Relays default to inactive and enforce bounded pulse durations.
+- Dry-run behavior is deterministic and covered by the appliance gate.
+- Controller evidence records action, channel, duration, run id, and result.
+- Physical actuation remains opt-in; governance scaffolding grants no ambient
+  HIL actuation authority.
 
-**Recently scaffolded (2026-06-23):**
-- G0.9 first A2->A3 loop: closed the first end-to-end work loop on a real change
-  with separated implementer/reviewer roles, an evidence-bearing vote, green
-  gates, and the A3 merge gate (`validate_merge.py`). Outcome is `PASS/LOOP-LOCAL`
-  (not `PASS/MERGE`; remote merge needs branch protection + credentials, a
-  separate A3 decision). Added `requires_rq`/`doctrine_area` so research blocks
-  doctrine-level implementation (proven: requires open `RQ-0001` is rejected),
-  slice namespacing (`S##`/`R-<PROGRAM>-<n>`/`G#`) enforced by `status_drift.py`
-  (offers airlock is `R-OFFERS-1`), `HumanDirectiveV0` for founder vision
-  injection, `MergeRequestV0`/`MERGE_GATE_V0.md`, and `R-OFFERS-1` as a
-  research-bound slice honestly blocked on `RQ-0001`.
-- G0.8.1 implementation authority and serial observer claim hygiene: code-writing
-  trials are now classified as A2-local, not A1. The serial observer validates
-  `RAMEN_HIL_RUN_ID`, rejects empty transcripts, records `serial_input_kind`,
-  emits `PASS/HIL-LOG` for development replay and `PASS/HIL-APPLIANCE` for live
-  serial capture, and the HIL gate covers invalid-run-id and empty-log negatives.
-- G0.8 bounded implementation trial: `tools/hil/appliance_capture_serial.sh`
-  now implements the S12.4.1 serial observer scaffold. The HIL appliance gate
-  checks the observer contract with a synthetic transcript and proves stale
-  `RAMEN_HIL_SERIAL_LOG` replay is rejected in graduation mode. The trial is
-  recorded as `PASS/PATCH`; no merge, release, HIL actuation, or public support
-  authority was granted.
-- G0.7 bounded context grant: `ContextGrantV0` now binds eight selected context
-  files by path/hash/access and names `tools/hil/appliance_capture_serial.sh` as
-  an authorized new output path. The fresh-agent trial passed as
-  `PASS/PATCH-PLAN`: sufficient context, no expansion request, no hidden chat,
-  no external reads, and no implementation.
-- G0.6 intake-only agent trial: a fresh agent with no inherited thread context
-  received only the brief, manifest, and four packets. It recovered the bounded
-  plan, refs, gates, and authority without hidden chat context. Finding: those
-  six artifacts are sufficient for planning but not a responsible patch because
-  referenced context and scoped source contents are absent.
-- G0.5 agent intake bundle and freshness binding: packet validation reports a
-  SHA-256 ledger; the board brief verifies that ledger before rendering; and
-  `out/org/intake_manifest.json` binds the brief, packets, current task, and
-  validation report. The governance gate independently validates the manifest
-  and proves stale validation reports are rejected.
-- G0.4 read-only steward heartbeat / board brief: `tools/org/render_board_brief.py`
-  writes `out/org/current_board_brief.md` only after packet validation passes;
-  the governance gate checks Active Task, Authority Boundary, Required Gates,
-  Context Refs, Evidence Refs, and Allowed Next-Agent Actions sections.
-- G0.3.1 Governance label + claim-boundary hygiene: current-task labels,
-  renderer claim text, and validator diagnostics now identify G0.3.1; claim
-  boundaries must explicitly include no merge, no release, no HIL actuation, and
-  no public support authority; negative cases cover missing denials and
-  PASS/METAL without HIL evidence refs.
-- G0.3 CurrentTaskV0 + negative fixtures: `schemas/org/current_task_v0.schema.json`, `BoardVoteV0.repo_sha`, exactly-one board packet refs, and `tools/org/test_validate_packets.py` proving known-bad packet/current-task cases are rejected.
-- G0.2 Active Task and cross-packet consistency: `docs/org/current_task.yaml` now drives packet rendering; validator loads referenced packets and checks repo SHA, work-order/proposal id, task, gate set, authority level, fail-closed gate refs, and typed evidence buckets.
-- G0.1 Board Packet and packet validators: `schemas/org/*.schema.json`, `tools/org/render_board_packet.py`, `tools/org/validate_packets.py`; governance gate now renders and validates example packets under `out/org/examples/`.
-- G0 Org Kernel docs under `docs/org/`: constitution, role charter, authority levels, heartbeats, work orders, handoffs, votes, and claim safety.
-- Research-backed OS program under `docs/research/`, including RQ-0001 offer boundaries and RQ-0002 AI Org Kernel.
-- G0 plan: `docs/plans/2026-06-23-research-backed-ramenorg.md`.
-- Governance drift checker: `tools/org/status_drift.py`; gate: `tools/ci/foundry_org_governance_g0.sh`.
+## Parallel Project-Control Track
 
-**Recently completed / scaffolded (2026-06-22):**
-- S12.4.0 HIL appliance scaffold gate: `tools/ci/foundry_hil_appliance_s12_4.sh`, `just hil-appliance`, and `foundry_ci_extended.sh` docs/manifest path.
-- Added wrapper evidence schema: `docs/HIL_APPLIANCE_EVIDENCE_V0.md`.
-- S12.4 / S13.9 HIL Appliance Controller plan upgraded from planned note to scaffold: `docs/plans/2026-06-22-hil-appliance-controller.md`.
-- `hardware/hil_appliance_v0.toml` now records canonical naming, gate path, RS-232/TTL safety, relay defaults, and required wrapper evidence fields.
-- Policy: Pi/controller is lab infrastructure, not target TCB; raw Pi GPIO UART is TTL-only; default PC serial path is target COM/DB9/header → USB RS-232 adapter → Pi USB.
+This lane can proceed without displacing P0-P4.
 
-**Recently completed (2026-06-21):**
-- Evidence discipline: `EVIDENCE_LEVELS.md`, HIL provenance serial markers, `RAMEN_HIL_GRADUATION=1` mode, evidence JSON bundles under `out/evidence/`
-- S13.8 atomic update/rollback gate scaffold: `ab_slot_probe.rs`, `OP_ATOMIC_UPDATE`, `foundry_s13_atomic_update_s13_8.sh` (QEMU negative smoke PASS); `just s13-hil` extended; S13 QEMU + HIL scaffolds complete
-- S13.7 metal NVMe boot gate scaffold: `kernel_uefi/src/nvme_boot_probe.rs`, `OP_NVME_BOOT`, `foundry_s13_nvme_boot_s13_7.sh` (QEMU negative smoke PASS); `just s13-hil` opt-in; tranche5 harness lint hygiene
-- S13.4–S13.5 block sector Oracle: `block_sector_trace_v0`, `MockBlockHarness`, `virtio_blk_sector`, live `oracle_block_trace.json`, `foundry_s13_block_sector_oracle_s13_4.sh`; `just s13` extended
-- S13.6 runtime harness.block I/O: `kernel_api::block_oracle_vector`, `kernel/src/block_harness.rs`, `OP_BLOCK_IO`, `foundry_s13_runtime_block_s13_6.sh`; `just s13` extended
-- S13.3 block replay scoreboard: `foundry_s13_replay.sh` PASS
-- S13.2 virtio-blk Oracle capture: `capture_virtio_blk_oracle.sh`, `promote_virtio_blk_capture.sh`, `driver_foundry::virtio_blk_init`, live `oracle_init_trace.json` (15 events), `foundry_s13_virtio_blk_oracle_s13_2.sh`; `just s13` extended
-- S13.0 persistent storage contract: `docs/plans/2026-06-21-s13-persistent-storage-design.md`, `hardware/storage_contract_v0.toml`, `idl/harness/block_v1.toml`, virtio-blk vault scaffold, `foundry_s13_persistent_storage_s13_0.sh`; `just s13`
-- S12.3 IOMMU inventory: `kernel_uefi/src/iommu_probe.rs`, `OP_IOMMU_INVENTORY`, `foundry_s12_iommu_inventory_s12_3.sh`; `just s12-hil` extended
-- S12.2 physical HIL boot gate: `OP_HIL_BOOT`, `hil_boot` init profile, `tools/hil/build_usb_boot_image.sh`, `foundry_s12_hil_boot_s12_2.sh`; `just s12-hil` opt-in alias
-- S12.1 UEFI GOP probe: `kernel_uefi/src/gop_probe.rs`, `OP_GOP_PROBE`, `foundry_s12_gop_probe_s12_1.sh` PASS (QEMU OVMF 1280×800 BGR); `just s12` extended
-- S12.0 golden machine contract: `docs/plans/2026-06-21-s12-golden-machine-design.md`, `hardware/golden_machine_v0.toml`, `foundry_s12_golden_machine_s12_0.sh`; wired into `foundry_ci_extended.sh`
+| Priority | Task | Gate or artifact |
+|----------|------|------------------|
+| GP0 | G0.8.1 implementation authority and serial claim hygiene | `just foundry-org-governance-g0` |
+| GP1 | RQ-0002 AI-governed Org Kernel research packet | [RQ-0002](docs/research/questions/RQ-0002-ai-org-kernel.md) |
+| GP2 | RQ-0001 offer-shaped service-boundary research packet | [RQ-0001](docs/research/questions/RQ-0001-offer-boundaries.md) |
+| GP3 | Identity-level role separation | Future design; no authority increase |
+| GP4 | Fresh isolated implementation-agent reproduction | New bounded trial before any authority widening |
 
-**S11 complete (2026-06-21):** Definition of Done satisfied via `just s11`:
-- `foundry_s11_replay.sh` — init + packet host replay
-- `REQUIRE_LIVE_ORACLE_TRACE=1 foundry_s11_reference_vault_s11_3.sh` — live Oracle provenance + hardware RX
-- `foundry_s11_runtime_net_s11_8.sh` — runtime `harness.net` packet I/O in QEMU
+G0 remains A0/A1 for board, planning, docs, and research. G0.8.1 permits only
+explicitly bounded A2-local implementation work. It grants no merge, release,
+self-approval, HIL actuation, or public-support authority.
 
-**Recently completed (2026-06-21):**
-- S11.8 runtime harness.net packet I/O: `kernel_api::net_packet_oracle_vector`, `kernel/src/net_harness.rs`, `OP_NET_PACKET_IO`, `foundry_s11_runtime_net_s11_8.sh`; `just s11` extended
-- `just s11` fast-path alias: runs replay + live vault + runtime harness I/O
-- S11.7 live hardware packet RX: kernel netdev capture via `virtio_net.ko` + AF_PACKET ARP; slirp-derived receive fallback removed; `assert-hardware-packet-trace` in `driver_foundry`; `REQUIRE_LIVE_ORACLE_TRACE=1` runs hardware RX assertion; live `oracle_packet_trace.json` (`sha256:482af300…`)
-- S11.6 live packet Oracle capture: `capture_virtio_net_packet_oracle.sh`, `promote_virtio_net_packet_capture.sh`, live `oracle_packet_trace.json`; `REQUIRE_LIVE_ORACLE_TRACE=1` asserts packet provenance
-- S11.5 virtio-net packet I/O: `NetPacketTraceV0`, `MockPacketHarness`, `driver_foundry::virtio_net_packet`, and `oracle_packet_trace.json`; `foundry_s11_replay.sh` extended
-- S11.4 virtio-net init driver: extended live capture (20 events: features, MAC, RX/TX queues, DRIVER_OK) and `driver_foundry::virtio_net_init` vault replay; `foundry_s11_replay.sh` extended
-- S11.3 live Oracle capture: `tools/trace/capture_virtio_net_oracle.sh` boots QEMU `virtio-net-pci`, captures JSONL, promotes live `oracle_init_trace.json`; `REQUIRE_LIVE_ORACLE_TRACE=1` enforced in `foundry_ci_extended.sh`
-- Kernel lint debt: `TraceCapError` replaces `Result<(), ()>` in `trace_cap.rs`; `fetch_compat_kernel.sh` extracts `.deb` without `dpkg-deb`
+## Keep Green
 
-**Recently completed (2026-06-18):**
-- S11.3 live-capture promotion path: `tools/trace/promote_virtio_net_capture.sh` imports JSONL, stamps missing trace IDs from source SHA-256, replays, asserts live provenance plus contiguous event numbering, and the S11.3 gate dry-runs it
-- S11.3 virtio-net datasheet/spec notes: pinned OASIS VIRTIO v1.3 anchors under `drivers/reference_vaults/virtio-net/datasheets/`; `foundry_s11_reference_vault_s11_3.sh` asserts datasheet inventory
-- S11.3 live-capture import/provenance tooling: `driver_foundry import-jsonl`, `driver_foundry assert-live-trace`, and `REQUIRE_LIVE_ORACLE_TRACE=1 foundry_s11_reference_vault_s11_3.sh`
-- S11.3 trace fixture translation: `driver_foundry` converts `DriverProtocolTraceV0` PCI/MMIO events into `PciReplayEvent` and replays the vault fixture through `MockPciDevice`; `foundry_s11_replay.sh` PASS
-- S11.3 virtio-net Reference Vault scaffold: `idl/harness/net_v1.toml`, generated binding, schema-valid vault fixture; `foundry_s11_reference_vault_s11_3.sh` PASS
-- S11.2 replay scoreboard: `kernel_api::mock::pci_device::{ReplayScoreboard, MockPciDevice}`; `foundry_s11_replay.sh` PASS
+```bash
+just s12
+just s13
+just s11
+just foundry-org-governance-g0
+```
 
-**Recently completed (2026-06-17):**
-- S11.1 Oracle capture scaffold: `foundry_s11_driver_factory_s11_0.sh` PASS
-- S10.5.2 QEMU IPC bridge: `foundry_qemu_ipc_bridge_s10_5_2.sh` PASS (`snapshot_sha256_prefix=9c0de4419f03f426`)
-- S10.2 v1.1 capability-filtered snapshots + domain_manager reactor publish
-- S10.5.0 QEMU validation: `foundry_host_target_s10_5.sh` PASS (`snapshot_sha256_prefix=9c0de4419f03f426`)
-- S10.5.1 broker/kernel bridge: `foundry_broker_kernel_bridge_s10_5_1.sh` PASS
-- S10.5.1 design/gate pass: broker/proxy bridge plan + Foundry gate
-- S10.5 design/gate pass: inventory pinned, Option A chosen, QEMU gate defined
-- S10.2.1 subscribe reactor: `SemanticReactor`, `state_changed_event` typed delivery, `subscribe_delivery` gate
-- S10.4.1 fabric wiring: canonical `emit-plan`, supervisor `consult_always_local` fabric hook, extended Foundry gate
-- S10.3.4 CoW projection writes: `commit_projection_write` ingests replacement bytes, repoints projection path, preserves prior blob
-- S10.3.3 read-only VFS: virtio-9p decision, `projection_vfs` materializer, compat_runner `-virtfs` wiring
-- S10.3.2 index-on-ingest: `IngestArtifact` updates path/tag projection entries and persists the durable index
-- S10.3.1 durable projection index: `ProjectionIndexStore` writer, CAS snapshot, extended Foundry gate
-- S10.2 scaffold: live snapshot emit/ingest, `store_cli ingest-platform-snapshot`, subscribe stub
-- S10.3 scaffold: schemas, IDL, `store_service` projection queries
-- S10.4 scaffold: IDL, schemas, simulation, canonical launch-plan parsing in supervisor
+Run `just hil-appliance` for appliance changes. Use the full `just preflight`
+before pushing when practical.
 
-## Deferred — requires design pass
+## Deferred
 
-See `ROADMAP.md` §13. Do not start without a short design doc + Foundry gate definition.
+- S14 implementation until the appliance loop is stable and a design pass lands.
+- Full execution-fabric transport and broad real-kernel broker migration.
+- S5.1 wizard orchestration beyond the existing policy proposal path.
+- Offer-shaped runtime interfaces until RQ-0001 produces an IDL and evidence plan.
+- RamenOrg authority above A2-local until explicit controls and decisions land.
 
-1. **S10.3 vector / graph API** — semantic search, GraphQL/Cypher; post-VFS slice
-2. **S5.1 Wizard E2E** — run → observe → propose → rebuild → gate → publish orchestration
-3. **Real execution fabric** — remote nodes, transport, policy beyond simulation
-4. **Full capability broker kernel bridge** — replace remaining `SimulatedKernelOps` paths with real fast-path IPC (S10.5.1 semantic harness profile ships via `RAMEN_SEMANTIC_HARNESS_BRIDGE=1`)
-5. **QEMU compat 9p read gate for S10.3.3** — initrd/kernel with 9p mount + projected path read
-6. **Compat scratch → commit IPC** — how supervisor/compat reaches `commit_projection_write` without mutable 9p
-7. **S11 device selection** — **Resolved:** virtio-net-pci QEMU Oracle (`docs/plans/2026-02-20-s11-driver-factory-mvp.md` §0)
-8. **Tier-1 golden machine** — **Resolved (S12.0):** Intel NUC 12/13 reference + `hardware/golden_machine_v0.toml`; GOP/HIL implementation in S12.1+
-9. **Portal TOCTOU hardening** (V-13) — full broker redesign
-10. **Supervisor TCB reduction** (V-10) — kernel-side policy migration scope
-11. **TCG userspace virtqueue RX** — blocked in Oracle capsule; kernel netdev is authoritative for packet receive (see `DECISIONS.md` 2026-06-21)
-12. **Offer-shaped service boundary implementation** — requires RQ-0001 design pass, claim levels, IDL plan, and Foundry gate before runtime code.
-13. **RamenOrg autonomy above A1** — requires G0 artifacts, status drift gate, packet validators, branch/release controls, and explicit decisions before merge/release/hardware authority.
-
----
-
-## Archive: security remediation (Wave A/B/C) — COMPLETE
-
-All SC-01..SC-12 and V-001..V-015 Phase-1 mitigations complete. Gates: `foundry_hardening_wave_*`, `foundry_s7_*`, `foundry_v007_*`, `foundry_v012_*`, `foundry_posix_runner_s9_*`.
-
-Residual architectural risks: V-10, V-13 (see Deferred above).
-
-## Archive: slice completion index
-
-For per-slice checkbox history (S0–S10), see `SLICES.md`. All S0–S7, S8 Phases 1–5, S9.x security, S10.0–S10.1, and S10.2/10.3/10.4 scaffolds are documented there.
+Resolved decisions and their evidence live in [DECISIONS.md](DECISIONS.md), not
+in this queue.

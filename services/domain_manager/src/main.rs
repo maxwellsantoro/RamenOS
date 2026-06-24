@@ -1,5 +1,5 @@
 // Converge to canonical schema types from artifact_store_schema
-// See: docs/plans/investigation_deep_security_review_2026-02-13.md
+// See: docs/archive/plans/2026-02-13-deep-security-review.md
 // V-007 Phase 3: Removed direct dependency on artifact_store_schema
 // All artifact operations now go through store service IPC.
 // See: docs/plans/security_remediation_v006_v007_v012.md
@@ -25,7 +25,7 @@ use kernel_api::wire::{read_payload, write_payload};
 use store_service::StoreClient;
 
 // Converge to canonical schema types from artifact_store_schema
-// See: docs/plans/investigation_deep_security_review_2026-02-13.md
+// See: docs/archive/plans/2026-02-13-deep-security-review.md
 use artifact_store_schema::observed_caps::{
     ObservedCapCounts, ObservedCapScope, ObservedCapability, ObservedCapsV0, validate_observed_caps,
 };

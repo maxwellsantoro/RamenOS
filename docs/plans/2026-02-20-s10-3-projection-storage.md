@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-06-17
 **Status:** Complete for phases S10.3.0–S10.3.4
-**Related:** PLATFORM_OVERVIEW.md, CONSTITUTION.md, STORE_SPEC.md, `docs/plans/2026-06-17-s10-3-1-projection-index-backend.md`
+**Related:** PLATFORM_OVERVIEW.md, CONSTITUTION.md, STORE_SPEC.md, `docs/archive/plans/2026-06-17-s10-3-1-projection-index-backend.md`
 
 ---
 
@@ -98,7 +98,7 @@ Phases are gated vertical slices. Each phase ships a consumer + Foundry assertio
 - Gate: `foundry_projection_storage_s10_3.sh`
 
 ### Phase 1: Durable semantic index (S10.3.1) — COMPLETE
-- **Decision:** CAS-backed `ProjectionIndexV0` artifact with `{store_root}/projection_index.json` as the atomic working copy (see `docs/plans/2026-06-17-s10-3-1-projection-index-backend.md`)
+- **Decision:** CAS-backed `ProjectionIndexV0` artifact with `{store_root}/projection_index.json` as the atomic working copy (see `docs/archive/plans/2026-06-17-s10-3-1-projection-index-backend.md`)
 - `ProjectionIndexStore` durable writer: `load_or_empty`, `upsert_entry`, `upsert_path_projection`, `persist_atomic` (CAS snapshot as `projection_index_v0`)
 - Gate: `foundry_projection_storage_s10_3.sh` durable roundtrip + corrupt-index fail-closed
 
@@ -109,14 +109,14 @@ Phases are gated vertical slices. Each phase ships a consumer + Foundry assertio
 - Gate: ingest artifact → query_by_path/query_by_tag return new content_id after durable reload
 
 ### Phase 3: Read-only VFS projection (S10.3.3) — COMPLETE
-- **Decision:** QEMU virtio-9p (`-virtfs local,readonly=on`); virtio-fs deferred (see `docs/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md`)
+- **Decision:** QEMU virtio-9p (`-virtfs local,readonly=on`); virtio-fs deferred (see `docs/archive/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md`)
 - `projection_vfs::materialize_read_only` — symlink tree from index paths to CAS blobs
 - `compat_runner` optional `projection_vfs` export (`mount_tag=ramen_store`)
 - Gate: `read_only_vfs_projection` (host materialize + read)
 - Deferred: QEMU compat-domain 9p mount read gate (needs 9p-enabled initrd)
 
 ### Phase 4: Copy-on-Write writes (S10.3.4) — COMPLETE
-- **Decision:** typed host `commit_projection_write`; S10.3.3 9p export stays `readonly=on` (see `docs/plans/2026-06-17-s10-3-4-cow-projection-writes.md`)
+- **Decision:** typed host `commit_projection_write`; S10.3.3 9p export stays `readonly=on` (see `docs/archive/plans/2026-06-17-s10-3-4-cow-projection-writes.md`)
 - Implementation: ingest replacement bytes, repoint path projection, preserve prior CAS blob
 - Gate: `projection_cow_commit_repoints_path_preserves_prior_blob`
 

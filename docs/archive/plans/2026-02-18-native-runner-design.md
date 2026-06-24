@@ -960,11 +960,11 @@ foundry_native_runner_phase4.sh
 
 ## 9. Related Documents
 
-- [`CONSTITUTION.md`](../../CONSTITUTION.md) - System invariants
-- [`PLATFORM_OVERVIEW.md`](../../PLATFORM_OVERVIEW.md) - Architecture overview
-- [`docs/plans/security_remediation_v006_v007_v012.md`](security_remediation_v006_v007_v012.md) - V-006 context
-- [`docs/RING_BUFFER_V0.md`](../RING_BUFFER_V0.md) - S8 Phase 5 ring buffer spec
-- [`docs/MULTI_DOMAIN.md`](../MULTI_DOMAIN.md) - Multi-domain architecture
+- [`CONSTITUTION.md`](../../../CONSTITUTION.md) - System invariants
+- [`PLATFORM_OVERVIEW.md`](../../../PLATFORM_OVERVIEW.md) - Architecture overview
+- [`docs/plans/security_remediation_v006_v007_v012.md`](../../plans/security_remediation_v006_v007_v012.md) - V-006 context
+- [`docs/RING_BUFFER_V0.md`](../../RING_BUFFER_V0.md) - S8 Phase 5 ring buffer spec
+- [`docs/MULTI_DOMAIN.md`](../../MULTI_DOMAIN.md) - Multi-domain architecture
 
 ---
 

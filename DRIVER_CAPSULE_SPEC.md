@@ -1,7 +1,9 @@
-# DRIVER_CAPSULE_SPEC.md
-## Driver Capsule v0 — legacy driver/service hosted in a quarantined microVM behind typed harnesses
+# Driver Capsule Specification
 
-**Status:** draft
+## Driver Capsule v0: Quarantined Legacy Driver Behind Typed Harnesses
+
+**Last Updated:** 2026-06-24
+**Status:** Reference architecture; v0 path landed
 **Slice:** S3.x (post-S3), depends on S2.2 hardening (wire helpers, trace ring contract, negative gates)
 **Primary goal:** Achieve day-1 hardware coverage without polluting kernel architecture, while producing protocol traces that enable eventual native rewrites.
 
