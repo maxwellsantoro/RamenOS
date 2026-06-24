@@ -160,9 +160,9 @@ impl ClientInfo {
 
         match ucred {
             Some(creds) => {
-                let pid = creds.pid();
-                let uid = creds.uid();
-                let gid = creds.gid();
+                let pid = creds.pid;
+                let uid = creds.uid;
+                let gid = creds.gid;
 
                 // Try to read process info from /proc
                 let (exe_path, cmdline) = Self::read_process_info(pid);
