@@ -66,7 +66,22 @@ def cmd_oversize(path: str) -> None:
     sock.settimeout(10.0)
     sock.connect(path)
     time.sleep(0.5)
-    sock.sendall(struct.pack("<I", 5000))
+    invalid_len = struct.pack("<I", 5000)
+    deadline = time.monotonic() + 5.0
+    sent = False
+    while time.monotonic() < deadline:
+        try:
+            sock.sendall(invalid_len)
+            sent = True
+        except (BrokenPipeError, ConnectionResetError):
+            if sent:
+                break
+            raise
+        time.sleep(0.1)
+    try:
+        sock.shutdown(socket.SHUT_WR)
+    except OSError:
+        pass
     time.sleep(1.0)
 
 
