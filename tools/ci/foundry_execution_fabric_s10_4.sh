@@ -20,7 +20,10 @@ echo "FOUNDRY_EXECUTION_FABRIC_S10_4: INFO step=kernel_api_wire"
 cargo test -p kernel_api execution_fabric_v1 --quiet
 
 echo "FOUNDRY_EXECUTION_FABRIC_S10_4: INFO step=simulation_snapshot"
-cargo run -p execution_fabric -- --simulate | rg -q '"nodes"'
+TMP_SIM="$(mktemp)"
+cargo run -p execution_fabric -- --simulate >"$TMP_SIM"
+grep -q '"nodes"' "$TMP_SIM"
+rm -f "$TMP_SIM"
 
 echo "FOUNDRY_EXECUTION_FABRIC_S10_4: INFO step=store_cli_validation"
 TMP_PLAN="$(mktemp)"
