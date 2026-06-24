@@ -12,6 +12,9 @@ FAILED=0
 pass() { echo "PASS: $1"; PASSED=$((PASSED + 1)); }
 fail() { echo "FAIL: $1"; FAILED=$((FAILED + 1)); }
 
+echo "Ensuring wasm32-unknown-unknown target is installed..."
+rustup target add wasm32-unknown-unknown
+
 # Assertion 1: native_runner binary builds
 echo "Asserting native_runner builds..."
 if cargo build -p native_runner 2>&1 >/dev/null; then

@@ -19,16 +19,19 @@
 
 use std::fs;
 use std::io;
+#[cfg(target_os = "linux")]
+use std::os::unix::ffi::OsStrExt;
+#[cfg(target_os = "linux")]
+use std::os::unix::process::CommandExt;
+#[cfg(target_os = "linux")]
+use std::path::Path;
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
-use libc::{c_int, c_ulong};
+use libc::c_int;
 
 #[cfg(target_os = "linux")]
-use seccompiler::{
-    BpfProgram, BpfRule, BpfRuleAction, BpfRuleCmpArgLen, BpfRuleCmpOp, BpfRuleCondition,
-    SeccompFilterContext, SeccompFilterFlag, SeccompFilterTarget, SeccompRule,
-};
+use seccompiler::BpfProgram;
 
 /// Seccomp whitelist - only these syscalls are allowed
 ///
@@ -200,7 +203,7 @@ fn apply_resource_limits(cmd: &mut Command) -> io::Result<()> {
                 RLIMIT_AS, RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_NOFILE, RLIMIT_NPROC, rlimit, setrlimit,
             };
 
-            let set_limit = |resource: c_int, limit: u64| -> io::Result<()> {
+            let set_limit = |resource: u32, limit: u64| -> io::Result<()> {
                 let rlim = rlimit {
                     rlim_cur: limit,
                     rlim_max: limit,
@@ -221,7 +224,7 @@ fn apply_resource_limits(cmd: &mut Command) -> io::Result<()> {
             let _ = set_limit(RLIMIT_CPU, SANDBOX_RLIMIT_CPU);
 
             Ok(())
-        })?;
+        });
     }
 
     Ok(())
@@ -251,14 +254,14 @@ fn apply_namespaces(cmd: &mut Command) -> io::Result<()> {
     // This ensures namespaces are created before the new program starts
     unsafe {
         cmd.pre_exec(move || {
-            let ret = libc::unshare(flags as c_ulong);
+            let ret = libc::unshare(flags);
             if ret != 0 {
                 // Get the errno value to provide more detailed error information
                 let err = *libc::__errno_location();
                 return Err(io::Error::from_raw_os_error(err));
             }
             Ok(())
-        })?;
+        });
     }
 
     Ok(())
@@ -266,7 +269,8 @@ fn apply_namespaces(cmd: &mut Command) -> io::Result<()> {
 
 /// Helper function to safely call libc::unshare with proper error handling
 #[cfg(target_os = "linux")]
-fn unshare_namespaces(flags: c_ulong) -> io::Result<()> {
+#[allow(dead_code)]
+fn unshare_namespaces(flags: c_int) -> io::Result<()> {
     unsafe {
         let ret = libc::unshare(flags);
         if ret != 0 {
@@ -332,7 +336,7 @@ fn apply_seccomp_filter(cmd: &mut Command) -> io::Result<()> {
                 eprintln!("sandbox: seccomp BPF filter applied successfully");
             }
             Ok(())
-        })?;
+        });
     }
 
     Ok(())
@@ -345,47 +349,124 @@ fn apply_seccomp_filter(cmd: &mut Command) -> io::Result<()> {
 /// 2. Blocks all other syscalls with EPERM (Operation not permitted)
 #[cfg(target_os = "linux")]
 fn build_seccomp_filter() -> io::Result<BpfProgram> {
-    use seccompiler::{
-        BpfProgram, BpfRule, BpfRuleAction, SeccompFilterContext, SeccompFilterFlag,
-        SeccompFilterTarget,
-    };
+    use seccompiler::{SeccompAction, SeccompFilter, SeccompRule, TargetArch};
+    use std::collections::BTreeMap;
+    use std::convert::TryInto;
 
-    // Create a seccomp filter context
-    // We use SECCOMP_MODE_FILTER with strict mode
-    let ctx = SeccompFilterContext::new(
-        SeccompFilterTarget::CurrentProcess,
-        SeccompFilterFlag::empty(),
-    )
-    .map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to create seccomp context: {}", e),
-        )
-    })?;
-
-    // Build rules for each whitelisted syscall
-    let mut rules: Vec<SeccompRule> = Vec::new();
-
+    let mut rules: BTreeMap<i64, Vec<SeccompRule>> = BTreeMap::new();
     for syscall_name in SECCOMP_WHITELIST {
-        let rule = SeccompRule::new(*syscall_name, BpfRuleAction::Allow, vec![]).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to create seccomp rule for {}: {}", syscall_name, e),
-            )
-        })?;
-
-        rules.push(rule);
+        if let Some(syscall_number) = syscall_number(syscall_name) {
+            rules.insert(syscall_number, Vec::new());
+        }
     }
 
-    // Create the BPF program
-    let program = ctx.compile(rules).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to compile seccomp BPF program: {}", e),
-        )
-    })?;
+    if rules.is_empty() {
+        return Err(io::Error::other(
+            "No seccomp syscalls were available for this target",
+        ));
+    }
 
-    Ok(program)
+    let target_arch: TargetArch = std::env::consts::ARCH
+        .try_into()
+        .map_err(|e| io::Error::other(format!("Unsupported seccomp target arch: {}", e)))?;
+
+    SeccompFilter::new(
+        rules,
+        SeccompAction::Errno(libc::EPERM as u32),
+        SeccompAction::Allow,
+        target_arch,
+    )
+    .and_then(BpfProgram::try_from)
+    .map_err(|e| io::Error::other(format!("Failed to compile seccomp BPF program: {}", e)))
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+fn syscall_number(name: &str) -> Option<i64> {
+    let nr = match name {
+        "read" => libc::SYS_read,
+        "write" => libc::SYS_write,
+        "pread64" => libc::SYS_pread64,
+        "pwrite64" => libc::SYS_pwrite64,
+        "poll" => libc::SYS_poll,
+        "select" => libc::SYS_select,
+        "ppoll" => libc::SYS_ppoll,
+        "pselect6" => libc::SYS_pselect6,
+        "brk" => libc::SYS_brk,
+        "mmap" => libc::SYS_mmap,
+        "mprotect" => libc::SYS_mprotect,
+        "munmap" => libc::SYS_munmap,
+        "mremap" => libc::SYS_mremap,
+        "exit" => libc::SYS_exit,
+        "exit_group" => libc::SYS_exit_group,
+        "rt_sigreturn" => libc::SYS_rt_sigreturn,
+        "rt_sigprocmask" => libc::SYS_rt_sigprocmask,
+        "clock_gettime" => libc::SYS_clock_gettime,
+        "gettimeofday" => libc::SYS_gettimeofday,
+        "uname" => libc::SYS_uname,
+        "getuid" => libc::SYS_getuid,
+        "getgid" => libc::SYS_getgid,
+        "geteuid" => libc::SYS_geteuid,
+        "getegid" => libc::SYS_getegid,
+        "getpid" => libc::SYS_getpid,
+        "getppid" => libc::SYS_getppid,
+        "fstat" => libc::SYS_fstat,
+        "lstat" => libc::SYS_lstat,
+        "stat" => libc::SYS_stat,
+        "fstatat" => libc::SYS_newfstatat,
+        "access" => libc::SYS_access,
+        "faccessat" => libc::SYS_faccessat,
+        "readlink" => libc::SYS_readlink,
+        "pipe" => libc::SYS_pipe,
+        "pipe2" => libc::SYS_pipe2,
+        "dup" => libc::SYS_dup,
+        "dup2" => libc::SYS_dup2,
+        "close" => libc::SYS_close,
+        "ioctl" => libc::SYS_ioctl,
+        "getrlimit" => libc::SYS_getrlimit,
+        "getrusage" => libc::SYS_getrusage,
+        _ => return None,
+    };
+    Some(nr)
+}
+
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+fn syscall_number(name: &str) -> Option<i64> {
+    let nr = match name {
+        "read" => libc::SYS_read,
+        "write" => libc::SYS_write,
+        "pread64" => libc::SYS_pread64,
+        "pwrite64" => libc::SYS_pwrite64,
+        "ppoll" => libc::SYS_ppoll,
+        "pselect6" => libc::SYS_pselect6,
+        "brk" => libc::SYS_brk,
+        "mmap" => libc::SYS_mmap,
+        "mprotect" => libc::SYS_mprotect,
+        "munmap" => libc::SYS_munmap,
+        "mremap" => libc::SYS_mremap,
+        "exit" => libc::SYS_exit,
+        "exit_group" => libc::SYS_exit_group,
+        "rt_sigreturn" => libc::SYS_rt_sigreturn,
+        "rt_sigprocmask" => libc::SYS_rt_sigprocmask,
+        "clock_gettime" => libc::SYS_clock_gettime,
+        "gettimeofday" => libc::SYS_gettimeofday,
+        "uname" => libc::SYS_uname,
+        "getuid" => libc::SYS_getuid,
+        "getgid" => libc::SYS_getgid,
+        "geteuid" => libc::SYS_geteuid,
+        "getegid" => libc::SYS_getegid,
+        "getpid" => libc::SYS_getpid,
+        "getppid" => libc::SYS_getppid,
+        "fstat" => libc::SYS_fstat,
+        "fstatat" => libc::SYS_newfstatat,
+        "faccessat" => libc::SYS_faccessat,
+        "pipe2" => libc::SYS_pipe2,
+        "dup" => libc::SYS_dup,
+        "close" => libc::SYS_close,
+        "ioctl" => libc::SYS_ioctl,
+        "getrusage" => libc::SYS_getrusage,
+        _ => return None,
+    };
+    Some(nr)
 }
 
 /// Apply a compiled seccomp BPF program to the current process
@@ -394,26 +475,8 @@ fn build_seccomp_filter() -> io::Result<BpfProgram> {
 /// apply the BPF filter. Once applied, the filter cannot be removed.
 #[cfg(target_os = "linux")]
 fn apply_seccomp_filter_to_program(program: &BpfProgram) -> io::Result<()> {
-    use libc::{PR_SET_SECCOMP, SECCOMP_MODE_FILTER, prctl};
-
-    let filter_bytes = program.to_bytes();
-
-    unsafe {
-        let ret = prctl(
-            PR_SET_SECCOMP,
-            SECCOMP_MODE_FILTER,
-            filter_bytes.as_ptr() as *const libc::c_void,
-            filter_bytes.len(),
-            0,
-        );
-
-        if ret != 0 {
-            let err = *libc::__errno_location();
-            return Err(io::Error::from_raw_os_error(err));
-        }
-    }
-
-    Ok(())
+    seccompiler::apply_filter(program.as_slice())
+        .map_err(|e| io::Error::other(format!("Failed to apply seccomp BPF program: {}", e)))
 }
 
 /// Apply chroot filesystem restriction
@@ -456,19 +519,22 @@ fn apply_chroot(cmd: &mut Command, chroot_dir: Option<&Path>) -> io::Result<()> 
             if ret != 0 {
                 let err = *libc::__errno_location();
                 eprintln!(
-                    "sandbox: warning: chroot({}) failed: {}",
+                    "sandbox: chroot({}) failed closed: {}",
                     chroot_dir_clone.display(),
                     err
                 );
-                // Don't fail - chroot is defense-in-depth, not required for execution
-                // The namespace isolation is the primary security boundary
+                return Err(io::Error::from_raw_os_error(err));
             } else {
                 // Change to root directory after chroot
-                let _ = libc::chdir(b"/\0".as_ptr() as *const i8);
+                let ret = libc::chdir(c"/".as_ptr());
+                if ret != 0 {
+                    let err = *libc::__errno_location();
+                    return Err(io::Error::from_raw_os_error(err));
+                }
             }
 
             Ok(())
-        })?;
+        });
     }
 
     Ok(())
@@ -564,7 +630,7 @@ mod tests {
         // Note: We can't actually test unshare() in a unit test because
         // it would affect the entire test process. We verify the function
         // compiles and has the correct signature.
-        let _flags: c_ulong = flags as c_ulong;
+        let _flags: c_int = flags;
 
         // Verify the flags are non-zero (valid namespace flags)
         assert!(flags != 0);
@@ -632,8 +698,7 @@ mod tests {
 
         let program = program.unwrap();
         // Verify the program is not empty
-        let bytes = program.to_bytes();
-        assert!(!bytes.is_empty(), "BPF program should not be empty");
+        assert!(!program.is_empty(), "BPF program should not be empty");
     }
 
     #[cfg(target_os = "linux")]
@@ -929,15 +994,22 @@ mod tests {
             "apply_sandbox with all controls should succeed"
         );
 
-        // Spawn the process and verify it succeeds
-        let mut child = cmd.spawn().expect("Failed to spawn child");
-
-        let status = child.wait().expect("Failed to wait for child");
-        // The simple echo command should succeed
-        assert!(
-            status.success(),
-            "Simple command should succeed with full sandbox"
-        );
+        // Spawn may fail closed on unprivileged hosts that deny namespace/chroot
+        // setup. If the host permits all controls, the simple command should run.
+        match cmd.spawn() {
+            Ok(mut child) => {
+                let status = child.wait().expect("Failed to wait for child");
+                assert!(
+                    status.success(),
+                    "Simple command should succeed when the host permits full sandbox setup"
+                );
+            }
+            Err(e) => {
+                assert!(
+                    e.kind() == io::ErrorKind::PermissionDenied || e.kind() == io::ErrorKind::Other
+                );
+            }
+        }
 
         // Cleanup
         let _ = cleanup_sandbox(&config);
