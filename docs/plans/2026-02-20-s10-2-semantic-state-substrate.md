@@ -1,7 +1,7 @@
 # S10.2: Semantic State Substrate Design
 
-**Last Updated:** 2026-06-17
-**Status:** Active (scaffold + v1 subscribe complete)
+**Last Updated:** 2026-06-24
+**Status:** Reference design; scaffold, v1 subscribe, and v1.1 filtering complete
 **Related:** PLATFORM_OVERVIEW.md, CONSTITUTION.md, AI-Native OS Vision
 
 ---
@@ -152,7 +152,7 @@ Instead of polling, agents subscribe to a `SemanticEvent` stream:
 - `SemanticReactor` host-side registry + `reactor_tick()` typed `state_changed_event` delivery
 - `subscribe` registers interest; event mask bit `0x1` = domain inventory changed
 - Minimal capability filtering (mask only); full privacy model deferred
-- Design: `docs/plans/2026-06-17-s10-2-1-subscribe-reactor.md`
+- Design: `docs/archive/plans/2026-06-17-s10-2-1-subscribe-reactor.md`
 - Gate: `subscribe_delivery` in `foundry_semantic_state_s10_2.sh`
 
 ### v1.1+ — PLANNED

@@ -1,8 +1,13 @@
-# PLATFORM_OVERVIEW
-Platform Overview: OS Core + Foundry + Store
+# Platform Overview
+
+**Last Updated:** 2026-06-24
+**Status:** Architecture reference
+
+RamenOS is organized around OS Core, Foundry, and the Store Platform.
 
 ## 0. Purpose
-This project builds the first true **AI-Native, post-Unix operating system**. It is designed for an era where AI agents write code, manage infrastructure, and act on behalf of users. It achieves this by:
+RamenOS is an experimental Rust-first, post-Unix operating system for structured
+application and agent interaction. It aims to:
 - replacing human-emulation (screen scraping, raw TTYs) with structured Semantic State APIs,
 - replacing dangerous ambient authority with strict Capability Budgets (zero-trust by default),
 - isolating drivers and high-risk stacks into quarantined domains,
@@ -10,9 +15,10 @@ This project builds the first true **AI-Native, post-Unix operating system**. It
 - and migrating legacy software toward native APIs via a Store-driven porting ladder.
 
 The platform is developed as three pillars:
-1) OS Core (Kernel + Services + Runtimes)
-2) Foundry (Trace→Replay→Fuzz→Minimize→Gate)
-3) Store Platform (Run Now → Vote/Port → Publish)
+
+1. OS Core: kernel, services, and runtimes.
+2. Foundry: trace, replay, fuzz, minimize, and gate.
+3. Store Platform: run now, vote/port, and publish.
 
 Roadmap: see `ROADMAP.md` for execution sequencing and slice milestones.
 

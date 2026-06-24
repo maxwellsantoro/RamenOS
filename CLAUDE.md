@@ -2,6 +2,10 @@
 
 Reliability-first, post-Unix operating system. Three pillars: OS Core, Foundry, Store.
 
+Current execution truth lives in `CURRENT_STATUS.md` + `NEXT_TASKS.md`. The
+active OS track is S12.4 HIL appliance serial observation, followed by
+power/reset actuation and S13 metal graduation.
+
 ## Constitutional Non-Negotiables
 
 1. Native interfaces are typed Harnesses/Portals — no ioctl escape hatches
@@ -95,8 +99,10 @@ S10.2 Semantic State Substrate scaffold complete. Active focus: S10.3 Projection
 ## Key Documents
 
 - `CONSTITUTION.md` — system invariants (do not modify without DECISIONS.md entry)
-- `SLICES.md` — slice definitions S0–S5
+- `CURRENT_STATUS.md` + `NEXT_TASKS.md` — authoritative landed state and next work
+- `SLICES.md` — slice definitions and status summary
 - `ROADMAP.md` — execution sequencing
+- `docs/INDEX.md` — maintained documentation map
 - `PLATFORM_OVERVIEW.md` — full architecture
 - `DRIVER_CAPSULE_SPEC.md` — quarantined driver design
 - `docs/plans/security_remediation_v006_v007_v012.md` — detailed security remediation plans

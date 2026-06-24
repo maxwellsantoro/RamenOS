@@ -1,7 +1,7 @@
 # S10.4: Capability-Scheduled Execution Fabric
 
-**Last Updated:** 2026-06-17
-**Status:** Active (v0 scaffold + S10.4.1 wiring complete)
+**Last Updated:** 2026-06-24
+**Status:** Reference design; v0 scaffold and S10.4.1 wiring complete
 **Related:** CONSTITUTION.md, PLATFORM_OVERVIEW.md, ROADMAP.md, SLICES.md
 
 ## Executive Summary
