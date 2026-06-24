@@ -1,7 +1,7 @@
 # Multi-Domain Architecture
 
-**Last Updated:** 2026-02-10
-**Status:** In Progress (S8 Phase 5)
+**Last Updated:** 2026-06-24
+**Status:** Reference architecture; S8 foundation landed, later isolation work deferred
 **Dependencies:** S6 (Domain Manager), S8 Phase 4 (MMU Integration)
 
 ## Overview
@@ -390,7 +390,7 @@ Domain 2 attempts map (no cap) → FAIL (no capability)
 
 ---
 
-**Document Status:** Draft (S8 Phase 5)
+**Document Status:** Reference; unchecked items are deferred follow-up work
 **Author:** Claude (RamenOS Architecture)
 **Date:** 2026-02-10
 **Related:**

@@ -1,7 +1,7 @@
 # S12.4 / S13.9: HIL Appliance Controller
 
-**Last Updated:** 2026-06-22
-**Status:** Scaffold
+**Last Updated:** 2026-06-24
+**Status:** Active; S12.4.1 serial observer first, then S12.4.2 power/reset
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 **Related:** `hardware/hil_appliance_v0.toml`, `hardware/golden_machine_v0.toml`, `EVIDENCE_LEVELS.md`, `docs/HIL_APPLIANCE_EVIDENCE_V0.md`, `docs/plans/2026-06-21-s12-golden-machine-design.md`, `docs/plans/2026-06-21-s13-persistent-storage-design.md`
 
@@ -196,7 +196,7 @@ Gate behavior:
 - Physical controller inventory runs only with `RAMEN_HIL_APPLIANCE=1`.
 - Strict CI may require a connected controller.
 
-### S12.4.1 — Serial observer — NEXT
+### S12.4.1 — Serial observer — ACTIVE
 
 Deliverables:
 

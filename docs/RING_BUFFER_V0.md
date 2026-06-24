@@ -1,6 +1,7 @@
 # Ring Buffer v0 Specification
 
-**Status:** Draft (S8 Phase 5)
+**Last Updated:** 2026-06-24
+**Status:** Implemented v0 reference
 **Stability:** Experimental
 **Dependencies:** S8 Phase 4 (MMU Integration)
 
@@ -429,7 +430,7 @@ Survive domain restarts:
 
 ---
 
-**Document Status:** Draft (S8 Phase 5)
+**Document Status:** Implemented v0 reference; enhancements remain future work
 **Author:** Claude (RamenOS Architecture)
 **Date:** 2026-02-10
 **Related:**

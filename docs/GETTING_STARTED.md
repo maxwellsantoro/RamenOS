@@ -1,6 +1,12 @@
 # Getting Started with RamenOS
 
-A comprehensive guide for new contributors to set up their development environment and start working with RamenOS.
+**Last Updated:** 2026-06-24
+**Status:** Active contributor guide
+
+Set up a development environment, build the host and target components, boot in
+QEMU, and run Foundry gates. For current priorities, use
+[`CURRENT_STATUS.md`](../CURRENT_STATUS.md) and
+[`NEXT_TASKS.md`](../NEXT_TASKS.md).
 
 ## Table of Contents
 
@@ -20,11 +26,11 @@ A comprehensive guide for new contributors to set up their development environme
 
 ### What is RamenOS?
 
-RamenOS is a reliability-first, post-Unix operating system built around:
+RamenOS is an experimental Rust-first, post-Unix operating system built around:
 
 - **Typed Harnesses + Portals**: No ioctl-style escape hatches in native interfaces
 - **Quarantined Compatibility Domains**: Isolated environments for Linux/Flatpak and GPU blobs
-- **Unified Foundry Pipeline**: Trace, Replay, Fuzz, Minimize, Gate workflow for drivers and app ports
+- **Unified Foundry Pipeline**: Trace, replay, fuzz, minimize, and gate workflow for drivers and app ports
 
 The project is organized as three pillars:
 1. **OS Core** (kernel + services + runtimes)

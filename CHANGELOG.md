@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+- Reworked the documentation entry points so `CURRENT_STATUS.md` records landed
+  state, `NEXT_TASKS.md` is an executable queue, and `ROADMAP.md` stays
+  directional.
+- Rebuilt `docs/INDEX.md` around contributor needs, authority, maintained
+  contracts, gate-bound plans, and archive policy.
+- Archived completed, non-gate-bound slice plans and investigations under
+  `docs/archive/plans/` while preserving and repairing historical links.
+- Refreshed stale status labels across S8, Semantic State, host-to-target, S12,
+  S13, HIL appliance, security, risk, and contributor documentation.
+
 ### Added
 - G0 RamenOrg / research-backed OS scaffold:
   - Added `docs/plans/2026-06-23-research-backed-ramenorg.md` to make RamenOrg and research-backed development first-class planning tracks without displacing S12.4/S13 HIL work.
@@ -211,7 +222,7 @@
   - `tools/ci/foundry_s11_driver_factory_s11_0.sh` now passes for S11.0/S11.1 inventory + capture scaffold.
   - `tools/ci/foundry_s11_replay.sh` added as the initial red S11.2 replay-scoreboard gate.
 - S10.2 v1.1 capability-filtered snapshots + domain_manager reactor publish:
-  - `docs/plans/2026-06-17-s10-2-v1-1-cap-filtered-snapshots.md`
+  - `docs/archive/plans/2026-06-17-s10-2-v1-1-cap-filtered-snapshots.md`
   - `filter_platform_snapshot_for_viewer` in `artifact_store_schema::semantic_state`
   - `SemanticReactor::publish_domain_inventory_changed` with per-subscriber `shm_cap` tokens
   - `domain_manager` inventory publish on start/stop; `KernelOpsBackend::from_env()` for `RAMEN_SEMANTIC_HARNESS_BRIDGE=1`
@@ -237,7 +248,7 @@
   - Handler builds a semantic-state `GetSnapshot` request/reply path, allocates shmem, writes deterministic snapshot bytes, and emits `semantic_state: get_snapshot ok` plus a real SHA-256 prefix.
   - `just foundry-host-target-s10-5` recipe (not in CI extended until QEMU validation is green).
 - S10.2.1 subscribe reactor:
-  - `docs/plans/2026-06-17-s10-2-1-subscribe-reactor.md` — reactor ownership, event mask, delivery flow.
+  - `docs/archive/plans/2026-06-17-s10-2-1-subscribe-reactor.md` — reactor ownership, event mask, delivery flow.
   - `SemanticReactor` in `services/semantic_state`: `handle_subscribe`, `publish_domain_state_changed`, `reactor_tick()` typed `state_changed_event` envelopes.
   - Replaced `subscribe_stub` gate step with `subscribe_delivery` in `foundry_semantic_state_s10_2.sh`.
 - S10.4.1 execution fabric wiring:
@@ -246,12 +257,12 @@
   - Canonical plan parsing extracts compat/GPU/native wasm config; legacy launch plans still supported.
   - Extended `foundry_execution_fabric_s10_4.sh` with `emit_plan_canonical_roundtrip`.
 - S10.3.4 CoW projection writes:
-  - `docs/plans/2026-06-17-s10-3-4-cow-projection-writes.md` — typed `commit_projection_write`; 9p stays read-only.
+  - `docs/archive/plans/2026-06-17-s10-3-4-cow-projection-writes.md` — typed `commit_projection_write`; 9p stays read-only.
   - `projection_cow::commit_projection_write` ingests replacement bytes as a fresh CAS blob/manifest and repoints the virtual path.
   - Preserves the prior CAS blob/manifest and leaves the S10.3.3 `readonly=on` 9p export unchanged.
   - Extended `foundry_projection_storage_s10_3.sh` with `projection_cow_commit_repoints_path_preserves_prior_blob`.
 - S10.3.3 read-only VFS projection:
-  - Design: `docs/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md` (virtio-9p via QEMU `-virtfs`; virtio-fs deferred).
+  - Design: `docs/archive/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md` (virtio-9p via QEMU `-virtfs`; virtio-fs deferred).
   - `store_service::projection_vfs::materialize_read_only` — symlink tree from projection index to CAS blobs.
   - `compat_runner` optional `projection_vfs` mount (`mount_tag=ramen_store`, `readonly=on`).
   - Extended `foundry_projection_storage_s10_3.sh` with `read_only_vfs_projection`.
@@ -266,7 +277,7 @@
   - Read-only override when `RAMEN_STORE_PROJECTION_INDEX` is outside `store_root`.
   - Extended `foundry_projection_storage_s10_3.sh` with durable roundtrip and corrupt-index fail-closed tests.
 - S10.3.1 projection index backend design:
-  - Added `docs/plans/2026-06-17-s10-3-1-projection-index-backend.md`.
+  - Added `docs/archive/plans/2026-06-17-s10-3-1-projection-index-backend.md`.
   - Chose CAS-backed `ProjectionIndexV0` artifacts with an atomic `{store_root}/projection_index.json` working copy.
   - Deferred SQLite until measured path/tag latency or post-VFS query semantics justify it.
 - S10.4 Execution Fabric contract/readiness plan:
@@ -281,7 +292,7 @@
   - Blocks dangerous syscalls: execve, fork, clone, socket, bind, listen, accept, connect, setuid, setgid, etc.
   - Allows safe syscalls: read, write, mmap, exit, exit_group, clock_gettime, etc.
   - Files modified: `runtime_supervisor/Cargo.toml`, `runtime_supervisor/src/sandbox.rs`
-- Security investigation report with evidence log and reconciled findings: `docs/plans/investigation_deep_security_review_2026-02-13.md`.
+- Security investigation report with evidence log and reconciled findings: `docs/archive/plans/2026-02-13-deep-security-review.md`.
 - Store-service regression tests for fail-closed signature policy on read/verify paths:
   - `get_blob_validation_failed_when_signature_required_and_manifest_unsigned`
   - `verify_artifact_validation_failed_when_signature_required_and_manifest_unsigned`
@@ -425,7 +436,7 @@
 - S7 Security Hardening Phase 2: enabled sandbox by default for POSIX runner.
 - S7 Security Hardening Phase 2: added comprehensive logging for all security violations.
 - S7 Security Hardening Phase 2: added 6 new unit tests for security hardening.
-- S7 Security Hardening Phase 2: see [`docs/S7_SECURITY_HARDENING_PHASE2.md`](docs/S7_SECURITY_HARDENING_PHASE2.md) for details.
+- S7 Security Hardening Phase 2: see [`docs/archive/plans/2026-02-10-s7-security-hardening-phase2.md`](docs/archive/plans/2026-02-10-s7-security-hardening-phase2.md) for details.
 
 ## 0.0.26 (2026-02-08)
 - S8 Phase 3 (data-plane): implemented physical memory frame allocator with [`kernel/src/mm`](kernel/src/mm/mod.rs) module.

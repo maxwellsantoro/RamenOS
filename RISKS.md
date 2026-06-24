@@ -1,6 +1,6 @@
 # RISKS
 
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-06-24
 **Status:** Active
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
@@ -46,10 +46,19 @@ Evidence:
 - All are hardcoded static arrays due to #![no_std] constraints
 Mitigation:
 - Documented as known constraint of static allocation model until dynamic memory available
-- S8 Phase 3 implemented FrameAllocator trait with BumpAllocator (static backing, no frees)
-- S8 Phase 4 will graduate to BitmapAllocator for reuse and larger memory regions
+- S8 landed `FrameAllocator` plus reusable `BitmapAllocator` paths, but the
+  kernel still relies on bounded static backing structures during bring-up.
 - Current limits sufficient for early bring-up and controlled workloads
 - Gates include resource exhaustion assertions (`table_exhaustion_returns_no_memory`)
+
+## R8: Hardware evidence overclaim
+Severity: High (incorrect readiness or security claim)
+Confidence: High
+Mitigation:
+- Keep QEMU, replay, live HIL, appliance, and metal evidence levels distinct.
+- Require target provenance markers for graduation mode.
+- Treat appliance observations as controller evidence, not target truth.
+- Keep physical gates opt-in and fail closed on stale logs.
 
 ## Security vulnerability findings (V-XX)
 

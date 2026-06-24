@@ -80,14 +80,14 @@ S10.3.1 uses a CAS-backed `ProjectionIndexV0` artifact with `{store_root}/projec
 
 SQLite inside `store_service` is deferred. It may be reconsidered only after measured path/tag latency, JSON rewrite cost, or post-VFS vector/graph query semantics justify the extra TCB, migration, and backup complexity.
 
-Design: `docs/plans/2026-06-17-s10-3-1-projection-index-backend.md`.
+Design: `docs/archive/plans/2026-06-17-s10-3-1-projection-index-backend.md`.
 
 ## 2026-06-17 — S10.3.3 Read-Only VFS Transport
 S10.3.3 uses QEMU virtio-9p (`-virtfs local,readonly=on`) to expose a host-materialized projection directory to compat guests. The host builds a read-only symlink tree from `ProjectionIndexV0.path_projections` to CAS blobs; `compat_runner` exports it with mount tag `ramen_store`.
 
 virtio-fs is deferred until measured 9p latency in QEMU or multi-VM shared export requirements justify adding `virtiofsd` to the supervisor TCB.
 
-Design: `docs/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md`.
+Design: `docs/archive/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md`.
 
 ## 2026-06-17 — S10.5.0 Option A with init-bridge (inventory-confirmed)
 **Chosen:** Option A — Semantic State on QEMU.

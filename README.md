@@ -3,10 +3,8 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Status:** public pre-alpha, active prototype
-
-**Last updated:** 2026-06-24
-
+**Last Updated:** 2026-06-24
+**Status:** Public pre-alpha, active development
 **Current focus:** hardware evidence loop, then persistent-storage graduation
 
 RamenOS is an evidence-gated Rust OS experiment for agent-native computing.
@@ -14,6 +12,8 @@ Instead of making agents and applications drive Unix through screens, files,
 shells, and ambient authority, RamenOS is building typed OS interfaces,
 explicit capabilities, observable semantic state, and hardware support backed
 by reproducible proof.
+
+Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
 This repository is not a production OS and does not claim metal graduation,
 security readiness, or release readiness without matching evidence. The current
@@ -68,25 +68,36 @@ See [CURRENT_STATUS.md](CURRENT_STATUS.md) for landed state and
 [NEXT_TASKS.md](NEXT_TASKS.md) for the next executable task. Treat
 [ROADMAP.md](ROADMAP.md) as background planning, not operational truth.
 
+## What Makes It Different
+
+- **Typed native interfaces:** OS services communicate through IDL-defined
+  contracts instead of ioctl-like escape hatches or screen-scraped human UI.
+- **Capability-backed authority:** Components receive explicit, minimal handles;
+  fast-path capability validation belongs in the kernel.
+- **Control/data plane split:** Typed messages handle coordination; shared
+  memory handles move bulk data.
+- **Quarantined compatibility:** POSIX and Linux compatibility are treated as
+  compatibility layers, not the native application model.
+- **Driver Foundry:** Hardware support is developed through an evidence loop:
+  reference vaults, protocol traces, replay scoreboards, minimization, fuzzing,
+  and Foundry gates.
+- **Research-backed, product-bound:** Research informs the OS where it reduces a
+  product or safety risk, with explicit claim boundaries and landing paths.
+
 ## Project Shape
 
-RamenOS is developed as vertical slices across three connected pillars:
+The repository is organized around three pillars:
 
-- **OS Core:** kernel, IPC, capabilities, trace ring, typed harnesses, runtime
-  supervisor, and core services.
-- **Driver Foundry:** trace capture, replay, scoreboard, distillation, and
-  gates for turning observed device behavior into native Rust components.
-- **Store Platform:** artifact contracts, launch plans, signature/access
-  policy, and the "run now -> vote/port -> publish" path.
+1. **OS Core:** kernel, boot paths, IPC, capabilities, shmem, tracing, services,
+   and runtimes.
+2. **Driver Foundry:** trace capture, replay, hardware-in-the-loop gates,
+   evidence policy, and CI-style validation.
+3. **Store Platform:** artifact ingestion, launch plans, native runtime paths,
+   compatibility runners, and the early porting ladder.
 
-The core rules are intentionally narrow:
-
-- Native APIs are typed IDL contracts, not ioctl-style escape hatches.
-- Control plane is typed messages; data plane is zero-copy shared memory.
-- Fast-path capability validation belongs in the kernel.
-- Compatibility is allowed, but it is quarantined and never the native API.
-- Claims are gated by evidence levels such as `PASS/QEMU`, `PASS/HIL-LOG`,
-  `PASS/HIL-APPLIANCE`, and `PASS/METAL`.
+Development happens through vertical slices. A change should improve boot/run
+behavior, implement an IDL contract, add a Foundry gate, or build a Store
+feature that consumes an OS capability.
 
 ```mermaid
 flowchart LR
@@ -111,13 +122,14 @@ flowchart LR
 
 ## Quick Start
 
-Install:
+Requirements:
 
-- Rust nightly with `rust-src`, `rustfmt`, and `clippy`.
+- Rust toolchain pinned by [rust-toolchain.toml](rust-toolchain.toml).
+- `rust-src`, `rustfmt`, and `clippy`.
 - QEMU and OVMF firmware for target gates.
 - `just` for the task aliases.
 
-Common commands:
+Useful commands:
 
 ```bash
 just build-host
@@ -139,6 +151,26 @@ just foundry-org-governance-g0
 `just preflight` runs format checking, IDL generation, strict lint tranches,
 workspace tests, and the Foundry umbrella gate. CI also runs the extended
 Foundry gates and the G0 governance gate.
+
+## Hardware And Evidence
+
+Default CI is intentionally hardware-free. It proves inventory, schemas,
+negative checks, QEMU behavior, and replay determinism. Physical claims require
+explicit environment flags and provenance:
+
+```bash
+RAMEN_HIL_APPLIANCE=1 just hil-appliance
+RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil
+RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil
+```
+
+Important boundary: the HIL appliance is lab infrastructure, not target TCB.
+The serial observer can produce `PASS/HIL-LOG` from development replay or
+`PASS/HIL-APPLIANCE` from live appliance capture. `PASS/METAL` requires the
+matching hardware evidence.
+
+See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md) before interpreting hardware
+claims.
 
 ## Store CLI Examples
 
@@ -165,23 +197,6 @@ Validate an execution launch plan:
 cargo run -p store_cli -- validate-execution-launch-plan \
   --src out/store/launch_plan.json
 ```
-
-## Hardware And Evidence
-
-Default CI is intentionally hardware-free. It proves inventory, schemas,
-negative checks, QEMU behavior, and replay determinism. Physical claims require
-explicit environment flags and provenance:
-
-```bash
-RAMEN_HIL_APPLIANCE=1 just hil-appliance
-RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil
-RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil
-```
-
-Important boundary: the HIL appliance is lab infrastructure, not target TCB.
-The serial observer can produce `PASS/HIL-LOG` from development replay or
-`PASS/HIL-APPLIANCE` from live appliance capture. `PASS/METAL` requires the
-matching hardware evidence.
 
 ## Operational Knobs
 
@@ -224,6 +239,21 @@ configuration.
 - **Gates and docs:** [tools/ci/](tools/ci/), [tools/hil/](tools/hil/),
   [docs/](docs/).
 
+## Contributing
+
+RamenOS favors small, evidence-bearing slices over large subsystem drops.
+
+Before proposing a change:
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md).
+- Read [AGENTS.md](AGENTS.md) if you are working with an AI coding agent.
+- Add new native interfaces under [idl/](idl/) and regenerate bindings.
+- Keep kernel, services, and Store boundaries separate.
+- Run `just preflight` before pushing when practical.
+
+For driver work, start from the Reference Vault and protocol traces. The goal is
+to produce code whose observed behavior matches the Oracle, then gate it.
+
 ## Key Documents
 
 - [CURRENT_STATUS.md](CURRENT_STATUS.md): what has landed.
@@ -235,6 +265,7 @@ configuration.
 - [SLICES.md](SLICES.md): completed slice inventory.
 - [STORE_SPEC.md](STORE_SPEC.md): store platform contracts.
 - [CONTRIBUTING.md](CONTRIBUTING.md): local preflight and lint policy.
+- [docs/INDEX.md](docs/INDEX.md): documentation index.
 - [AGENTS.md](AGENTS.md): coding-agent operating rules.
 
 ## License

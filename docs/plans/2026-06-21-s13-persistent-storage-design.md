@@ -1,7 +1,7 @@
 # S13: Persistent Storage
 
-**Last Updated:** 2026-06-21
-**Status:** Active (S13.0 contract scaffold)
+**Last Updated:** 2026-06-24
+**Status:** Active reference; QEMU loop landed, metal graduation pending
 **Gate:** `tools/ci/foundry_s13_persistent_storage_s13_0.sh`
 **Related:** `docs/plans/2026-02-20-s11-driver-factory-mvp.md`, `hardware/storage_contract_v0.toml`, `ROADMAP.md` §12
 

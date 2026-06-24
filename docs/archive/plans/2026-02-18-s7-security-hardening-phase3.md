@@ -21,7 +21,7 @@ This Phase 3 creates Foundry gates to verify these security fixes are working co
 
 ### Gate 1: POSIX Runner Security Enforcement
 
-**Script:** [`tools/ci/foundry_s7_posix_runner_security.sh`](../tools/ci/foundry_s7_posix_runner_security.sh)
+**Script:** [`tools/ci/foundry_s7_posix_runner_security.sh`](../../../tools/ci/foundry_s7_posix_runner_security.sh)
 
 **Purpose:** Verifies that the POSIX runner enforces security restrictions at runtime.
 
@@ -52,7 +52,7 @@ just foundry-s7-posix-runner-security
 
 ### Gate 2: Store Signature Validation Fail-Closed
 
-**Script:** [`tools/ci/foundry_s7_store_signature_security.sh`](../tools/ci/foundry_s7_store_signature_security.sh)
+**Script:** [`tools/ci/foundry_s7_store_signature_security.sh`](../../../tools/ci/foundry_s7_store_signature_security.sh)
 
 **Purpose:** Verifies that the store service enforces fail-closed signature validation.
 
@@ -88,7 +88,7 @@ just foundry-s7-store-signature-security
 
 ### Gate 3: Access Control Fail-Closed
 
-**Script:** [`tools/ci/foundry_s7_access_control_security.sh`](../tools/ci/foundry_s7_access_control_security.sh)
+**Script:** [`tools/ci/foundry_s7_access_control_security.sh`](../../../tools/ci/foundry_s7_access_control_security.sh)
 
 **Purpose:** Verifies that the store service enforces fail-closed access control.
 
@@ -133,7 +133,7 @@ just foundry-s7-access-control-security
 
 ### Combined Gate: All S7 Security Gates
 
-**Script:** [`tools/ci/foundry_s7_all_security.sh`](../tools/ci/foundry_s7_all_security.sh)
+**Script:** [`tools/ci/foundry_s7_all_security.sh`](../../../tools/ci/foundry_s7_all_security.sh)
 
 **Purpose:** Runs all three S7 security hardening gates in sequence.
 
@@ -278,10 +278,10 @@ These gates can be integrated into CI/CD pipelines to ensure security hardening 
 
 ## Related Documentation
 
-- [POSIX Runner Security Guide](../runtime_supervisor/POSIX_RUNNER_SECURITY.md)
-- [S7 Security Hardening Phase 2](S7_SECURITY_HARDENING_PHASE2.md)
-- [Security Status](../SECURITY_STATUS.md)
-- [Constitution](../CONSTITUTION.md)
+- [POSIX Runner Security Guide](../../../runtime_supervisor/POSIX_RUNNER_SECURITY.md)
+- [S7 Security Hardening Phase 2](2026-02-10-s7-security-hardening-phase2.md)
+- [Security Status](../../../SECURITY_STATUS.md)
+- [Constitution](../../../CONSTITUTION.md)
 
 ## Security Considerations
 
@@ -326,6 +326,6 @@ Potential future enhancements to the S7 security gates:
 
 ## References
 
-- [Foundry Gate Pattern](../tools/ci/foundry_s0.sh)
-- [Hardening Wave Gates](../tools/ci/foundry_hardening_wave_a_batch1.sh)
-- [V-007 Phase 3 Store Hardening](../tools/ci/foundry_v007_phase3_store_hardening.sh)
+- [Foundry Gate Pattern](../../../tools/ci/foundry_s0.sh)
+- [Hardening Wave Gates](../../../tools/ci/foundry_hardening_wave_a_batch1.sh)
+- [V-007 Phase 3 Store Hardening](../../../tools/ci/foundry_v007_phase3_store_hardening.sh)
