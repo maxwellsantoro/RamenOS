@@ -3,25 +3,72 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Status:** active prototype
+**Status:** public pre-alpha, active prototype
 
 **Last updated:** 2026-06-24
 
-**Current focus:** S12.4 HIL appliance v0 physical loop, then S13 metal HIL graduation
+**Current focus:** hardware evidence loop, then persistent-storage graduation
 
-RamenOS is an experimental, Rust-first operating system built around typed
-interfaces, capability-bounded execution, and evidence-driven hardware work.
-The long-term bet is simple: AI agents and applications should not have to
-drive computers by pretending to be humans at a terminal or a screen. Native OS
-interfaces should expose structured state, explicit authority, and auditable
-effects.
+RamenOS is an evidence-gated Rust OS experiment for agent-native computing.
+Instead of making agents and applications drive Unix through screens, files,
+shells, and ambient authority, RamenOS is building typed OS interfaces,
+explicit capabilities, observable semantic state, and hardware support backed
+by reproducible proof.
 
 This repository is not a production OS and does not claim metal graduation,
 security readiness, or release readiness without matching evidence. The current
 default CI path proves QEMU and Foundry gates; physical hardware claims require
 explicit HIL evidence.
 
-## What Is Here
+## What Works Today
+
+- Boots in QEMU on x86_64 and aarch64.
+- Runs IPC ping/pong, negative IPC checks, and trace smoke gates.
+- Generates typed IDL bindings and checks wire-contract integrity.
+- Runs Store service and POSIX compatibility gates with fail-closed behavior.
+- Runs Driver Foundry loops for virtio-net and virtio-blk replay/harness I/O.
+- Has hardware-in-the-loop appliance scaffolding, but no broad `PASS/METAL`
+  claim yet.
+
+The quickest public proof is the S0 Foundry gate:
+
+```bash
+just foundry-s0
+```
+
+Expected boot transcript:
+
+```text
+RAMEN OS S0 boot
+mm: allocator ready
+init: hello
+init: ping/pong ok
+init: ipc badlen small ok
+init: ipc badlen large ok
+init: ipc unknown proto ok
+init: trace ok
+```
+
+This proves a QEMU boot path, init startup, typed IPC smoke behavior, and trace
+emission. It does not prove production readiness, security readiness, or
+physical hardware support.
+
+## Proof Matrix
+
+| Claim | Current evidence | Public command |
+| --- | --- | --- |
+| QEMU boot works | `PASS/QEMU` S0 boot/IPC/trace gate | `just foundry-s0` |
+| IDL contracts are checked | Codegen and wire-contract gates | `just codegen` |
+| Store/service fail-closed paths exist | Security and access-policy gates | `just foundry-s7-all-security` |
+| Driver Foundry loop exists | virtio-net and virtio-blk replay/harness gates | `just s11`, `just s13` |
+| Hardware evidence loop is scaffolded | Appliance inventory/controller contracts | `just s12` |
+| Metal readiness | Not claimed as a default public state | Pending opt-in HIL graduation |
+
+See [CURRENT_STATUS.md](CURRENT_STATUS.md) for landed state and
+[NEXT_TASKS.md](NEXT_TASKS.md) for the next executable task. Treat
+[ROADMAP.md](ROADMAP.md) as background planning, not operational truth.
+
+## Project Shape
 
 RamenOS is developed as vertical slices across three connected pillars:
 
@@ -32,7 +79,7 @@ RamenOS is developed as vertical slices across three connected pillars:
 - **Store Platform:** artifact contracts, launch plans, signature/access
   policy, and the "run now -> vote/port -> publish" path.
 
-The core design rules are intentionally narrow:
+The core rules are intentionally narrow:
 
 - Native APIs are typed IDL contracts, not ioctl-style escape hatches.
 - Control plane is typed messages; data plane is zero-copy shared memory.
@@ -41,31 +88,26 @@ The core design rules are intentionally narrow:
 - Claims are gated by evidence levels such as `PASS/QEMU`, `PASS/HIL-LOG`,
   `PASS/HIL-APPLIANCE`, and `PASS/METAL`.
 
-## What Runs Today
+```mermaid
+flowchart LR
+    agent["Agent or app"] --> idl["Typed IDL contracts"]
+    idl --> caps["Capability kernel"]
+    caps --> svc["Core services"]
+    caps --> store["Store platform"]
+    svc --> state["Observable semantic state"]
+    svc --> foundry["Driver Foundry"]
+    foundry --> evidence["Evidence gates"]
+    evidence --> hardware["QEMU / HIL / metal claims"]
+```
 
-The repo currently has working QEMU/host gates for:
+## Where To Start
 
-- x86_64 and aarch64 boot/IPC/trace baseline.
-- IDL code generation and wire-contract integrity checks.
-- S7 security gates for POSIX runner and store-service fail-closed behavior.
-- S10 semantic state, execution fabric, native WASM, and QEMU IPC bridge flows.
-- S11 Driver Foundry virtio-net trace replay, live Oracle provenance, and
-  runtime `harness.net` packet I/O.
-- S12 golden-machine scaffolds, UEFI GOP probe, IOMMU inventory, and HIL
-  appliance controller contract.
-- S13 persistent-storage contracts, virtio-blk Oracle/replay, runtime
-  `harness.block` I/O, and QEMU scaffolds for NVMe boot and atomic rollback.
-- G0 RamenOrg governance scaffold and packet validators for bounded agent work.
-
-Current active work is the HIL appliance physical loop:
-
-1. Serial observer.
-2. Power/reset actuator.
-3. S13 metal graduation through appliance-mediated live capture.
-
-See [CURRENT_STATUS.md](CURRENT_STATUS.md) for landed state and
-[NEXT_TASKS.md](NEXT_TASKS.md) for the next executable task. Treat
-[ROADMAP.md](ROADMAP.md) as background planning, not operational truth.
+- To understand the idea: [PLATFORM_OVERVIEW.md](PLATFORM_OVERVIEW.md) and
+  [CONSTITUTION.md](CONSTITUTION.md).
+- To run something: start with `just foundry-s0`, then
+  [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
+- To contribute or use an agent: [CONTRIBUTING.md](CONTRIBUTING.md) and
+  [AGENTS.md](AGENTS.md).
 
 ## Quick Start
 
@@ -168,19 +210,19 @@ configuration.
 
 ## Repository Map
 
-- [kernel/](kernel/) and [kernel_uefi/](kernel_uefi/): target-side kernel work.
-- [kernel_api/](kernel_api/): shared typed contracts and generated bindings.
-- [idl/](idl/): IDL source of truth for new interfaces.
-- [services/](services/): domain manager, semantic state, execution fabric, and
-  supporting services.
-- [runtime_supervisor/](runtime_supervisor/): host/runtime launch path.
-- [driver_foundry/](driver_foundry/): trace import/replay/assert tooling.
-- [drivers/reference_vaults/](drivers/reference_vaults/): captured device
-  references and Oracle traces.
-- [tools/ci/](tools/ci/): Foundry gates used locally and in GitHub Actions.
-- [tools/hil/](tools/hil/): hardware-in-the-loop helper scripts.
-- [docs/](docs/): plans, evidence schemas, research, and governance artifacts.
-- [hardware/](hardware/): machine, storage, and appliance contracts.
+- **Target OS:** [kernel/](kernel/), [kernel_uefi/](kernel_uefi/),
+  [kernel_aarch64/](kernel_aarch64/), [kernel_api/](kernel_api/).
+- **Typed interfaces:** [idl/](idl/), [idl_codegen/](idl_codegen/),
+  [schemas/](schemas/).
+- **Services and runtime:** [services/](services/),
+  [runtime_supervisor/](runtime_supervisor/), [sdk/](sdk/).
+- **Driver Foundry:** [driver_foundry/](driver_foundry/),
+  [drivers/reference_vaults/](drivers/reference_vaults/), [hardware/](hardware/).
+- **Store platform:** [store/](store/), [store_cli/](store_cli/),
+  [artifact_store_core/](artifact_store_core/),
+  [artifact_store_schema/](artifact_store_schema/).
+- **Gates and docs:** [tools/ci/](tools/ci/), [tools/hil/](tools/hil/),
+  [docs/](docs/).
 
 ## Key Documents
 
