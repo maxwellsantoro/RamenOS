@@ -6,7 +6,7 @@
 //!
 //! # Page Table Structure
 //!
-//! ```
+//! ```text
 //! PML4 (Page Map Level 4) → PDP (Page Directory Pointer) → PD (Page Directory) → PT (Page Table) → Physical Page
 //! ```
 //!
@@ -214,6 +214,7 @@ impl X86_64Mmu {
     ///
     /// The caller must ensure that `cr3_value` is a valid physical address
     /// of a page table root.
+    #[allow(dead_code)]
     unsafe fn load_cr3(cr3_value: u64) {
         // SAFETY: The caller ensures cr3_value is a valid page table root.
         asm!("mov cr3, {}", in(reg) cr3_value, options(nomem, nostack));
@@ -226,6 +227,7 @@ impl X86_64Mmu {
     /// This is safe to call at any time, but the returned value should
     /// only be used in contexts where the caller knows the page table layout.
     #[must_use]
+    #[allow(dead_code)]
     unsafe fn read_cr3() -> u64 {
         let cr3_value: u64;
         // SAFETY: Reading CR3 is always safe.
@@ -239,6 +241,7 @@ impl X86_64Mmu {
     ///
     /// The caller must ensure that `vaddr` is a valid virtual address
     /// that may have been mapped or unmapped.
+    #[allow(dead_code)]
     unsafe fn invlpg(vaddr: VirtAddr) {
         // SAFETY: The caller ensures vaddr is valid for invalidation.
         asm!("invlpg [{}]", in(reg) vaddr.as_u64(), options(nomem, nostack, preserves_flags));
@@ -246,6 +249,7 @@ impl X86_64Mmu {
 }
 
 impl Mmu for X86_64Mmu {
+    #[allow(clippy::needless_return)]
     unsafe fn map_pages(
         domain_id: DomainId,
         vaddr: VirtAddr,
@@ -399,6 +403,7 @@ impl Mmu for X86_64Mmu {
         }
     }
 
+    #[allow(clippy::needless_return)]
     unsafe fn unmap_pages(
         domain_id: DomainId,
         vaddr: VirtAddr,
@@ -512,6 +517,7 @@ impl Mmu for X86_64Mmu {
         }
     }
 
+    #[allow(clippy::needless_return, unused_unsafe)]
     unsafe fn flush_tlb(domain_id: DomainId) {
         // Validate domain_id
         if domain_id >= 16 {
@@ -714,7 +720,7 @@ mod tests {
         // Test with various addresses
         let vaddr = unsafe { VirtAddr::new(0xFFFF_8000_0000_0000) };
         let idx = X86_64Mmu::pml4_index(vaddr);
-        assert_eq!(idx, 0x1FF); // Higher half kernel
+        assert_eq!(idx, 0x100); // 0xFFFF_8000_0000_0000 -> PML4 idx 0x100 (bit 47 set)
 
         let vaddr = unsafe { VirtAddr::new(0x0000_0000_1234_5678) };
         let idx = X86_64Mmu::pml4_index(vaddr);
@@ -757,6 +763,9 @@ mod tests {
         let mut table = crate::mm::AddressSpaceTable::new();
         let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
         table.init_kernel(root);
+        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
+        // a table root for non-zero domains) succeeds.
+        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
         *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
 
         // Test mapping with valid parameters
@@ -784,6 +793,9 @@ mod tests {
         let mut table = crate::mm::AddressSpaceTable::new();
         let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
         table.init_kernel(root);
+        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
+        // a table root for non-zero domains) succeeds.
+        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
         *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
 
         // Test with invalid domain ID (>= MAX_DOMAINS)
@@ -812,6 +824,9 @@ mod tests {
         let mut table = crate::mm::AddressSpaceTable::new();
         let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
         table.init_kernel(root);
+        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
+        // a table root for non-zero domains) succeeds.
+        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
         *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
 
         // Test with misaligned virtual address
@@ -840,6 +855,9 @@ mod tests {
         let mut table = crate::mm::AddressSpaceTable::new();
         let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
         table.init_kernel(root);
+        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
+        // a table root for non-zero domains) succeeds.
+        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
         *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
 
         // Map a page first
@@ -863,6 +881,9 @@ mod tests {
         let mut table = crate::mm::AddressSpaceTable::new();
         let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
         table.init_kernel(root);
+        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
+        // a table root for non-zero domains) succeeds.
+        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
         *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
 
         // Test flush for valid domain

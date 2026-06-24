@@ -87,7 +87,7 @@ pub mod serial {
             unsafe {
                 outb(COM2 + 1, 0x00);
                 outb(COM2 + 3, 0x80);
-                outb(COM2 + 0, 0x03);
+                outb(COM2, 0x03);
                 outb(COM2 + 1, 0x00);
                 outb(COM2 + 3, 0x03);
                 outb(COM2 + 2, 0xC7);
