@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Changed
+- Sharpened the public README identity to "an evidence-gated OS lab for
+  agent-native computing", added a compressed "Short Version" and a "Try the
+  Smallest Proof" framing, restructured contributor help into three tracks, and
+  surfaced a secondary Governance & Research note.
 - Made HIL metal evidence path-disclosing: per-gate HIL JSON now carries
   `claim_path` plus appliance metadata, and docs distinguish standalone
   `operator-golden-machine` PASS/METAL from `appliance-mediated` graduation.
@@ -20,6 +24,10 @@
   S13, HIL appliance, security, risk, and contributor documentation.
 
 ### Added
+- Added root `SECURITY.md` (vulnerability reporting + posture),
+  `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), and GitHub issue/PR templates
+  (bug, hardware-evidence, docs-confusion, pull request) so the public
+  contribution flow matches the project's evidence discipline.
 - Added Foundry checks for per-gate HIL `claim_path` evidence and for the POSIX
   runner default sandbox profile contract.
 - G0 RamenOrg / research-backed OS scaffold:
