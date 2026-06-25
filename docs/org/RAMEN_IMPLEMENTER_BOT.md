@@ -90,14 +90,22 @@ The PR is authored by `ramen-implementer[bot]`. Confirm:
 gh pr view <N> --json author --jq .author.login   # → app/ramen-implementer
 ```
 
-## Approving + merging (the human, A3)
+## Approving + merging (a different identity, A3)
 
-GitHub forbids a PR author from approving their own PR, so the bot-opened PR
-**requires** a different identity to approve — i.e. the human:
+GitHub forbids a PR author from approving their own PR, so a bot-opened PR
+**requires a different identity** to approve — today the human, later a second
+bot (see Stage 2).
+
+> **Critical gotcha — drop the bot token before approving.** `gh pr create` runs
+> as the bot because `GH_TOKEN` holds the bot token. The next `gh pr review
+> --approve` will *also* run as the bot unless you clear the token first, and
+> GitHub rejects it: *"Review cannot approve your own pull request."* **Always
+> `unset GH_TOKEN` (or switch to a different credential) between opening and
+> approving.**
 
 ```sh
-unset GH_TOKEN                       # back to maxwellsantoro (reviewer/A3)
-gh pr review <N> --approve --body "..."
+unset GH_TOKEN                       # REQUIRED: drop the bot token first
+gh pr review <N> --approve --body "..."   # now runs as the human (A3)
 gh pr merge  <N> --squash --delete-branch
 ```
 
