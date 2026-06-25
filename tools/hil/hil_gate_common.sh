@@ -110,6 +110,22 @@ ramen_hil_evidence_level() {
   fi
 }
 
+ramen_hil_claim_path() {
+  if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" && "${RAMEN_HIL_APPLIANCE:-}" == "1" ]]; then
+    echo "appliance-mediated"
+  elif [[ "${RAMEN_HIL_GRADUATION:-}" == "1" ]]; then
+    echo "operator-golden-machine"
+  elif [[ "${RAMEN_HIL_APPLIANCE:-}" == "1" && -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
+    echo "appliance-live"
+  elif [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
+    echo "operator-live"
+  elif [[ -n "${RAMEN_HIL_SERIAL_LOG:-}" ]]; then
+    echo "development-log-replay"
+  else
+    echo "qemu-or-scaffold"
+  fi
+}
+
 ramen_hil_emit_evidence_json() {
   local out_path="$1"
   local gate_id="$2"
@@ -119,14 +135,17 @@ ramen_hil_emit_evidence_json() {
   local efi_path="$6"
   local init_path="$7"
 
+  local claim_path
+  claim_path="$(ramen_hil_claim_path)"
+
   mkdir -p "$(dirname "$out_path")"
-  python3 - "$out_path" "$gate_id" "$evidence_level" "$serial_log" "$marker" "$efi_path" "$init_path" <<'PY'
+  python3 - "$out_path" "$gate_id" "$evidence_level" "$serial_log" "$marker" "$efi_path" "$init_path" "$claim_path" <<'PY'
 import json
 import os
 import sys
 from datetime import datetime, timezone
 
-out_path, gate_id, evidence_level, serial_log, marker, efi_path, init_path = sys.argv[1:8]
+out_path, gate_id, evidence_level, serial_log, marker, efi_path, init_path, claim_path = sys.argv[1:9]
 root = os.environ.get("ROOT_DIR", ".")
 
 def sha256_file(path: str) -> str:
@@ -139,10 +158,28 @@ def sha256_file(path: str) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+def parse_power_events():
+    raw = os.environ.get("RAMEN_HIL_POWER_EVENTS_JSON", "").strip()
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return [{"kind": "parse_error", "result": "invalid_power_events_json"}]
+    return parsed if isinstance(parsed, list) else [{"kind": "parse_error", "result": "power_events_not_array"}]
+
+appliance_enabled = os.environ.get("RAMEN_HIL_APPLIANCE", "") == "1"
+controller_evidence = os.environ.get(
+    "RAMEN_HIL_CONTROLLER_EVIDENCE",
+    os.environ.get("RAMEN_HIL_APPLIANCE_EVIDENCE", ""),
+)
+controller_log = os.environ.get("RAMEN_HIL_CONTROLLER_LOG", "")
+
 payload = {
     "schema_version": 1,
     "gate_id": gate_id,
     "evidence_level": evidence_level,
+    "claim_path": claim_path,
     "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     "git_sha": os.environ.get("RAMEN_GIT_SHA", "unknown"),
     "machine_id": os.environ.get("RAMEN_MACHINE_ID", "unknown"),
@@ -152,6 +189,18 @@ payload = {
     "serial_log": serial_log,
     "marker": marker,
     "graduation_mode": os.environ.get("RAMEN_HIL_GRADUATION", "") == "1",
+    "appliance": {
+        "enabled": appliance_enabled,
+        "appliance_id": os.environ.get("RAMEN_HIL_APPLIANCE_ID", "") if appliance_enabled else "",
+        "target_id": os.environ.get(
+            "RAMEN_HIL_TARGET_ID",
+            os.environ.get("RAMEN_MACHINE_ID", ""),
+        ) if appliance_enabled else "",
+        "controller_evidence": controller_evidence if appliance_enabled else "",
+        "controller_log": controller_log if appliance_enabled else "",
+        "controller_log_sha256": sha256_file(controller_log) if appliance_enabled and controller_log else "",
+        "power_events": parse_power_events() if appliance_enabled else [],
+    },
 }
 with open(out_path, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2)

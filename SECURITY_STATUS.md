@@ -20,7 +20,7 @@ implementations.
 | Artifact identity | Strict content IDs and signature-aware Store paths |
 | Store access | Credential/capability checks and domain-scoped visibility |
 | Native execution | Typed manifests and capability-broker grants |
-| POSIX compatibility | Explicit opt-in plus Linux sandbox controls where supported |
+| POSIX compatibility | Explicit opt-in plus a host-portable rlimits-only default profile; seccomp/chroot/namespace helpers are tested but not default-wired |
 | Kernel fast paths | Capability kind, generation, and rights validation |
 | Wire formats | Versioned IDL and fail-closed length/encoding checks |
 | Shared memory | Typed control plane, kernel validation, and domain accounting |
@@ -40,8 +40,9 @@ The detailed POSIX operating constraints remain in
 - **Static kernel limits:** fixed-size capability, shared-memory, and allocator
   structures can still produce controlled denial of service.
 - **Hardware trust:** S12/S13 do not yet have full `PASS/METAL` evidence.
-- **Compatibility isolation:** seccomp, namespaces, and chroot are platform-
-  dependent layers, not proof of containment against kernel compromise.
+- **Compatibility isolation:** the default POSIX runner profile is rlimits-only;
+  seccomp, namespaces, and chroot are helper controls, not current default
+  containment.
 - **Security assurance:** no formal verification, independent audit, or stable
   release threat model has been completed.
 

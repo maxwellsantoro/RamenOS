@@ -543,6 +543,7 @@ fn apply_chroot(cmd: &mut Command, chroot_dir: Option<&Path>) -> io::Result<()> 
 /// Cleanup sandbox resources
 ///
 /// Should be called after process exits to clean up temporary directories
+#[allow(dead_code)]
 pub fn cleanup_sandbox(config: &SandboxConfig) -> io::Result<()> {
     if let Some(chroot_dir) = &config.chroot_dir {
         if chroot_dir.exists() {
