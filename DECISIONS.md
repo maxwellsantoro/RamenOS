@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -411,3 +411,15 @@ serial capture emits `PASS/HIL-APPLIANCE`.
 **Authority boundary:** G0.8.1 is A2-local only and grants no merge, release,
 self-approval, HIL actuation, public support, credential, or identity-level role
 authority.
+
+## 2026-06-25 — Public identity is "evidence-gated OS lab"; governance surfaced secondarily
+The README's opening identity is "RamenOS is an evidence-gated OS lab for
+agent-native computing." We chose "OS lab" over the prior "Rust OS experiment"
+to lead with the testable, evidence-gated nature of the project rather than the
+implementation language; Rust remains visible in the workspace table, build
+section, and badges. RamenOrg governance and the research program are now
+surfaced as a single secondary "Governance and Research" section, kept strictly
+parallel to the OS execution track and granting no merge, release, hardware, or
+public-support authority on their own — the public hook stays OS-first while the
+dual-product reality is stated honestly. This is a positioning decision, not a
+technical or constitutional change.

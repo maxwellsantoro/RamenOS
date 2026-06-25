@@ -5,15 +5,14 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 **Status:** Public pre-alpha, active development
 **Current focus:** hardware evidence loop, then persistent-storage graduation
 
-RamenOS is an evidence-gated Rust OS experiment for agent-native computing.
-Instead of making agents and applications drive Unix through screens, files,
-shells, and ambient authority, RamenOS is building typed OS interfaces,
-explicit capabilities, observable semantic state, and hardware support backed
-by reproducible proof.
+RamenOS is an evidence-gated OS lab for agent-native computing. Instead of
+making agents drive Unix through screens, files, shells, and ambient authority,
+RamenOS builds typed OS interfaces, explicit capabilities, and observable
+semantic state — backed by reproducible proof.
 
 Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
@@ -21,6 +20,19 @@ This repository is not a production OS and does not claim metal graduation,
 security readiness, or release readiness without matching evidence. The current
 default CI path proves QEMU and Foundry gates; physical hardware claims require
 explicit HIL evidence.
+
+## The Short Version
+
+RamenOS is trying to prove a narrow, testable idea: agents should interact with
+an OS through **typed capabilities** and **observable semantic state**, not by
+driving a Unix desktop through shells, pixels, and ambient authority.
+
+The current repo proves the first pieces of that model in QEMU — boot, typed
+IPC, trace emission, IDL contract gates, Store/service fail-closed paths, and
+Driver Foundry replay loops.
+
+The next public milestone is **live hardware evidence** through the HIL
+appliance.
 
 ## Why This Exists
 
@@ -54,7 +66,10 @@ state allowed by that capability, and leave an auditable trail of effects.
 - Has hardware-in-the-loop appliance scaffolding, but no broad `PASS/METAL`
   claim yet.
 
-The canonical public smoke proof is:
+## Try the Smallest Proof
+
+This does not boot a daily-driver OS. It proves the current public baseline:
+QEMU boot, init startup, typed IPC smoke behavior, and trace emission.
 
 ```bash
 git clone https://github.com/maxwellsantoro/RamenOS.git
@@ -273,13 +288,27 @@ configuration.
 - **Gates and docs:** [tools/ci/](tools/ci/), [tools/hil/](tools/hil/),
   [docs/](docs/).
 
+## Governance and Research
+
+This repository also hosts the **RamenOrg** governance scaffolding and the
+research program. Both are kept strictly parallel to the OS execution track and
+grant no merge, release, hardware, or public-support authority on their own.
+
+- Governance artifacts, the authority ladder, and the merge gate: [docs/org/](docs/org/).
+- Research program and open questions: [docs/research/](docs/research/).
+
 ## Contributing
 
 RamenOS favors small, evidence-bearing slices over large subsystem drops.
 
-The most useful outside help right now is review and implementation support for
-the S12.4 hardware evidence loop: serial observation, power/reset actuation,
-and the claim boundaries around HIL appliance evidence.
+### Useful help right now
+
+- **Serious systems help:** the S12.4 HIL appliance loop — serial observation,
+  power/reset actuation, and the claim boundaries around HIL appliance evidence.
+- **Newcomer help:** run `just foundry-s0` on your machine and report any
+  host/QEMU/OVMF boot issues you hit.
+- **Docs help:** tighten setup notes for macOS/Linux hardware combinations, and
+  flag anywhere the docs lose a new reader.
 
 Before proposing a change:
 
@@ -300,6 +329,8 @@ to produce code whose observed behavior matches the Oracle, then gate it.
 - [CONSTITUTION.md](CONSTITUTION.md): project principles.
 - [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md): claim/evidence vocabulary.
 - [SECURITY_STATUS.md](SECURITY_STATUS.md): security posture and boundaries.
+- [SECURITY.md](SECURITY.md): how to report a vulnerability.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): community standards.
 - [SLICES.md](SLICES.md): completed slice inventory.
 - [STORE_SPEC.md](STORE_SPEC.md): store platform contracts.
 - [CONTRIBUTING.md](CONTRIBUTING.md): local preflight and lint policy.
