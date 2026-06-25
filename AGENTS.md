@@ -72,6 +72,13 @@ Gates are shell scripts in `tools/ci/`, run via `just`. Representative set (full
 
 S2 needs `S2_COMPAT_KERNEL`/`S2_COMPAT_INITRD`/`S2_COMPAT_ARTIFACT` (or `S2_COMPAT_KERNEL_URL` to fetch).
 
+## Merge policy (path-scoped gate)
+The branch rule requires the **`merge-gate`** check, which is path-scoped:
+- **Docs/org-only PRs** (no `.rs`/`Cargo`/`idl`/`rust-toolchain`) — the heavy `foundry` job is **skipped**; the PR merges on `org-governance` + `merge-gate` in seconds.
+- **OS-code PRs** — `foundry` **runs** and `merge-gate` refuses to pass unless it succeeds. OS-code changes are forced through the full Foundry suite.
+
+All PRs are opened by the `ramen-implementer` bot (A2) and approved + merged by a human (A3); see `docs/org/RAMEN_IMPLEMENTER_BOT.md`.
+
 ## IDL workflow
 1. Define the interface in `idl/harness/*.toml` (harness) or `idl/portals/*.toml` (portal).
 2. `just codegen` → `kernel_api/src/generated/*.generated.rs` (+ sdk/native_runner host bindings + native_runner `generated/mod.rs`).
