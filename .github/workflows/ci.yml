@@ -5,7 +5,29 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      os_code: ${{ steps.cls.outputs.os_code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: cls
+        name: Detect OS-code changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then BASE="origin/${{ github.base_ref }}"; else BASE="HEAD^"; fi
+          FILES=$(git diff --name-only "$BASE" HEAD || true)
+          echo "$FILES"
+          if printf '%s\n' "$FILES" | grep -qE '\.(rs|toml)$|^Cargo\.(toml|lock)$|^rust-toolchain|^idl/'; then
+            echo "os_code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "os_code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   foundry:
+    needs: changes
+    if: needs.changes.outputs.os_code == 'true'
     runs-on: ubuntu-latest
     env:
       S2_COMPAT_KERNEL_URL: https://github.com/${{ github.repository }}/releases/download/compat-kernel-v6.6.50/compat-kernel.deb
@@ -99,3 +121,20 @@ jobs:
       - uses: actions/checkout@v4
       - name: Foundry org governance gate (G0)
         run: bash tools/ci/foundry_org_governance_g0.sh
+
+  merge-gate:
+    runs-on: ubuntu-latest
+    needs: [changes, foundry, org-governance]
+    if: always()
+    steps:
+      - name: Evaluate gate (docs skip foundry; OS code requires it; org-governance always)
+        run: |
+          OS="${{ needs.changes.outputs.os_code }}"
+          FR="${{ needs.foundry.result }}"
+          OG="${{ needs.org-governance.result }}"
+          echo "os_code=$OS foundry=$FR org-governance=$OG"
+          if [ "$OG" != "success" ]; then echo "merge-gate: FAIL (org-governance=$OG)"; exit 1; fi
+          if [ "$OS" = "true" ] && [ "$FR" != "success" ]; then
+            echo "merge-gate: FAIL (OS code changed, foundry=$FR)"; exit 1
+          fi
+          echo "merge-gate: PASS (os_code=$OS foundry=$FR)"
