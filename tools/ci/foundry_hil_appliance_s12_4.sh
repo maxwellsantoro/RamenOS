@@ -80,6 +80,8 @@ grep -q 'serial_markers_observed' "$SERIAL_CAPTURE_SCRIPT" \
   || fail "SERIAL_CAPTURE_MARKER_SCAN_MISSING" "serial capture script must scan serial markers"
 grep -q 'target_hil_evidence_markers' "$SERIAL_CAPTURE_SCRIPT" \
   || fail "SERIAL_CAPTURE_HIL_MARKER_SCAN_MISSING" "serial capture script must parse hil_evidence markers"
+grep -q 'claim_path' "$EVIDENCE_LEVELS" \
+  || fail "CLAIM_PATH_DOCTRINE_MISSING" "EVIDENCE_LEVELS must require per-gate claim_path disambiguation"
 
 grep -q 'manifest = "hardware/hil_appliance_v0.toml"' "$GOLDEN_MANIFEST" \
   || fail "GOLDEN_APPLIANCE_LINK_MISSING" "golden machine manifest must link appliance manifest"
@@ -153,6 +155,65 @@ if (( appliance_line >= s13_line )); then
 fi
 
 echo "$GATE_ID: METRIC docs_manifest=pass"
+
+echo "$GATE_ID: INFO step=per_gate_evidence_contract"
+PER_GATE_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ramen-hil-gate-evidence.XXXXXX")"
+PER_GATE_JSON="$PER_GATE_TMP/s13_7_nvme_boot_evidence.json"
+PER_GATE_SERIAL="$PER_GATE_TMP/serial.log"
+cat >"$PER_GATE_SERIAL" <<'EOF'
+RAMEN OS
+persistent_storage: nvme_boot ok
+hil_evidence: git_sha=fixture
+hil_evidence: init_profile=nvme_boot
+hil_evidence: machine_id=intel-nuc-12-reference
+hil_evidence: storage_manifest_sha256=fixture
+hil_evidence: kernel_efi_sha256=fixture
+hil_evidence: init_img_sha256=fixture
+hil_evidence: boot_epoch_nonce=fixture
+EOF
+
+RAMEN_HIL_GRADUATION=1 \
+RAMEN_HIL_APPLIANCE=1 \
+RAMEN_HIL_APPLIANCE_ID=pi-hil-fixture \
+RAMEN_HIL_TARGET_ID=intel-nuc-fixture \
+RAMEN_HIL_CONTROLLER_EVIDENCE="$PER_GATE_TMP/hil_appliance_fixture.json" \
+  bash -c 'source tools/hil/hil_gate_common.sh; ramen_hil_emit_evidence_json "$0" "foundry_s13_nvme_boot_s13_7" "PASS/METAL" "$1" "persistent_storage: nvme_boot ok" "" ""' \
+  "$PER_GATE_JSON" "$PER_GATE_SERIAL"
+
+python3 - "$PER_GATE_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    payload = json.load(f)
+
+assert payload["evidence_level"] == "PASS/METAL"
+assert payload["claim_path"] == "appliance-mediated"
+appliance = payload["appliance"]
+assert appliance["enabled"] is True
+assert appliance["appliance_id"] == "pi-hil-fixture"
+assert appliance["target_id"] == "intel-nuc-fixture"
+assert appliance["controller_evidence"] != ""
+PY
+
+RAMEN_HIL_GRADUATION=1 \
+  bash -c 'source tools/hil/hil_gate_common.sh; ramen_hil_emit_evidence_json "$0" "foundry_s13_nvme_boot_s13_7" "PASS/METAL" "$1" "persistent_storage: nvme_boot ok" "" ""' \
+  "$PER_GATE_JSON" "$PER_GATE_SERIAL"
+
+python3 - "$PER_GATE_JSON" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    payload = json.load(f)
+
+assert payload["evidence_level"] == "PASS/METAL"
+assert payload["claim_path"] == "operator-golden-machine"
+assert payload["appliance"]["enabled"] is False
+PY
+
+rm -rf "$PER_GATE_TMP"
+echo "$GATE_ID: METRIC per_gate_evidence_contract=pass"
 
 echo "$GATE_ID: INFO step=serial_observer_contract"
 SERIAL_OBSERVER_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ramen-hil-serial.XXXXXX")"

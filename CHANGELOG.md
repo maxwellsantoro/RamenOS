@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Made HIL metal evidence path-disclosing: per-gate HIL JSON now carries
+  `claim_path` plus appliance metadata, and docs distinguish standalone
+  `operator-golden-machine` PASS/METAL from `appliance-mediated` graduation.
+- Corrected POSIX runner security claims to match the default
+  host-portable-rlimits-only runtime profile; seccomp/chroot/namespace helpers
+  remain tested but are not default-wired.
 - Reworked the documentation entry points so `CURRENT_STATUS.md` records landed
   state, `NEXT_TASKS.md` is an executable queue, and `ROADMAP.md` stays
   directional.
@@ -14,6 +20,8 @@
   S13, HIL appliance, security, risk, and contributor documentation.
 
 ### Added
+- Added Foundry checks for per-gate HIL `claim_path` evidence and for the POSIX
+  runner default sandbox profile contract.
 - G0 RamenOrg / research-backed OS scaffold:
   - Added `docs/plans/2026-06-23-research-backed-ramenorg.md` to make RamenOrg and research-backed development first-class planning tracks without displacing S12.4/S13 HIL work.
   - Added `docs/org/` with RamenOrg constitution, role charter, authority levels, heartbeats, `WorkOrderV0`, `HandoffPacketV0`, `BoardVoteV0`, and claim safety.

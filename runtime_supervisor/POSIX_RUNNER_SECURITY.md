@@ -1,78 +1,65 @@
 # POSIX Runner Security Guide
 
-**⚠️ SECURITY NOTICE:** The POSIX runner executes shell scripts and carries inherent security risks. Read this document carefully before use.
+**SECURITY NOTICE:** The POSIX runner executes shell scripts and carries inherent
+security risks. Read this document carefully before use.
 
 ## Current Status
 
-**S7 Security Hardening COMPLETE:** The POSIX runner now runs inside a sandbox with actual enforcement:
+The default POSIX runner profile is **host-portable-rlimits-only**:
 
-### Seccomp Syscall Filtering (Linux only)
-- ✅ **Actual enforcement** using `seccompiler` crate with `prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER)`
-- ✅ **Allowlist approach**: Only explicitly whitelisted syscalls are permitted
-- ✅ **Blocked syscalls**:
-  - Process creation: `execve`, `execveat`, `fork`, `vfork`, `clone`, `clone3`
-  - Network: `socket`, `socketpair`, `bind`, `listen`, `accept`, `connect`, `sendto`, `recvfrom`
-  - Privilege escalation: `setuid`, `setgid`, `seteuid`, `setegid`, `setresuid`, `setresgid`, `setfsuid`, `setfsgid`
-  - File creation: `creat`, `mkdir`, `mknod` (blocked via seccomp + namespace)
-  - Advanced IPC: `shmget`, `shmat`, `shmdt`, `semget`, `semop`, `msgget`, `msgrcv`, `msgsnd`
-  - Other dangerous: `ptrace`, `kexec_load`, `init_module`, `finit_module`, `userfaultfd`
-- ✅ **Allowed syscalls** (whitelist):
-  - Basic I/O: `read`, `write`, `pread64`, `pwrite64`, `poll`, `select`, `ppoll`, `pselect6`
-  - Memory: `brk`, `mmap`, `mprotect`, `munmap`, `mremap`
-  - Process: `exit`, `exit_group`, `rt_sigreturn`, `rt_sigprocmask`
-  - Time: `clock_gettime`, `gettimeofday`
-  - Info: `uname`, `getuid`, `getgid`, `geteuid`, `getegid`, `getpid`, `getppid`
-  - FS (read-only): `fstat`, `lstat`, `stat`, `fstatat`, `access`, `faccessat`, `readlink`
-  - IPC: `pipe`, `pipe2` (for shell redirection)
-  - File descriptors: `dup`, `dup2`, `close`
-  - Misc: `ioctl` (limited for terminal handling), `getrlimit`, `getrusage`
+```text
+seccomp=false namespaces=false chroot=false rlimits=true
+```
 
-### Namespace Isolation (Linux only)
-- ✅ **Actual enforcement** using `libc::unshare()` in child process before exec
-- ✅ **Isolated namespaces**:
-  - `CLONE_NEWNS`: Mount namespace - isolates filesystem mounts
-  - `CLONE_NEWUTS`: UTS namespace - isolates hostname and domain name
-  - `CLONE_NEWIPC`: IPC namespace - isolates System V IPC and POSIX message queues
-  - `CLONE_NEWNET`: Network namespace - isolates network interfaces
-- ⚠️ **Note**: PID namespace (`CLONE_NEWPID`) is not used due to `Command::spawn()` pattern limitations
+The runtime still requires `RAMEN_POSIX_RUNNER_ACK_RISK=1`, logs every launch,
+and applies resource limits on Linux. The seccomp, namespace, and chroot helpers
+exist in `runtime_supervisor/src/sandbox.rs` and have focused tests, but they
+are not wired into the default runner path because they are not portable on
+unprivileged CI hosts.
 
-### Chroot Filesystem Restriction (Linux only)
-- ✅ **Actual enforcement** using `libc::chroot()` in child process before exec
-- ✅ **Followed by `chdir("/")`** to set working directory inside chroot
-- ✅ **Creates minimal filesystem structure** in chroot directory
-- ⚠️ **Limitations**:
-  - Requires `CAP_SYS_CHROOT` capability or root privileges
-  - Does not provide complete isolation - only affects path resolution
-  - Process can escape chroot if it has root privileges and can create device nodes
-  - Must be combined with namespaces, seccomp, and rlimits for proper isolation
+### Default Runtime Controls
 
-### Resource Limits (Linux only)
-- ✅ **Actual enforcement** using `libc::setrlimit()` in child process before exec
-- ✅ **Conservative limits**:
-  - `RLIMIT_NOFILE`: 64 (max open file descriptors)
-  - `RLIMIT_NPROC`: 1 (prevents fork bombs and child processes)
-  - `RLIMIT_FSIZE`: 1,048,576 bytes (1MB max file writes)
-  - `RLIMIT_AS`: 268,435,456 bytes (256MB max virtual memory)
-  - `RLIMIT_CPU`: 30 seconds (max CPU time)
-- ⚠️ **Note**: Failures to set limits are logged but don't fail execution (defense-in-depth)
+- **Kill-switch:** execution is blocked unless
+  `RAMEN_POSIX_RUNNER_ACK_RISK=1` is set.
+- **Artifact path:** store-integrated calls verify the artifact through
+  `store_service` before execution.
+- **Resource limits:** Linux `setrlimit()` hooks are configured for open files,
+  process count, file size, address space, and CPU time. Limit failures are
+  logged but do not fail execution.
+- **Not default-wired:** seccomp filtering, namespace isolation, and chroot.
 
-**Risk Level:** MEDIUM (reduced from HIGH with actual enforcement)
+### Helper Controls
+
+The following helpers are implemented and tested in isolation:
+
+- **Seccomp syscall filtering:** allowlist-based BPF filter via `seccompiler`.
+- **Namespace isolation:** `libc::unshare()` for mount, UTS, IPC, and network
+  namespaces. PID namespaces are not used by the current `Command::spawn()`
+  pattern.
+- **Chroot filesystem restriction:** `libc::chroot()` followed by `chdir("/")`.
+
+These helpers are not a claim about the default POSIX runner profile until a
+future gate wires them through `posix_run_v0_sandboxed`.
+
+**Risk Level:** HIGH. This remains a compatibility-only development scaffold
+that can execute arbitrary shell scripts once the explicit risk gate is set.
 
 ## What This Means
 
 ### Protected Against
-- ✅ Arbitrary command execution
-- ✅ Process creation (fork bombs)
-- ✅ Network access
-- ✅ Filesystem access outside sandbox
-- ✅ Resource exhaustion attacks
+
+- Accidental execution without the explicit risk acknowledgment.
+- Some resource exhaustion paths on Linux when resource limits apply.
+- Unsigned or invalid artifacts on store-integrated verified paths.
 
 ### NOT Protected Against
-- ⚠️ Kernel exploits
-- ⚠️ Compromised parent process (runtime_supervisor)
-- ⚠️ Side-channel attacks
-- ⚠️ Hardware vulnerabilities (Spectre, etc.)
-- ⚠️ Repeated invocation DoS
+
+- Arbitrary shell behavior after `RAMEN_POSIX_RUNNER_ACK_RISK=1`.
+- Network access, filesystem traversal, or child process creation in the
+  default profile.
+- Kernel exploits, compromised parent process, side channels, or hardware
+  vulnerabilities.
+- Repeated invocation DoS.
 
 See `docs/plans/posix_runner_remaining_risks.md` for complete risk analysis.
 
@@ -127,7 +114,8 @@ Before using the POSIX runner, ensure:
 ## Migration Path
 
 ### Short-Term (Current)
-Use the sandboxed POSIX runner for development only.
+Use the POSIX runner for development only. Treat the default profile as
+rlimits-only, not as a seccomp/chroot container.
 
 ### Medium-Term (S9.3)
 Integrate with store service for artifact validation:
@@ -161,28 +149,27 @@ The Foundry gate now includes:
 1. **Kill-switch enforcement**: POSIX runner refuses execution without `RAMEN_POSIX_RUNNER_ACK_RISK=1`
 2. **Sandbox-disabled warning**: Explicit warning when `RAMEN_POSIX_RUNNER_DISABLE_SANDBOX=1` is set
 3. **ACK allows execution**: Execution succeeds with proper acknowledgment
-4. **Sandbox enabled by default**: Sandbox is enabled unless explicitly disabled
-5. **Seccomp filter enforcement**: Integration tests verify dangerous syscalls are blocked
-6. **Resource limit enforcement**: Integration tests verify rlimits are applied
-7. **Chroot confinement**: Integration tests verify filesystem access is restricted
+4. **Default profile honesty**: the runtime log and unit contract report
+   `seccomp=false namespaces=false chroot=false rlimits=true`
+5. **Seccomp helper enforcement**: helper tests verify dangerous syscalls are blocked
+6. **Resource limit helper enforcement**: helper tests verify rlimits are applied
+7. **Chroot helper confinement**: helper tests verify filesystem access is restricted
 
 ### Integration Tests
 
-The following integration tests verify actual security enforcement:
+The following tests verify helper behavior, not the default runner profile:
 - `seccomp_filter_blocks_execve_syscall`: Verifies `execve` is blocked
 - `seccomp_filter_blocks_socket_syscall`: Verifies `socket` is blocked
 - `rlimit_enforces_process_limit`: Verifies `RLIMIT_NPROC` prevents fork
 - `chroot_confines_filesystem_access`: Verifies files outside chroot are inaccessible
-- `sandbox_full_enforcement`: Verifies all controls work together
-- `sandbox_blocks_dangerous_operations`: Verifies dangerous operations are blocked
+- `sandbox_full_enforcement`: Verifies all controls work together when explicitly configured
+- `sandbox_blocks_dangerous_operations`: Verifies dangerous operations are blocked when explicitly configured
 
 ## Platform Support
 
-- ✅ **Linux**: Full sandbox support with actual enforcement
-  - Seccomp BPF filtering via `prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER)`
-  - Namespace isolation via `libc::unshare()`
-  - Chroot filesystem restriction via `libc::chroot()`
-  - Resource limits via `libc::setrlimit()`
+- **Linux**: default runner profile applies the configured resource-limit path.
+  Seccomp, namespace, and chroot helpers are available only when explicitly
+  wired by tests or future runner profiles.
 - ⚠️ **macOS**: Partial support
   - No seccomp support (not available on macOS)
   - Sandbox returns error on non-Linux platforms

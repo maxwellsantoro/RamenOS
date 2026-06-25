@@ -45,8 +45,8 @@ fn parse_env_flag(name: &str) -> bool {
 
 /// POSIX runner v0: execute an artifact blob as a shell script.
 ///
-/// S7 Security Hardening: Runtime enforcement with sandbox by default.
-/// - Sandbox is enabled by default (not just feature flag)
+/// S7 Security Hardening: Runtime enforcement with an explicit compatibility risk gate.
+/// - The default portable profile applies resource limits only.
 /// - Runtime kill-switch requires RAMEN_POSIX_RUNNER_ACK_RISK=1
 /// - All executions are logged with full context for forensic analysis
 ///
@@ -56,11 +56,10 @@ fn parse_env_flag(name: &str) -> bool {
 ///
 /// # Security Model (S7 Hardening)
 ///
-/// The sandbox provides defense-in-depth protection:
-/// - **Seccomp filtering**: Blocks execve, fork, clone, socket syscalls
-/// - **Namespace isolation**: PID, mount, UTS, network namespaces
-/// - **Chroot**: Filesystem restricted to temporary directory
-/// - **Resource limits**: CPU time, memory, file descriptors, processes
+/// The current default runner profile is host-portable and applies resource
+/// limits only. Seccomp, namespace, and chroot helpers exist in `sandbox.rs`,
+/// but are not wired into this default path because they are not portable on
+/// unprivileged CI hosts.
 ///
 /// # Environment Variables
 ///
@@ -122,24 +121,24 @@ fn posix_run_v0_sandboxed(
         log_path.map(|p| p.display().to_string())
     );
     eprintln!("posix_runner:   - Caller PID: {}", std::process::id());
-    eprintln!("posix_runner:   - Sandbox: ENABLED");
-
-    // Create temporary chroot directory
+    // Create temporary chroot directory for profiles that enable chroot later.
     let chroot_dir =
         std::env::temp_dir().join(format!("ramen_posix_sandbox_{}", std::process::id()));
     fs::create_dir_all(&chroot_dir)?;
 
-    // Set up the host-portable sandbox profile used by the dev-only POSIX path.
+    let sandbox_config = default_posix_sandbox_config(chroot_dir.clone());
+
+    eprintln!("posix_runner:   - Sandbox profile: host-portable-rlimits-only");
+    eprintln!(
+        "posix_runner:   - Sandbox controls configured: seccomp={} namespaces={} chroot={} rlimits={}",
+        sandbox_config.seccomp,
+        sandbox_config.namespaces,
+        sandbox_config.chroot,
+        sandbox_config.rlimits
+    );
+
     // Namespace/chroot/seccomp helpers remain separately testable, but applying
     // them before Command::exec is not portable on unprivileged CI runners.
-    #[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
-    let sandbox_config = SandboxConfig {
-        seccomp: false,
-        namespaces: false,
-        chroot: false,
-        rlimits: true,
-        chroot_dir: Some(chroot_dir.clone()),
-    };
 
     // Build command with sandbox wrappers
     let mut cmd = Command::new("sh");
@@ -161,7 +160,7 @@ fn posix_run_v0_sandboxed(
     #[cfg(not(target_os = "linux"))]
     {
         eprintln!(
-            "posix_runner: WARNING: Sandboxing is only supported on Linux. Running with reduced security."
+            "posix_runner: WARNING: Only resource-limit sandboxing is configured in the portable profile."
         );
     }
 
@@ -183,6 +182,16 @@ fn posix_run_v0_sandboxed(
     }
 
     cmd.spawn()
+}
+
+fn default_posix_sandbox_config(chroot_dir: std::path::PathBuf) -> SandboxConfig {
+    SandboxConfig {
+        seccomp: false,
+        namespaces: false,
+        chroot: false,
+        rlimits: true,
+        chroot_dir: Some(chroot_dir),
+    }
 }
 
 /// V-006 Phase 3: Execute an artifact blob fetched from store service
@@ -542,6 +551,17 @@ mod tests {
         // Clean up
         std::env::remove_var("RAMEN_POSIX_RUNNER_ACK_RISK");
         let _ = fs::remove_file(script);
+    }
+
+    #[test]
+    fn posix_run_v0_default_profile_is_rlimits_only() {
+        let config = default_posix_sandbox_config(test_path("sandbox_profile"));
+
+        assert!(!config.seccomp);
+        assert!(!config.namespaces);
+        assert!(!config.chroot);
+        assert!(config.rlimits);
+        assert!(config.chroot_dir.is_some());
     }
 
     #[test]

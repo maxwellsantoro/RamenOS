@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -169,6 +169,44 @@ Manual reboot/capture workflows do not scale to agentic OS development or hardwa
 **Electrical rule:** Default serial path is target COM/DB9/header → RS-232 adapter/cable → USB serial adapter → Pi USB. Raw Pi GPIO UART is TTL-only and must not be connected directly to PC RS-232/DB9.
 
 **CI policy:** Default CI validates docs/manifests only. Hardware controller checks require `RAMEN_HIL_APPLIANCE=1`. Graduation runs require `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1` and disallow stale serial-log replay.
+
+## 2026-06-24 — HIL metal claims must disclose the run path
+The evidence taxonomy allows standalone Tier-1 golden-machine `PASS/METAL`
+when `RAMEN_HIL_GRADUATION=1`, live serial capture, target-emitted
+`hil_evidence:` markers, and per-gate evidence JSON are present. The active
+S12.4/S13 execution queue still prefers appliance-mediated graduation before
+claiming the S13 slice complete.
+
+**Chosen:** Keep standalone golden-machine graduation legitimate, but make the
+path machine-readable. Per-gate HIL JSON now carries `claim_path`:
+`operator-golden-machine` for standalone live graduation and
+`appliance-mediated` when `RAMEN_HIL_APPLIANCE=1`. Appliance-mediated runs also
+include an `appliance` object with controller identity and evidence references.
+
+**Rejected:** Silently treating every `PASS/METAL` as appliance-mediated, or
+requiring the appliance for all future `PASS/METAL` claims before S12.4.2 power
+actuation has landed.
+
+**Gate:** `just hil-appliance` validates both claim paths in per-gate evidence
+fixtures.
+
+## 2026-06-24 — POSIX runner default profile is rlimits-only
+The POSIX compatibility runner remains a development scaffold. Its default
+`posix_run_v0_sandboxed` profile uses a host-portable configuration:
+`seccomp=false`, `namespaces=false`, `chroot=false`, and `rlimits=true`.
+Seccomp, namespace, and chroot helpers remain implemented and tested in
+`sandbox.rs`, but are not wired into the default runner path because they are
+not portable on unprivileged CI hosts.
+
+**Chosen:** Report the actual profile in runtime logs and documentation instead
+of claiming full sandbox containment. Keep `RAMEN_POSIX_RUNNER_ACK_RISK=1` as
+the explicit execution gate and track full default sandboxing as future work.
+
+**Rejected:** Enabling seccomp/chroot/namespaces in this honesty patch without a
+new portable pre-exec design and gate-first rollout.
+
+**Gate:** `just foundry-s7-posix-runner-security` now checks the logged default
+profile and a unit contract for the rlimits-only configuration.
 
 ## 2026-06-23 — RamenOrg starts as an Org Kernel, not an ambient AI board
 The project already uses agents heavily, but the founder is still often acting as

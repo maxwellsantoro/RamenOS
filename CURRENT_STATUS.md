@@ -7,9 +7,11 @@
 ## Active Execution Track
 
 S12.4 is building the physical HIL appliance loop: serial observation first,
-then power/reset actuation. Once that loop is stable, S13 metal HIL graduation
-runs through the appliance on Tier-1 or lab hardware. S14 USB xHCI and HID stays
-deferred until the appliance loop is proven.
+then power/reset actuation. Once that loop is stable, the preferred S13 metal
+HIL graduation path runs through the appliance on Tier-1 or lab hardware.
+Standalone golden-machine graduation remains a distinct `PASS/METAL` path only
+when per-gate evidence stamps `claim_path: operator-golden-machine`. S14 USB
+xHCI and HID stays deferred until the appliance loop is proven.
 
 The next executable step is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
 Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
@@ -39,6 +41,9 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 - S12.4.0 HIL appliance manifest, evidence wrapper, and inventory gate.
 - S12.4.1 serial-observer scaffold with run-id validation, empty-transcript
   rejection, and replay/live evidence separation.
+- Per-gate HIL evidence now stamps `claim_path` and appliance metadata so
+  standalone golden-machine runs cannot be mistaken for appliance-mediated
+  graduation.
 - S13.0 persistent-storage contract and `harness.block` IDL.
 - S13.2-S13.5 virtio-blk Oracle capture and replay scoreboards.
 - S13.6 runtime `harness.block` sector I/O in QEMU.

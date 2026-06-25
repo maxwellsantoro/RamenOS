@@ -24,7 +24,7 @@ If blocked, pick the simplest viable default, record it in `DECISIONS.md`, and m
 `CONSTITUTION.md` holds the full invariants; do not modify it without a `DECISIONS.md` entry. No "temporary hacks" that violate it.
 
 ## Active track
-- **Now:** S12.4 HIL appliance v0 physical loop (serial observer first, then power/reset actuation), feeding S13 metal HIL graduation. S14 USB xHCI + HID is deferred to a design pass.
+- **Now:** S12.4 HIL appliance v0 physical loop (serial observer first, then power/reset actuation), feeding the preferred appliance-mediated S13 metal HIL graduation path. Standalone golden-machine `PASS/METAL` must be provenance-stamped separately. S14 USB xHCI + HID is deferred to a design pass.
 - **Authoritative pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md` §13). `SLICES.md` has slice history.
 - **Keep green:** `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` when touching org/research planning.
 

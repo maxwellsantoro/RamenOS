@@ -8,13 +8,13 @@
 
 ## Active Execution Track
 
-**Now:** Implement the S12.4 HIL appliance v0 physical loop: stabilize the serial observer, then add the power/reset actuator. Run S13 metal HIL graduation through the appliance once that loop is stable.
+**Now:** Implement the S12.4 HIL appliance v0 physical loop: stabilize the serial observer, then add the power/reset actuator. Run S13 metal HIL graduation through the appliance once that loop is stable; standalone golden-machine `PASS/METAL` remains valid only when evidence JSON stamps `claim_path: operator-golden-machine`.
 
 | Priority | Task | Completion signal |
 |----------|------|-------------------|
 | P0 | S12.4.1 HIL appliance serial observer | `RAMEN_HIL_APPLIANCE=1 just hil-appliance` captures live serial and emits valid controller evidence |
 | P1 | S12.4.2 HIL appliance power/reset actuator | Power and reset scripts are fail-safe, dry-run tested, and represented in controller evidence JSON |
-| P2 | S13 metal HIL graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance |
+| P2 | S13 metal HIL graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
 | P3 | S12 physical graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
 | P4 | S14 USB xHCI and HID design pass | Approved short plan, IDL boundary, and Foundry gate definition before implementation |
 
@@ -28,6 +28,9 @@
 - `just hil-appliance` remains green in its default docs/manifest mode and its
   opt-in appliance mode.
 - No `PASS/METAL` claim is emitted without the required target provenance.
+- S13 per-gate evidence distinguishes standalone
+  `claim_path: operator-golden-machine` from appliance-mediated
+  `claim_path: appliance-mediated` runs.
 
 ### P1 Acceptance Criteria
 

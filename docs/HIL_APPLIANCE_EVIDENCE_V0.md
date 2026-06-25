@@ -1,6 +1,6 @@
 # HIL Appliance Evidence V0
 
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-06-24
 **Status:** Scaffold schema for S12.4 / S13.9
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 
@@ -32,6 +32,12 @@ hil_appliance_<run_id>.json
 
 Per-gate evidence remains claim-bearing. Appliance evidence records the run context and correlates logs, power events, and controller observations. See `EVIDENCE_LEVELS.md` for the canonical claim-safety language.
 
+Per-gate HIL evidence also carries `claim_path`. Appliance wrapper evidence uses
+`PASS/HIL-APPLIANCE`; per-gate S13 metal evidence uses `PASS/METAL` with
+`claim_path: appliance-mediated` when the appliance is present, or
+`claim_path: operator-golden-machine` for standalone live golden-machine
+graduation.
+
 ## Required JSON shape
 
 ```json
@@ -39,6 +45,7 @@ Per-gate evidence remains claim-bearing. Appliance evidence records the run cont
   "schema_version": 1,
   "evidence_kind": "hil_appliance_run_v0",
   "evidence_level": "PASS/HIL-APPLIANCE",
+  "claim_path": "appliance-mediated",
   "run_id": "hil_appliance_20260622T131700Z_pi-hil-01_s13-hil",
   "appliance_id": "pi-hil-01",
   "target_id": "intel-nuc-12-reference",
