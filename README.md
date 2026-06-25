@@ -1,5 +1,7 @@
 # RamenOS
 
+![RamenOS circuit-board ramen bowl header](docs/assets/ramenos-header.png)
+
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
@@ -20,6 +22,28 @@ security readiness, or release readiness without matching evidence. The current
 default CI path proves QEMU and Foundry gates; physical hardware claims require
 explicit HIL evidence.
 
+## Why This Exists
+
+The bet: future agents should not be trapped inside a human desktop metaphor.
+They should request typed capabilities, observe machine-readable system state,
+and run through auditable OS contracts. RamenOS is a small OS lab for proving
+that model from boot, IPC, drivers, storage, and eventually UI upward.
+
+Concrete example: instead of giving an agent a root shell and asking it to infer
+network or storage state from command output, a RamenOS-style system should let
+the agent request a temporary typed capability, receive only the observable
+state allowed by that capability, and leave an auditable trail of effects.
+
+## Who This Is For
+
+- OS and Rust systems developers who want a small, evidence-gated kernel and
+  services lab.
+- Driver and hardware bring-up people interested in trace/replay/oracle loops.
+- Agent-infrastructure researchers who care about typed authority,
+  machine-readable state, and auditability.
+- Curious readers who want a falsifiable pre-alpha project, not a daily-driver
+  operating system.
+
 ## What Works Today
 
 - Boots in QEMU on x86_64 and aarch64.
@@ -30,9 +54,11 @@ explicit HIL evidence.
 - Has hardware-in-the-loop appliance scaffolding, but no broad `PASS/METAL`
   claim yet.
 
-The quickest public proof is the S0 Foundry gate:
+The canonical public smoke proof is:
 
 ```bash
+git clone https://github.com/maxwellsantoro/RamenOS.git
+cd RamenOS
 just foundry-s0
 ```
 
@@ -52,6 +78,14 @@ init: trace ok
 This proves a QEMU boot path, init startup, typed IPC smoke behavior, and trace
 emission. It does not prove production readiness, security readiness, or
 physical hardware support.
+
+## Not Yet
+
+- Not production-ready.
+- Not security-ready.
+- No broad `PASS/METAL` claim.
+- No native desktop or end-user app model yet.
+- POSIX compatibility is quarantined, not the native model.
 
 ## Proof Matrix
 
@@ -242,6 +276,10 @@ configuration.
 ## Contributing
 
 RamenOS favors small, evidence-bearing slices over large subsystem drops.
+
+The most useful outside help right now is review and implementation support for
+the S12.4 hardware evidence loop: serial observation, power/reset actuation,
+and the claim boundaries around HIL appliance evidence.
 
 Before proposing a change:
 
