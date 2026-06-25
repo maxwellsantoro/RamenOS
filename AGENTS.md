@@ -77,7 +77,11 @@ The branch rule requires the **`merge-gate`** check, which is path-scoped:
 - **Docs/org-only PRs** (no `.rs`/`Cargo`/`idl`/`rust-toolchain`) — the heavy `foundry` job is **skipped**; the PR merges on `org-governance` + `merge-gate` in seconds.
 - **OS-code PRs** — `foundry` **runs** and `merge-gate` refuses to pass unless it succeeds. OS-code changes are forced through the full Foundry suite.
 
-All PRs are opened by the `ramen-implementer` bot (A2) and approved + merged by a human (A3); see `docs/org/RAMEN_IMPLEMENTER_BOT.md`.
+### PR flow: open as the bot, approve as a different identity
+Every PR is opened by the `ramen-implementer` bot (A2) and approved + merged by a **different** identity (A3) — GitHub blocks self-approval, which enforces the separation of duties.
+- **Open (as the bot):** `export GH_TOKEN=$(python3 tools/org/mint_app_token.py --app-id 4129163 --key ~/.config/ramenos/ramen-implementer.private-key.pem)` → `git push -u origin <branch>` → `gh pr create …`. The PR author is `ramen-implementer[bot]`.
+- **Approve + merge (as a different identity):** **`unset GH_TOKEN` first** — otherwise the approve runs as the bot and GitHub rejects the self-approval — then `gh pr review <N> --approve` + `gh pr merge <N> --squash --delete-branch` as the human (A3). (Stage 2: a second bot, `ramen-reviewer`, approves as A3.)
+- Full details — identity, key, token mint, bot verification, separation of duties: see `docs/org/RAMEN_IMPLEMENTER_BOT.md`.
 
 ## IDL workflow
 1. Define the interface in `idl/harness/*.toml` (harness) or `idl/portals/*.toml` (portal).
