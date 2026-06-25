@@ -1,84 +1,111 @@
-# AGENTS.md
-Coding Agent Instructions
+# RamenOS — Agent Instructions
 
-**Last Updated:** 2026-06-23
-**Status:** Authoritative
+Reliability-first, post-Unix operating system. Three pillars: **OS Core** (kernel + services + runtimes), **Foundry** (tooling + CI gates), **Store** (Run Now → Vote/Port → Publish).
 
-## 0) Mission
-Implement the OS via vertical slices.
-Do not build large subsystems in isolation.
+> **Operational truth lives in `CURRENT_STATUS.md` (landed state) + `NEXT_TASKS.md` (next work).** `ROADMAP.md` is directional, not operational. This file is the *stable agent contract*; slice-level status and history live in the status docs and `SLICES.md`, so it should change rarely.
 
-Every change must:
-- improve boot/run behavior OR
-- implement a defined IDL contract OR
-- add a Foundry gate/test OR
+## Mission
+Implement the OS via vertical slices — do not build large subsystems in isolation. **Every change must do at least one of:**
+- improve boot/run behavior, **or**
+- implement a defined IDL contract, **or**
+- add a Foundry gate/test, **or**
 - implement a Store feature that consumes an OS capability.
 
-Historical baseline (completed): Slice S0
-Boot + IPC + Capabilities + Tracing stub in QEMU.
+If blocked, pick the simplest viable default, record it in `DECISIONS.md`, and move on — do not stop for "perfect design." Prefer small diffs with tests over big refactors; update `CURRENT_STATUS.md` + `CHANGELOG.md` per milestone.
 
-Current active execution track (authoritative):
-- **Now:** S12.4 HIL appliance v0 physical loop: serial observer first, then power/reset actuator. S13 metal HIL graduation runs through the appliance once that loop is stable.
-- **Planning pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md` §13)
-- **Parallel project-control track:** G0 RamenOrg / research-backed OS scaffold (`docs/plans/2026-06-23-research-backed-ramenorg.md`) is allowed only as docs + Foundry governance gates until higher authority is explicitly granted.
+## Non-negotiables (Constitution)
+1. Rust-first kernel and core services.
+2. Native interfaces are typed **Harnesses/Portals** — no ioctl escape hatches.
+3. **POSIX is compatibility-only** — never design native APIs around POSIX.
+4. Capability validation for fast-path ops is **kernel-side**; user-space brokers decide grants.
+5. **Control plane = typed messages; data plane = zero-copy shared memory.**
+6. Preserve boundaries: **kernel ≠ services ≠ store**.
 
-Recent completed milestones: S12.4.0 HIL appliance scaffold, S13.6 runtime harness.block I/O in QEMU, S13.4-S13.5 block sector Oracle, S13.3 block replay scoreboard, S13.2 virtio-blk Oracle capture, S13.0 persistent storage contract, S12.3 IOMMU inventory, S12.2 physical HIL boot gate, S12.1 UEFI GOP probe in QEMU OVMF, S12.0 golden machine contract scaffold, S11.8 runtime harness.net packet I/O in QEMU (S11 COMPLETE), S11.7 live hardware packet RX via kernel netdev, S11.6 live packet Oracle capture, S11.5 packet I/O distillation, S11.4 init driver, S11.3 live Oracle capture + trace translation, S11.2 Driver Factory replay scoreboard, S11.2-pre IDL/Wire Contract Integrity Gate, S11.1 Oracle capture scaffold, S10.5.2 QEMU IPC bridge, S10.2 v1.1 cap-filtered snapshots, S10.5.1 broker/proxy harness bridge, S10.5.0 QEMU semantic snapshot.
+`CONSTITUTION.md` holds the full invariants; do not modify it without a `DECISIONS.md` entry. No "temporary hacks" that violate it.
 
-## 1) Non-negotiables
-- Rust-first kernel and core services.
-- POSIX is compatibility-only (do not design native APIs around POSIX).
-- No ioctl-like escape hatches in native interfaces.
-- Capability validation for fast-path operations must be kernel-side; user-space brokers are for grant decisions.
-- Split control plane (typed messages) from data plane (zero-copy shared memory).
-- Preserve boundaries: kernel ≠ services ≠ store.
+## Active track
+- **Now:** S12.4 HIL appliance v0 physical loop (serial observer first, then power/reset actuation), feeding S13 metal HIL graduation. S14 USB xHCI + HID is deferred to a design pass.
+- **Authoritative pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md` §13). `SLICES.md` has slice history.
+- **Keep green:** `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` when touching org/research planning.
 
-## 2) Slice S0 Definition of Done (historical baseline)
-S0 is done when:
-- x86_64 QEMU boots to an init component and prints a log banner.
-- init and kernel can exchange ping/pong via IPC.
-- kernel emits structured trace events to a ring buffer.
-- Foundry gate script runs QEMU and asserts:
-  - boot banner
-  - init "hello"
-  - ping/pong success
-- Repeat for aarch64 QEMU.
+## Workspace crates
+Key crates (full workspace in `Cargo.toml`):
 
-## 3) Work style
-- Prefer small diffs with tests over big refactors.
-- Update CURRENT_STATUS.md and CHANGELOG.md per milestone.
-- Any new interface must be added to /idl and code-generated.
+| Crate | Purpose | Targets | Ext deps? |
+|-------|---------|---------|-----------|
+| `kernel/` | Core kernel library (`#![no_std]`) | `x86_64-unknown-none`, `aarch64-unknown-none` | **None** |
+| `kernel_api/` | Shared types for kernel↔runtime (`#![no_std]`) | same bare-metal | **None** |
+| `kernel_uefi/`, `kernel_aarch64/` | UEFI / aarch64 boot | uefi / aarch64-none | No |
+| `idl_codegen/` | Code generator for IDL TOML specs | Host | Yes |
+| `runtime_supervisor/` | Process lifecycle + compat/posix/gpu runners | Host | Yes |
+| `store_cli/` | Store catalog + launch-plan tool | Host | Yes |
+| `artifact_store_core/`, `artifact_store_schema/` | Content-addressed artifact storage + schemas | Host | Yes |
+| `services/*` | Portals, store_service, domain_manager, native_runner, semantic_state, … | Host | Yes |
+| `driver_foundry/` | Driver Factory host replay tooling | Host | Yes |
 
-## 4) Execution order (historical baseline; completed)
-A) Make QEMU boot work for x86_64 (minimal kernel entry + linker + serial output).
-B) Add init component that prints "hello" (can be a baked-in payload initially).
-C) Implement IPC v0 ping/pong (use kernel_api::ipc types).
-D) Add trace ring buffer + a user-space read path.
-E) Implement Foundry gate script that runs QEMU and greps output.
+## Build
+```sh
+just fmt              # cargo fmt --all
+just clippy           # clippy (excludes kernel_uefi, kernel_aarch64)
+just codegen          # generate Rust bindings from IDL TOML specs
+just build-host       # build host crates (runs codegen first)
+just build-targets    # cross-compile kernel/kernel_api for bare-metal
+just build-uefi       # build UEFI boot images
+just preflight        # fmt + codegen + strict lint + tests + Foundry umbrella
+```
+Rust nightly is pinned in `rust-toolchain.toml`.
 
-## 4b) Current near-term sequencing (active)
-A) S12.4.1 HIL appliance serial observer (`tools/hil/appliance_capture_serial.sh`, `RAMEN_HIL_APPLIANCE=1 just hil-appliance`).
-B) S12.4.2 HIL appliance power/reset actuator (`tools/hil/appliance_press_power.sh`, `tools/hil/appliance_press_reset.sh`, controller evidence JSON).
-C) S13 metal HIL graduation through appliance-mediated live capture (`RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil`).
-D) Keep default gates green: `just s12`, `just s13`, `just s11`, and `just foundry-org-governance-g0` when touching org/research planning.
-E) Use `CURRENT_STATUS.md` for landed state and `NEXT_TASKS.md` for the next executable task. Do not treat `ROADMAP.md` as operational truth.
+## Foundry gates
+Gates are shell scripts in `tools/ci/`, run via `just`. Representative set (full list in the `justfile`):
 
-## 5) Guardrails
-- Keep arch-specific code in kernel/arch/.
-- Avoid dynamic allocation in kernel until mm is stable.
-- Keep IPC message formats typed and versionable (kernel_api).
-- Don’t invent “temporary hacks” that violate the Constitution.
+| Gate | Command | Tests |
+|------|---------|-------|
+| S0 | `just foundry-s0` | QEMU boot x86_64+aarch64, IPC ping, trace ring |
+| S1 | `just foundry-artifact-s1` | Artifact store lifecycle (CAS, install, rollback) |
+| S2 | `just foundry-compat-s2` | Compat capsule boot, read-only artifact mount |
+| S3 | `just foundry-trace-s3` / `foundry-portal-file-ro-s3` | Trace replay / portal file picker RO |
+| S11 | `just s11` | Driver Factory replay + reference vault + net harness |
+| S13 | `just s13` | Persistent storage / block Oracle (QEMU) |
+| Org governance | `just foundry-org-governance-g0` | RamenOrg packets, drift, merge gate |
+| Umbrella | `just foundry-all-s0-s1-s2-s3` | Full S0–S8 suite (used in CI) |
+| CI extended | `just foundry-ci-extended` | S7 security + S9/S10/S11 subset |
 
-## 6) If blocked
-Pick the simplest viable default and record it in DECISIONS.md.
-Do not stop for “perfect design.”
+S2 needs `S2_COMPAT_KERNEL`/`S2_COMPAT_INITRD`/`S2_COMPAT_ARTIFACT` (or `S2_COMPAT_KERNEL_URL` to fetch).
 
-## 7) AI & Foundry Workflow
-- **When building a driver:** Do not attempt to write hardware interactions from scratch based on pre-training. You must request the **Reference Vault** and the `protocol_trace` artifacts first. Your goal is to write Rust code that produces an identical trace to the Oracle.
-- **When porting applications:** Rely on the `observed_caps_v0` artifact to generate the exact minimal capability manifest required. Do not guess what an app needs; measure it.
+## IDL workflow
+1. Define the interface in `idl/harness/*.toml` (harness) or `idl/portals/*.toml` (portal).
+2. `just codegen` → `kernel_api/src/generated/*.generated.rs` (+ sdk/native_runner host bindings + native_runner `generated/mod.rs`).
+3. **Never hand-edit `*.generated.rs`** or any `generated/` content.
 
-## 8) RamenOrg & research-backed work
-- RamenOS is a research-backed OS, not a research OS. Research is first-class only when it is tied to a product risk, claim boundary, evidence plan, and implementation landing path.
-- RamenOrg governance work must use bounded artifacts (`WorkOrderV0`, `HandoffPacketV0`, `BoardVoteV0`) and must not grant merge, release, hardware, or public-support authority without an explicit later decision.
-- Do not let the same agent write, approve, merge, and announce a material change.
-- For agent-facing or cross-domain service-boundary designs, separate request authority (`Lang`: what a holder may ask) from observable authority (`ObsContract`: what a holder may learn). Request minimization is action safety, not output safety.
-- Do not claim hidden-affordance noninterference, metal graduation, security, or release readiness without the matching evidence level and claim boundary.
+## Conventions & guardrails
+- **No heap allocation in `kernel/`** (no `alloc`/`Vec`/`String`/`Box`); arch-specific code in `kernel/src/arch/`.
+- IPC message formats are typed + versionable via `kernel_api`.
+- **Gate-first:** write the Foundry assertion *before* the implementation.
+- Any new native interface goes through `/idl` and code generation.
+
+## AI & Foundry workflow
+- **Building a driver:** do not write hardware interactions from pre-training. Request the **Reference Vault** and the `protocol_trace` artifacts first; the goal is Rust code that reproduces the Oracle trace.
+- **Porting applications:** use the `observed_caps_v0` artifact to generate the exact minimal capability manifest. Measure, don't guess.
+
+## RamenOrg & research-backed work
+- RamenOS is a **research-backed OS, not a research OS.** Research is first-class only when tied to a product risk, claim boundary, evidence plan, and landing path.
+- Org/governance work uses bounded artifacts (`WorkOrderV0`, `HandoffPacketV0`, `BoardVoteV0`) and grants **no merge/release/hardware/public-support authority** without an explicit later decision.
+- **Separation of duties:** never let one agent write, approve, merge, *and* announce a change. The `ramen-implementer` bot (A2) opens PRs; a human (A3) approves + merges — see `docs/org/RAMEN_IMPLEMENTER_BOT.md`.
+- For agent-facing/cross-domain service boundaries, separate request authority (`Lang`: what a holder may ask) from observable authority (`ObsContract`: what a holder may learn).
+- Do not claim hidden-affordance noninterference, metal graduation, security, or release readiness without the matching evidence level + claim boundary (`EVIDENCE_LEVELS.md`).
+
+## Security posture
+- **Boundaries prevent escalation:** services depend on schema types only, never IO functions.
+- Feature-flag host scaffolding (e.g. `posix_runner_v0_dev`) with prominent warnings; never on by default.
+- **Per-domain isolation** (trace, capabilities, accounting); global singletons are a liability.
+- **Fail-closed defaults** (codegen, wire parsing, capability validation).
+- **Defense in depth** (capabilities + schema + seccomp + namespaces).
+
+## Key documents
+- `CONSTITUTION.md` — invariants (modify only with a `DECISIONS.md` entry)
+- `CURRENT_STATUS.md` + `NEXT_TASKS.md` — landed state + next work
+- `SLICES.md` — slice definitions/status · `ROADMAP.md` — sequencing
+- `docs/INDEX.md` — documentation map · `PLATFORM_OVERVIEW.md` — architecture · `STORE_SPEC.md` — store model
+- `docs/org/` — RamenOrg governance (authority levels, merge gate, implementer bot, claim safety)
+- `docs/research/` — research program (RQ-0001 offer boundaries, RQ-0002 org kernel)
+- `EVIDENCE_LEVELS.md` — `PASS/QEMU` … `PASS/METAL` claim levels
