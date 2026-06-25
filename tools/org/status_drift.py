@@ -74,6 +74,7 @@ REQUIRED_FILES = [
     "docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md",
     "docs/org/HUMAN_DIRECTIVE_V0.md",
     "docs/org/MERGE_GATE_V0.md",
+    "docs/org/RAMEN_IMPLEMENTER_BOT.md",
     "docs/research/SLICE_NAMESPACING.md",
     "docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md",
     "schemas/org/human_directive_v0.schema.json",

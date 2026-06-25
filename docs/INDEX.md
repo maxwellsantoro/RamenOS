@@ -89,6 +89,7 @@ guidance still cite their stable paths.
 - [Board Brief](org/BOARD_BRIEF_V0.md), [Intake Bundle](org/INTAKE_BUNDLE_V0.md),
   and [Context Grant](org/CONTEXT_GRANT_V0.md)
 - [Claim Safety](org/CLAIM_SAFETY.md) and [Heartbeats](org/HEARTBEATS.md)
+- [Implementer bot](org/RAMEN_IMPLEMENTER_BOT.md), [Merge Gate (A3)](org/MERGE_GATE_V0.md), and [Human Directive](org/HUMAN_DIRECTIVE_V0.md)
 - [Research index](research/INDEX.md) and [program](research/RESEARCH_PROGRAM.md)
 - [RamenOrg plan](plans/2026-06-23-research-backed-ramenorg.md)
 

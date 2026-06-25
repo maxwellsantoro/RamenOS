@@ -70,6 +70,7 @@ require_file "docs/plans/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_PLAN_MISS
 require_file "docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_TRIAL_MISSING"
 require_file "docs/org/HUMAN_DIRECTIVE_V0.md" "HUMAN_DIRECTIVE_DOC_MISSING"
 require_file "docs/org/MERGE_GATE_V0.md" "MERGE_GATE_DOC_MISSING"
+require_file "docs/org/RAMEN_IMPLEMENTER_BOT.md" "IMPLEMENTER_BOT_DOC_MISSING"
 require_file "docs/research/SLICE_NAMESPACING.md" "SLICE_NAMESPACING_DOC_MISSING"
 require_file "docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md" "R_OFFERS_1_DOC_MISSING"
 require_file "schemas/org/human_directive_v0.schema.json" "HUMAN_DIRECTIVE_SCHEMA_MISSING"
