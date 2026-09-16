@@ -33,9 +33,9 @@ Key crates (full workspace in `Cargo.toml`):
 
 | Crate | Purpose | Targets | Ext deps? |
 |-------|---------|---------|-----------|
-| `kernel/` | Core kernel library (`#![no_std]`) | `x86_64-unknown-none`, `aarch64-unknown-none` | **None** |
+| `kernel/` | Core kernel library (`#![no_std]`) | `x86_64-unknown-none`, `aarch64-unknown-none` | `spin` only (see DECISIONS) |
 | `kernel_api/` | Shared types for kernel↔runtime (`#![no_std]`) | same bare-metal | **None** |
-| `kernel_uefi/`, `kernel_aarch64/` | UEFI / aarch64 boot | uefi / aarch64-none | No |
+| `kernel_uefi/`, `kernel_aarch64/` | UEFI / aarch64 boot | uefi / aarch64-none | `uefi` in UEFI boot glue; kernel dependencies transitively |
 | `idl_codegen/` | Code generator for IDL TOML specs | Host | Yes |
 | `runtime_supervisor/` | Process lifecycle + compat/posix/gpu runners | Host | Yes |
 | `store_cli/` | Store catalog + launch-plan tool | Host | Yes |
@@ -74,8 +74,8 @@ S2 needs `S2_COMPAT_KERNEL`/`S2_COMPAT_INITRD`/`S2_COMPAT_ARTIFACT` (or `S2_COMP
 
 ## Merge policy (path-scoped gate)
 The branch rule requires the **`merge-gate`** check, which is path-scoped:
-- **Docs/org-only PRs** (no `.rs`/`Cargo`/`idl`/`rust-toolchain`) — the heavy `foundry` job is **skipped**; the PR merges on `org-governance` + `merge-gate` in seconds.
-- **OS-code PRs** — `foundry` **runs** and `merge-gate` refuses to pass unless it succeeds. OS-code changes are forced through the full Foundry suite.
+- **Docs/org-only PRs** (Markdown outside `.github/`, plus JSON/YAML packets under `docs/`) — the heavy `foundry` job is **skipped**; the PR merges on `org-governance` + `merge-gate` in seconds.
+- **OS-code PRs** — `foundry` **runs** and `merge-gate` refuses to pass unless it succeeds. All other paths, including shell/Python tooling, workflows, and `justfile`, require Foundry. Classification failures fail closed.
 
 ### PR flow: open as the bot, approve as a different identity
 Every PR is opened by the `ramen-implementer` bot (A2) and approved + merged by a **different** identity (A3) — GitHub blocks self-approval, which enforces the separation of duties.

@@ -337,8 +337,8 @@ impl ShmemRegionTable {
             return Err(STATUS_INVALID_SIZE);
         }
 
-        // Page size must be power of two
-        if !page_size.is_power_of_two() {
+        // Backing frames and MMU mappings currently support only 4 KiB pages.
+        if u64::from(page_size) != crate::mm::address::PAGE_SIZE {
             return Err(STATUS_INVALID_PAGE_SIZE);
         }
 
@@ -353,12 +353,12 @@ impl ShmemRegionTable {
 
         // S8 Phase 4: Calculate number of frames needed
         let num_frames = size_bytes.div_ceil(page_size as u64);
-        let num_frames = num_frames as usize;
 
-        // S8 Phase 4: Validate region size against MAX_FRAMES_PER_REGION
-        if num_frames > MAX_FRAMES_PER_REGION {
+        // Validate before narrowing to usize on any supported target.
+        if num_frames > MAX_FRAMES_PER_REGION as u64 {
             return Err(STATUS_INVALID_SIZE);
         }
+        let num_frames = num_frames as usize;
 
         // Find a free slot
         for (i, slot) in self.regions.iter_mut().enumerate() {
@@ -853,6 +853,24 @@ mod tests {
         // Not power of two
         let result = table.create_region(100, 4096, REGION_FLAG_READABLE, 100);
         assert_eq!(result, Err(STATUS_INVALID_PAGE_SIZE));
+    }
+
+    #[test]
+    fn create_region_rejects_unsupported_power_of_two_page_sizes() {
+        setup_test_allocator();
+        let mut table = ShmemRegionTable::new();
+        for page_size in [1, 2048, 8192, 2 * 1024 * 1024, 1 << 31] {
+            assert_eq!(
+                table.create_region(1, 2 * 1024 * 1024, REGION_FLAG_READABLE, page_size),
+                Err(STATUS_INVALID_PAGE_SIZE)
+            );
+        }
+        let (region_id, cap, _) = table
+            .create_region(1, 4097, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(table.region_size_for_cap(cap), Some(4097));
+        assert_eq!(table.regions[(region_id >> 32) as usize - 1].num_frames, 2);
+        table.close_region(1, region_id).unwrap();
     }
 
     #[test]

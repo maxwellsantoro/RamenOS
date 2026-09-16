@@ -17,7 +17,7 @@ pub fn print_boot_evidence(init_profile: &str) {
         "hil_evidence: storage_manifest_sha256={}",
         p.storage_manifest_sha256
     );
-    kprintln!("hil_evidence: kernel_efi_sha256={}", p.kernel_efi_sha256);
+    kprintln!("hil_evidence: kernel_build_id={}", p.kernel_build_id);
     kprintln!("hil_evidence: init_img_sha256={}", p.init_img_sha256);
 
     if let Some(info) = boot::boot_epoch_nonce_info() {

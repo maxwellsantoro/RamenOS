@@ -44,7 +44,7 @@ require_cmd cargo
 require_cmd python3
 
 echo "BUILD_USB_BOOT_IMAGE: INFO building kernel_uefi"
-cargo build -p kernel_uefi --target x86_64-unknown-uefi --quiet
+source "$ROOT_DIR/tools/hil/hil_gate_common.sh"
 
 echo "BUILD_USB_BOOT_IMAGE: INFO building init image profile=hil_boot"
 mkdir -p "$INIT_DIR" "$UEFI_BOOT_DIR"
@@ -52,9 +52,12 @@ python3 "$ROOT_DIR/tools/init/build_init_image.py" \
   --out "$INIT_DIR/init_hil_boot.img" \
   --profile hil_boot
 
-X86_BIN="$(find_uefi_bin x86_64-unknown-uefi)"
+X86_BIN="$(ramen_hil_build_kernel_uefi "$ROOT_DIR" "$INIT_DIR/init_hil_boot.img" "hil_boot")"
 cp "$X86_BIN" "$UEFI_BOOT_DIR/BOOTX64.EFI"
 cp "$INIT_DIR/init_hil_boot.img" "$UEFI_BOOT_DIR/init.img"
+
+python3 "$ROOT_DIR/tools/hil/provenance.py" relocate "$X86_BIN.provenance.json" \
+  "$UEFI_BOOT_DIR/provenance.json" "$UEFI_BOOT_DIR/BOOTX64.EFI" "$UEFI_BOOT_DIR/init.img"
 
 echo "BUILD_USB_BOOT_IMAGE: METRIC out_dir=${OUT_DIR}"
 echo "BUILD_USB_BOOT_IMAGE: METRIC efi_boot=${UEFI_BOOT_DIR}/BOOTX64.EFI"

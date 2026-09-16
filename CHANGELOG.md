@@ -3,6 +3,31 @@
 ## [Unreleased]
 
 ### Changed
+- Fixed Store restart ownership loss and cross-domain projection queries; durable
+  ownership fails closed and same-path projections remain isolated by domain.
+- Restricted shared-memory backing to supported 4 KiB pages.
+- Made CI classification fail closed and require Foundry for executable tooling.
+- Fixed appliance opt-in fixture isolation and connected the gate to live serial
+  capture. Firmware-variable helpers now preserve PATH and write exact binary records.
+- Bound HIL graduation to prepared artifacts, a fresh expected nonce, and matching
+  controller evidence; separated embedded build ID from the final EFI digest.
+- Added `just foundry-review-boundaries` with restart, allocation, CI, firmware,
+  provenance, and synthetic-terminal regressions. Physical graduation remains pending.
+- Recorded the M900 storage swap to a 240 GB SanDisk SATA SSD and marked the
+  Pi↔M900 serial HIL chain as physically installed and ready. Live serial
+  capture, firmware preflight, and AMT validation remain the next executable
+  steps; M.2 NVMe is still required for S13 metal graduation.
+- Staged the acquired M900 for S12 on its installed SATA system drive while keeping
+  compatible M.2 2280 PCIe NVMe mandatory for S13 metal graduation. Switched
+  the appliance actuator contract to Intel AMT 11 first; smart-plug/PDU and
+  front-panel relay purchases are deferred until the AMT recovery matrix is tested.
+- Updated the S12 Tier-1 golden machine to the acquired Lenovo ThinkCentre M900
+  SFF (machine type 10FH, model 00SNUS) with an Intel Core i7-6700 and 8 GiB
+  RAM. Operator photos confirm its populated rear RS-232/DB9 port; firmware and
+  AMT preflight remain before physical HIL runs.
+- Recorded the acquired HIL serial hardware: Raspberry Pi 4 Model B with 4 GiB
+  RAM, FTDI USB-to-RS-232 adapter, and null-modem adapters. Wiring verification
+  and the first fresh live transcript remain pending evidence.
 - Sharpened the public README identity to "an evidence-gated OS lab for
   agent-native computing", added a compressed "Short Version" and a "Try the
   Smallest Proof" framing, restructured contributor help into three tracks, and

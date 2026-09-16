@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-09-16
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -149,6 +149,104 @@ S12 requires a single reproducible bare-metal profile before GOP/HIL implementat
 **CI policy:** Default CI runs S12.0 smoke gate only; physical HIL gates require `RAMEN_HIL_GOLDEN_MACHINE=1`.
 
 **Gate:** `foundry_s12_golden_machine_s12_0.sh`; fast-path `just s12`.
+
+## 2026-06-26 — S12 Tier-1 golden machine reference update
+The Intel NUC 12/13 reference was a suitable PC-class baseline, but its serial
+path depended on model-specific headers or added USB serial hardware. The
+active HIL loop needs a directly repeatable target-side serial interface.
+
+**Chosen:** Lenovo ThinkCentre M720s Small Form Factor with an Intel Core
+i5-8400, at least 8 GiB RAM, and at least 256 GiB M.2 NVMe storage. Its rear
+RS-232/DB9 port is now a Tier-1 contract requirement, alongside UEFI GOP,
+VT-d, NVMe, and xHCI. Manifest ID:
+`lenovo-thinkcentre-m720s-i5-8400-reference`.
+
+**Required preflight:** Enable UEFI boot, Intel VT-d, rear serial, and USB boot
+in firmware before physical evidence runs. Physical evidence remains pending;
+selecting the reference does not claim `PASS/HIL-LIVE` or `PASS/METAL`.
+
+**Supersedes:** The 2026-06-21 Intel NUC 12/13 selection as the active Tier-1
+reference. That entry remains the historical basis for S12.0.
+
+**Gate:** `foundry_s12_golden_machine_s12_0.sh`; fast-path `just s12`.
+
+## 2026-07-01 — Acquired ThinkCentre M900 becomes the S12 Tier-1 reference
+
+The planned M720s was not the machine acquired for the physical lab. Keeping
+its identity as the active default would make controller and target evidence
+name hardware that was not actually under test.
+
+**Chosen:** Pin the acquired Lenovo ThinkCentre M900 Small Form Factor, machine
+type 10FH and model 00SNUS, as
+`lenovo-thinkcentre-m900-i7-6700-lab-01`. Operator photos establish an Intel
+Core i7-6700, 8 GiB RAM, active integrated graphics, and a populated rear
+RS-232/DB9 connector. Replace the existing SATA disk with a nominal 128 GB M.2 NVMe
+drive before physical HIL execution.
+
+**Evidence boundary:** The photographs are inventory evidence only. UEFI GOP,
+VT-d/DMAR, live serial capture, NVMe boot, and atomic rollback still require
+their matching gates and target-emitted provenance markers. Until the NVMe is
+installed and firmware preflight passes, the manifest remains
+`acquired_pending_nvme_install_and_preflight`.
+
+**Supersedes:** The 2026-06-26 M720s selection as the active Tier-1 reference.
+That entry remains as decision history.
+
+**Gate:** `foundry_s12_golden_machine_s12_0.sh`; fast-path `just s12`.
+
+## 2026-07-01 — Stage S12 on SATA and validate AMT before fallback hardware
+
+The acquired M900 already contains a 1 TB SATA HDD, its reserved NVMe does not
+fit correctly, and its Core i7-6700 platform exposes Intel vPro / AMT 11. These
+facts allow the physical observation loop to start without either blocking on
+new storage or modifying the proprietary front-panel harness.
+
+**Chosen (storage):** Permit S12 boot, GOP, serial, IOMMU inventory, and HIL
+appliance work on the installed SATA HDD. Keep compatible M.2 2280 PCIe NVMe as
+an explicit S13 metal-graduation prerequisite; SATA evidence cannot satisfy the
+S13 NVMe boot or two-boot atomic-update claims.
+
+**Chosen (actuation):** Provision and validate AMT 11 over the trusted wired lab
+network as the M900's primary status, power-on, power-off, reset, and
+power-cycle path. AMT credentials are runtime secrets and must not enter Git,
+logs, or evidence JSON.
+
+**Deferred:** Do not purchase a smart plug/PDU or front-panel relay until AMT
+has been tested while the target is running, soft-off, and hung in the target
+OS. A failed or incomplete AMT recovery matrix is the evidence required to add
+fallback hardware.
+
+**Supersedes:** The unexecuted 2026-07-01 assumption that NVMe installation must
+precede every physical HIL run, and the generic relay-first actuator ordering
+for this M900 target. It does not relax the S13 NVMe graduation boundary.
+
+**Gates:** `just s12`; `just hil-appliance`; later AMT live-actuation gate.
+
+## 2026-07-19 — M900 storage swap and physical HIL lab ready
+
+The M900's original 1 TB SATA HDD was replaced with a 240 GB SanDisk SATA
+drive. The Pi controller, FTDI USB-serial path, null-modem adapters, and M900
+rear DB9 serial chain are physically installed and ready for the first live
+HIL runs.
+
+**Chosen (storage):** Record the installed system drive as a 240 GB SanDisk
+SATA SSD (`sata_ssd`) in `hardware/golden_machine_v0.toml`. S12 work continues
+on this SATA device; S13 metal graduation still requires a compatible M.2 2280
+PCIe NVMe drive.
+
+**Chosen (lab readiness):** Mark the golden machine and HIL appliance manifests
+`physically_ready` pending firmware/AMT preflight and the first live serial
+capture. Wiring is no longer a blocker; the next executable step is firmware
+preflight plus `RAMEN_HIL_APPLIANCE=1 just hil-appliance` live capture.
+
+**Evidence boundary:** Operator report establishes inventory and physical setup
+only. No `PASS/HIL-LIVE`, `PASS/HIL-APPLIANCE`, or `PASS/METAL` claim is
+implied.
+
+**Supersedes:** The 2026-07-01 inventory assumption of a 1 TB SATA HDD as the
+installed S12 drive.
+
+**Gates:** `just s12`; `just hil-appliance`; `just s12-hil` after live capture.
 
 ## 2026-06-21 — S13 Oracle block device selection
 S13 requires a QEMU stepping stone before metal NVMe graduation.
@@ -423,3 +521,42 @@ parallel to the OS execution track and granting no merge, release, hardware, or
 public-support authority on their own — the public hook stays OS-first while the
 dual-product reality is stated honestly. This is a positioning decision, not a
 technical or constitutional change.
+
+## 2026-09-16 — Persist Store ownership separately from signed artifact manifests
+
+Per-artifact `.ownership.json` records are server-owned authority metadata. Commit
+and sync them before exposing an ingested artifact in projection replies. Unknown,
+malformed, or conflicting ownership denies access; restart never promotes it to
+global. Existing explicitly attributed legacy records remain readable. Existing
+unattributed stores require trusted re-ingestion with the intended capability;
+there is no automatic global migration. A content ID keeps one owner: cross-domain
+re-ingestion cannot reassign it. A future sharing model requires a separate design.
+Projection queries intersect their metadata domain with durable artifact ownership.
+
+## 2026-09-16 — Bind HIL evidence to prepared artifacts and a fresh boot challenge
+
+The target emits a random `kernel_build_id` embedded before linking. A host
+`provenance.json` binds that ID to the final EFI digest, init digest, profile,
+base Git commit, machine, and storage contract. It replaces the impossible
+self-referential EFI hash marker. Build scripts track all provenance environment
+inputs. Live gate records validate a single complete target boot against the
+prepared manifest; graduation additionally requires a nonzero caller-selected
+expected nonce. Appliance-mediated claims require a matching run, target,
+controller transcript, and exactly the same serial bytes. These are trusted lab
+provenance records, not cryptographic hardware attestation. Dirty builds remain
+identified by their final hashes and unique build ID; the Git SHA is the base
+commit, not an assertion of a clean worktree.
+
+Firmware helpers support a redirected `RAMEN_HIL_EFIVAR_DIR` solely for byte-level
+host testing. Physical writes still default to Linux efivarfs and remain explicit
+operator actions. No test gate writes real firmware or actuates a target.
+
+## 2026-09-16 — Reconcile existing kernel dependencies and boot test-image scope
+
+The existing `spin` dependency in the kernel is the bounded synchronization
+exception; `kernel_api` remains dependency-free. The UEFI boot crate already uses
+`uefi` for firmware bindings. This records current implementation rather than
+adding dependencies. Additional kernel dependencies need an explicit decision.
+Both boot crates currently enable `test_protocols` for Foundry/init test images.
+They are bring-up images, not a production/release configuration; removing those
+protocols requires a separate production boot consumer and corresponding gates.

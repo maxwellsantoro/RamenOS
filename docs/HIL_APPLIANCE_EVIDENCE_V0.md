@@ -48,7 +48,7 @@ graduation.
   "claim_path": "appliance-mediated",
   "run_id": "hil_appliance_20260622T131700Z_pi-hil-01_s13-hil",
   "appliance_id": "pi-hil-01",
-  "target_id": "intel-nuc-12-reference",
+  "target_id": "lenovo-thinkcentre-m900-i7-6700-lab-01",
   "git_sha": "unknown",
   "gate": "s13-hil",
   "started_at_unix_ms": 0,
@@ -68,7 +68,7 @@ graduation.
     }
   ],
   "artifact_hashes": {
-    "kernel_efi_sha256": "unknown",
+    "kernel_build_id": "unknown",
     "init_img_sha256": "unknown"
   },
   "serial_markers_observed": [
@@ -118,3 +118,13 @@ Unsafe claim:
 > The HIL appliance proves the target state independently.
 
 The target proves target claims by emitting provenance markers and passing the relevant Foundry gate. The appliance proves the lab loop was live, observable, and reproducible.
+
+## Prepared build and run binding
+
+`tools/hil/provenance.py` validates graduation records against the builder's
+`EFI/BOOT/provenance.json` and `RAMEN_HIL_EXPECTED_NONCE`. The serial marker
+`kernel_build_id` names the embedded pre-link identity; the final EFI SHA-256 is
+kept in the host build manifest and gate JSON. Controller records must reference
+the same serial digest, run ID, appliance ID, target, and target markers as the
+gate. Missing or invalid controller records cannot establish appliance-mediated
+provenance. Inventory-only JSON is not live-capture evidence.

@@ -3,21 +3,47 @@
 
 schema_version = 1
 tier = 1
-status = "reference"
+status = "physically_ready_pending_firmware_and_amt_preflight"
 
 [machine]
-id = "intel-nuc-12-reference"
-family = "Intel NUC 12/13"
+id = "lenovo-thinkcentre-m900-i7-6700-lab-01"
+family = "Lenovo ThinkCentre M900 Small Form Factor"
 arch = "x86_64"
 boot_firmware = "uefi"
+
+[reference_configuration]
+machine_type = "10FH"
+model = "00SNUS"
+processor = "Intel Core i7-6700"
+processor_cores = 4
+integrated_graphics = "Intel integrated graphics"
+memory_gib_min = 8
+serial_port = "rear_rs232_db9"
+manageability = "intel_amt_11"
+
+[inventory]
+observed_memory_gib = 8
+observed_serial_port = "rear_rs232_db9"
+installed_system_drive_gb = 240
+installed_system_drive = "sata_ssd"
+installed_system_drive_model = "SanDisk 240GB SATA"
+planned_graduation_drive = "m2_2280_pcie_nvme"
+planned_graduation_drive_status = "not_acquired"
+physical_setup = "ready"
+inventory_source = "operator_report_2026-07-19"
 
 [requirements]
 # All must be true for Tier-1 graduation evidence.
 iommu = "vtd"          # Intel VT-d; ACPI DMAR required on HIL
 framebuffer = "uefi_gop"
-serial = "uart_or_usb"
-storage = "nvme_pcie"  # inventory in S12; boot proof in S13
+serial = "rs232_db9"   # rear COM port; capture through a USB RS-232 adapter
+storage_s12 = "installed_sata_allowed"
+storage_s13 = "m2_2280_pcie_nvme_required"
 usb = "xhci"           # inventory in S12; native stack in S14
+manageability = "intel_vpro_amt_11"
+
+[firmware_preflight]
+required = ["uefi_boot", "intel_vt_d_enabled", "rear_serial_enabled", "usb_boot_enabled", "intel_amt_enabled"]
 
 [serial_markers]
 boot_banner = "RamenOS"
@@ -27,7 +53,7 @@ iommu_ok = "golden_machine: iommu_present=1"
 
 [hil]
 # Physical gates run only when RAMEN_HIL_GOLDEN_MACHINE=1.
-reference_machine_id = "intel-nuc-12-reference"
+reference_machine_id = "lenovo-thinkcentre-m900-i7-6700-lab-01"
 default_ci = "skip"
 
 [hil.appliance]

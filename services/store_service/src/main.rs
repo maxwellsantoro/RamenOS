@@ -621,6 +621,9 @@ fn handle_client(
                 (reply, Operation::IngestArtifact, params, result)
             }
             MSG_QUERY_PROJECTION_BY_PATH => {
+                let registry = domain_registry
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
@@ -629,10 +632,14 @@ fn handle_client(
                     access_control,
                     &client_info,
                     &index,
+                    &registry,
                 )?;
                 (reply, Operation::QueryProjectionByPath, params, result)
             }
             MSG_QUERY_PROJECTION_BY_TAG => {
+                let registry = domain_registry
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
@@ -641,6 +648,7 @@ fn handle_client(
                     access_control,
                     &client_info,
                     &index,
+                    &registry,
                 )?;
                 (reply, Operation::QueryProjectionByTag, params, result)
             }
@@ -1334,6 +1342,8 @@ fn handle_ingest_artifact(
         let id = ContentId::parse(&content_id)
             .map_err(|_| anyhow::anyhow!("invalid content_id format"))?;
 
+        domain_registry.check_registration(&id, cap.domain_id, cap.domain_id == 0)?;
+
         // Write blob
         let blob_dst = store_root.join(format!("{}.blob", id.hash_hex()));
         write_blob_atomic(&blob_dst, src).context("failed to write blob")?;
@@ -1356,13 +1366,9 @@ fn handle_ingest_artifact(
 
         // V-007 Phase 5: Register artifact ownership
         let is_global = cap.domain_id == 0; // Kernel artifacts are global
-        if let Err(err) = domain_registry.register_artifact(&id, cap.domain_id, is_global) {
-            eprintln!(
-                "store_service: failed to register artifact ownership: {}",
-                err
-            );
-            // Non-fatal: log error but continue
-        }
+        domain_registry
+            .register_artifact(&id, cap.domain_id, is_global)
+            .context("failed to persist artifact ownership")?;
 
         update_projection_index_after_ingest(
             projection_index,
@@ -1462,6 +1468,7 @@ fn handle_query_projection_by_path(
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByPathReply, QueryProjectionByPathRequest};
 
@@ -1470,7 +1477,7 @@ fn handle_query_projection_by_path(
     let request_id = request.request_id;
     let path = request.path.clone();
 
-    let _cap = match validate_capability::<QueryProjectionByPathRequest, _>(
+    let cap = match validate_capability::<QueryProjectionByPathRequest, _>(
         payload,
         STORE_RIGHT_READ,
         "query_projection_by_path",
@@ -1510,7 +1517,7 @@ fn handle_query_projection_by_path(
         ));
     }
 
-    match projection_index.query_by_path(&path) {
+    match projection_index.query_by_path_for_domain(&path, cap.domain_id, domain_registry) {
         Ok(content_id) => {
             let reply = QueryProjectionByPathReply {
                 request_id,
@@ -1545,6 +1552,7 @@ fn handle_query_projection_by_tag(
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByTagReply, QueryProjectionByTagRequest};
 
@@ -1553,7 +1561,7 @@ fn handle_query_projection_by_tag(
     let request_id = request.request_id;
     let tag = request.tag.clone();
 
-    let _cap = match validate_capability::<QueryProjectionByTagRequest, _>(
+    let cap = match validate_capability::<QueryProjectionByTagRequest, _>(
         payload,
         STORE_RIGHT_READ,
         "query_projection_by_tag",
@@ -1593,7 +1601,7 @@ fn handle_query_projection_by_tag(
         ));
     }
 
-    match projection_index.query_by_tag(&tag) {
+    match projection_index.query_by_tag_for_domain(&tag, cap.domain_id, domain_registry) {
         Ok(content_ids) => {
             let reply = QueryProjectionByTagReply {
                 request_id,
@@ -2223,6 +2231,10 @@ mod integration_tests {
         let owner = domain_registry.get_owner(&content_id).unwrap();
         assert_eq!(owner.domain_id, 5);
         assert!(!owner.is_global); // Not kernel domain
+
+        let restarted = DomainArtifactRegistry::new(store_root).unwrap();
+        assert!(restarted.can_access(&content_id, 5));
+        assert!(!restarted.can_access(&content_id, 99));
     }
 
     #[test]
@@ -2365,6 +2377,95 @@ mod integration_tests {
         let owner = domain_registry.get_owner(&content_id).unwrap();
         assert_eq!(owner.domain_id, 0);
         assert!(owner.is_global); // Should be marked as global
+    }
+
+    #[test]
+    fn projection_queries_enforce_capability_domain_after_restart() {
+        let _guard = env_lock().lock().unwrap();
+        let _key = set_test_capability_trusted_key_env();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        let mut index = writable_projection_index(root.path());
+        let mut ids = Vec::new();
+        for (domain, digit) in [(42, 'a'), (99, 'b'), (0, 'c')] {
+            let cid = format!("sha256:{}", digit.to_string().repeat(64));
+            let id = ContentId::parse(&cid).unwrap();
+            fs::write(
+                root.path().join(format!("{}.blob", id.hash_hex())),
+                b"fixture",
+            )
+            .unwrap();
+            registry
+                .register_artifact(&id, domain, domain == 0)
+                .unwrap();
+            let (entry, projection) = ingest_projection_records(
+                &cid,
+                "shared_tag",
+                "stable",
+                Path::new("same.txt"),
+                domain,
+            );
+            index.upsert_entry(entry).unwrap();
+            index.upsert_path_projection(projection).unwrap();
+            ids.push(cid);
+        }
+        index.persist_atomic(root.path()).unwrap();
+        let registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        let index = writable_projection_index(root.path());
+        let access = AccessControl::new();
+        let client = ClientInfo {
+            pid: Some(1234),
+            uid: Some(0),
+            gid: Some(0),
+            ..ClientInfo::default()
+        };
+        for (domain, expected) in [(42, &ids[0]), (99, &ids[1]), (7, &ids[2])] {
+            let capability_bytes = bincode::serialize(&signed_test_capability(
+                domain,
+                STORE_RIGHT_READ,
+                domain + 1,
+            ))
+            .unwrap();
+            let path = QueryProjectionByPathRequest {
+                request_id: 1,
+                path: "/store/shared_tag/stable/same.txt".into(),
+                capability_bytes: capability_bytes.clone(),
+            };
+            let (reply, _, _) = handle_query_projection_by_path(
+                &bincode::serialize(&path).unwrap(),
+                &access,
+                &client,
+                &index,
+                &registry,
+            )
+            .unwrap();
+            let reply: QueryProjectionByPathReply = bincode::deserialize(&reply).unwrap();
+            assert_eq!(reply.status, STATUS_OK);
+            assert_eq!(&reply.content_id, expected);
+            let tag = QueryProjectionByTagRequest {
+                request_id: 2,
+                tag: "shared_tag".into(),
+                capability_bytes,
+            };
+            let (reply, _, _) = handle_query_projection_by_tag(
+                &bincode::serialize(&tag).unwrap(),
+                &access,
+                &client,
+                &index,
+                &registry,
+            )
+            .unwrap();
+            let reply: QueryProjectionByTagReply = bincode::deserialize(&reply).unwrap();
+            assert_eq!(reply.status, STATUS_OK);
+            let matches: Vec<_> = reply.content_ids.split(',').collect();
+            assert!(matches.contains(&ids[2].as_str()));
+            assert!(!matches.contains(&ids[if domain == 42 { 1 } else { 0 }].as_str()));
+        }
+        assert!(
+            index
+                .query_by_path_for_domain("/missing", 7, &registry)
+                .is_err()
+        );
     }
 
     // V-007 Phase 6: Capability Extraction Tests

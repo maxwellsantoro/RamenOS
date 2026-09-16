@@ -1,7 +1,7 @@
 # S12: First Metal (Golden Machine)
 
-**Last Updated:** 2026-06-24
-**Status:** Active reference; S12.0-S12.3 landed, S12.4 appliance loop active
+**Last Updated:** 2026-07-19
+**Status:** Physically ready; SATA-backed S12 start, firmware/AMT preflight and live capture next
 **Gate:** `tools/ci/foundry_s12_golden_machine_s12_0.sh`
 **Related:** `docs/HARDWARE_STRATEGY.md`, `ROADMAP.md` §12, `hardware/golden_machine_v0.toml`
 
@@ -17,19 +17,32 @@ S12 escapes VM-only bring-up by pinning a **Tier-1 golden machine** contract and
 
 ---
 
-## 0. Tier-1 reference machine (resolved 2026-06-21)
+## 0. Tier-1 reference machine (updated 2026-07-01)
 
-**CHOSEN:** Intel NUC 12/13 class (x86_64, UEFI, integrated Intel graphics GOP).
+**CHOSEN:** The acquired Lenovo ThinkCentre M900 Small Form Factor, machine type
+10FH and model 00SNUS, with an Intel Core i7-6700 and 8 GiB RAM. Operator
+photos confirm integrated graphics is active and the rear RS-232/DB9 serial
+port is populated. The installed 240 GB SanDisk SATA SSD is valid for the
+initial S12 boot, GOP, serial, IOMMU, and appliance work. A compatible M.2
+2280 PCIe NVMe drive will be added later and remains mandatory for S13 metal
+graduation. The Pi↔M900 serial chain is physically installed and ready. UEFI
+GOP, VT-d, and AMT 11 remain preflight checks; inventory and physical-setup
+reports do not constitute graduation evidence.
 
-| Criterion | Intel NUC 12/13 | Framework Laptop 13/16 |
-|-----------|-----------------|------------------------|
-| UEFI + GOP | Standard PC firmware, GOP on iGPU | Yes, but board variance higher |
-| VT-d (IOMMU) | Typically enabled in firmware | Typically enabled |
-| Lab reproducibility | Fixed small-form-factor profile | Multiple mainboard generations |
-| Contributor access | Common refurb market | Less uniform in farms |
-| Downstream S13 NVMe | M.2 NVMe standard | M.2 NVMe standard |
+| Criterion | ThinkCentre M900 SFF | Framework Laptop 13/16 |
+|-----------|----------------------|------------------------|
+| UEFI + GOP | Standard PC firmware; integrated graphics observed active | Yes, but board variance higher |
+| VT-d (IOMMU) | Available when firmware VT-d is enabled | Typically enabled |
+| Serial HIL path | Populated rear RS-232/DB9 serial port | Requires an external adapter path |
+| Out-of-band control | Intel vPro / AMT 11 over wired Ethernet | Model-dependent |
+| Lab reproducibility | Acquired machine pinned by machine type and model | Multiple mainboard generations |
+| Contributor access | Common refurbished desktop profile | Less uniform in farms |
+| S12 starting storage | Installed 240 GB SanDisk SATA SSD | Existing storage acceptable |
+| Downstream S13 NVMe | Compatible M.2 2280 PCIe NVMe to be added | M.2 NVMe standard |
 
-**Deferred secondary:** Framework Laptop 13 (Intel) as a second Tier-1 profile after NUC path is green. ARM64 Tier-1 (e.g. Apple-silicon class with SMMU) is post-S12.
+**Firmware preflight:** Before a physical evidence run, enable UEFI boot, Intel VT-d, the rear serial port, USB boot, and Intel AMT network access. Keep the integrated graphics active for the GOP path. Provision AMT only on the trusted wired lab-management network and keep its credentials out of evidence artifacts.
+
+**Deferred secondary:** Framework Laptop 13 (Intel) as a second Tier-1 profile after the ThinkCentre path is green. ARM64 Tier-1 (e.g. Apple-silicon class with SMMU) is post-S12.
 
 **Manifest:** `hardware/golden_machine_v0.toml` is the machine-auditable source of truth for gates and agents.
 

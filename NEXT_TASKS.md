@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-16
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -8,14 +8,18 @@
 
 ## Active Execution Track
 
-**Now:** Implement the S12.4 HIL appliance v0 physical loop: stabilize the serial observer, then add the power/reset actuator. Run S13 metal HIL graduation through the appliance once that loop is stable; standalone golden-machine `PASS/METAL` remains valid only when evidence JSON stamps `claim_path: operator-golden-machine`.
+**Now:** Run the first live HIL appliance serial capture on the physically ready Pi↔M900
+chain, then provision and validate the M900's Intel AMT 11 power/reset path.
+S12 runs on the installed 240 GB SanDisk SATA SSD. Add a compatible M.2 2280
+PCIe NVMe drive before S13 metal graduation. Front-panel relays and a
+smart plug/PDU remain deferred until AMT testing shows they are necessary.
 
 | Priority | Task | Completion signal |
 |----------|------|-------------------|
-| P0 | S12.4.1 HIL appliance serial observer | `RAMEN_HIL_APPLIANCE=1 just hil-appliance` captures live serial and emits valid controller evidence |
-| P1 | S12.4.2 HIL appliance power/reset actuator | Power and reset scripts are fail-safe, dry-run tested, and represented in controller evidence JSON |
-| P2 | S13 metal HIL graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
-| P3 | S12 physical graduation through the appliance | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
+| P0 | S12.4.1 HIL appliance serial observer — first live capture | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0 just hil-appliance` captures live serial and emits valid controller evidence |
+| P1 | S12.4.2 Intel AMT power/reset actuator | AMT status, power-on, power-off, reset, and power-cycle are validated from the Pi and represented in controller evidence JSON |
+| P2 | S12 physical graduation on the installed SanDisk SATA SSD | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
+| P3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
 | P4 | S14 USB xHCI and HID design pass | Approved short plan, IDL boundary, and Foundry gate definition before implementation |
 
 ### P0 Acceptance Criteria
@@ -32,13 +36,21 @@
   `claim_path: operator-golden-machine` from appliance-mediated
   `claim_path: appliance-mediated` runs.
 
+Live per-gate runs validate the prepared `provenance.json` beside their EFI image.
+For graduation, set a unique `RAMEN_HIL_RUN_ID`, `RAMEN_HIL_APPLIANCE_ID`, and
+`RAMEN_HIL_EXPECTED_NONCE`; stage that same nonzero nonce on the target before
+boot. Use a fresh nonce for each boot and run the individual physical gates when
+manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
+
 ### P1 Acceptance Criteria
 
-- Add `tools/hil/appliance_press_power.sh` and
-  `tools/hil/appliance_press_reset.sh`.
-- Relays default to inactive and enforce bounded pulse durations.
+- Provision AMT 11 through MEBx on a trusted wired lab network.
+- Add AMT-backed status, power-on, power-off, reset, and power-cycle commands.
+- Keep AMT credentials out of evidence, logs, and the repository.
 - Dry-run behavior is deterministic and covered by the appliance gate.
-- Controller evidence records action, channel, duration, run id, and result.
+- Controller evidence records action, transport, target, run id, and result.
+- Validate reachability while the target is running, soft-off, and hung in the
+  target OS before deciding whether a smart plug/PDU or relay fallback is needed.
 - Physical actuation remains opt-in; governance scaffolding grants no ambient
   HIL actuation authority.
 
@@ -73,6 +85,8 @@ before pushing when practical.
 ## Deferred
 
 - S14 implementation until the appliance loop is stable and a design pass lands.
+- Smart plug/PDU and front-panel relay purchases until AMT validation establishes
+  a concrete recovery gap.
 - Full execution-fabric transport and broad real-kernel broker migration.
 - S5.1 wizard orchestration beyond the existing policy proposal path.
 - Offer-shaped runtime interfaces until RQ-0001 produces an IDL and evidence plan.

@@ -9,6 +9,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 export CARGO_TARGET_DIR="$ROOT_DIR/target"
+source "$ROOT_DIR/tools/hil/hil_gate_common.sh"
+export RAMEN_HIL_CAPTURE_GATE=s12_2
 
 echo "=== S12.2 Physical HIL Boot Foundry Gate ==="
 
@@ -60,7 +62,11 @@ capture_serial_boot() {
   local log="$2"
   local timeout_s="$3"
 
-  if [[ ! -e "$dev" ]]; then
+  if [[ "${RAMEN_HIL_APPLIANCE:-}" == "1" ]]; then
+    ramen_hil_capture_appliance "$dev" "$log" "$timeout_s"
+    return
+  fi
+  if [[ ! -c "$dev" ]]; then
     fail "SERIAL_DEV_MISSING" "serial device not found: $dev"
   fi
 
@@ -71,7 +77,7 @@ capture_serial_boot() {
   if command -v stty >/dev/null 2>&1; then
     stty -f "$dev" 115200 raw -echo 2>/dev/null \
       || stty -F "$dev" 115200 raw -echo 2>/dev/null \
-      || true
+      || fail "SERIAL_STTY_FAILED" "cannot configure serial device"
   fi
 
   if command -v timeout >/dev/null 2>&1; then
@@ -116,28 +122,31 @@ if [[ "${RAMEN_HIL_GOLDEN_MACHINE:-}" != "1" ]]; then
 fi
 
 echo "FOUNDRY_S12_HIL_BOOT_S12_2: INFO step=build_usb_boot_image"
-bash "$ROOT_DIR/tools/hil/build_usb_boot_image.sh"
+if [[ -z "${RAMEN_HIL_EXPECTED_BUILD:-}" ]]; then
+  bash "$ROOT_DIR/tools/hil/build_usb_boot_image.sh"
+fi
 
 USB_OUT="${RAMEN_HIL_USB_OUT:-$ROOT_DIR/out/hil/usb_boot}"
-test -f "$USB_OUT/EFI/BOOT/BOOTX64.EFI" \
-  || fail "USB_EFI_MISSING" "USB boot tree missing BOOTX64.EFI"
-test -f "$USB_OUT/EFI/BOOT/init.img" \
-  || fail "USB_INIT_MISSING" "USB boot tree missing init.img"
+export RAMEN_HIL_EXPECTED_BUILD="${RAMEN_HIL_EXPECTED_BUILD:-${USB_OUT}/EFI/BOOT/provenance.json}"
+ramen_hil_load_prepared_build "hil_boot" || fail "PREPARED_BUILD_INVALID" "invalid prepared boot artifacts"
 
 echo "FOUNDRY_S12_HIL_BOOT_S12_2: METRIC usb_boot_tree=${USB_OUT}"
 echo "FOUNDRY_S12_HIL_BOOT_S12_2: INFO operator_steps="
 echo "  1. Format a USB stick as FAT32 (GPT partition table recommended)."
 echo "  2. Copy contents of ${USB_OUT}/ onto the USB root (EFI/BOOT/...)."
-echo "  3. On Intel NUC reference: enable UEFI USB boot, disable Secure Boot if needed."
-echo "  4. Attach serial (115200 8N1) to the NUC debug header or USB-serial adapter."
+echo "  3. On the Lenovo ThinkCentre M900: enable UEFI USB boot, Intel VT-d, and the rear serial port; disable Secure Boot if needed."
+echo "  4. Attach a USB RS-232 adapter to the rear DB9 serial port (115200 8N1)."
 echo "  5. Power-cycle and boot from USB; gate captures serial until hil_boot ok."
 
-LOG_DIR="$ROOT_DIR/out/logs"
+LOG_DIR="${RAMEN_HIL_LOG_DIR:-$ROOT_DIR/out/logs}"
 mkdir -p "$LOG_DIR"
+
+ramen_hil_resolve_serial_input || fail "SERIAL_POLICY" "invalid serial input"
 
 if [[ -n "${RAMEN_HIL_SERIAL_LOG:-}" ]]; then
   echo "FOUNDRY_S12_HIL_BOOT_S12_2: INFO step=validate_serial_log path=${RAMEN_HIL_SERIAL_LOG}"
   assert_serial_log "$RAMEN_HIL_SERIAL_LOG"
+  METAL_LOG="$RAMEN_HIL_SERIAL_LOG"
 elif [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
   LOG="$LOG_DIR/hil_boot_serial.log"
   TIMEOUT_S="${RAMEN_HIL_BOOT_TIMEOUT_S:-120}"
@@ -149,10 +158,16 @@ elif [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
       "serial capture timed out before golden_machine: hil_boot ok"
   fi
   assert_serial_log "$LOG"
+  METAL_LOG="$LOG"
 else
   fail "SERIAL_INPUT_MISSING" \
     "set RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0 or RAMEN_HIL_SERIAL_LOG=/path/to/capture.log"
 fi
+
+EVIDENCE_LEVEL="$(ramen_hil_evidence_level)"
+ramen_hil_emit_evidence_json "${RAMEN_HIL_EVIDENCE_DIR:-$ROOT_DIR/out/evidence}/foundry_s12_hil_boot_s12_2.json" \
+  "foundry_s12_hil_boot_s12_2" "$EVIDENCE_LEVEL" "$METAL_LOG" "golden_machine: hil_boot ok" \
+  "$RAMEN_HIL_PREPARED_EFI" "$RAMEN_HIL_PREPARED_INIT"
 
 echo "FOUNDRY_S12_HIL_BOOT_S12_2: PASS"
 echo "FOUNDRY_S12_HIL_BOOT_S12_2: ok"

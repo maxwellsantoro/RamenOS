@@ -1,6 +1,6 @@
 # Evidence Levels
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-16
 **Status:** Authoritative for HIL gate reporting
 
 Foundry gates may print `PASS`, but **PASS is not one thing**. Use these levels in gates, docs, and evidence JSON.
@@ -12,7 +12,7 @@ Foundry gates may print `PASS`, but **PASS is not one thing**. Use these levels 
 | `PASS/QEMU` | Inventory + build + QEMU negative smoke only | Default `foundry_s13_nvme_boot_s13_7.sh` / `foundry_s13_atomic_update_s13_8.sh` without `RAMEN_HIL_GOLDEN_MACHINE=1` |
 | `PASS/HIL-LOG` | Operator-provided serial log replay (`RAMEN_HIL_SERIAL_LOG`) | Development convenience; **not** metal graduation |
 | `PASS/HIL-LIVE` | Serial captured from `RAMEN_HIL_SERIAL_DEV` during this gate run | Lab evidence; still weaker than graduation |
-| `PASS/HIL-APPLIANCE` | Live serial captured by the appliance plus controller power/reset transcript | Appliance-mediated lab evidence; bridge toward autonomous CI |
+| `PASS/HIL-APPLIANCE` | Live serial captured by the appliance plus controller actuation transcript when actuation occurs | Appliance-mediated lab evidence; bridge toward autonomous CI |
 | `PASS/METAL` | `RAMEN_HIL_GRADUATION=1` + live serial + `hil_evidence:` provenance markers + evidence JSON bundle with `claim_path` | Tier-1 / golden-machine graduation |
 
 ## Graduation mode
@@ -23,12 +23,37 @@ Set for serious metal runs:
 export RAMEN_HIL_GOLDEN_MACHINE=1
 export RAMEN_HIL_GRADUATION=1
 export RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0
-# optional: export RAMEN_HIL_APPLIANCE=1        # stamps claim_path=appliance-mediated
-# optional: export RAMEN_HIL_APPLIANCE_ID=pi-hil-01
-# optional: export RAMEN_HIL_MACHINE_ID=amd-ryzen-lab   # default: intel-nuc-12-reference
+# optional: export RAMEN_HIL_APPLIANCE=1        # requires matching controller capture
+# with appliance: export RAMEN_HIL_APPLIANCE_ID=pi-hil-01
+export RAMEN_HIL_RUN_ID=hil-unique-run-name
+export RAMEN_HIL_EXPECTED_NONCE=$(python3 -c 'import secrets; print(f"{secrets.randbelow((1 << 64) - 1) + 1:016x}")')
+# optional: export RAMEN_HIL_MACHINE_ID=amd-ryzen-lab   # default: lenovo-thinkcentre-m900-i7-6700-lab-01
 ```
 
 `RAMEN_HIL_GRADUATION=1` **disallows** `RAMEN_HIL_SERIAL_LOG` (stale/copied logs).
+
+Prepare and deploy the image before capture. For example, run
+`bash tools/hil/build_nvme_boot_image.sh`, deploy its `EFI/BOOT` files, then set
+`RAMEN_HIL_EXPECTED_BUILD` to that output's `EFI/BOOT/provenance.json` when running
+`just foundry-s13-nvme-boot-s13-7`. A supplied manifest is validated and reused;
+it is never replaced by a fresh build. The USB and atomic-update builders support
+the same flow. The IOMMU gate can also reuse a prepared `iommu_inventory` manifest.
+Without a supplied manifest, gates retain their build-and-capture behavior.
+
+Stage the **same** expected nonce on the target with
+`tools/hil/set_ramenos_boot_nonce.sh "$RAMEN_HIL_EXPECTED_NONCE"` before its next
+boot. Generate a fresh nonce for every boot; run individual physical gates when
+manual staging is required. Gate captures add their gate ID to the supplied run
+ID, and refuse to overwrite existing controller evidence.
+
+Builders produce `EFI/BOOT/provenance.json` binding a unique embedded
+`kernel_build_id` to the final EFI and init hashes. The gate validates the
+prepared artifacts and exactly one complete target boot record; unknown,
+duplicate, malformed, stale, or mismatching markers fail. The expected nonce is
+compared numerically, so nonzero values with leading zeros are valid. Standalone
+observer graduation also requires `RAMEN_HIL_EXPECTED_BUILD` to point to this
+manifest. The final `kernel_efi_sha256` exists in JSON, not as a self-hash embedded
+in the target. These trusted lab records are not hardware attestation.
 
 Every HIL evidence JSON must include `claim_path` so a standalone operator
 golden-machine graduation cannot be mistaken for an appliance-mediated run:
@@ -56,7 +81,7 @@ hil_evidence: git_sha=...
 hil_evidence: init_profile=...
 hil_evidence: machine_id=...
 hil_evidence: storage_manifest_sha256=...
-hil_evidence: kernel_efi_sha256=...
+hil_evidence: kernel_build_id=...
 hil_evidence: init_img_sha256=...
 hil_evidence: boot_epoch_nonce=...
 ```

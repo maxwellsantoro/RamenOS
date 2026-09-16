@@ -15,15 +15,21 @@ jobs:
           fetch-depth: 0
       - id: cls
         name: Detect OS-code changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then BASE="origin/${{ github.base_ref }}"; else BASE="HEAD^"; fi
-          FILES=$(git diff --name-only "$BASE" HEAD || true)
-          echo "$FILES"
-          if printf '%s\n' "$FILES" | grep -qE '\.(rs|toml)$|^Cargo\.(toml|lock)$|^rust-toolchain|^idl/'; then
-            echo "os_code=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE"
+          elif [ "$PUSH_BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git hash-object -t tree --stdin </dev/null)
           else
-            echo "os_code=false" >> "$GITHUB_OUTPUT"
+            BASE="$PUSH_BASE"
           fi
+          OS=$(python3 tools/ci/change_policy.py classify "$BASE" HEAD)
+          echo "os_code=$OS" >> "$GITHUB_OUTPUT"
 
   foundry:
     needs: changes
@@ -127,14 +133,11 @@ jobs:
     needs: [changes, foundry, org-governance]
     if: always()
     steps:
-      - name: Evaluate gate (docs skip foundry; OS code requires it; org-governance always)
-        run: |
-          OS="${{ needs.changes.outputs.os_code }}"
-          FR="${{ needs.foundry.result }}"
-          OG="${{ needs.org-governance.result }}"
-          echo "os_code=$OS foundry=$FR org-governance=$OG"
-          if [ "$OG" != "success" ]; then echo "merge-gate: FAIL (org-governance=$OG)"; exit 1; fi
-          if [ "$OS" = "true" ] && [ "$FR" != "success" ]; then
-            echo "merge-gate: FAIL (OS code changed, foundry=$FR)"; exit 1
-          fi
-          echo "merge-gate: PASS (os_code=$OS foundry=$FR)"
+      - uses: actions/checkout@v4
+      - name: Evaluate mandatory classification, Foundry and governance results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          OS_CODE: ${{ needs.changes.outputs.os_code }}
+          FOUNDRY: ${{ needs.foundry.result }}
+          GOVERNANCE: ${{ needs.org-governance.result }}
+        run: python3 tools/ci/change_policy.py merge "$CHANGES" "$OS_CODE" "$FOUNDRY" "$GOVERNANCE"

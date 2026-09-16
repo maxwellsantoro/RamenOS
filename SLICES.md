@@ -1,6 +1,6 @@
 # Vertical Slices
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-07-01
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
@@ -45,7 +45,8 @@ Landed:
 Remaining:
 
 - Prove stable live serial capture through the appliance.
-- Add bounded, fail-safe power/reset actuation.
+- Provision and validate bounded Intel AMT 11 power/reset actuation from the appliance.
+- Begin S12 on the installed SanDisk SATA SSD; add M.2 NVMe before S13 graduation.
 - Run S12 and S13 graduation using appliance evidence plus target evidence.
 
 ## S13 Graduation Boundary

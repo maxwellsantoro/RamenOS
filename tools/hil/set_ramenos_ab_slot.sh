@@ -21,25 +21,30 @@ case "$SLOT" in
     ;;
 esac
 
-EFIVAR_DIR="/sys/firmware/efi/efivars"
+EFIVAR_DIR="${RAMEN_HIL_EFIVAR_DIR:-/sys/firmware/efi/efivars}"
 GUID="a3b8c14e-5f20-4d71-9e62-1308ab080000"
 NAME="RamenAbSlot-${GUID}"
-PATH="${EFIVAR_DIR}/${NAME}"
+EFIVAR_PATH="${EFIVAR_DIR}/${NAME}"
 
 if [[ ! -d "$EFIVAR_DIR" ]]; then
   fail "EFIVARFS_MISSING" "efivarfs not mounted at ${EFIVAR_DIR} (Linux firmware interface required)"
 fi
 
-if [[ -e "$PATH" ]]; then
-  chattr -i "$PATH" 2>/dev/null || true
-  rm -f "$PATH"
+if [[ -e "$EFIVAR_PATH" ]]; then
+  chattr -i "$EFIVAR_PATH" 2>/dev/null || true
+  rm -f "$EFIVAR_PATH"
 fi
 
 # EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS
-ATTRS=$((0x00000001 | 0x00000002 | 0x00000004))
-printf "\\x%02x\\x%02x\\x%02x\\x%02x\\x01\\x%02x\\x01" \
-  $((ATTRS & 0xff)) $(((ATTRS >> 8) & 0xff)) $(((ATTRS >> 16) & 0xff)) $(((ATTRS >> 24) & 0xff)) \
-  "$ACTIVE" >"$PATH"
+python3 - "$EFIVAR_PATH" "$ACTIVE" <<'PYWRITE'
+import sys
+payload = (7).to_bytes(4, "little") + bytes([1, int(sys.argv[2]), 1])
+with open(sys.argv[1], "wb") as output:
+    if output.write(payload) != len(payload):
+        raise OSError("short efivar write")
+    output.flush()
+    # efivarfs performs the firmware write synchronously and has no fsync operation.
+PYWRITE
 
 echo "SET_RAMENOS_AB_SLOT: METRIC active_slot=${SLOT}"
 echo "SET_RAMENOS_AB_SLOT: METRIC rollback_ready=1"

@@ -47,7 +47,7 @@ capture_serial_device() {
   local out="$2"
   local timeout_s="$3"
 
-  [[ -e "$dev" ]] || fail "SERIAL_DEV_MISSING" "serial device not found: $dev"
+  [[ -c "$dev" ]] || fail "SERIAL_DEV_MISSING" "serial device not found: $dev"
   configure_serial "$dev"
   : >"$out"
 
@@ -65,11 +65,11 @@ capture_serial_device() {
 }
 
 mkdir -p "${RAMEN_HIL_EVIDENCE_DIR:-out/evidence}"
-EVIDENCE_DIR="${RAMEN_HIL_EVIDENCE_DIR:-out/evidence}"
+EVIDENCE_DIR="$(cd "${RAMEN_HIL_EVIDENCE_DIR:-out/evidence}" && pwd)"
 APPLIANCE_ID="${RAMEN_HIL_APPLIANCE_ID:-pi-hil-01}"
-TARGET_ID="${RAMEN_HIL_TARGET_ID:-${RAMEN_HIL_MACHINE_ID:-intel-nuc-12-reference}}"
+TARGET_ID="${RAMEN_HIL_TARGET_ID:-${RAMEN_HIL_MACHINE_ID:-lenovo-thinkcentre-m900-i7-6700-lab-01}}"
 RUN_STAMP="$(utc_stamp)"
-RUN_ID="${RAMEN_HIL_RUN_ID:-hil_appliance_${RUN_STAMP}_${APPLIANCE_ID}_serial_observer}"
+RUN_ID="${RAMEN_HIL_RUN_ID:-hil_appliance_${RUN_STAMP}_$$_${APPLIANCE_ID}_serial_observer}"
 if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
   fail "RUN_ID_INVALID" "RAMEN_HIL_RUN_ID may contain only letters, digits, dot, underscore, and dash"
 fi
@@ -82,6 +82,16 @@ SERIAL_SOURCE_LOG="${RAMEN_HIL_SERIAL_LOG:-}"
 SERIAL_INPUT_KIND=""
 EVIDENCE_LEVEL=""
 STARTED_MS="$(now_ms)"
+if [[ -e "$SERIAL_LOG" || -e "$CONTROLLER_LOG" || -e "$EVIDENCE_JSON" ]]; then
+  fail "RUN_ID_REUSED" "choose a new RAMEN_HIL_RUN_ID; existing evidence is immutable"
+fi
+python3 - "$TIMEOUT_S" <<'PYTIME'
+import math, sys
+value = float(sys.argv[1])
+if not math.isfinite(value) or value <= 0 or value > 3600:
+    raise SystemExit("capture timeout must be positive and at most 3600 seconds")
+PYTIME
+
 
 if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" && -n "$SERIAL_SOURCE_LOG" ]]; then
   fail "STALE_LOG_IN_GRADUATION" "RAMEN_HIL_GRADUATION=1 forbids RAMEN_HIL_SERIAL_LOG"

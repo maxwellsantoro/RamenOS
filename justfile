@@ -318,3 +318,7 @@ clippy-strict-tranche6:
 # --- CI extended gates (security + native runner + semantic state) ---
 foundry-ci-extended:
 	bash ./tools/ci/foundry_ci_extended.sh
+
+# Host-only regressions for ownership, allocation, CI and HIL provenance.
+foundry-review-boundaries:
+	bash ./tools/ci/foundry_review_boundaries.sh
