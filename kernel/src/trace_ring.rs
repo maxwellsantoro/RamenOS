@@ -8,7 +8,6 @@
 // Refactoring: Added typed error types to replace Result<(), ()> patterns.
 // This improves error handling and debugging by providing descriptive error variants.
 
-use core::cell::UnsafeCell;
 use core::fmt;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -80,7 +79,7 @@ static WRITER_CLAIMED: AtomicBool = AtomicBool::new(false);
 /// This prevents data races in the legacy single-writer buffer when
 /// multiple threads might try to use it.
 ///
-/// NOTE: The per-domain ring buffers (DomainTraceRing) use atomic operations
+/// NOTE: The per-domain ring buffers (DomainTraceRing) lock each buffer
 /// and are safe for SMP use. Only the legacy global buffer needs this guard.
 static LEGACY_SMP_ENABLED: AtomicBool = AtomicBool::new(false);
 
@@ -117,24 +116,33 @@ pub fn is_legacy_smp_enabled() -> bool {
 // Per-Domain Ring Buffers (V-012)
 // ============================================================================
 
-/// Per-domain trace ring state.
-struct TraceRingState {
-    /// Write index for this domain's ring buffer.
-    write_idx: AtomicUsize,
-    /// Read index for this domain's ring buffer.
-    read_idx: AtomicUsize,
-    /// Ring buffer for this domain (interior mutability).
-    ring: UnsafeCell<[Event; RING_SIZE]>,
-    /// Writer claimed flag for this domain.
-    writer_claimed: AtomicBool,
+/// Buffer and cursors are always accessed under the same per-domain lock.
+/// Callers must not re-enter a domain's trace operation from an interrupt while
+/// holding its lock. Current kernel trace operations run outside interrupt handlers.
+struct TraceBuffer {
+    events: [Event; RING_SIZE],
+    head: usize,
+    len: usize,
 }
 
-// SAFETY: TraceRingState is safe to share across threads because:
-// - All mutable access is protected by the single-writer invariant
-// - The write token system ensures only one writer exists at a time
-// - Readers only access the head/tail indices and RING array atomically
-// - The state is initialized before any concurrent access begins
-unsafe impl Sync for TraceRingState {}
+impl TraceBuffer {
+    const fn new() -> Self {
+        Self {
+            events: [Event {
+                tag: 0,
+                arg0: 0,
+                arg1: 0,
+            }; RING_SIZE],
+            head: 0,
+            len: 0,
+        }
+    }
+}
+
+struct TraceRingState {
+    buffer: spin::Mutex<TraceBuffer>,
+    writer_claimed: AtomicBool,
+}
 
 /// Per-domain trace ring container.
 pub struct DomainTraceRing {
@@ -150,15 +158,7 @@ impl DomainTraceRing {
     pub const fn new() -> Self {
         // Initialize each domain's ring state
         const INIT_STATE: TraceRingState = TraceRingState {
-            write_idx: AtomicUsize::new(0),
-            read_idx: AtomicUsize::new(0),
-            ring: UnsafeCell::new(
-                [Event {
-                    tag: 0,
-                    arg0: 0,
-                    arg1: 0,
-                }; RING_SIZE],
-            ),
+            buffer: spin::Mutex::new(TraceBuffer::new()),
             writer_claimed: AtomicBool::new(false),
         };
 
@@ -204,21 +204,14 @@ impl DomainTraceRing {
             panic!("trace_ring::emit: invalid domain_id {}", domain_id);
         }
 
-        let ring = &self.rings[idx];
-        // SMP FIX: Write event data BEFORE incrementing write_idx to prevent readers
-        // from seeing uninitialized data. The Release ordering on fetch_add ensures
-        // the write is visible before the index increment is seen by readers.
-        let write_idx = ring.write_idx.load(Ordering::Relaxed);
-        let slot = write_idx % RING_SIZE;
-        // SAFETY: We have exclusive access via write_idx monotonic progression
-        // and atomic ordering ensures proper synchronization
-        unsafe {
-            let ring_ptr = ring.ring.get();
-            (*ring_ptr)[slot] = Event { tag, arg0, arg1 };
+        let mut buffer = self.rings[idx].buffer.lock();
+        let slot = (buffer.head + buffer.len) % RING_SIZE;
+        buffer.events[slot] = Event { tag, arg0, arg1 };
+        if buffer.len == RING_SIZE {
+            buffer.head = (buffer.head + 1) % RING_SIZE;
+        } else {
+            buffer.len += 1;
         }
-        // Increment write_idx AFTER writing event data with Release semantics
-        // to ensure the write is visible before readers see the new index
-        ring.write_idx.fetch_add(1, Ordering::Release);
     }
 
     /// Read trace events from a specific domain's ring buffer.
@@ -238,29 +231,13 @@ impl DomainTraceRing {
             panic!("trace_ring::read: invalid domain_id {}", domain_id);
         }
 
-        let ring = &self.rings[idx];
-        let mut read_idx = ring.read_idx.load(Ordering::Relaxed);
-        let write_idx = ring.write_idx.load(Ordering::Acquire);
-        let oldest_available = write_idx.saturating_sub(RING_SIZE);
-
-        if read_idx < oldest_available {
-            // Reader fell behind and entries were overwritten; fast-forward.
-            read_idx = oldest_available;
+        let mut buffer = self.rings[idx].buffer.lock();
+        let count = out.len().min(buffer.len);
+        for (offset, event) in out.iter_mut().take(count).enumerate() {
+            *event = buffer.events[(buffer.head + offset) % RING_SIZE];
         }
-
-        let mut count = 0;
-        // SAFETY: Acquire ordering on write_idx ensures we see all writes
-        // up to that point, and read_idx provides exclusive access to slots
-        unsafe {
-            let ring_ptr = ring.ring.get();
-            while read_idx < write_idx && count < out.len() {
-                out[count] = (*ring_ptr)[read_idx % RING_SIZE];
-                read_idx += 1;
-                count += 1;
-            }
-        }
-
-        ring.read_idx.store(read_idx, Ordering::Relaxed);
+        buffer.head = (buffer.head + count) % RING_SIZE;
+        buffer.len -= count;
         count
     }
 
@@ -551,19 +528,10 @@ pub fn reset_for_test() -> TraceTestGuard {
     unsafe {
         let domain_ring = &mut DOMAIN_TRACE_RING;
         for i in 0..MAX_DOMAINS {
-            domain_ring.rings[i].write_idx.store(0, Ordering::Relaxed);
-            domain_ring.rings[i].read_idx.store(0, Ordering::Relaxed);
+            *domain_ring.rings[i].buffer.lock() = TraceBuffer::new();
             domain_ring.rings[i]
                 .writer_claimed
                 .store(false, Ordering::Relaxed);
-            let ring_ptr = domain_ring.rings[i].ring.get();
-            for j in 0..RING_SIZE {
-                (*ring_ptr)[j] = Event {
-                    tag: 0,
-                    arg0: 0,
-                    arg1: 0,
-                };
-            }
         }
     }
 
@@ -590,7 +558,9 @@ pub fn reset_for_test() -> TraceTestGuard {
 /// Panics if domain_id is out of range (>= MAX_DOMAINS).
 pub fn read_domain_trace(domain_id: DomainId, out: &mut [Event]) -> usize {
     unsafe {
-        let ring = global_domain_ring();
+        // SAFETY: registry mutation through global_domain_ring requires exclusive
+        // boot access; these operations only use synchronized per-domain buffers.
+        let ring = &*core::ptr::addr_of!(DOMAIN_TRACE_RING);
         ring.read(domain_id, out)
     }
 }
@@ -610,7 +580,9 @@ pub fn read_domain_trace(domain_id: DomainId, out: &mut [Event]) -> usize {
 /// Panics if domain_id is out of range (>= MAX_DOMAINS).
 pub fn emit_domain_trace(domain_id: DomainId, tag: u32, arg0: u64, arg1: u64) {
     unsafe {
-        let ring = global_domain_ring();
+        // SAFETY: registry mutation through global_domain_ring requires exclusive
+        // boot access; these operations only use synchronized per-domain buffers.
+        let ring = &*core::ptr::addr_of!(DOMAIN_TRACE_RING);
         ring.emit(domain_id, tag, arg0, arg1);
     }
 }
@@ -1184,5 +1156,51 @@ mod tests {
             assert_eq!(events[0].arg0, 0xABCD);
             assert_eq!(events[0].arg1, 0xEF01);
         }
+    }
+    #[test]
+    fn review_concurrent_trace_writers_and_wrap_readers() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+        let ring = Arc::new(DomainTraceRing::new());
+        let barrier = Arc::new(Barrier::new(3));
+        thread::scope(|scope| {
+            for writer_id in 0..2u64 {
+                let ring = Arc::clone(&ring);
+                let barrier = Arc::clone(&barrier);
+                scope.spawn(move || {
+                    barrier.wait();
+                    for seq in 0..32 {
+                        let value = writer_id * 32 + seq;
+                        ring.emit(0, 7, value, !value);
+                    }
+                });
+            }
+            barrier.wait();
+        });
+        let mut events = [ZERO_EVENT; 64];
+        assert_eq!(ring.read(0, &mut events), 64);
+        let mut seen = [false; 64];
+        for event in events {
+            assert_eq!(event.tag, 7);
+            assert_eq!(event.arg1, !event.arg0);
+            assert!(!seen[event.arg0 as usize]);
+            seen[event.arg0 as usize] = true;
+        }
+        let finished = core::sync::atomic::AtomicBool::new(false);
+        thread::scope(|scope| {
+            scope.spawn(|| {
+                for value in 0..100_000 {
+                    ring.emit(0, 9, value, !value);
+                }
+                finished.store(true, Ordering::Release);
+            });
+            while !finished.load(Ordering::Acquire) {
+                let count = ring.read(0, &mut events);
+                for event in &events[..count] {
+                    assert_eq!(event.tag, 9);
+                    assert_eq!(event.arg1, !event.arg0);
+                }
+            }
+        });
     }
 }

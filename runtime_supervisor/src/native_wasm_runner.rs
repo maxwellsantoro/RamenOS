@@ -625,6 +625,7 @@ mod tests {
             r#"(module
                 (import "ramen::services.semantic_state" "get_snapshot::call"
                     (func $get_snapshot (param i64 i64 i32 i32 i32) (result i32)))
+                (memory (export "memory") 1)
                 (global $RAMEN_CAP_SHMEM_CONTROL
                     (export "RAMEN_CAP_SHMEM_CONTROL") (mut i64) (i64.const 0))
                 (global $RAMEN_CAP_SEMANTIC_STATE

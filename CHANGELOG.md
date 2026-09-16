@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Changed
+- Fixed all seven memory/runtime/Store review findings: cleared reused shared
+  frames and page tails; preserved and enabled x86 NX; reserved shared addresses
+  in every recipient; connected generated WASM calls to guest memory; defined
+  unsigned manifest signing bytes; hashed and published one staged source read;
+  and synchronized per-domain trace reads/writes.
+- Added regressions for conflicting and repeated mappings, failed-map rollback,
+  guest-visible replies and invalid pointers, signed/tampered manifests across
+  all three Store read/verify handlers, CAS source replacement and special files,
+  and concurrent trace wrap. The QEMU shared-memory fixture now initializes its
+  target domain and checks live NX encoding plus EFER.NXE.
 - Fixed Store restart ownership loss and cross-domain projection queries; durable
   ownership fails closed and same-path projections remain isolated by domain.
 - Restricted shared-memory backing to supported 4 KiB pages.

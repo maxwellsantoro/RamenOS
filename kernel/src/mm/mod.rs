@@ -67,6 +67,8 @@ pub mod bitmap;
 pub mod bump;
 pub mod constants;
 pub mod frame;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 pub use address::{PhysAddr, PhysFrame};
 pub use address_space::AddressSpaceTable;

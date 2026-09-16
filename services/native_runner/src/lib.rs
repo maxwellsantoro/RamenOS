@@ -8,6 +8,7 @@
 pub mod context;
 pub mod error;
 pub mod generated;
+mod guest_memory;
 pub mod harness;
 pub mod kernel_bridge;
 pub mod runner;

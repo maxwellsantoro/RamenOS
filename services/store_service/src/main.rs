@@ -6,7 +6,8 @@
 // V-007 Phase 3: Added audit logging, signature validation (stub), and access control (stub).
 
 use anyhow::{Context, Result};
-use artifact_store_core::{hash_blob, verify_blob_matches_manifest};
+use artifact_store_core::verify_blob_matches_manifest;
+mod ingest;
 use artifact_store_schema::{
     ContentId, Manifest,
     signature::{ManifestSignature, SignaturePolicy, SignatureValidationConfig, TrustedKeys},
@@ -779,7 +780,7 @@ fn handle_get_manifest(
         // S7 Security Hardening: Validate signatures with detailed logging
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1045,7 +1046,7 @@ fn handle_get_blob(
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1197,7 +1198,7 @@ fn handle_verify_artifact(
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1337,19 +1338,15 @@ fn handle_ingest_artifact(
             });
         }
 
-        // Compute content hash
-        let content_id = hash_blob(src).context("failed to hash blob")?;
-        let id = ContentId::parse(&content_id)
-            .map_err(|_| anyhow::anyhow!("invalid content_id format"))?;
-
+        let staged = ingest::StagedBlob::read(src, store_root).context("failed to stage blob")?;
+        let id = staged.content_id.clone();
+        let content_id = id.as_str().to_string();
+        let size_bytes = staged.size_bytes;
         domain_registry.check_registration(&id, cap.domain_id, cap.domain_id == 0)?;
-
-        // Write blob
         let blob_dst = store_root.join(format!("{}.blob", id.hash_hex()));
-        write_blob_atomic(&blob_dst, src).context("failed to write blob")?;
-
-        // Get size
-        let size_bytes = fs::metadata(&blob_dst)?.len();
+        staged
+            .publish(&blob_dst)
+            .context("failed to publish blob")?;
 
         // Create and write manifest
         let manifest = Manifest {
@@ -1640,26 +1637,6 @@ pub use store_service::client::{
 };
 
 // Helper functions
-fn write_blob_atomic(dst: &Path, src: &Path) -> Result<()> {
-    use std::io::Write;
-
-    // Create parent directory
-    if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    // Write to temporary file
-    let tmp_path = dst.with_extension("tmp");
-    let mut tmp = fs::File::create(&tmp_path)?;
-    let data = fs::read(src)?;
-    tmp.write_all(&data)?;
-
-    // Atomic rename
-    fs::rename(&tmp_path, dst)?;
-
-    Ok(())
-}
-
 fn write_manifest_atomic(dst: &Path, manifest: &Manifest) -> Result<()> {
     use std::io::Write;
 
@@ -1674,8 +1651,11 @@ fn write_manifest_atomic(dst: &Path, manifest: &Manifest) -> Result<()> {
     let data = serde_json::to_vec_pretty(manifest)?;
     tmp.write_all(&data)?;
 
-    // Atomic rename
+    tmp.sync_all()?;
     fs::rename(&tmp_path, dst)?;
+    if let Some(parent) = dst.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
 
     Ok(())
 }
@@ -2589,5 +2569,151 @@ mod integration_tests {
         // Verify the RequestWithCapability trait is implemented
         let capability_bytes = request.capability_bytes();
         assert_eq!(capability_bytes, vec![0x01, 0x02, 0x03]);
+    }
+    #[test]
+    fn review_signed_manifest_round_trip() {
+        use artifact_store_schema::signature::{
+            ManifestSignature, SignatureAlgorithm, SignatureValidationResult,
+            validate_manifest_signatures,
+        };
+        use base64::{Engine as _, engine::general_purpose};
+        use ed25519_dalek::{Signer, SigningKey};
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        let bytes = b"signed artifact";
+        let content_id = artifact_store_core::hash_bytes(bytes);
+        let id = ContentId::parse(&content_id).unwrap();
+        fs::write(root.join(format!("{}.blob", id.hash_hex())), bytes).unwrap();
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: content_id.clone(),
+            size_bytes: bytes.len() as u64,
+            kind: "test".into(),
+            channels: vec!["test".into()],
+            signatures: vec![],
+        };
+        let unsigned = artifact_store_schema::signature::manifest_signing_bytes(&manifest).unwrap();
+        let key = SigningKey::from_bytes(&[42u8; 32]);
+        let sig = ManifestSignature {
+            algorithm: SignatureAlgorithm::Ed25519,
+            signature_data: general_purpose::STANDARD.encode(key.sign(&unsigned).to_bytes()),
+            key_id: "review-test".into(),
+            timestamp: None,
+            signer: None,
+        };
+        let mut trusted = TrustedKeys::new();
+        trusted
+            .add_ed25519_key("review-test".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let config = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: trusted,
+            ..Default::default()
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&sig).unwrap());
+        assert_eq!(
+            validate_manifest_signatures(&manifest.signatures, &unsigned, &config),
+            SignatureValidationResult::Valid
+        );
+        fs::write(
+            root.join(format!("{}.manifest.json", id.hash_hex())),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        registry.register_artifact(&id, 1, false).unwrap();
+        let capability_bytes =
+            bincode::serialize(&signed_test_capability(1, STORE_RIGHT_READ, 1)).unwrap();
+        let client = ClientInfo {
+            pid: Some(1234),
+            uid: Some(0),
+            gid: Some(0),
+            domain_id: Some(1),
+            rights: store_service::access_control::AccessRights::read_write(),
+            exe_path: None,
+            cmdline: None,
+        };
+        for tampered in [false, true] {
+            if tampered {
+                manifest.channels.push("unauthorized".into());
+            }
+            // Reordered fields and whitespace must not change the signed payload.
+            let value = serde_json::to_value(&manifest).unwrap();
+            fs::write(
+                root.join(format!("{}.manifest.json", id.hash_hex())),
+                serde_json::to_vec_pretty(&value).unwrap(),
+            )
+            .unwrap();
+            let expected = if tampered {
+                STATUS_VALIDATION_FAILED
+            } else {
+                STATUS_OK
+            };
+            let payload = bincode::serialize(&GetBlobRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_get_blob(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<GetBlobReply>(&raw).unwrap().status,
+                expected
+            );
+            let payload = bincode::serialize(&GetManifestRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_get_manifest(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<GetManifestReply>(&raw)
+                    .unwrap()
+                    .status,
+                expected
+            );
+            let payload = bincode::serialize(&VerifyArtifactRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_verify_artifact(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<VerifyArtifactReply>(&raw)
+                    .unwrap()
+                    .status,
+                expected
+            );
+        }
     }
 }

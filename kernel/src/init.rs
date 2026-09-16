@@ -1103,6 +1103,25 @@ fn sha256_compress(state: &mut [u32; 8], block: &[u8; 64]) {
 /// operations in a real kernel environment with actual page table manipulation.
 #[cfg(feature = "test_protocols")]
 fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
+    // Domain 1 needs its own root: mapping an uninitialized domain must fail.
+    // This fixture programs that root without installing it as the active CR3.
+    use crate::arch::Mmu;
+    #[cfg(target_arch = "x86_64")]
+    let root = crate::arch::X86_64Mmu.allocate_page_table();
+    #[cfg(target_arch = "aarch64")]
+    let root = crate::arch::AArch64Mmu.allocate_page_table();
+    let root = match root {
+        Ok(root) => root,
+        Err(_) => {
+            kprintln!("shmem_test: FAIL (domain root allocation)");
+            return;
+        }
+    };
+    crate::mm::ADDRESS_SPACE_TABLE
+        .lock()
+        .as_mut()
+        .unwrap()
+        .set_root(1, root);
     // SAFETY: boot init runs single-threaded; no concurrent access to INIT_SHMEM_TABLE.
     // The static mut is safe to access because:
     // - Kernel boot is single-threaded (no SMP yet)
@@ -1317,6 +1336,28 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
         }
         Err(_) => {
             kprintln!("shmem_test: map_region_checks_rights_against_flags FAIL (create)");
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        total += 1;
+        if let Ok((region_id, cap, _)) =
+            table.create_region(106, 4096, shmem::REGION_FLAG_READABLE, 4096)
+        {
+            if let Ok(mapping_id) = table.map_region(region_id, cap, 106, 1, shmem::RIGHTS_READ, 0)
+            {
+                let index = ((region_id >> 32) & 0xFFFF) as usize - 1;
+                let vaddr = unsafe { crate::arch::VirtAddr::new(table.regions[index].vaddr) };
+                if unsafe { crate::arch::X86_64Mmu::mapping_is_no_execute(root, vaddr) } {
+                    kprintln!("shmem_test: no_execute_mapping PASS");
+                    passed += 1;
+                } else {
+                    kprintln!("shmem_test: no_execute_mapping FAIL");
+                }
+                let _ = table.unmap_region(106, mapping_id, 1);
+                let _ = table.close_region(106, region_id);
+            }
         }
     }
 

@@ -560,3 +560,40 @@ adding dependencies. Additional kernel dependencies need an explicit decision.
 Both boot crates currently enable `test_protocols` for Foundry/init test images.
 They are bring-up images, not a production/release configuration; removing those
 protocols requires a separate production boot consumer and corresponding gates.
+
+## 2026-09-16 — Close shared-memory, WASM, Store, and trace review boundaries
+
+Retain the current common-address shared-memory ABI. Reserve that address in
+every recipient and reject collisions rather than overwrite another region.
+Repeated mappings in one domain must use identical rights/cache mode and hold
+the PTE until the last reference is released. Clear each full allocated frame
+before publishing its capability, using the boot identity-mapping contract already
+required by both MMU implementations. Preserve NX in x86 entries and enable
+EFER.NXE before programming mappings; unsupported CPUs fail closed. QEMU checks
+the leaf bit and CPU enablement, not execution-fault recovery (there is no kernel
+page-fault test handler yet).
+
+Native WASM modules export `memory`; generated host imports resolve the caller's
+export on each invocation. Missing memory or invalid reply ranges return
+`InvalidArgument`, and replies are never truncated. The wire/IDL layouts stay
+unchanged; host bindings are regenerated from the generator.
+
+Manifest signing payload v1 is compact `serde_json` serialization of the typed
+`Manifest` in declaration order with `signatures` omitted. Publishers and readers
+use `manifest_signing_bytes`; all other typed fields and array order remain
+covered. Whitespace and JSON property order are not signed. Schema changes must
+consider this signing contract. Embedded signatures cannot sign themselves.
+
+Store ingestion opens a regular file once without following symlinks or blocking
+on FIFOs, hashes the bytes written to an exclusive private staging file, syncs
+that file, and atomically renames it into the CAS. Concurrent source writes can
+produce a mixed source snapshot, but its content ID always names the exact bytes
+staged. Failed/abandoned staging is cleaned on drop; crash-left temporary files
+are not published artifacts. This does not add a filesystem snapshot guarantee.
+
+Per-domain trace buffers use the existing `spin` dependency to synchronize buffer
+contents and cursors together. This supports concurrent readers/writers without
+torn events or mutable global aliases in safe helpers. Interrupt reentry while
+holding the same domain lock is unsupported; this is not full kernel SMP/IRQ
+graduation. Production kernel allocation policy and dependency boundaries remain
+unchanged; aligned backing allocation exists only in host tests.

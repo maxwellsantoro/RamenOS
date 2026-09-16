@@ -437,7 +437,7 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
         idl.namespace
     ));
     out.push_str(&format!(
-        "pub fn register_{}_host(linker: &mut Linker<InstanceContext>, memory: Memory) -> Result<()> {{\n",
+        "pub fn register_{}_host(linker: &mut Linker<InstanceContext>) -> Result<()> {{\n",
         idl.namespace.replace('.', "_")
     ));
 
@@ -487,6 +487,11 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
             out.push_str("        out_len_ptr: u32| -> i32 {\n");
         }
 
+        out.push_str("        let memory = match crate::guest_memory::memory(&mut caller) { Ok(memory) => memory, Err(status) => return status as i32 };\n");
+        if name != "shmem_write" {
+            out.push_str("        if !crate::guest_memory::valid_range(memory.data_size(&caller), out_len_ptr, 4) || !crate::guest_memory::valid_range(memory.data_size(&caller), out_ptr, 0) { return Status::InvalidArgument as i32; }\n");
+        }
+
         if name == "shmem_write" {
             out.push_str("        let data_slice = memory.data(&caller);\n");
             out.push_str("        let data_ptr = data_offset;\n");
@@ -500,15 +505,7 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
         } else if name == "shmem_read" {
             out.push_str("        match caller.data_mut().kernel_bridge.shmem_read(shm_cap, offset, len as usize) {\n");
             out.push_str("            Ok(bytes) => {\n");
-            out.push_str("                let data_mut = memory.data_mut(&mut caller);\n");
-            out.push_str("                let copy_len = bytes.len().min(data_mut.len().saturating_sub(out_ptr as usize));\n");
-            out.push_str("                if out_ptr as usize + copy_len <= data_mut.len() {\n");
-            out.push_str("                    data_mut[out_ptr as usize..out_ptr as usize + copy_len].copy_from_slice(&bytes[..copy_len]);\n");
-            out.push_str("                }\n");
-            out.push_str("                if out_len_ptr as usize + 4 <= data_mut.len() {\n");
-            out.push_str("                    data_mut[out_len_ptr as usize..out_len_ptr as usize + 4].copy_from_slice(&(copy_len as u32).to_le_bytes());\n");
-            out.push_str("                }\n");
-            out.push_str("                Status::Ok as i32\n");
+            out.push_str("                crate::guest_memory::write_reply(memory, &mut caller, out_ptr, out_len_ptr, &bytes)\n");
             out.push_str("            },\n");
             out.push_str("            Err(e) => e as i32,\n");
             out.push_str("        }\n");
@@ -546,16 +543,9 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
             out.push_str("            Err(_e) => return Status::KernelError as i32,\n");
             out.push_str("        };\n\n");
 
-            out.push_str("        // Write reply back to linear memory\n");
-            out.push_str("        let data = memory.data_mut(&mut caller);\n");
             out.push_str("        let copy_len = reply_env.payload_len as usize;\n");
-            out.push_str("        if out_ptr as usize + copy_len <= data.len() {\n");
-            out.push_str("            data[out_ptr as usize..out_ptr as usize + copy_len].copy_from_slice(&reply_env.payload[..copy_len]);\n");
-            out.push_str("        }\n");
-            out.push_str("        if out_len_ptr as usize + 4 <= data.len() {\n");
-            out.push_str("            data[out_len_ptr as usize..out_len_ptr as usize + 4].copy_from_slice(&(copy_len as u32).to_le_bytes());\n");
-            out.push_str("        }\n");
-            out.push_str("        Status::Ok as i32\n");
+            out.push_str("        if copy_len > reply_env.payload.len() { return Status::KernelError as i32; }\n");
+            out.push_str("        crate::guest_memory::write_reply(memory, &mut caller, out_ptr, out_len_ptr, &reply_env.payload[..copy_len])\n");
         }
         out.push_str("    })?;\n\n");
     }

@@ -32,6 +32,21 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
 
+### Memory, native runner, and Store review fixes (2026-09-16)
+
+- Shared-memory allocation clears full backing frames, including partial-page
+  tails. Every recipient reserves the region's common virtual address; conflicting
+  mappings fail closed, and repeated references retain the PTE until final unmap.
+- x86 page-table encoding preserves NX, and mapping enables EFER.NXE on supported
+  CPUs. The shared-memory QEMU gate checks the actual leaf entry and NX enablement.
+- Generated native WASM host bindings use the calling guest's exported memory and
+  reject invalid reply ranges without truncation.
+- Store signature verification uses the typed manifest's deterministic unsigned
+  serialization. Ingestion hashes the same bytes it stages and atomically publishes.
+- Per-domain trace buffers synchronize readers and writers, including ring wrap.
+- `just foundry-review-boundaries` includes the new host regressions. Evidence is
+  host tests and QEMU; no physical graduation or complete SMP/IRQ support is claimed.
+
 ### Review boundary fixes (2026-09-16)
 
 - Store ownership persists across restart; unattributed artifacts deny access.

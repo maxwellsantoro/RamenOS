@@ -34,91 +34,7 @@ use crate::mm::address::PhysAddr;
 use crate::mm::address::PhysFrame;
 use crate::mm::frame::FrameAllocator;
 
-/// Page table entry for x86_64 4-level paging.
-///
-/// Each entry is 64 bits and contains a physical address along with
-/// various control flags.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct PageTableEntry {
-    value: u64,
-}
-
-#[allow(dead_code)]
-impl PageTableEntry {
-    /// Present bit - must be set for the entry to be used.
-    const PRESENT: u64 = 1 << 0;
-    /// Writable bit - if clear, writes are not allowed.
-    const WRITABLE: u64 = 1 << 1;
-    /// User/supervisor bit - if clear, only supervisor (CPL 0) can access.
-    const USER: u64 = 1 << 2;
-    /// Page-level write-through - if set, write-through caching is used.
-    const WRITE_THROUGH: u64 = 1 << 3;
-    /// Page-level cache disable - if set, the page is not cached.
-    const CACHE_DISABLE: u64 = 1 << 4;
-    /// Accessed bit - set by hardware when the page is accessed.
-    const ACCESSED: u64 = 1 << 5;
-    /// Dirty bit - set by hardware when the page is written to.
-    const DIRTY: u64 = 1 << 6;
-    /// Page size bit - for PD entries, indicates a 2MB huge page.
-    const HUGE_PAGE: u64 = 1 << 7;
-    /// Global bit - if set, the entry is not flushed on CR3 write.
-    const GLOBAL: u64 = 1 << 8;
-    /// No-execute bit - if set, instruction fetch from the page is not allowed.
-    const NO_EXECUTE: u64 = 1u64 << 63;
-
-    /// Create a new unused page table entry.
-    #[must_use]
-    const fn new() -> Self {
-        Self { value: 0 }
-    }
-
-    /// Check if the entry is present (in use).
-    #[must_use]
-    fn is_present(&self) -> bool {
-        self.value & Self::PRESENT != 0
-    }
-
-    /// Check if the entry is unused (not present).
-    #[must_use]
-    fn is_unused(&self) -> bool {
-        self.value == 0
-    }
-
-    /// Set the physical address for this entry.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the address is not page-aligned.
-    fn set_addr(&mut self, addr: PhysAddr) {
-        assert!(
-            addr.is_page_aligned(),
-            "Page table entry address must be page-aligned"
-        );
-        // Clear the lower 12 bits (page offset) and set the new address
-        self.value = (self.value & 0xFFF) | addr.as_u64();
-    }
-
-    /// Get the physical address from this entry.
-    #[must_use]
-    fn addr(&self) -> PhysAddr {
-        // Mask out the lower 12 bits (flags) to get the physical address
-        // SAFETY: The address bits from a page table entry are valid physical addresses
-        unsafe { PhysAddr::new(self.value & 0x000FFFFF_FFFFF000) }
-    }
-
-    /// Set the flags for this entry.
-    fn set_flags(&mut self, flags: u64) {
-        // Preserve the address bits and set new flags
-        self.value = (self.value & 0x000FFFFF_FFFFF000) | (flags & 0xFFF);
-    }
-
-    /// Get the flags from this entry.
-    #[must_use]
-    fn flags(&self) -> u64 {
-        self.value & 0xFFF
-    }
-}
+use crate::arch::x86_64_page_entry::PageTableEntry;
 
 /// Page table structure for x86_64 4-level paging.
 ///
@@ -144,6 +60,49 @@ impl PageTable {
 pub struct X86_64Mmu;
 
 impl X86_64Mmu {
+    /// Foundry observer for the actual leaf entry and the CPU's NX enable bit.
+    ///
+    /// # Safety
+    /// The root must be an exclusively accessed, identity-mapped page table.
+    #[cfg(feature = "test_protocols")]
+    pub unsafe fn mapping_is_no_execute(root: PhysAddr, vaddr: VirtAddr) -> bool {
+        let mut table = root.as_u64() as *const PageTable;
+        for index in [
+            Self::pml4_index(vaddr),
+            Self::pdp_index(vaddr),
+            Self::pd_index(vaddr),
+        ] {
+            let entry = (*table).entries[index];
+            if !entry.is_present() || entry.flags() & PageTableEntry::HUGE_PAGE != 0 {
+                return false;
+            }
+            table = entry.addr().as_u64() as *const PageTable;
+        }
+        let entry = (*table).entries[Self::pt_index(vaddr)];
+        let low: u32;
+        asm!("rdmsr", in("ecx") 0xC000_0080u32, out("eax") low, out("edx") _, options(nostack));
+        entry.is_present()
+            && entry.flags() & PageTableEntry::NO_EXECUTE != 0
+            && low & (1 << 11) != 0
+    }
+
+    /// NX entries require EFER.NXE; reject CPUs that cannot enforce the right.
+    #[cfg(not(test))]
+    unsafe fn enable_no_execute() -> Result<(), MmuError> {
+        use core::arch::x86_64::__cpuid;
+        if __cpuid(0x8000_0000).eax < 0x8000_0001 || __cpuid(0x8000_0001).edx & (1 << 20) == 0 {
+            return Err(MmuError::PermissionDenied);
+        }
+        let mut low: u32;
+        let high: u32;
+        asm!("rdmsr", in("ecx") 0xC000_0080u32, out("eax") low, out("edx") high, options(nostack));
+        if low & (1 << 11) == 0 {
+            low |= 1 << 11;
+            asm!("wrmsr", in("ecx") 0xC000_0080u32, in("eax") low, in("edx") high, options(nostack));
+        }
+        Ok(())
+    }
+
     /// Convert rights and cache mode to page table entry flags.
     #[must_use]
     fn rights_to_flags(rights: u32, cache_mode: u32) -> u64 {
@@ -298,6 +257,7 @@ impl Mmu for X86_64Mmu {
 
         #[cfg(not(test))]
         {
+            Self::enable_no_execute()?;
             // Get page table root for the domain
             // For domain 0, we use the current CR3 value (identity mapping)
             // For other domains, we look up in AddressSpaceTable
@@ -754,19 +714,7 @@ mod tests {
     /// Test that map_pages succeeds with valid parameters.
     #[test]
     fn mmu_map_pages_succeeds_with_valid_params() {
-        // Setup test allocator and address space
-        let base = unsafe { crate::mm::PhysAddr::new(0x1000) };
-        let allocator =
-            crate::mm::BitmapAllocator::new(crate::mm::PhysFrame::from_start_address(base), 256);
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(allocator);
-
-        let mut table = crate::mm::AddressSpaceTable::new();
-        let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
-        table.init_kernel(root);
-        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
-        // a table root for non-zero domains) succeeds.
-        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
+        let _memory_guard = crate::mm::test_support::setup();
 
         // Test mapping with valid parameters
         let frames = [crate::mm::PhysFrame::from_frame_number(0x1000)];
@@ -784,19 +732,7 @@ mod tests {
     /// Test that map_pages rejects invalid domain IDs.
     #[test]
     fn mmu_map_pages_rejects_invalid_domain() {
-        // Setup test allocator and address space
-        let base = unsafe { crate::mm::PhysAddr::new(0x1000) };
-        let allocator =
-            crate::mm::BitmapAllocator::new(crate::mm::PhysFrame::from_start_address(base), 256);
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(allocator);
-
-        let mut table = crate::mm::AddressSpaceTable::new();
-        let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
-        table.init_kernel(root);
-        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
-        // a table root for non-zero domains) succeeds.
-        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
+        let _memory_guard = crate::mm::test_support::setup();
 
         // Test with invalid domain ID (>= MAX_DOMAINS)
         let frames = [crate::mm::PhysFrame::from_frame_number(0x1000)];
@@ -815,19 +751,7 @@ mod tests {
     /// Test that map_pages rejects misaligned virtual addresses.
     #[test]
     fn mmu_map_pages_rejects_misaligned_address() {
-        // Setup test allocator and address space
-        let base = unsafe { crate::mm::PhysAddr::new(0x1000) };
-        let allocator =
-            crate::mm::BitmapAllocator::new(crate::mm::PhysFrame::from_start_address(base), 256);
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(allocator);
-
-        let mut table = crate::mm::AddressSpaceTable::new();
-        let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
-        table.init_kernel(root);
-        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
-        // a table root for non-zero domains) succeeds.
-        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
+        let _memory_guard = crate::mm::test_support::setup();
 
         // Test with misaligned virtual address
         let frames = [crate::mm::PhysFrame::from_frame_number(0x1000)];
@@ -846,19 +770,7 @@ mod tests {
     /// Test that unmap_pages removes mappings correctly.
     #[test]
     fn mmu_unmap_pages_removes_mapping() {
-        // Setup test allocator and address space
-        let base = unsafe { crate::mm::PhysAddr::new(0x1000) };
-        let allocator =
-            crate::mm::BitmapAllocator::new(crate::mm::PhysFrame::from_start_address(base), 256);
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(allocator);
-
-        let mut table = crate::mm::AddressSpaceTable::new();
-        let root = unsafe { crate::mm::PhysAddr::new(0x5000) };
-        table.init_kernel(root);
-        // Register domain 1 so the cfg(test) map_pages/unmap_pages path (which requires
-        // a table root for non-zero domains) succeeds.
-        table.set_root(1, unsafe { crate::mm::PhysAddr::new(0x6000) });
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
+        let _memory_guard = crate::mm::test_support::setup();
 
         // Map a page first
         let frames = [crate::mm::PhysFrame::from_frame_number(0x1000)];

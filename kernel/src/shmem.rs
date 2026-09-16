@@ -107,7 +107,7 @@ pub struct ShmemRegion {
     pub size_bytes: u64,
     /// Region flags (REGION_FLAG_*).
     pub flags: u32,
-    /// Page size (must be power of two).
+    /// Page size (currently only 4096 bytes).
     pub page_size: u32,
     /// Reference count for active mappings.
     /// NEW-001: Changed from u32 to u64 to prevent overflow attacks
@@ -120,16 +120,10 @@ pub struct ShmemRegion {
     pub frames: Option<[crate::mm::PhysFrame; MAX_FRAMES_PER_REGION]>,
     /// Number of frames allocated.
     pub num_frames: usize,
-    /// NEW-002: Virtual address for the first mapping of this region.
-    /// This is a simplification - in a full implementation, we would track
-    /// per-domain mappings with separate VAs. For now, we store the VA
-    /// used by the first mapping to prevent VA collisions.
+    /// Common virtual address, reserved separately in every mapped domain.
+    /// Sharing fails if this address is occupied in the recipient domain.
     /// 0 = not yet mapped.
     pub vaddr: u64,
-    /// Domain that owns the VA slot allocation for `vaddr`.
-    /// This ensures final unmap releases the slot in the correct domain tracker
-    /// even when mappings existed in multiple target domains.
-    pub vaddr_owner_domain_id: u64,
     /// NEW-004: Track which domains have active mappings for this region.
     /// This prevents the P0 vulnerability where unmap could corrupt bookkeeping
     /// for the wrong domain by validating that the domain has an active mapping.
@@ -149,7 +143,6 @@ impl ShmemRegion {
             frames: None,
             num_frames: 0,
             vaddr: 0, // NEW-002: Initialize vaddr to 0 (not yet mapped)
-            vaddr_owner_domain_id: 0,
             mapping_tracker: DomainMappingTracker::new(), // NEW-004
         }
     }
@@ -169,12 +162,16 @@ pub struct DomainMappingTracker {
     /// Per-domain active mapping reference counts.
     /// A single domain can hold multiple mappings to the same region.
     mapping_counts: [u64; MAX_MAPPING_DOMAINS],
+    rights: [u32; MAX_MAPPING_DOMAINS],
+    cache_modes: [u32; MAX_MAPPING_DOMAINS],
 }
 
 impl DomainMappingTracker {
     const fn new() -> Self {
         Self {
             mapping_counts: [0; MAX_MAPPING_DOMAINS],
+            rights: [0; MAX_MAPPING_DOMAINS],
+            cache_modes: [0; MAX_MAPPING_DOMAINS],
         }
     }
 
@@ -257,6 +254,21 @@ impl DomainVaTracker {
             }
         }
         Err(STATUS_VA_EXHAUSTED)
+    }
+
+    /// Reserve a region's common address in a new target domain.
+    fn reserve(&mut self, vaddr: u64) -> Result<(), u32> {
+        let slot_size = MAX_FRAMES_PER_REGION as u64 * 4096;
+        let offset = vaddr.checked_sub(0x8000_0000).ok_or(STATUS_INVALID_VA)?;
+        let slot = (offset / slot_size) as usize;
+        if !offset.is_multiple_of(slot_size)
+            || slot >= MAX_REGIONS
+            || self.allocated & (1 << slot) != 0
+        {
+            return Err(STATUS_INVALID_VA);
+        }
+        self.allocated |= 1 << slot;
+        Ok(())
     }
 
     /// Deallocate a VA slot for this domain.
@@ -384,6 +396,12 @@ impl ShmemRegionTable {
                         Some(ref mut allocator) => {
                             match allocator.allocate() {
                                 Some(frame) => {
+                                    // SAFETY: the allocator returned an exclusively owned full
+                                    // frame. Boot memory is identity mapped on both supported
+                                    // architectures (the same contract used for page tables).
+                                    unsafe {
+                                        core::ptr::write_bytes(frame.as_u64() as *mut u8, 0, 4096);
+                                    }
                                     *frame_slot = frame;
                                     allocated_count += 1;
                                 }
@@ -501,75 +519,77 @@ impl ShmemRegionTable {
             return Err(STATUS_INVALID_RIGHTS);
         }
 
-        // S8 Phase 4: Get physical frames from region
+        // Reject accounting overflow before changing mappings or reservations.
+        let next_refcount = slot.refcount.checked_add(1).ok_or(STATUS_OVERFLOW)?;
+        let domain = target_domain_id as usize;
+        let count = slot.mapping_tracker.mapping_counts[domain];
+        count.checked_add(1).ok_or(STATUS_OVERFLOW)?;
+        if count > 0 {
+            // Repeated references share one PTE; changing its permissions would
+            // silently alter the rights held by existing references.
+            if slot.mapping_tracker.rights[domain] != rights
+                || slot.mapping_tracker.cache_modes[domain] != cache_mode
+            {
+                return Err(STATUS_INVALID_RIGHTS);
+            }
+            slot.mapping_tracker.add_mapping(target_domain_id)?;
+            slot.refcount = next_refcount;
+            return Ok(region_id);
+        }
         let frames = slot.frames.ok_or(STATUS_REGION_NOT_FOUND)?;
-        let frame_slice = &frames[..slot.num_frames];
-
-        // NEW-002: Allocate a virtual address for the target domain.
-        // This fixes the VA collision vulnerability where multiple regions
-        // with the same low 16 bits of region_id would map to the same VA.
-        // Check if VA needs to be allocated before mutable borrow to avoid conflict
-        let needs_va_allocation = slot.vaddr == 0;
+        let num_frames = slot.num_frames;
         let existing_vaddr = slot.vaddr;
-
-        // End mutable borrow before calling self.allocate_va (which needs &mut self)
         let _ = slot;
-
-        let vaddr = if needs_va_allocation {
-            // First mapping: allocate a new VA
-            let va = self.allocate_va(target_domain_id)?;
-            // Re-borrow slot to update vaddr
-            let slot = &mut self.regions[index - 1];
-            slot.vaddr = va;
-            slot.vaddr_owner_domain_id = target_domain_id;
-            va
+        let address = if existing_vaddr == 0 {
+            self.allocate_va(target_domain_id)?
         } else {
-            // Reuse the existing VA (simplified implementation)
+            self.va_trackers[domain].reserve(existing_vaddr)?;
             existing_vaddr
         };
-
-        // SAFETY: Virtual address is within a valid range for device mapping
-        let vaddr = unsafe { crate::arch::VirtAddr::new(vaddr) };
-
-        // S8 Phase 4: Program MMU using architecture-specific implementation
-        unsafe {
+        let vaddr = unsafe { crate::arch::VirtAddr::new(address) };
+        let result = unsafe {
             #[cfg(target_arch = "x86_64")]
             {
                 use crate::arch::Mmu;
-                use crate::arch::X86_64Mmu;
-                X86_64Mmu::map_pages(target_domain_id, vaddr, frame_slice, rights, cache_mode)
-                    .map_err(|_| STATUS_INVALID_RIGHTS)?;
+                crate::arch::X86_64Mmu::map_pages(
+                    target_domain_id,
+                    vaddr,
+                    &frames[..num_frames],
+                    rights,
+                    cache_mode,
+                )
             }
             #[cfg(target_arch = "aarch64")]
             {
-                use crate::arch::AArch64Mmu;
                 use crate::arch::Mmu;
-                AArch64Mmu::map_pages(target_domain_id, vaddr, frame_slice, rights, cache_mode)
-                    .map_err(|_| STATUS_INVALID_RIGHTS)?;
+                crate::arch::AArch64Mmu::map_pages(
+                    target_domain_id,
+                    vaddr,
+                    &frames[..num_frames],
+                    rights,
+                    cache_mode,
+                )
             }
-            #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-            {
-                // Unsupported architecture
-                return Err(STATUS_INVALID_RIGHTS);
+        };
+        if result.is_err() {
+            // MMUs may have installed a prefix before running out of frames.
+            // This range was exclusively reserved, so no other region is unmapped.
+            unsafe {
+                use crate::arch::Mmu;
+                #[cfg(target_arch = "x86_64")]
+                let _ = crate::arch::X86_64Mmu::unmap_pages(target_domain_id, vaddr, num_frames);
+                #[cfg(target_arch = "aarch64")]
+                let _ = crate::arch::AArch64Mmu::unmap_pages(target_domain_id, vaddr, num_frames);
             }
+            self.deallocate_va(target_domain_id, address)?;
+            return Err(STATUS_INVALID_RIGHTS);
         }
-
-        // NEW-001: Use checked arithmetic to prevent refcount overflow
-        // Attacker could map region 2^32 times with u32, causing wrap to 0
-        // and use-after-free when close_region frees frames
-        // Re-borrow slot after the MMU operations to update refcount
-        {
-            let slot = &mut self.regions[index - 1];
-            // NEW-004: Register this domain as having an active mapping
-            slot.mapping_tracker.add_mapping(target_domain_id)?;
-            match slot.refcount.checked_add(1) {
-                Some(next) => slot.refcount = next,
-                None => {
-                    let _ = slot.mapping_tracker.remove_mapping(target_domain_id);
-                    return Err(STATUS_OVERFLOW);
-                }
-            }
-        }
+        let slot = &mut self.regions[index - 1];
+        slot.vaddr = address;
+        slot.mapping_tracker.add_mapping(target_domain_id)?;
+        slot.mapping_tracker.rights[domain] = rights;
+        slot.mapping_tracker.cache_modes[domain] = cache_mode;
+        slot.refcount = next_refcount;
 
         // For now, mapping_id = region_id (simplified)
         // In a full implementation, this would be a per-domain mapping handle
@@ -629,6 +649,14 @@ impl ShmemRegionTable {
             (vaddr, slot.num_frames)
         };
 
+        let domain = target_domain_id as usize;
+        let slot = &mut self.regions[index - 1];
+        if slot.mapping_tracker.mapping_counts[domain] > 1 {
+            slot.refcount = slot.refcount.checked_sub(1).ok_or(STATUS_UNDERFLOW)?;
+            slot.mapping_tracker.remove_mapping(target_domain_id)?;
+            return Ok(());
+        }
+
         // S8 Phase 4: Unmap pages from MMU
         // SAFETY: Virtual address is within a valid range for device mapping
         let vaddr = unsafe { crate::arch::VirtAddr::new(vaddr) };
@@ -654,25 +682,14 @@ impl ShmemRegionTable {
             }
         }
 
-        // Second pass: update refcount and handle VA deallocation
-        let (should_deallocate_va, vaddr_owner_domain_id) = {
-            let slot = &mut self.regions[index - 1];
-            // NEW-001: Use checked arithmetic to prevent refcount underflow
-            // This should never happen with correct usage, but we guard against bugs
-            slot.refcount = slot.refcount.checked_sub(1).ok_or(STATUS_UNDERFLOW)?;
-            // NEW-004: Unregister this domain's mapping.
-            slot.mapping_tracker.remove_mapping(target_domain_id)?;
-            (slot.refcount == 0, slot.vaddr_owner_domain_id)
-        };
-
-        // NEW-002: Deallocate the VA when refcount reaches zero
-        if should_deallocate_va {
-            // Use the original allocator domain to avoid leaking VA slots when
-            // final unmap is performed for a different target domain.
-            let _ = self.deallocate_va(vaddr_owner_domain_id, vaddr.as_u64());
-            let slot = &mut self.regions[index - 1];
+        self.deallocate_va(target_domain_id, vaddr.as_u64())?;
+        let slot = &mut self.regions[index - 1];
+        slot.refcount = slot.refcount.checked_sub(1).ok_or(STATUS_UNDERFLOW)?;
+        slot.mapping_tracker.remove_mapping(target_domain_id)?;
+        slot.mapping_tracker.rights[domain] = 0;
+        slot.mapping_tracker.cache_modes[domain] = 0;
+        if slot.refcount == 0 {
             slot.vaddr = 0;
-            slot.vaddr_owner_domain_id = 0;
         }
 
         Ok(())
@@ -722,7 +739,6 @@ impl ShmemRegionTable {
         slot.frames = None;
         slot.num_frames = 0;
         slot.vaddr = 0; // NEW-002: Reset vaddr when region is closed
-        slot.vaddr_owner_domain_id = 0;
         slot.mapping_tracker = DomainMappingTracker::new(); // NEW-004: Reset mapping tracker
         slot.generation = slot.generation.wrapping_add(1);
         if slot.generation == 0 {
@@ -778,50 +794,10 @@ impl Default for ShmemRegionTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mm::{BitmapAllocator, PhysAddr, PhysFrame};
-
-    /// Helper function to initialize the global frame allocator for tests.
-    ///
-    /// # Safety
-    ///
-    /// This function is only safe to call in test contexts where there is no
-    /// concurrent access to the global allocator.
-    fn setup_test_allocator() {
-        use core::sync::atomic::{AtomicBool, Ordering};
-
-        static INIT: AtomicBool = AtomicBool::new(false);
-
-        if INIT.load(Ordering::SeqCst) {
-            return; // Already initialized
-        }
-
-        // Create a test allocator with 1024 frames
-        let base = PhysFrame::from_frame_number(0x1000);
-        let allocator = BitmapAllocator::new(base, 1024);
-
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(allocator);
-
-        // Initialize the address space table with a dummy kernel page table root
-        // This is needed for MMU operations in tests
-        // SAFETY: 0x5000 is a valid test physical address
-        let dummy_root = unsafe { PhysAddr::new(0x5000) };
-        let mut table = crate::mm::AddressSpaceTable::new();
-        table.init_kernel(dummy_root);
-
-        // Register test domain IDs (1, 2, 3) with dummy page table roots
-        // Domain IDs must be < MAX_DOMAINS (16)
-        for domain_id in [1u64, 2, 3] {
-            let domain_root = unsafe { PhysAddr::new(0x10000 + (domain_id * 0x1000)) };
-            table.set_root(domain_id as crate::domain_registry::DomainId, domain_root);
-        }
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
-
-        INIT.store(true, Ordering::SeqCst);
-    }
 
     #[test]
     fn create_region_succeeds_with_valid_parameters() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let result = table.create_region(100, 4096, REGION_FLAG_READABLE, 4096);
@@ -857,7 +833,7 @@ mod tests {
 
     #[test]
     fn create_region_rejects_unsupported_power_of_two_page_sizes() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
         for page_size in [1, 2048, 8192, 2 * 1024 * 1024, 1 << 31] {
             assert_eq!(
@@ -883,7 +859,7 @@ mod tests {
 
     #[test]
     fn map_region_increments_refcount() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -905,7 +881,7 @@ mod tests {
 
     #[test]
     fn map_region_multiple_times_increments_refcount() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -925,7 +901,7 @@ mod tests {
 
     #[test]
     fn map_region_rejects_invalid_capability() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, _, _) = table
@@ -958,7 +934,7 @@ mod tests {
 
     #[test]
     fn map_region_checks_rights_against_flags() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -976,7 +952,7 @@ mod tests {
 
     #[test]
     fn unmap_region_decrements_refcount() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -995,7 +971,7 @@ mod tests {
 
     #[test]
     fn close_region_fails_with_active_mappings() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1012,7 +988,7 @@ mod tests {
 
     #[test]
     fn close_region_succeeds_after_all_unmaps() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1030,7 +1006,7 @@ mod tests {
 
     #[test]
     fn close_region_increments_generation_counter() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id1, shm_cap1, _) = table
@@ -1066,7 +1042,7 @@ mod tests {
 
     #[test]
     fn validate_cap_rejects_stale_handle() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1113,7 +1089,7 @@ mod tests {
 
     #[test]
     fn table_exhaustion_returns_no_memory() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Fill all slots
@@ -1129,7 +1105,7 @@ mod tests {
 
     #[test]
     fn generation_counter_wraps_avoids_zero() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, _, _) = table
@@ -1158,7 +1134,7 @@ mod tests {
 
     #[test]
     fn map_region_rejects_unknown_rights() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1174,7 +1150,7 @@ mod tests {
     /// calling validate_cap() to check HandleKind::Shmem.
     #[test]
     fn map_region_rejects_ipc_handle_kind() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a valid SHMEM region
@@ -1202,7 +1178,7 @@ mod tests {
     /// SECURITY REGRESSION TEST: map_region must reject handles with invalid kind
     #[test]
     fn map_region_rejects_invalid_handle_kind() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, _valid_cap, _) = table
@@ -1239,7 +1215,7 @@ mod tests {
     /// - This prevents the wraparound and forces the attacker to fail gracefully
     #[test]
     fn refcount_overflow_protection() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1282,7 +1258,7 @@ mod tests {
     /// bugs that might bypass the refcount == 0 check.
     #[test]
     fn refcount_underflow_protection() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1335,7 +1311,7 @@ mod tests {
     /// - VA is allocated and tracked, preventing collisions
     #[test]
     fn va_collision_prevention() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create multiple regions that would have collided with the old implementation
@@ -1409,7 +1385,7 @@ mod tests {
     /// When all VA slots are exhausted, map_region should fail with STATUS_VA_EXHAUSTED.
     #[test]
     fn va_exhaustion_handling() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create MAX_REGIONS regions and map them all to the same domain
@@ -1468,7 +1444,7 @@ mod tests {
     /// This test verifies that VAs are properly deallocated and can be reused.
     #[test]
     fn va_deallocation_and_reuse() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create and map a region
@@ -1521,7 +1497,7 @@ mod tests {
     /// (since VA is stored per-region in the simplified implementation).
     #[test]
     fn per_domain_va_isolation() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a region
@@ -1558,7 +1534,7 @@ mod tests {
     /// The VA slot must still be released from the original allocator domain.
     #[test]
     fn va_deallocation_uses_allocator_domain_tracker() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1582,12 +1558,10 @@ mod tests {
 
         // Unmap domain 1 first, leaving one active mapping in domain 2.
         table.unmap_region(100, mapping_id1, 1).unwrap();
-        assert_ne!(
-            table.va_trackers[1].allocated, 0,
-            "VA slot must remain allocated while region still mapped"
-        );
+        assert_eq!(table.va_trackers[1].allocated, 0);
+        assert_ne!(table.va_trackers[2].allocated, 0);
 
-        // Final unmap from domain 2 must release domain 1's allocated VA slot.
+        // Each domain's final reference releases its own reservation.
         table.unmap_region(100, mapping_id2, 2).unwrap();
         assert_eq!(
             table.va_trackers[1].allocated, 0,
@@ -1614,7 +1588,7 @@ mod tests {
     /// - Return STATUS_PERMISSION_DENIED if domains don't match
     #[test]
     fn cross_domain_access_prevention() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Domain 1 creates a region
@@ -1691,7 +1665,7 @@ mod tests {
     /// - Returns STATUS_MAPPING_NOT_FOUND if domain has no mapping
     #[test]
     fn unmap_validates_domain_has_mapping() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a region owned by domain 100
@@ -1745,7 +1719,7 @@ mod tests {
     /// 4. close_region frees frames while domain A still has access
     #[test]
     fn p0_prevents_refcount_corruption_on_wrong_domain_unmap() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a region owned by domain 100
@@ -1799,7 +1773,7 @@ mod tests {
     /// from the global frame allocator.
     #[test]
     fn create_region_allocates_physical_frames() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a 4-page region (16 KiB)
@@ -1821,7 +1795,7 @@ mod tests {
     /// when the frame allocator is exhausted.
     #[test]
     fn create_region_returns_no_memory_on_exhaustion() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Fill the allocator by creating many regions
@@ -1852,7 +1826,7 @@ mod tests {
     /// than MAX_FRAMES_PER_REGION.
     #[test]
     fn create_region_rejects_too_large_region() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Request a region larger than MAX_FRAMES_PER_REGION
@@ -1870,7 +1844,7 @@ mod tests {
     /// This test verifies that map_region programs the MMU correctly.
     #[test]
     fn map_region_programs_mmu() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1887,7 +1861,7 @@ mod tests {
     /// This test verifies that map_region returns an error when MMU fails.
     #[test]
     fn map_region_returns_error_on_mmu_failure() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, shm_cap, _) = table
@@ -1910,7 +1884,7 @@ mod tests {
     /// back to the frame allocator.
     #[test]
     fn close_region_deallocates_frames() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a region
@@ -1939,7 +1913,7 @@ mod tests {
     /// map_region, unmap_region, and close_region operations.
     #[test]
     fn capability_validation_required_for_map_unmap_close() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         let (region_id, _valid_cap, _) = table
@@ -1982,7 +1956,7 @@ mod tests {
     /// This test verifies the complete lifecycle of a shared memory region.
     #[test]
     fn end_to_end_create_map_unmap_close() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create region
@@ -2014,7 +1988,7 @@ mod tests {
     /// This test verifies that multiple domains can map the same region.
     #[test]
     fn multiple_domains_share_region() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a region owned by domain 100
@@ -2048,7 +2022,7 @@ mod tests {
     /// This test verifies that region slots can be reused after closing.
     #[test]
     fn region_reuse_after_close() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create and close a region
@@ -2081,7 +2055,7 @@ mod tests {
     /// with proper rollback of already-allocated frames.
     #[test]
     fn error_recovery_on_allocation_failure() {
-        setup_test_allocator();
+        let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
 
         // Create a large region that might exhaust the allocator
@@ -2099,5 +2073,84 @@ mod tests {
                 // The rollback logic should have freed any partial allocations
             }
         }
+    }
+    #[test]
+    fn review_cross_domain_va_reservation() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (a, acap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let (b, bcap, _) = table
+            .create_region(2, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        table.map_region(a, acap, 1, 1, RIGHTS_READ, 0).unwrap();
+        table.map_region(b, bcap, 2, 2, RIGHTS_READ, 0).unwrap();
+        assert_eq!(
+            table.map_region(a, acap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_INVALID_VA)
+        );
+        assert_eq!(table.regions[0].refcount, 1);
+        table.unmap_region(2, b, 2).unwrap();
+        table.map_region(a, acap, 1, 2, RIGHTS_READ, 0).unwrap();
+        table.unmap_region(1, a, 1).unwrap();
+        table.unmap_region(1, a, 2).unwrap();
+        assert_eq!(table.va_trackers[1].allocated, 0);
+        assert_eq!(table.va_trackers[2].allocated, 0);
+    }
+
+    #[test]
+    fn review_reused_frame_zeroing() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, _, phys) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
+            .unwrap();
+        unsafe {
+            core::ptr::write_bytes(phys as *mut u8, 0xA5, 4096);
+        }
+        table.close_region(1, id).unwrap();
+        let (_, _, next_phys) = table
+            .create_region(2, 1, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(next_phys, phys);
+        let bytes = unsafe { core::slice::from_raw_parts(next_phys as *const u8, 4096) };
+        assert!(
+            bytes.iter().all(|byte| *byte == 0),
+            "reused frame, including partial-page tail, must be cleared"
+        );
+    }
+
+    #[test]
+    fn review_failed_mapping_releases_va() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert!(table.map_region(id, cap, 1, 4, RIGHTS_READ, 0).is_err());
+        assert_eq!(table.va_trackers[4].allocated, 0);
+        assert_eq!(table.regions[0].vaddr, 0);
+        assert_eq!(table.regions[0].refcount, 0);
+    }
+    #[test]
+    fn review_repeated_mapping_keeps_reservation_until_last_reference() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
+            .unwrap();
+        table.map_region(id, cap, 1, 1, RIGHTS_READ, 0).unwrap();
+        table.map_region(id, cap, 1, 1, RIGHTS_READ, 0).unwrap();
+        assert_eq!(
+            table.map_region(id, cap, 1, 1, RIGHTS_WRITE, 0),
+            Err(STATUS_INVALID_RIGHTS)
+        );
+        table.unmap_region(1, id, 1).unwrap();
+        assert_ne!(table.va_trackers[1].allocated, 0);
+        assert_eq!(table.regions[0].refcount, 1);
+        table.unmap_region(1, id, 1).unwrap();
+        assert_eq!(table.va_trackers[1].allocated, 0);
+        assert_eq!(table.regions[0].refcount, 0);
     }
 }
