@@ -533,6 +533,12 @@ there is no automatic global migration. A content ID keeps one owner: cross-doma
 re-ingestion cannot reassign it. A future sharing model requires a separate design.
 Projection queries intersect their metadata domain with durable artifact ownership.
 
+Legacy ownership recovery treats raw manifest `metadata.domain_id/is_global`
+and the ownership directory layout as trusted, administrator-controlled migration
+inputs, not authorization data authenticated by the typed artifact signature.
+Untrusted callers must not be able to write those records. Current server-owned
+`.ownership.json` sidecars take precedence; a corrupt sidecar never falls back.
+
 ## 2026-09-16 — Bind HIL evidence to prepared artifacts and a fresh boot challenge
 
 The target emits a random `kernel_build_id` embedded before linking. A host
@@ -597,3 +603,17 @@ torn events or mutable global aliases in safe helpers. Interrupt reentry while
 holding the same domain lock is unsupported; this is not full kernel SMP/IRQ
 graduation. Production kernel allocation policy and dependency boundaries remain
 unchanged; aligned backing allocation exists only in host tests.
+
+## 2026-09-16 — Honor the WASM SDK's declared output capacity
+
+The SDK's `out_len` word is a signed i32 capacity on entry and actual byte count
+on success. Host bindings capture and validate it before crossing the kernel
+bridge: negative values, out-of-memory spans, overlapping output/length ranges,
+and insufficient capacity fail with `InvalidArgument` without output writes.
+Preflight uses the exact `{message}_reply` IDL type's Rust wire size, the requested
+byte count for shared-memory reads, or the envelope payload maximum when no
+paired reply type exists. Shared-memory writes return no bytes, so they validate
+a zero-byte requirement and set the returned length to zero on success. The final
+writer also rejects an unexpectedly large backend reply before changing either
+destination. Import signatures and wire layouts are unchanged. Raw WAT callers
+must initialize capacity, just as the generated Rust SDK already does.

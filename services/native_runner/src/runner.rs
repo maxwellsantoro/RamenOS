@@ -487,6 +487,7 @@ mod review_regressions {
             (import "ramen::harness.echo" "echo_request::call" (func $echo (param i64 i64 i32 i32 i32 i32) (result i32)))
             (memory (export "memory") 1)
             (func (export "_start") (result i32)
+              (i32.store (i32.const 128) (i32.const 24))
               (if (call $echo (i64.const 1) (i64.const 1) (i32.const 0) (i32.const 0) (i32.const 256) (i32.const 128)) (then unreachable))
               (if (i32.ne (i32.load (i32.const 128)) (i32.const 4)) (then unreachable))
               (i32.load (i32.const 256))))"#).unwrap();

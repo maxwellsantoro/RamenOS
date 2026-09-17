@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Changed
+- Enforced the WASM SDK's signed output capacity before bridge operations and
+  before copying replies, including fixed IDL reply sizes and raw shared-memory
+  reads. Added adjacent-sentinel, malformed-capacity, side-effect-preflight, and
+  valid-buffer regressions. Documented legacy Store ownership as trusted migration
+  input outside the typed manifest signature.
 - Fixed all seven memory/runtime/Store review findings: cleared reused shared
   frames and page tails; preserved and enabled x86 NX; reserved shared addresses
   in every recipient; connected generated WASM calls to guest memory; defined

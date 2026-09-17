@@ -5,6 +5,8 @@
 //! with RamenOS-native semantics. It is executor-only: no policy
 //! decisions, no capability grants. Those are handled by the broker.
 
+#[cfg(test)]
+mod capacity_tests;
 pub mod context;
 pub mod error;
 pub mod generated;

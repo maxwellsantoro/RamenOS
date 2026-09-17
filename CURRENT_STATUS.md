@@ -40,7 +40,9 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 - x86 page-table encoding preserves NX, and mapping enables EFER.NXE on supported
   CPUs. The shared-memory QEMU gate checks the actual leaf entry and NX enablement.
 - Generated native WASM host bindings use the calling guest's exported memory and
-  reject invalid reply ranges without truncation.
+  honor the SDK's declared output-slice capacity. Invalid or undersized buffers
+  fail before predictable bridge operations; replies never truncate or overwrite
+  adjacent guest state.
 - Store signature verification uses the typed manifest's deterministic unsigned
   serialization. Ingestion hashes the same bytes it stages and atomically publishes.
 - Per-domain trace buffers synchronize readers and writers, including ring wrap.

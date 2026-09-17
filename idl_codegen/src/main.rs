@@ -479,18 +479,25 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
             }
         }
 
-        if name == "shmem_write" {
-            out.push_str("        _out_ptr: u32,\n");
-            out.push_str("        _out_len_ptr: u32| -> i32 {\n");
-        } else {
-            out.push_str("        out_ptr: u32,\n");
-            out.push_str("        out_len_ptr: u32| -> i32 {\n");
-        }
-
+        out.push_str("        out_ptr: u32,\n");
+        out.push_str("        out_len_ptr: u32| -> i32 {\n");
         out.push_str("        let memory = match crate::guest_memory::memory(&mut caller) { Ok(memory) => memory, Err(status) => return status as i32 };\n");
-        if name != "shmem_write" {
-            out.push_str("        if !crate::guest_memory::valid_range(memory.data_size(&caller), out_len_ptr, 4) || !crate::guest_memory::valid_range(memory.data_size(&caller), out_ptr, 0) { return Status::InvalidArgument as i32; }\n");
-        }
+        // Match exact IDL names: echo_reply itself pairs with echo_reply_reply.
+        let reply_name = format!("{name}_reply");
+        let required = if name == "shmem_read" {
+            "len as usize".to_string()
+        } else if name == "shmem_write" {
+            "0".to_string()
+        } else if idl.message.contains_key(&reply_name) {
+            format!(
+                "core::mem::size_of::<{}>()",
+                kernel_api_type_path(src_path, &pascal(&reply_name))
+            )
+        } else {
+            // No typed reply contract: reserve the maximum envelope payload.
+            "Envelope::empty(0, 0).payload.len()".to_string()
+        };
+        out.push_str(&format!("        let output = match crate::guest_memory::ReplyBuffer::new(memory.data(&caller), out_ptr, out_len_ptr, {required}) {{ Ok(output) => output, Err(status) => return status as i32 }};\n"));
 
         if name == "shmem_write" {
             out.push_str("        let data_slice = memory.data(&caller);\n");
@@ -499,13 +506,13 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
             out.push_str("        if data_end > data_slice.len() { return Status::InvalidArgument as i32; }\n");
             out.push_str("        let bytes = data_slice[data_ptr as usize..data_end].to_vec();\n");
             out.push_str("        match caller.data_mut().kernel_bridge.shmem_write(shm_cap, offset, &bytes) {\n");
-            out.push_str("            Ok(_n) => Status::Ok as i32,\n");
+            out.push_str("            Ok(_n) => output.write(memory, &mut caller, &[]),\n");
             out.push_str("            Err(e) => e as i32,\n");
             out.push_str("        }\n");
         } else if name == "shmem_read" {
             out.push_str("        match caller.data_mut().kernel_bridge.shmem_read(shm_cap, offset, len as usize) {\n");
             out.push_str("            Ok(bytes) => {\n");
-            out.push_str("                crate::guest_memory::write_reply(memory, &mut caller, out_ptr, out_len_ptr, &bytes)\n");
+            out.push_str("                output.write(memory, &mut caller, &bytes)\n");
             out.push_str("            },\n");
             out.push_str("            Err(e) => e as i32,\n");
             out.push_str("        }\n");
@@ -545,7 +552,9 @@ fn render_wasm_host(idl: &Idl, src_path: &Path) -> Result<String> {
 
             out.push_str("        let copy_len = reply_env.payload_len as usize;\n");
             out.push_str("        if copy_len > reply_env.payload.len() { return Status::KernelError as i32; }\n");
-            out.push_str("        crate::guest_memory::write_reply(memory, &mut caller, out_ptr, out_len_ptr, &reply_env.payload[..copy_len])\n");
+            out.push_str(
+                "        output.write(memory, &mut caller, &reply_env.payload[..copy_len])\n",
+            );
         }
         out.push_str("    })?;\n\n");
     }

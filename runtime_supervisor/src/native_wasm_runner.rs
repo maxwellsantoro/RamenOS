@@ -631,6 +631,7 @@ mod tests {
                 (global $RAMEN_CAP_SEMANTIC_STATE
                     (export "RAMEN_CAP_SEMANTIC_STATE") (mut i64) (i64.const 0))
                 (func (export "_start") (result i32)
+                    (i32.store (i32.const 64) (i32.const 32))
                     global.get $RAMEN_CAP_SEMANTIC_STATE
                     i64.const 7
                     i32.const 0
