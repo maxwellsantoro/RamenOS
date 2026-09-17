@@ -1,6 +1,6 @@
 # Vertical Slices
 
-**Last Updated:** 2026-07-01
+**Last Updated:** 2026-09-16
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
@@ -61,6 +61,14 @@ The QEMU Driver Factory path is landed:
 S13 is not complete until Tier-1 hardware produces the required live NVMe and
 two-boot rollback evidence. Default `just s13` success is `PASS/QEMU`, not
 `PASS/METAL`.
+
+## Planned Software Integration
+
+The next planned software integration is the
+[Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md), before S14
+expansion. It combines S10 components around one task and a denial/replay gate;
+it is not a completed slice or an agent performance result. S12.4 remains the
+active physical slice.
 
 ## Definition of Done
 

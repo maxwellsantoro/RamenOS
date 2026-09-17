@@ -24,6 +24,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
+| Agent Task Proof | Plan only; host Semantic State, Store, runner, and selected QEMU bridges exist separately | Task integration, deterministic denial/replay gate, matched model comparison, and task-specific target enforcement |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -31,6 +32,16 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### Agent-facing proof plan and public docs (2026-09-16)
+
+- Public entry points now lead with the agent interaction problem and distinguish
+  host services, selected QEMU paths, simulation, and pending hardware evidence.
+- The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) specifies
+  a configuration-repair task, scoped Linux comparison, forced unauthorized
+  calls, measurements, and gate-first implementation phases before S14 expansion.
+- This milestone is documentation and planning only. No executable task proof,
+  measured agent advantage, new enforcement path, or physical result has landed.
 
 ### Memory, native runner, and Store review fixes (2026-09-16)
 
@@ -117,6 +128,9 @@ is [docs/plans/2026-06-23-research-backed-ramenorg.md](docs/plans/2026-06-23-res
 
 ## Known Gaps
 
+- No end-to-end Agent Task Proof or measured comparison with shell/tool agents.
+- Native runner, Store, and Semantic State reactor remain host-side; default
+  snapshot metadata includes placeholders, and execution-fabric routing is simulated.
 - No `PASS/METAL` claim for S12 or S13 yet.
 - S13 atomic rollback still needs the complete two-boot physical protocol.
 - S14 interactivity has no approved implementation plan.

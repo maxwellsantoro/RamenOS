@@ -1,6 +1,6 @@
 # Getting Started with RamenOS
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-16
 **Status:** Active contributor guide
 
 Set up a development environment, build the host and target components, boot in
@@ -26,16 +26,39 @@ QEMU, and run Foundry gates. For current priorities, use
 
 ### What is RamenOS?
 
-RamenOS is an experimental Rust-first, post-Unix operating system built around:
+RamenOS is an experimental Rust OS for agents, built around typed authority
+and machine-readable state. Host services and selected QEMU bridges implement
+parts of the model; a complete agent task and comparative evaluation remain
+[planned](plans/2026-09-16-agent-task-proof.md).
+
+The implementation uses:
 
 - **Typed Harnesses + Portals**: No ioctl-style escape hatches in native interfaces
-- **Quarantined Compatibility Domains**: Isolated environments for Linux/Flatpak and GPU blobs
+- **Compatibility Domains**: Linux/POSIX and GPU compatibility paths with
+  [explicit isolation limits](../SECURITY_STATUS.md)
 - **Unified Foundry Pipeline**: Trace, replay, fuzz, minimize, and gate workflow for drivers and app ports
 
 The project is organized as three pillars:
 1. **OS Core** (kernel + services + runtimes)
 2. **Foundry** (tooling + CI gates)
 3. **Store Platform** (Run Now, Vote/Port, Publish)
+
+### Choose a first run
+
+| Goal | Command | What it exercises |
+|------|---------|-------------------|
+| Inspect the agent-facing substrate | `just foundry-semantic-state-s10-2` | Host snapshots, subscriptions, filtered views, and runner tests |
+| Boot the kernel | `just foundry-s0` | x86_64/aarch64 QEMU boot, IPC, and tracing |
+| Inspect the selected target bridge | `just foundry-qemu-ipc-bridge-s10-5-2` | Host-to-QEMU framed IPC; not a complete target-native runtime |
+| Work on current hardware/storage foundations | `just s11`, `just s12`, `just s13` | Driver replay, inventory, and QEMU paths |
+
+The physical track is S12.4 serial capture and AMT actuation, then S12/S13
+hardware graduation. Default gates do not establish live hardware success.
+The Agent Task Proof is the next planned software integration before S14
+expansion; its proposed commands are not available yet.
+
+Use [Development Reference](DEVELOPMENT_REFERENCE.md) for Store CLI examples,
+operator settings, and the repository map.
 
 ### Who This Guide Is For
 
@@ -402,48 +425,54 @@ just foundry-s0
 
 ### What Are Foundry Gates?
 
-Foundry gates are automated test scripts that verify specific functionality. They:
-- Build the necessary components
-- Run QEMU with appropriate configuration
-- Assert expected output in logs
-- Report pass/fail status
+Foundry gates verify specific functionality through host tests, contract checks,
+replay, or QEMU as appropriate. They build the required components, assert
+expected behavior (including negative cases), and report pass/fail status.
 
 Foundry gates are located in `tools/ci/` and named `foundry_*.sh`.
 
-### Running Individual Gates
+### Running Focused Gates
 
 ```bash
-# S0: Boot gate (UEFI + QEMU for both architectures)
-just foundry-s0
+# Host agent-facing components
+just foundry-semantic-state-s10-2
+just foundry-broker-kernel-bridge-s10-5-1
 
-# S1: Artifact store gate
-just foundry-artifact-s1
+# Selected host/target integration (requires QEMU)
+just foundry-host-target-s10-5
+just foundry-qemu-ipc-bridge-s10-5-2
 
-# S2: Compatibility gate
-just foundry-compat-s2
+# Driver Factory, golden-machine scaffold, and storage
+just s11
+just s12
+just s13
 
-# S3: Trace gate
-just foundry-trace-s3
-
-# S4: Store gate
-just foundry-store-s4
-
-# S5: POSIX runner gate
-just foundry-posix-s5
-
-# S6: Domain manager gate
-just foundry-domain-manager-s6
+# Appliance inventory/scaffold and planning consistency
+just hil-appliance
+just foundry-org-governance-g0
 ```
 
-### Running All Gates
+`just hil-appliance` defaults to inventory/fixture validation. Physical capture
+and graduation require the preparation and provenance in
+[Evidence Levels](../EVIDENCE_LEVELS.md); passing the default gate is not a live
+capture. The current lab steps are in [Next Tasks](../NEXT_TASKS.md).
+
+### Running the Umbrella and Extended Gates
 
 ```bash
-# Run S0 through S5 gates
-just foundry-all-s0-s1-s2-s3-s4-s5
-
-# Run S0 through S6 gates (full umbrella)
+# Historical alias: S0-S6, plus S7 GPU quarantine and S8 shared-memory contracts
 just foundry-all-s0-s1-s2-s3-s4-s5-s6
+
+# Review regressions, security, S10 bridges, S11-S13, and governance
+just foundry-ci-extended
 ```
+
+The S2 compatibility portion requires `S2_COMPAT_KERNEL`, `S2_COMPAT_INITRD`,
+and `S2_COMPAT_ARTIFACT` (or the documented fetch inputs); see
+[compatibility tooling](../tools/compat/README.md). These suites are broader
+than the focused commands above. Consult the [justfile](../justfile) for all
+aliases and [the extended script](../tools/ci/foundry_ci_extended.sh) for its
+exact coverage.
 
 ### Running Preflight
 
@@ -453,12 +482,13 @@ The preflight command runs a comprehensive check before pushing:
 just preflight
 ```
 
-Preflight runs:
-1. Format check (`cargo fmt --all --check`)
-2. IDL codegen (`just codegen`)
-3. Strict lint baseline + tranches
-4. Host workspace tests
-5. Foundry umbrella gate (S0-S6)
+[Preflight](../tools/ci/foundry_preflight.sh) runs:
+
+1. Format check and IDL code generation/lint.
+2. Bare-metal target builds.
+3. Strict lint baseline and tranches.
+4. Host workspace tests.
+5. The Foundry umbrella and extended gates.
 
 ### Interpreting Results
 

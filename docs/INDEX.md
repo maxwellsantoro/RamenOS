@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-16
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
@@ -17,6 +17,9 @@ historical and non-authoritative.
 | Medium-range direction | [Roadmap](../ROADMAP.md) |
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
+| Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
+| Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
+| Coding-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
 | Terms and concepts | [Glossary](GLOSSARY.md) |
 
 The operational source of truth is
@@ -55,6 +58,7 @@ deferred design surfaces, or contracts consumed directly by Foundry gates.
 
 ### OS and Hardware
 
+- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — planned task integration and comparison before S14; no results yet
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)

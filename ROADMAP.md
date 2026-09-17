@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-09-16
 **Status:** Directional
 
 This document describes medium- and long-range sequencing. The authoritative
@@ -21,8 +21,26 @@ own authority.
 
 ## Next
 
+### Agent Task Proof: demonstrate the agent interface
+
+- Before S14 expansion, integrate one useful task across intent, observation,
+  scoped grants, artifact modification, validation execution, and evidence.
+- Start with a deterministic host gate over existing S10 components and the
+  smallest missing typed contracts. Test denied operations by forcing calls
+  against the enforcement backend, independently of model behavior.
+- Compare the same task with a scoped Linux shell/tool baseline. Measure
+  completion, authority, context cost, recovery, audit coverage, and replay.
+- Add QEMU enforcement evidence per operation; keep host, simulation, and target
+  behavior explicit. A host result does not establish a target-native runtime.
+
+The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines
+the fixture, gate assertions, comparison protocol, and landing sequence. This
+software lane can proceed while the physical track above awaits lab access.
+No executable proof or comparative advantage is claimed yet.
+
 ### S14: Interactivity
 
+- Review Agent Task Proof results before expanding the interface surface.
 - Select one USB xHCI controller profile from the Tier-1 machine.
 - Capture an Oracle trace before writing native hardware interactions.
 - Define typed USB/HID control messages and shared-memory data paths.

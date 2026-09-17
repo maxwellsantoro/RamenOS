@@ -20,7 +20,8 @@ smart plug/PDU remain deferred until AMT testing shows they are necessary.
 | P1 | S12.4.2 Intel AMT power/reset actuator | AMT status, power-on, power-off, reset, and power-cycle are validated from the Pi and represented in controller evidence JSON |
 | P2 | S12 physical graduation on the installed SanDisk SATA SSD | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
 | P3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
-| P4 | S14 USB xHCI and HID design pass | Approved short plan, IDL boundary, and Foundry gate definition before implementation |
+| P4 | Agent Task Proof — deterministic integration and model comparison | Executable task/denial/replay gate, then a frozen paired comparison report; see the software lane below |
+| P5 | S14 USB xHCI and HID design pass | Agent Task Proof results reviewed, then a short plan, IDL boundary, and Foundry gate definition before implementation |
 
 ### P0 Acceptance Criteria
 
@@ -54,9 +55,32 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 - Physical actuation remains opt-in; governance scaffolding grants no ambient
   HIL actuation authority.
 
+## Agent Task Proof: Software Integration Lane
+
+This work can proceed on the host while physical P0-P3 needs lab access. It
+precedes S14 expansion and keeps the physical execution order intact. The
+[Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
+consumer task: repair a scoped configuration, execute its pinned validator, and
+report the resulting artifact while access to another workspace is denied.
+
+1. Inventory the actual Semantic State, Store, broker, and native runner paths.
+   Write the task-success, forced-denial, revocation, conflict, audit, and replay
+   assertions first; define missing native operations through IDL/codegen.
+2. Implement the fixture and scripted consumer across the host service boundary.
+   Ship a deterministic Foundry gate and inspectable evidence bundle. Report
+   host enforcement explicitly; no target-native or comparative claim yet.
+3. Freeze a matched scoped-Linux/model evaluation and run it opt-in. Report all
+   successes, failures, authority scopes, context/tool costs, and uncertainty.
+4. Add target-side enforcement evidence for named task operations. The existing
+   QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
+
+The proof and its proposed commands are **not implemented**. Completion of the
+plan is not completion of the experiment; an unfavorable comparison is a valid
+result and should inform the next software slice.
+
 ## Parallel Project-Control Track
 
-This lane can proceed without displacing P0-P4.
+This lane can proceed without displacing P0-P5.
 
 | Priority | Task | Gate or artifact |
 |----------|------|------------------|
@@ -84,7 +108,8 @@ before pushing when practical.
 
 ## Deferred
 
-- S14 implementation until the appliance loop is stable and a design pass lands.
+- S14 implementation until the appliance loop is stable, Agent Task Proof results
+  are reviewed, and a design pass lands.
 - Smart plug/PDU and front-panel relay purchases until AMT validation establishes
   a concrete recovery gap.
 - Full execution-fabric transport and broad real-kernel broker migration.

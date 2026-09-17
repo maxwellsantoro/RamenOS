@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Changed
+- Reframed the public README around the agent interaction problem and documented
+  host, QEMU, simulation, and hardware boundaries. Moved operator details and
+  Store examples into `docs/DEVELOPMENT_REFERENCE.md`, refreshed contributor
+  gates, and corrected claims about coding-agent hooks.
+- Planned an Agent Task Proof before S14 expansion: scoped configuration repair,
+  validator execution, forced unauthorized calls, audit/replay, and a matched
+  Linux comparison. S12.4/S13 physical execution order remains intact. This is
+  a plan, not an executable demo or a measured agent-advantage result.
 - Enforced the WASM SDK's signed output capacity before bridge operations and
   before copying replies, including fixed IDL reply sizes and raw shared-memory
   reads. Added adjacent-sentinel, malformed-capacity, side-effect-preflight, and
