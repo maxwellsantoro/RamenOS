@@ -1,28 +1,56 @@
 # Roadmap
 
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-09-16
 **Status:** Directional
 
 This document describes medium- and long-range sequencing. The authoritative
 operational pair is [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
 [NEXT_TASKS.md](NEXT_TASKS.md).
 
-## Now
+## Now: Parallel Hardware and Software Lanes
 
-1. Stabilize the S12.4.1 HIL appliance serial observer.
-2. Provision and validate the S12.4.2 Intel AMT 11 power/reset actuator.
-3. Run S12 physical work on the installed 240 GB SanDisk SATA SSD.
-4. Add compatible M.2 2280 PCIe NVMe storage and graduate S13 on metal through
-   appliance-mediated live capture.
+These queue labels are independent lanes, not a single global priority list or
+new slice numbers. SW0 can start now; it does not wait for H3 or lab access.
+
+### Physical lane: H0–H3
+
+1. **H0:** first live S12.4.1 HIL appliance serial capture and observer validation.
+2. **H1:** provision and validate S12.4.2 Intel AMT 11 power/reset actuation.
+3. **H2:** run S12 physical work on the installed 240 GB SanDisk SATA SSD.
+4. **H3:** add compatible M.2 2280 PCIe NVMe storage and graduate S13 on metal
+   through appliance-mediated live capture.
+
+### Software lane: SW0 Agent Task Proof
+
+- Before S14 expansion, integrate one useful task across intent, observation,
+  scoped grants, artifact modification, validation execution, and evidence.
+- Start with a deterministic host gate over existing S10 components and the
+  smallest missing typed contracts. Test denied operations by forcing calls
+  against the enforcement backend, independently of model behavior.
+- Build Linux scoped shell, Linux typed, and RamenOS typed controls, with a shared
+  protocol for the typed arms and a canonical cross-platform authority manifest.
+- Pilot the three-arm experiment, then freeze a powered final comparison.
+  Separate interface effects, substrate effects, and the total proposition;
+  report completion, authority, cost, and audit/replay claims individually.
+- Add QEMU enforcement evidence per operation; keep host, simulation, and target
+  behavior explicit. A host result does not establish a target-native runtime.
+
+The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines
+the fixture, gate assertions, comparison protocol, and landing sequence. This
+software lane proceeds independently of the physical track.
+No executable proof or comparative advantage is claimed yet.
 
 The G0 Org Kernel and Research Office continue in parallel as a bounded
-project-control track. They may not displace hardware execution or widen their
+project-control track. They may not displace either execution lane or widen their
 own authority.
 
-## Next
+## Next: Expansion After Lane Prerequisites
 
 ### S14: Interactivity
 
+- Require a stable H0/H1 appliance loop and review of SW0 Phase A evidence and
+  Phase B comparison results before implementation. H2/H3 do not block SW0.
+- Land the S14 design, IDL boundary, and Foundry gate definition first.
 - Select one USB xHCI controller profile from the Tier-1 machine.
 - Capture an Oracle trace before writing native hardware interactions.
 - Define typed USB/HID control messages and shared-memory data paths.

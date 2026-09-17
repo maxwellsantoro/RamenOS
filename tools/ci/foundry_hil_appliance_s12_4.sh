@@ -146,9 +146,9 @@ for field in [
     assert field in required_fields, field
 PY
 
-appliance_line="$(grep -n '| P0 | S12.4.1 HIL appliance serial observer' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
-s13_line="$(grep -n '| P3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
-[[ -n "$appliance_line" ]] || fail "NEXT_TASKS_P0_MISSING" "NEXT_TASKS must put the serial observer appliance work as P0"
+appliance_line="$(grep -n '| H0 | S12.4.1 HIL appliance serial observer' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
+s13_line="$(grep -n '| H3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
+[[ -n "$appliance_line" ]] || fail "NEXT_TASKS_H0_MISSING" "NEXT_TASKS must put the serial observer first in the physical lane as H0"
 [[ -n "$s13_line" ]] || fail "NEXT_TASKS_S13_MISSING" "NEXT_TASKS must keep S13 graduation after appliance work"
 if (( appliance_line >= s13_line )); then
   fail "NEXT_TASKS_ORDER" "appliance must precede S13 metal graduation"

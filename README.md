@@ -5,343 +5,140 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-09-16
 **Status:** Public pre-alpha, active development
-**Current focus:** hardware evidence loop, then persistent-storage graduation
 
-RamenOS is an evidence-gated OS lab for agent-native computing. Instead of
-making agents drive Unix through screens, files, shells, and ambient authority,
-RamenOS builds typed OS interfaces, explicit capabilities, and observable
-semantic state — backed by reproducible proof.
+RamenOS is an experimental Rust OS for agents. Its native interface is built
+around **typed, revocable capabilities** and **machine-readable system state**:
+an agent should be able to discover what it may observe, request limited
+authority, and accomplish a task through explicit OS contracts.
+
+The question is whether this model makes useful agent work easier to complete,
+more narrowly authorized, and easier to audit than working through shells and
+screens. The repository implements substantial parts of that model; a complete
+agent-task comparison is still to be built.
 
 Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
-This repository is not a production OS and does not claim metal graduation,
-security readiness, or release readiness without matching evidence. The current
-default CI path proves QEMU and Foundry gates; physical hardware claims require
-explicit HIL evidence.
+## The task we want to demonstrate
 
-## The Short Version
+> Repair one workspace's configuration, run its validator, and return the
+> validated artifact. Access to another workspace must remain denied even if
+> retrieved content tells the agent to use it.
 
-RamenOS is trying to prove a narrow, testable idea: agents should interact with
-an OS through **typed capabilities** and **observable semantic state**, not by
-driving a Unix desktop through shells, pixels, and ambient authority.
+| Step | Conventional shell/tool workflow | Planned shared typed workflow (Linux and RamenOS) |
+|------|----------------------------------|--------------------------|
+| Inspect | Read files and interpret command output | Receive task-scoped semantic state and typed query results |
+| Obtain authority | Configure process credentials and sandbox permissions | Request grants for specific resources and operations |
+| Repair and validate | Edit a file and invoke a validator | Commit a new artifact and launch a pinned validator through typed contracts |
+| Attempt forbidden access | Enforce the configured OS sandbox | Enforce the named backend boundary; test it independently of the adapter |
+| Report | Correlate outputs, exit status, and logs | Return content IDs, validation state, and a replayable record of requests and effects |
 
-The current repo proves the first pieces of that model in QEMU — boot, typed
-IPC, trace emission, IDL contract gates, Store/service fail-closed paths, and
-Driver Foundry replay loops.
+This is the **planned [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md)**,
+not a transcript of a working demo. It uses three arms with equivalent task
+resources: **Linux scoped shell, Linux typed, and RamenOS typed**. The typed arms
+share the agent-visible protocol wherever possible:
 
-The next public milestone is **live hardware evidence** through the HIL
-appliance.
+- Linux typed vs Linux shell measures the value of structured interaction.
+- RamenOS typed vs Linux typed tests what the implemented substrate adds.
+- RamenOS typed vs Linux shell measures the complete task-level proposition.
 
-## Why This Exists
+One hidden fixture bank and evaluator check completion, normalized effective
+authority, forbidden backend probes, context/tool cost, recovery, and audit/replay.
+Success, authority, and cost claims are reported separately. Linux can enforce
+narrow permissions too; no comparative advantage is claimed yet.
 
-The bet: future agents should not be trapped inside a human desktop metaphor.
-They should request typed capabilities, observe machine-readable system state,
-and run through auditable OS contracts. RamenOS is a small OS lab for proving
-that model from boot, IPC, drivers, storage, and eventually UI upward.
+## What is real today
 
-Concrete example: instead of giving an agent a root shell and asking it to infer
-network or storage state from command output, a RamenOS-style system should let
-the agent request a temporary typed capability, receive only the observable
-state allowed by that capability, and leave an auditable trail of effects.
+| Component | Landed behavior | Execution boundary |
+|-----------|-----------------|--------------------|
+| Kernel | x86_64 and aarch64 boot; typed IPC; capabilities; shared memory; tracing | QEMU target paths; single-threaded capability-table prototype; SMP use is deliberately blocked |
+| Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Native interfaces are IDL-defined; project policy forbids ioctl-style escape hatches |
+| Native WASM runner | Wasmtime execution, granted-handle injection, missing-capability rejection | Host runtime, not Wasmtime running on the target |
+| Semantic State | Snapshot contracts, subscriptions, capability-filtered host views | Host reactor plus selected QEMU snapshot/IPC bridges; default snapshot metadata still contains placeholders |
+| Store and projections | Artifact ingestion, ownership checks, queries, copy-on-write foundations | Host services; complete task-scoped mutation/launch integration remains work |
+| Execution fabric | Placement and launch-plan contracts | Simulation-only routing/load; no distributed transport claim |
+| Driver Foundry | virtio-net and virtio-blk Oracle/replay loops and runtime harness I/O | Host tooling and QEMU device paths |
+| Hardware loop | Golden-machine contract, appliance inventory and serial-capture tooling | First live Pi↔M900 capture and physical graduation remain pending |
 
-## Who This Is For
+The [integration inventory](docs/plans/2026-06-17-s10-5-host-to-target-integration.md)
+explains the host/target split. The kernel's capability checks and the host
+services' policies are real components; they are not yet one complete
+target-native agent environment.
 
-- OS and Rust systems developers who want a small, evidence-gated kernel and
-  services lab.
-- Driver and hardware bring-up people interested in trace/replay/oracle loops.
-- Agent-infrastructure researchers who care about typed authority,
-  machine-readable state, and auditability.
-- Curious readers who want a falsifiable pre-alpha project, not a daily-driver
-  operating system.
+## Run the existing components
 
-## What Works Today
-
-- Boots in QEMU on x86_64 and aarch64.
-- Runs IPC ping/pong, negative IPC checks, and trace smoke gates.
-- Generates typed IDL bindings and checks wire-contract integrity.
-- Runs Store service and POSIX compatibility gates with fail-closed behavior.
-- Runs Driver Foundry loops for virtio-net and virtio-blk replay/harness I/O.
-- Has hardware-in-the-loop appliance scaffolding, but no broad `PASS/METAL`
-  claim yet.
-
-## Try the Smallest Proof
-
-This does not boot a daily-driver OS. It proves the current public baseline:
-QEMU boot, init startup, typed IPC smoke behavior, and trace emission.
+Install the pinned Rust toolchain, `just`, QEMU, and OVMF using
+[Getting Started](docs/GETTING_STARTED.md), then:
 
 ```bash
 git clone https://github.com/maxwellsantoro/RamenOS.git
 cd RamenOS
+
+# Host: snapshots, subscriptions, filtered views, and runner integration tests
+just foundry-semantic-state-s10-2
+
+# Target: dual-architecture QEMU boot, IPC, and tracing
 just foundry-s0
 ```
 
-Expected boot transcript:
+The first command exercises host component behavior; the second proves the boot
+and IPC baseline. Neither runs an autonomous agent or the planned task proof.
 
-```text
-RAMEN OS S0 boot
-mm: allocator ready
-init: hello
-init: ping/pong ok
-init: ipc badlen small ok
-init: ipc badlen large ok
-init: ipc unknown proto ok
-init: trace ok
-```
+| Evidence to inspect | Command |
+|---------------------|---------|
+| Canonical protocol IDs and direct IPC wire types | `just idl-lint` |
+| Host broker and semantic/shmem proxy | `just foundry-broker-kernel-bridge-s10-5-1` |
+| Selected host-to-QEMU IPC paths | `just foundry-qemu-ipc-bridge-s10-5-2` |
+| Driver replay and runtime net/block I/O | `just s11`, `just s13` |
+| Golden-machine, GOP, and appliance scaffolds | `just s12` |
 
-This proves a QEMU boot path, init startup, typed IPC smoke behavior, and trace
-emission. It does not prove production readiness, security readiness, or
-physical hardware support.
+Foundry is how claims are checked: host tests, QEMU, replay, live HIL, and metal
+observations have different meanings. Default CI is hardware-free.
+[`PASS/QEMU` does not imply `PASS/METAL`](EVIDENCE_LEVELS.md).
 
-## Not Yet
+## What comes next
 
-- Not production-ready.
-- Not security-ready.
-- No broad `PASS/METAL` claim.
-- No native desktop or end-user app model yet.
-- POSIX compatibility is quarantined, not the native model.
+The physical lane H0–H3 is **S12.4 live serial capture → AMT power/reset → S12
+on SATA → S13 NVMe graduation**. The independent software lane SW0 starts Agent
+Task Proof Phase A now: a deterministic task gate, then an opt-in three-arm
+comparison, followed by explicit target enforcement evidence. It does not wait
+for hardware graduation. S14 expansion requires the stable H0/H1 appliance loop,
+reviewed SW0 Phase A/B results, and its own design/IDL/Oracle/gate plan.
 
-## Proof Matrix
+[Current Status](CURRENT_STATUS.md) records landed work and
+[Next Tasks](NEXT_TASKS.md) owns execution order.
+[Roadmap](ROADMAP.md) describes longer-range direction.
 
-| Claim | Current evidence | Public command |
-| --- | --- | --- |
-| QEMU boot works | `PASS/QEMU` S0 boot/IPC/trace gate | `just foundry-s0` |
-| IDL contracts are checked | Codegen and wire-contract gates | `just codegen` |
-| Store/service fail-closed paths exist | Security and access-policy gates | `just foundry-s7-all-security` |
-| Driver Foundry loop exists | virtio-net and virtio-blk replay/harness gates | `just s11`, `just s13` |
-| Hardware evidence loop is scaffolded | Appliance inventory/controller contracts | `just s12` |
-| Metal readiness | Not claimed as a default public state | Pending opt-in HIL graduation |
+RamenOS is useful today as an experimental systems platform for typed OS
+interfaces, agent authority, semantic observability, and driver evidence. It is
+not a daily-driver OS, production security substrate, or Linux replacement.
+POSIX remains a compatibility layer. See [Security Status](SECURITY_STATUS.md)
+for implementation limits and open risks.
 
-See [CURRENT_STATUS.md](CURRENT_STATUS.md) for landed state and
-[NEXT_TASKS.md](NEXT_TASKS.md) for the next executable task. Treat
-[ROADMAP.md](ROADMAP.md) as background planning, not operational truth.
+## Explore and contribute
 
-## What Makes It Different
+- **Understand the design:** [Platform Overview](PLATFORM_OVERVIEW.md) and
+  [Constitution](CONSTITUTION.md), including request authority versus observable
+  authority.
+- **Run or debug components:** [Getting Started](docs/GETTING_STARTED.md) and
+  [Development Reference](docs/DEVELOPMENT_REFERENCE.md) for Store examples,
+  operator settings, and the repository map.
+- **Help demonstrate the thesis:** [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md).
+- **Help with hardware:** [Next Tasks](NEXT_TASKS.md) and
+  [Evidence Levels](EVIDENCE_LEVELS.md); start driver work from Reference Vaults
+  and protocol traces.
+- **Contribute a slice:** [Contributing](CONTRIBUTING.md), [Agent Instructions](AGENTS.md),
+  and [Slices](SLICES.md). Each slice needs a consumer, a bounded contract, and
+  a deterministic Foundry gate.
+- **Find other docs:** [Documentation Index](docs/INDEX.md), including the
+  subordinate RamenOrg governance and research tracks. Those artifacts grant no
+  merge, release, hardware, or public-support authority on their own.
 
-- **Typed native interfaces:** OS services communicate through IDL-defined
-  contracts instead of ioctl-like escape hatches or screen-scraped human UI.
-- **Capability-backed authority:** Components receive explicit, minimal handles;
-  fast-path capability validation belongs in the kernel.
-- **Control/data plane split:** Typed messages handle coordination; shared
-  memory handles move bulk data.
-- **Quarantined compatibility:** POSIX and Linux compatibility are treated as
-  compatibility layers, not the native application model.
-- **Driver Foundry:** Hardware support is developed through an evidence loop:
-  reference vaults, protocol traces, replay scoreboards, minimization, fuzzing,
-  and Foundry gates.
-- **Research-backed, product-bound:** Research informs the OS where it reduces a
-  product or safety risk, with explicit claim boundaries and landing paths.
-
-## Project Shape
-
-The repository is organized around three pillars:
-
-1. **OS Core:** kernel, boot paths, IPC, capabilities, shmem, tracing, services,
-   and runtimes.
-2. **Driver Foundry:** trace capture, replay, hardware-in-the-loop gates,
-   evidence policy, and CI-style validation.
-3. **Store Platform:** artifact ingestion, launch plans, native runtime paths,
-   compatibility runners, and the early porting ladder.
-
-Development happens through vertical slices. A change should improve boot/run
-behavior, implement an IDL contract, add a Foundry gate, or build a Store
-feature that consumes an OS capability.
-
-```mermaid
-flowchart LR
-    agent["Agent or app"] --> idl["Typed IDL contracts"]
-    idl --> caps["Capability kernel"]
-    caps --> svc["Core services"]
-    caps --> store["Store platform"]
-    svc --> state["Observable semantic state"]
-    svc --> foundry["Driver Foundry"]
-    foundry --> evidence["Evidence gates"]
-    evidence --> hardware["QEMU / HIL / metal claims"]
-```
-
-## Where To Start
-
-- To understand the idea: [PLATFORM_OVERVIEW.md](PLATFORM_OVERVIEW.md) and
-  [CONSTITUTION.md](CONSTITUTION.md).
-- To run something: start with `just foundry-s0`, then
-  [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
-- To contribute or use an agent: [CONTRIBUTING.md](CONTRIBUTING.md) and
-  [AGENTS.md](AGENTS.md).
-
-## Quick Start
-
-Requirements:
-
-- Rust toolchain pinned by [rust-toolchain.toml](rust-toolchain.toml).
-- `rust-src`, `rustfmt`, and `clippy`.
-- QEMU and OVMF firmware for target gates.
-- `just` for the task aliases.
-
-Useful commands:
-
-```bash
-just build-host
-just codegen
-just build-targets
-just preflight
-```
-
-Useful focused gates:
-
-```bash
-just s11
-just s12
-just s13
-just hil-appliance
-just foundry-org-governance-g0
-```
-
-`just preflight` runs format checking, IDL generation, strict lint tranches,
-workspace tests, and the Foundry umbrella gate. CI also runs the extended
-Foundry gates and the G0 governance gate.
-
-## Hardware And Evidence
-
-Default CI is intentionally hardware-free. It proves inventory, schemas,
-negative checks, QEMU behavior, and replay determinism. Physical claims require
-explicit environment flags and provenance:
-
-```bash
-RAMEN_HIL_APPLIANCE=1 just hil-appliance
-RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GRADUATION=1 just s13-hil
-RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil
-```
-
-Important boundary: the HIL appliance is lab infrastructure, not target TCB.
-The serial observer can produce `PASS/HIL-LOG` from development replay or
-`PASS/HIL-APPLIANCE` from live appliance capture. `PASS/METAL` requires the
-matching hardware evidence.
-
-See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md) before interpreting hardware
-claims.
-
-## Store CLI Examples
-
-Emit a launch plan from the catalog:
-
-```bash
-cargo run -p store_cli -- emit-plan \
-  --catalog store/catalog.json \
-  --program-id ramen.demo.hello \
-  --out out/store/launch_plan.json
-```
-
-Ingest a file into a local installed store:
-
-```bash
-cargo run -p store_cli -- ingest \
-  --src /path/to/file \
-  --installed-root out/installed
-```
-
-Validate an execution launch plan:
-
-```bash
-cargo run -p store_cli -- validate-execution-launch-plan \
-  --src out/store/launch_plan.json
-```
-
-## Operational Knobs
-
-Store service:
-
-- `RAMEN_STORE_TRUSTED_KEYS`: trusted Ed25519 key file, required outside dev.
-- `RAMEN_STORE_DEV_MODE`: explicit local-dev opt-in for unsigned artifacts.
-- `RAMEN_STORE_ACCESS_POLICY`: `AllowAll`, `RequireCredentials`,
-  `RequireKnownService`, or `Whitelist`; default is fail-closed.
-- `RAMEN_STORE_SOCKET`, `RAMEN_STORE_ROOT`, `RAMEN_STORE_AUDIT_LOG`: local paths.
-
-POSIX runner:
-
-- `RAMEN_POSIX_RUNNER_ACK_RISK=1`: required kill-switch acknowledgment.
-- `RAMEN_POSIX_RUNNER_DISABLE_SANDBOX=1`: dangerous local-dev bypass.
-
-HIL:
-
-- `RAMEN_HIL_APPLIANCE=1`: enable physical appliance inventory/control paths.
-- `RAMEN_HIL_GRADUATION=1`: require live graduation discipline.
-- `RAMEN_HIL_SERIAL_DEV` / `RAMEN_HIL_SERIAL_LOG`: live serial device or
-  development log input, depending on the gate.
-
-Development modes are explicit, noisy, and should never be treated as release
-configuration.
-
-## Repository Map
-
-- **Target OS:** [kernel/](kernel/), [kernel_uefi/](kernel_uefi/),
-  [kernel_aarch64/](kernel_aarch64/), [kernel_api/](kernel_api/).
-- **Typed interfaces:** [idl/](idl/), [idl_codegen/](idl_codegen/),
-  [schemas/](schemas/).
-- **Services and runtime:** [services/](services/),
-  [runtime_supervisor/](runtime_supervisor/), [sdk/](sdk/).
-- **Driver Foundry:** [driver_foundry/](driver_foundry/),
-  [drivers/reference_vaults/](drivers/reference_vaults/), [hardware/](hardware/).
-- **Store platform:** [store/](store/), [store_cli/](store_cli/),
-  [artifact_store_core/](artifact_store_core/),
-  [artifact_store_schema/](artifact_store_schema/).
-- **Gates and docs:** [tools/ci/](tools/ci/), [tools/hil/](tools/hil/),
-  [docs/](docs/).
-
-## Governance and Research
-
-This repository also hosts the **RamenOrg** governance scaffolding and the
-research program. Both are kept strictly parallel to the OS execution track and
-grant no merge, release, hardware, or public-support authority on their own.
-
-- Governance artifacts, the authority ladder, and the merge gate: [docs/org/](docs/org/).
-- Research program and open questions: [docs/research/](docs/research/).
-
-## Contributing
-
-RamenOS favors small, evidence-bearing slices over large subsystem drops.
-
-### Useful help right now
-
-- **Serious systems help:** the S12.4 HIL appliance loop — serial observation,
-  power/reset actuation, and the claim boundaries around HIL appliance evidence.
-- **Newcomer help:** run `just foundry-s0` on your machine and report any
-  host/QEMU/OVMF boot issues you hit.
-- **Docs help:** tighten setup notes for macOS/Linux hardware combinations, and
-  flag anywhere the docs lose a new reader.
-
-Before proposing a change:
-
-- Read [CONTRIBUTING.md](CONTRIBUTING.md).
-- Read [AGENTS.md](AGENTS.md) if you are working with an AI coding agent.
-- Add new native interfaces under [idl/](idl/) and regenerate bindings.
-- Keep kernel, services, and Store boundaries separate.
-- Run `just preflight` before pushing when practical.
-
-For driver work, start from the Reference Vault and protocol traces. The goal is
-to produce code whose observed behavior matches the Oracle, then gate it.
-
-## Key Documents
-
-- [CURRENT_STATUS.md](CURRENT_STATUS.md): what has landed.
-- [NEXT_TASKS.md](NEXT_TASKS.md): next executable work.
-- [PLATFORM_OVERVIEW.md](PLATFORM_OVERVIEW.md): architecture and design model.
-- [CONSTITUTION.md](CONSTITUTION.md): project principles.
-- [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md): claim/evidence vocabulary.
-- [SECURITY_STATUS.md](SECURITY_STATUS.md): security posture and boundaries.
-- [SECURITY.md](SECURITY.md): how to report a vulnerability.
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): community standards.
-- [SLICES.md](SLICES.md): completed slice inventory.
-- [STORE_SPEC.md](STORE_SPEC.md): store platform contracts.
-- [CONTRIBUTING.md](CONTRIBUTING.md): local preflight and lint policy.
-- [docs/INDEX.md](docs/INDEX.md): documentation index.
-- [AGENTS.md](AGENTS.md): coding-agent operating rules.
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities
+through [Security](SECURITY.md).
 
 ## License
 
-RamenOS is licensed under either of:
-
-- [MIT](LICENSE-MIT)
-- [Apache-2.0](LICENSE-APACHE)
-
-at your option.
+RamenOS is licensed under either [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option.

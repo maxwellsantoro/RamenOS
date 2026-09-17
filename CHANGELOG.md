@@ -3,6 +3,24 @@
 ## [Unreleased]
 
 ### Changed
+- Revised the Agent Task Proof to separate Linux scoped shell, Linux typed, and
+  RamenOS typed effects using a shared typed protocol and hidden fixture bank.
+  Defined canonical authority envelopes/probes, a pilot-to-powered-study rule,
+  and separate completion, authority, cost, and audit/replay claims.
+- Marked Platform Overview components as Landed, Partial, or Target architecture;
+  separated the H0–H3 physical queue from SW0 software work and made S14 depend
+  on the relevant evidence from both lanes. GitHub description refresh is queued
+  for after merge. No experiment, target-enforcement, or hardware claim is added.
+- Updated the appliance gate's queue-label assertion from P0/P3 to H0/H3 while
+  preserving its requirement that serial observation precede S13 graduation.
+- Reframed the public README around the agent interaction problem and documented
+  host, QEMU, simulation, and hardware boundaries. Moved operator details and
+  Store examples into `docs/DEVELOPMENT_REFERENCE.md`, refreshed contributor
+  gates, and corrected claims about coding-agent hooks.
+- Planned an Agent Task Proof before S14 expansion: scoped configuration repair,
+  validator execution, forced unauthorized calls, audit/replay, and a matched
+  Linux comparison. S12.4/S13 physical execution order remains intact. This is
+  a plan, not an executable demo or a measured agent-advantage result.
 - Enforced the WASM SDK's signed output capacity before bridge operations and
   before copying replies, including fixed IDL reply sizes and raw shared-memory
   reads. Added adjacent-sentinel, malformed-capacity, side-effect-preflight, and
