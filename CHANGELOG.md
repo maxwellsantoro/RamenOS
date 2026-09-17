@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Changed
+- Revised the Agent Task Proof to separate Linux scoped shell, Linux typed, and
+  RamenOS typed effects using a shared typed protocol and hidden fixture bank.
+  Defined canonical authority envelopes/probes, a pilot-to-powered-study rule,
+  and separate completion, authority, cost, and audit/replay claims.
+- Marked Platform Overview components as Landed, Partial, or Target architecture;
+  separated the H0–H3 physical queue from SW0 software work and made S14 depend
+  on the relevant evidence from both lanes. GitHub description refresh is queued
+  for after merge. No experiment, target-enforcement, or hardware claim is added.
+- Updated the appliance gate's queue-label assertion from P0/P3 to H0/H3 while
+  preserving its requirement that serial observation precede S13 graduation.
 - Reframed the public README around the agent interaction problem and documented
   host, QEMU, simulation, and hardware boundaries. Moved operator details and
   Store examples into `docs/DEVELOPMENT_REFERENCE.md`, refreshed contributor

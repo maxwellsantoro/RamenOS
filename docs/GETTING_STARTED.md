@@ -52,10 +52,12 @@ The project is organized as three pillars:
 | Inspect the selected target bridge | `just foundry-qemu-ipc-bridge-s10-5-2` | Host-to-QEMU framed IPC; not a complete target-native runtime |
 | Work on current hardware/storage foundations | `just s11`, `just s12`, `just s13` | Driver replay, inventory, and QEMU paths |
 
-The physical track is S12.4 serial capture and AMT actuation, then S12/S13
+The H0–H3 physical lane is S12.4 serial capture and AMT actuation, then S12/S13
 hardware graduation. Default gates do not establish live hardware success.
-The Agent Task Proof is the next planned software integration before S14
-expansion; its proposed commands are not available yet.
+SW0 starts Agent Task Proof Phase A independently, without waiting for hardware:
+Linux scoped shell, Linux typed, and RamenOS typed adapters under one evaluator.
+Its proposed commands are not available yet. S14 prerequisites from both lanes
+are listed in [Next Tasks](../NEXT_TASKS.md).
 
 Use [Development Reference](DEVELOPMENT_REFERENCE.md) for Store CLI examples,
 operator settings, and the repository map.

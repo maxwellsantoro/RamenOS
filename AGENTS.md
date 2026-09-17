@@ -25,6 +25,7 @@ If blocked, pick the simplest viable default, record it in `DECISIONS.md`, and m
 
 ## Active track
 - **Now:** S12.4 HIL appliance v0 physical loop (serial observer first, then power/reset actuation), feeding the preferred appliance-mediated S13 metal HIL graduation path. Standalone golden-machine `PASS/METAL` must be provenance-stamped separately. S14 USB xHCI + HID is deferred to a design pass.
+- **Parallel software lane:** SW0 Agent Task Proof Phase A can start independently of physical H0–H3; it does not wait for NVMe graduation. S14 prerequisites from both lanes live in `NEXT_TASKS.md`.
 - **Authoritative pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md` §13). `SLICES.md` has slice history.
 - **Keep green:** `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` when touching org/research planning.
 

@@ -26,27 +26,34 @@ Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 > validated artifact. Access to another workspace must remain denied even if
 > retrieved content tells the agent to use it.
 
-| Step | Conventional shell/tool workflow | Planned RamenOS workflow |
+| Step | Conventional shell/tool workflow | Planned shared typed workflow (Linux and RamenOS) |
 |------|----------------------------------|--------------------------|
 | Inspect | Read files and interpret command output | Receive task-scoped semantic state and typed query results |
 | Obtain authority | Configure process credentials and sandbox permissions | Request grants for specific resources and operations |
 | Repair and validate | Edit a file and invoke a validator | Commit a new artifact and launch a pinned validator through typed contracts |
-| Attempt forbidden access | Depend on the configured OS sandbox | Reject the operation at the capability enforcement boundary |
+| Attempt forbidden access | Enforce the configured OS sandbox | Enforce the named backend boundary; test it independently of the adapter |
 | Report | Correlate outputs, exit status, and logs | Return content IDs, validation state, and a replayable record of requests and effects |
 
 This is the **planned [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md)**,
-not a transcript of a working demo. Its primary comparison uses a scoped Linux
-baseline with equivalent task resources. It will measure completion, tool calls,
-context cost, effective authority, denied operations, recovery, and audit/replay
-coverage. Linux can enforce narrow permissions too; the experiment must establish
-what RamenOS adds. No comparative advantage is claimed yet.
+not a transcript of a working demo. It uses three arms with equivalent task
+resources: **Linux scoped shell, Linux typed, and RamenOS typed**. The typed arms
+share the agent-visible protocol wherever possible:
+
+- Linux typed vs Linux shell measures the value of structured interaction.
+- RamenOS typed vs Linux typed tests what the implemented substrate adds.
+- RamenOS typed vs Linux shell measures the complete task-level proposition.
+
+One hidden fixture bank and evaluator check completion, normalized effective
+authority, forbidden backend probes, context/tool cost, recovery, and audit/replay.
+Success, authority, and cost claims are reported separately. Linux can enforce
+narrow permissions too; no comparative advantage is claimed yet.
 
 ## What is real today
 
 | Component | Landed behavior | Execution boundary |
 |-----------|-----------------|--------------------|
-| Kernel | x86_64 and aarch64 boot; typed IPC; capabilities; shared memory; tracing | QEMU target paths; capability-table operations reject use after the SMP transition |
-| Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Shared kernel/runtime types; no native ioctl escape hatch |
+| Kernel | x86_64 and aarch64 boot; typed IPC; capabilities; shared memory; tracing | QEMU target paths; single-threaded capability-table prototype; SMP use is deliberately blocked |
+| Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Native interfaces are IDL-defined; project policy forbids ioctl-style escape hatches |
 | Native WASM runner | Wasmtime execution, granted-handle injection, missing-capability rejection | Host runtime, not Wasmtime running on the target |
 | Semantic State | Snapshot contracts, subscriptions, capability-filtered host views | Host reactor plus selected QEMU snapshot/IPC bridges; default snapshot metadata still contains placeholders |
 | Store and projections | Artifact ingestion, ownership checks, queries, copy-on-write foundations | Host services; complete task-scoped mutation/launch integration remains work |
@@ -92,11 +99,12 @@ observations have different meanings. Default CI is hardware-free.
 
 ## What comes next
 
-The physical execution track remains **S12.4 live serial capture → AMT
-power/reset → S12 on SATA → S13 NVMe graduation**. The Agent Task Proof adds a
-bounded software integration priority before S14 USB/HID and desktop expansion:
-a deterministic task gate first, then an opt-in model comparison, then explicit
-target enforcement evidence.
+The physical lane H0–H3 is **S12.4 live serial capture → AMT power/reset → S12
+on SATA → S13 NVMe graduation**. The independent software lane SW0 starts Agent
+Task Proof Phase A now: a deterministic task gate, then an opt-in three-arm
+comparison, followed by explicit target enforcement evidence. It does not wait
+for hardware graduation. S14 expansion requires the stable H0/H1 appliance loop,
+reviewed SW0 Phase A/B results, and its own design/IDL/Oracle/gate plan.
 
 [Current Status](CURRENT_STATUS.md) records landed work and
 [Next Tasks](NEXT_TASKS.md) owns execution order.

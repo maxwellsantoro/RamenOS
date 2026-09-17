@@ -3,6 +3,7 @@
 **Last Updated:** 2026-09-16
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
+**Software Lane:** SW0 Agent Task Proof — planned; Phase A is the next software action
 
 ## Active Execution Track
 
@@ -11,9 +12,15 @@ then Intel AMT 11 power/reset actuation. Once that loop is stable, the preferred
 HIL graduation path runs through the appliance on Tier-1 or lab hardware.
 Standalone golden-machine graduation remains a distinct `PASS/METAL` path only
 when per-gate evidence stamps `claim_path: operator-golden-machine`. S14 USB
-xHCI and HID stays deferred until the appliance loop is proven.
+xHCI and HID stays deferred until the H0/H1 appliance loop is proven, SW0 Phase
+A/B results are reviewed, and its own design/IDL/Oracle/gate prerequisites land.
 
-The next executable step is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
+H0–H3 name the physical queue. SW0 is an independent software queue and can
+start now without waiting for NVMe graduation. Its current deliverable is a
+plan; no Agent Task Proof implementation or comparison has landed. These labels
+do not allocate new slice numbers or change governance authority.
+
+The next action in each lane is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
 Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 
 ## Evidence Boundary
@@ -24,7 +31,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof | Plan only; host Semantic State, Store, runner, and selected QEMU bridges exist separately | Task integration, deterministic denial/replay gate, matched model comparison, and task-specific target enforcement |
+| Agent Task Proof (SW0) | Plan only; host Semantic State, Store, runner, and selected QEMU bridges exist separately | Three-arm task integration, protocol/authority mapping checks, denial/replay gate, powered model comparison, and task-specific target enforcement |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -38,8 +45,13 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 - Public entry points now lead with the agent interaction problem and distinguish
   host services, selected QEMU paths, simulation, and pending hardware evidence.
 - The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) specifies
-  a configuration-repair task, scoped Linux comparison, forced unauthorized
-  calls, measurements, and gate-first implementation phases before S14 expansion.
+  Linux scoped shell, Linux typed, and RamenOS typed arms, a shared typed protocol,
+  canonical authority manifests, forced backend probes, and separate completion,
+  authority, cost, and audit/replay claims. Pilot estimates feed a predeclared
+  power calculation; final evaluation uses held-out fixtures. None of those runs
+  has occurred yet.
+- [Platform Overview](PLATFORM_OVERVIEW.md) now marks components as Landed,
+  Partial, or Target architecture. H0–H3 and SW0 are independent execution lanes.
 - This milestone is documentation and planning only. No executable task proof,
   measured agent advantage, new enforcement path, or physical result has landed.
 

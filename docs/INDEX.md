@@ -29,7 +29,7 @@ The operational source of truth is
 ## Architecture and Policy
 
 - [Constitution](../CONSTITUTION.md): non-negotiable platform invariants.
-- [Platform Overview](../PLATFORM_OVERVIEW.md): OS, Foundry, and Store shape.
+- [Platform Overview](../PLATFORM_OVERVIEW.md): OS, Foundry, and Store with Landed / Partial / Target architecture markers.
 - [Store Spec](../STORE_SPEC.md): package intelligence and launch-plan model.
 - [Driver Capsule Spec](../DRIVER_CAPSULE_SPEC.md): quarantined legacy-driver boundary.
 - [Hardware Strategy](HARDWARE_STRATEGY.md): Tier-1 and Golden Machine policy.
@@ -58,7 +58,7 @@ deferred design surfaces, or contracts consumed directly by Foundry gates.
 
 ### OS and Hardware
 
-- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — planned task integration and comparison before S14; no results yet
+- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization, and pilot/powered comparison plan before S14; no results yet
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)
