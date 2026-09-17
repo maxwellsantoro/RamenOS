@@ -11,10 +11,10 @@ fail() {
   exit 1
 }
 
-EFIVAR_DIR="/sys/firmware/efi/efivars"
+EFIVAR_DIR="${RAMEN_HIL_EFIVAR_DIR:-/sys/firmware/efi/efivars}"
 GUID="a3b8c14e-5f20-4d71-9e62-1308ab080000"
 NAME="RamenBootNonce-${GUID}"
-PATH="${EFIVAR_DIR}/${NAME}"
+EFIVAR_PATH="${EFIVAR_DIR}/${NAME}"
 
 if [[ ! -d "$EFIVAR_DIR" ]]; then
   fail "EFIVARFS_MISSING" "efivarfs not mounted at ${EFIVAR_DIR}"
@@ -25,27 +25,33 @@ if [[ -n "${1:-}" ]]; then
 else
   NONCE_HEX="$(python3 - <<'PY'
 import secrets
-print(f"{secrets.randbits(64):016x}")
+print(f"{secrets.randbelow((1 << 64) - 1) + 1:016x}")
 PY
 )"
 fi
 
-NONCE_LE="$(python3 - "$NONCE_HEX" <<'PY'
+# Validate before removing an existing variable.
+python3 - "$NONCE_HEX" <<'PYVALID'
+import re, sys
+text = sys.argv[1]
+if not re.fullmatch(r"[0-9a-fA-F]{1,16}", text) or int(text, 16) == 0:
+    raise SystemExit("nonce must be a nonzero 64-bit hexadecimal value")
+PYVALID
+
+if [[ -e "$EFIVAR_PATH" ]]; then
+  chattr -i "$EFIVAR_PATH" 2>/dev/null || true
+  rm -f "$EFIVAR_PATH"
+fi
+
+python3 - "$EFIVAR_PATH" "$NONCE_HEX" <<'PYWRITE'
 import sys
-value = int(sys.argv[1], 16)
-print("".join(f"\\x{b:02x}" for b in value.to_bytes(8, "little")))
-PY
-)"
-
-if [[ -e "$PATH" ]]; then
-  chattr -i "$PATH" 2>/dev/null || true
-  rm -f "$PATH"
-fi
-
-ATTRS=$((0x00000001 | 0x00000002 | 0x00000004))
-printf "\\x%02x\\x%02x\\x%02x\\x%02x%s" \
-  $((ATTRS & 0xff)) $(((ATTRS >> 8) & 0xff)) $(((ATTRS >> 16) & 0xff)) $(((ATTRS >> 24) & 0xff)) \
-  "$NONCE_LE" >"$PATH"
+payload = (7).to_bytes(4, "little") + int(sys.argv[2], 16).to_bytes(8, "little")
+with open(sys.argv[1], "wb") as output:
+    if output.write(payload) != len(payload):
+        raise OSError("short efivar write")
+    output.flush()
+    # efivarfs performs the firmware write synchronously and has no fsync operation.
+PYWRITE
 
 echo "SET_RAMENOS_BOOT_NONCE: METRIC boot_epoch_nonce=${NONCE_HEX}"
 echo "SET_RAMENOS_BOOT_NONCE: ok"

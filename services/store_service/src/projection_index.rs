@@ -115,7 +115,7 @@ impl ProjectionIndexStore {
             .index
             .entries
             .iter()
-            .position(|e| e.content_id == entry.content_id)
+            .position(|e| e.content_id == entry.content_id && e.domain_id == entry.domain_id)
         {
             self.index.entries[pos] = entry;
         } else {
@@ -130,12 +130,9 @@ impl ProjectionIndexStore {
     ) -> Result<(), ProjectionIndexError> {
         validate_path_projection(&projection)
             .map_err(|err| ProjectionIndexError::Validation(err.0))?;
-        if let Some(pos) = self
-            .index
-            .path_projections
-            .iter()
-            .position(|p| p.virtual_path == projection.virtual_path)
-        {
+        if let Some(pos) = self.index.path_projections.iter().position(|p| {
+            p.virtual_path == projection.virtual_path && p.domain_id == projection.domain_id
+        }) {
             self.index.path_projections[pos] = projection;
         } else {
             self.index.path_projections.push(projection);
@@ -186,6 +183,49 @@ impl ProjectionIndexStore {
             .resolve_path(virtual_path)
             .map(str::to_string)
             .ok_or(STATUS_NOT_FOUND)
+    }
+
+    /// Remote reads intersect metadata scope with durable artifact ownership.
+    pub fn query_by_path_for_domain(
+        &self,
+        path: &str,
+        domain: u64,
+        registry: &crate::domain_visibility::DomainArtifactRegistry,
+    ) -> Result<String, u32> {
+        self.index
+            .path_projections
+            .iter()
+            .filter(|p| p.virtual_path == path && (p.domain_id == domain || p.domain_id == 0))
+            .filter(|p| {
+                ContentId::parse(&p.content_id).is_ok_and(|id| registry.can_access(&id, domain))
+            })
+            .min_by_key(|p| p.domain_id != domain)
+            .map(|p| p.content_id.clone())
+            .ok_or(STATUS_NOT_FOUND)
+    }
+
+    pub fn query_by_tag_for_domain(
+        &self,
+        tag: &str,
+        domain: u64,
+        registry: &crate::domain_visibility::DomainArtifactRegistry,
+    ) -> Result<Vec<String>, u32> {
+        let mut ids = Vec::new();
+        for entry in &self.index.entries {
+            if (entry.domain_id == domain || entry.domain_id == 0)
+                && entry.tags.iter().any(|t| t == tag)
+                && ContentId::parse(&entry.content_id)
+                    .is_ok_and(|id| registry.can_access(&id, domain))
+                && !ids.contains(&entry.content_id)
+            {
+                ids.push(entry.content_id.clone());
+            }
+        }
+        if ids.is_empty() {
+            Err(STATUS_NOT_FOUND)
+        } else {
+            Ok(ids)
+        }
     }
 
     pub fn query_by_tag(&self, tag: &str) -> Result<Vec<String>, u32> {

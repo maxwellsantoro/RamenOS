@@ -167,7 +167,13 @@ echo ""
 echo "[5/5] Parsing test results..."
 LOG="$LOG_DIR/qemu_x86_64_shmem.log"
 
-# Check all 6 tests passed
+# Check the live x86 page-table NX flag and CPU enablement as well as lifecycle tests.
+if ! grep -q "shmem_test: no_execute_mapping PASS" "$LOG"; then
+    echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL code=NX detail=NX mapping or EFER.NXE missing"
+    exit 1
+fi
+
+# Check all 7 tests passed
 if grep -q "shmem_test: map_region_increments_refcount PASS" "$LOG"; then
     echo "  ✓ map_region_increments_refcount"
 else
@@ -223,12 +229,12 @@ else
 fi
 
 # Check summary line
-if grep -q "shmem_test: 6/6 tests passed" "$LOG"; then
+if grep -q "shmem_test: 7/7 tests passed" "$LOG"; then
     echo "  ✓ All tests passed"
 else
     echo "  ✗ Test summary incorrect"
     grep "shmem_test:" "$LOG" || true
-    echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL code=SUMMARY detail=expected 6/6 tests passed"
+    echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL code=SUMMARY detail=expected 7/7 tests passed"
     exit 1
 fi
 

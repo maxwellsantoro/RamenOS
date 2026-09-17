@@ -54,6 +54,16 @@ pub struct ManifestSignature {
     pub signer: Option<String>,
 }
 
+/// Canonical v1 signing payload: compact JSON of the typed Manifest fields in
+/// declaration order, with `signatures` omitted. File whitespace and property
+/// order are not signed; every other typed field (including array order) is.
+/// Both publishers and verifiers must use this function.
+pub fn manifest_signing_bytes(manifest: &crate::Manifest) -> Result<Vec<u8>, serde_json::Error> {
+    let mut unsigned = manifest.clone();
+    unsigned.signatures.clear();
+    serde_json::to_vec(&unsigned)
+}
+
 /// Result of signature validation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignatureValidationResult {

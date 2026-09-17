@@ -1,13 +1,13 @@
 # Current Status
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-16
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
 
 ## Active Execution Track
 
 S12.4 is building the physical HIL appliance loop: serial observation first,
-then power/reset actuation. Once that loop is stable, the preferred S13 metal
+then Intel AMT 11 power/reset actuation. Once that loop is stable, the preferred S13 metal
 HIL graduation path runs through the appliance on Tier-1 or lab hardware.
 Standalone golden-machine graduation remains a distinct `PASS/METAL` path only
 when per-gate evidence stamps `claim_path: operator-golden-machine`. S14 USB
@@ -23,7 +23,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S11 Driver Factory | Complete; `just s11` | Broader device coverage is future work |
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
-| S12.4 appliance | Manifest, evidence schema, gate, and serial-observer scaffold landed | Stable live serial capture, then controlled power/reset |
+| S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -32,15 +32,51 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
 
+### Memory, native runner, and Store review fixes (2026-09-16)
+
+- Shared-memory allocation clears full backing frames, including partial-page
+  tails. Every recipient reserves the region's common virtual address; conflicting
+  mappings fail closed, and repeated references retain the PTE until final unmap.
+- x86 page-table encoding preserves NX, and mapping enables EFER.NXE on supported
+  CPUs. The shared-memory QEMU gate checks the actual leaf entry and NX enablement.
+- Generated native WASM host bindings use the calling guest's exported memory and
+  honor the SDK's declared output-slice capacity. Invalid or undersized buffers
+  fail before predictable bridge operations; replies never truncate or overwrite
+  adjacent guest state.
+- Store signature verification uses the typed manifest's deterministic unsigned
+  serialization. Ingestion hashes the same bytes it stages and atomically publishes.
+- Per-domain trace buffers synchronize readers and writers, including ring wrap.
+- `just foundry-review-boundaries` includes the new host regressions. Evidence is
+  host tests and QEMU; no physical graduation or complete SMP/IRQ support is claimed.
+
+### Review boundary fixes (2026-09-16)
+
+- Store ownership persists across restart; unattributed artifacts deny access.
+  Projection queries enforce the capability domain and durable ownership.
+- Shared-memory requests accept only the allocator's supported 4 KiB page size.
+- CI includes executable tooling and fails closed on classification errors.
+- HIL opt-in captures serial after isolated fixture checks; firmware staging and
+  run-bound provenance have host regressions, including synthetic serial devices.
+- `just foundry-review-boundaries` covers these fixes. This is host/QEMU evidence;
+  first live Pi↔M900 capture and physical graduation are still pending.
+
 ### S12 and S13
 
-- S12.0 golden-machine contract and Intel NUC Tier-1 profile.
+- S12.0 golden-machine contract updated to the acquired Lenovo ThinkCentre M900
+  (machine type 10FH, Core i7-6700, 8 GiB) Tier-1 profile. Its installed 240 GB
+  SanDisk SATA SSD is sufficient to begin S12; firmware/AMT preflight and the
+  first live serial capture are next, and a compatible M.2 2280 PCIe NVMe drive
+  is still required for S13 graduation.
 - S12.1 UEFI GOP probe in QEMU OVMF.
 - S12.2 physical HIL boot gate scaffold.
 - S12.3 IOMMU inventory probe and gate.
 - S12.4.0 HIL appliance manifest, evidence wrapper, and inventory gate.
 - S12.4.1 serial-observer scaffold with run-id validation, empty-transcript
   rejection, and replay/live evidence separation.
+- Physical serial-loop inventory records the Raspberry Pi 4 Model B (4 GiB), FTDI
+  USB-to-RS-232 adapter, null-modem adapters, and ThinkCentre M900 target. The
+  chain is physically installed and ready; the first live serial capture is the
+  next evidence milestone.
 - Per-gate HIL evidence now stamps `claim_path` and appliance metadata so
   standalone golden-machine runs cannot be mistaken for appliance-mediated
   graduation.

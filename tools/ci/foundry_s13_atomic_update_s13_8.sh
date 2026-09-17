@@ -14,6 +14,7 @@ export CARGO_TARGET_DIR="$ROOT_DIR/target"
 export ROOT_DIR
 # shellcheck source=../hil/hil_gate_common.sh
 source "$ROOT_DIR/tools/hil/hil_gate_common.sh"
+export RAMEN_HIL_CAPTURE_GATE=s13_8
 
 echo "=== S13.8 Atomic Update/Rollback Foundry Gate ==="
 
@@ -47,11 +48,6 @@ assert_metal_serial_log() {
       || fail "PROVENANCE_MISSING" "serial log missing hil_evidence provenance markers"
   fi
 
-  if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" ]]; then
-    if grep -q "hil_evidence: boot_epoch_nonce=0" "$log"; then
-      fail "BOOT_NONCE_ZERO" "graduation requires non-zero boot_epoch_nonce (set_ramenos_boot_nonce.sh)"
-    fi
-  fi
 }
 
 wait_for_log() {
@@ -80,7 +76,11 @@ capture_serial_boot() {
   local log="$2"
   local timeout_s="$3"
 
-  if [[ ! -e "$dev" ]]; then
+  if [[ "${RAMEN_HIL_APPLIANCE:-}" == "1" ]]; then
+    ramen_hil_capture_appliance "$dev" "$log" "$timeout_s"
+    return
+  fi
+  if [[ ! -c "$dev" ]]; then
     fail "SERIAL_DEV_MISSING" "serial device not found: $dev"
   fi
 
@@ -91,7 +91,7 @@ capture_serial_boot() {
   if command -v stty >/dev/null 2>&1; then
     stty -f "$dev" 115200 raw -echo 2>/dev/null \
       || stty -F "$dev" 115200 raw -echo 2>/dev/null \
-      || true
+      || fail "SERIAL_STTY_FAILED" "cannot configure serial device"
   fi
 
   if command -v timeout >/dev/null 2>&1; then
@@ -208,7 +208,7 @@ grep -q 'rollback' tools/ci/foundry_artifact_s1.sh \
 
 OUT_DIR="$ROOT_DIR/out"
 UEFI_DIR="$OUT_DIR/uefi"
-LOG_DIR="$OUT_DIR/logs"
+LOG_DIR="${RAMEN_HIL_LOG_DIR:-$OUT_DIR/logs}"
 INIT_DIR="$OUT_DIR/init"
 mkdir -p "$UEFI_DIR" "$LOG_DIR" "$INIT_DIR"
 
@@ -283,7 +283,7 @@ if [[ "${RAMEN_HIL_GOLDEN_MACHINE:-}" != "1" ]]; then
   skip_metal "RAMEN_HIL_GOLDEN_MACHINE not set"
   EVIDENCE_LEVEL="PASS/QEMU"
   ramen_hil_emit_evidence_json \
-    "$ROOT_DIR/out/evidence/s13_8_atomic_update_evidence.json" \
+    "${RAMEN_HIL_EVIDENCE_DIR:-$ROOT_DIR/out/evidence}/s13_8_atomic_update_evidence.json" \
     "foundry_s13_atomic_update_s13_8" \
     "$EVIDENCE_LEVEL" \
     "$NEG_LOG" \
@@ -300,13 +300,13 @@ echo "FOUNDRY_S13_ATOMIC_UPDATE_S13_8: INFO step=s1_rollback_rehearsal"
 bash "$ROOT_DIR/tools/hil/stage_ab_slot_rollback.sh"
 
 echo "FOUNDRY_S13_ATOMIC_UPDATE_S13_8: INFO step=build_atomic_update_image"
-bash "$ROOT_DIR/tools/hil/build_atomic_update_image.sh"
+if [[ -z "${RAMEN_HIL_EXPECTED_BUILD:-}" ]]; then
+  bash "$ROOT_DIR/tools/hil/build_atomic_update_image.sh"
+fi
 
 ATOMIC_OUT="${RAMEN_HIL_ATOMIC_OUT:-$ROOT_DIR/out/hil/atomic_update}"
-test -f "$ATOMIC_OUT/EFI/BOOT/BOOTX64.EFI" \
-  || fail "ATOMIC_EFI_MISSING" "atomic update boot tree missing BOOTX64.EFI"
-test -f "$ATOMIC_OUT/EFI/BOOT/init.img" \
-  || fail "ATOMIC_INIT_MISSING" "atomic update boot tree missing init.img"
+export RAMEN_HIL_EXPECTED_BUILD="${RAMEN_HIL_EXPECTED_BUILD:-${ATOMIC_OUT}/EFI/BOOT/provenance.json}"
+ramen_hil_load_prepared_build "atomic_update" || fail "PREPARED_BUILD_INVALID" "invalid prepared boot artifacts"
 
 echo "FOUNDRY_S13_ATOMIC_UPDATE_S13_8: METRIC atomic_update_tree=${ATOMIC_OUT}"
 echo "FOUNDRY_S13_ATOMIC_UPDATE_S13_8: INFO operator_steps="
@@ -342,10 +342,10 @@ else
 fi
 
 EVIDENCE_LEVEL="$(ramen_hil_evidence_level)"
-ATOMIC_EFI="${ATOMIC_OUT}/EFI/BOOT/BOOTX64.EFI"
-ATOMIC_INIT="${ATOMIC_OUT}/EFI/BOOT/init.img"
+ATOMIC_EFI="$RAMEN_HIL_PREPARED_EFI"
+ATOMIC_INIT="$RAMEN_HIL_PREPARED_INIT"
 ramen_hil_emit_evidence_json \
-  "$ROOT_DIR/out/evidence/s13_8_atomic_update_evidence.json" \
+  "${RAMEN_HIL_EVIDENCE_DIR:-$ROOT_DIR/out/evidence}/s13_8_atomic_update_evidence.json" \
   "foundry_s13_atomic_update_s13_8" \
   "$EVIDENCE_LEVEL" \
   "${METAL_LOG:-$RAMEN_HIL_SERIAL_LOG}" \

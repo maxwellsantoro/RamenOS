@@ -17,19 +17,14 @@ ramen_sha256_file() {
 ramen_export_hil_build_env() {
   local root_dir="$1"
   local init_img="${2:-}"
-  local efi_bin="${3:-}"
 
   export RAMEN_GIT_SHA="$(git -C "$root_dir" rev-parse HEAD 2>/dev/null || echo unknown)"
   export RAMEN_STORAGE_MANIFEST_SHA256="$(
     ramen_sha256_file "$root_dir/hardware/storage_contract_v0.toml"
   )"
-  export RAMEN_MACHINE_ID="${RAMEN_HIL_MACHINE_ID:-intel-nuc-12-reference}"
+  export RAMEN_MACHINE_ID="${RAMEN_HIL_MACHINE_ID:-lenovo-thinkcentre-m900-i7-6700-lab-01}"
 
-  if [[ -n "$efi_bin" && -f "$efi_bin" ]]; then
-    export RAMEN_KERNEL_EFI_SHA256="$(ramen_sha256_file "$efi_bin")"
-  else
-    export RAMEN_KERNEL_EFI_SHA256="${RAMEN_KERNEL_EFI_SHA256:-unknown}"
-  fi
+  export RAMEN_KERNEL_BUILD_ID="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 
   if [[ -n "$init_img" && -f "$init_img" ]]; then
     export RAMEN_INIT_IMG_SHA256="$(ramen_sha256_file "$init_img")"
@@ -42,19 +37,20 @@ ramen_hil_build_kernel_uefi() {
   local root_dir="$1"
   local init_img="$2"
 
-  mkdir -p "$(dirname "$init_img")"
+  local profile="${3:-$(basename "$init_img" .img)}"
+  profile="${profile#init_}"
+  [[ -f "$init_img" ]] || return 1
+  ramen_export_hil_build_env "$root_dir" "$init_img"
   cargo build -p kernel_uefi --target x86_64-unknown-uefi --quiet
-
   local efi_bin
   efi_bin="$(ramen_find_uefi_bin "$root_dir")"
-  ramen_export_hil_build_env "$root_dir" "$init_img" "$efi_bin"
-  cargo build -p kernel_uefi --target x86_64-unknown-uefi --quiet
+  python3 "$root_dir/tools/hil/provenance.py" build "$efi_bin.provenance.json" "$efi_bin" "$init_img" "$profile"
   echo "$efi_bin"
 }
 
 ramen_find_uefi_bin() {
   local root_dir="$1"
-  local base="$root_dir/target/x86_64-unknown-uefi/debug"
+  local base="${CARGO_TARGET_DIR:-$root_dir/target}/x86_64-unknown-uefi/debug"
   if [[ -f "$base/kernel_uefi.efi" ]]; then
     echo "$base/kernel_uefi.efi"
     return 0
@@ -67,7 +63,21 @@ ramen_find_uefi_bin() {
   return 1
 }
 
+# Select a previously built/deployed image without regenerating its identity.
+ramen_hil_load_prepared_build() {
+  local profile="$1"
+  : "${RAMEN_HIL_EXPECTED_BUILD:?prepared manifest required}"
+  local tool="$(dirname "${BASH_SOURCE[0]}")/provenance.py"
+  RAMEN_HIL_PREPARED_EFI="$(python3 "$tool" prepared "$RAMEN_HIL_EXPECTED_BUILD" "$profile" kernel_efi)" || return 1
+  RAMEN_HIL_PREPARED_INIT="$(python3 "$tool" prepared "$RAMEN_HIL_EXPECTED_BUILD" "$profile" init_img)" || return 1
+  export RAMEN_HIL_PREPARED_EFI RAMEN_HIL_PREPARED_INIT
+}
+
 ramen_hil_resolve_serial_input() {
+  if [[ -n "${RAMEN_HIL_SERIAL_LOG:-}" && -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
+    echo "RAMEN_HIL: serial input is ambiguous" >&2
+    return 1
+  fi
   if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" && -n "${RAMEN_HIL_SERIAL_LOG:-}" ]]; then
     echo "RAMEN_HIL: graduation mode forbids RAMEN_HIL_SERIAL_LOG" >&2
     return 1
@@ -76,26 +86,30 @@ ramen_hil_resolve_serial_input() {
     echo "RAMEN_HIL: RAMEN_HIL_GRADUATION=1 requires RAMEN_HIL_SERIAL_DEV" >&2
     return 1
   fi
+  if [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" && ! -c "$RAMEN_HIL_SERIAL_DEV" ]]; then
+    echo "RAMEN_HIL: live input must be a character device" >&2
+    return 1
+  fi
   return 0
 }
 
 ramen_hil_assert_provenance_markers() {
-  local log="$1"
-  grep -q "hil_evidence: git_sha=" "$log" \
-    || return 1
-  grep -q "hil_evidence: init_profile=" "$log" \
-    || return 1
-  grep -q "hil_evidence: machine_id=" "$log" \
-    || return 1
-  grep -q "hil_evidence: storage_manifest_sha256=" "$log" \
-    || return 1
-  grep -q "hil_evidence: kernel_efi_sha256=" "$log" \
-    || return 1
-  grep -q "hil_evidence: init_img_sha256=" "$log" \
-    || return 1
-  grep -q "hil_evidence: boot_epoch_nonce=" "$log" \
-    || return 1
-  return 0
+  python3 "$(dirname "${BASH_SOURCE[0]}")/provenance.py" verify "$1"
+}
+
+# Capture once through the appliance observer so per-gate and controller records
+# refer to exactly the same bytes. Never recapture an independent transcript.
+ramen_hil_capture_appliance() {
+  local dev="$1" log="$2" timeout_s="$3"
+  : "${RAMEN_HIL_RUN_ID:?set a unique RAMEN_HIL_RUN_ID}"
+  : "${RAMEN_HIL_APPLIANCE_ID:?set RAMEN_HIL_APPLIANCE_ID}"
+  export RAMEN_HIL_RUN_ID="${RAMEN_HIL_RUN_ID}_${RAMEN_HIL_CAPTURE_GATE:?gate id required}"
+  local evidence_dir="${RAMEN_HIL_EVIDENCE_DIR:-$ROOT_DIR/out/evidence}"
+  RAMEN_HIL_SERIAL_DEV="$dev" RAMEN_HIL_CAPTURE_TIMEOUT_S="$timeout_s" \
+    RAMEN_HIL_EVIDENCE_DIR="$evidence_dir" \
+    bash "$ROOT_DIR/tools/hil/appliance_capture_serial.sh"
+  export RAMEN_HIL_CONTROLLER_EVIDENCE="$evidence_dir/$RAMEN_HIL_RUN_ID.json"
+  cp "$evidence_dir/$RAMEN_HIL_RUN_ID.serial.log" "$log"
 }
 
 ramen_hil_evidence_level() {
@@ -111,6 +125,10 @@ ramen_hil_evidence_level() {
 }
 
 ramen_hil_claim_path() {
+  case "${1:-}" in
+    PASS/QEMU) echo "qemu-or-scaffold"; return ;;
+    PASS/HIL-LOG) echo "development-log-replay"; return ;;
+  esac
   if [[ "${RAMEN_HIL_GRADUATION:-}" == "1" && "${RAMEN_HIL_APPLIANCE:-}" == "1" ]]; then
     echo "appliance-mediated"
   elif [[ "${RAMEN_HIL_GRADUATION:-}" == "1" ]]; then
@@ -136,74 +154,8 @@ ramen_hil_emit_evidence_json() {
   local init_path="$7"
 
   local claim_path
-  claim_path="$(ramen_hil_claim_path)"
+  claim_path="$(ramen_hil_claim_path "$evidence_level")"
 
-  mkdir -p "$(dirname "$out_path")"
-  python3 - "$out_path" "$gate_id" "$evidence_level" "$serial_log" "$marker" "$efi_path" "$init_path" "$claim_path" <<'PY'
-import json
-import os
-import sys
-from datetime import datetime, timezone
-
-out_path, gate_id, evidence_level, serial_log, marker, efi_path, init_path, claim_path = sys.argv[1:9]
-root = os.environ.get("ROOT_DIR", ".")
-
-def sha256_file(path: str) -> str:
-    import hashlib
-    if not path or not os.path.isfile(path):
-        return "unknown"
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-def parse_power_events():
-    raw = os.environ.get("RAMEN_HIL_POWER_EVENTS_JSON", "").strip()
-    if not raw:
-        return []
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        return [{"kind": "parse_error", "result": "invalid_power_events_json"}]
-    return parsed if isinstance(parsed, list) else [{"kind": "parse_error", "result": "power_events_not_array"}]
-
-appliance_enabled = os.environ.get("RAMEN_HIL_APPLIANCE", "") == "1"
-controller_evidence = os.environ.get(
-    "RAMEN_HIL_CONTROLLER_EVIDENCE",
-    os.environ.get("RAMEN_HIL_APPLIANCE_EVIDENCE", ""),
-)
-controller_log = os.environ.get("RAMEN_HIL_CONTROLLER_LOG", "")
-
-payload = {
-    "schema_version": 1,
-    "gate_id": gate_id,
-    "evidence_level": evidence_level,
-    "claim_path": claim_path,
-    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-    "git_sha": os.environ.get("RAMEN_GIT_SHA", "unknown"),
-    "machine_id": os.environ.get("RAMEN_MACHINE_ID", "unknown"),
-    "storage_manifest_sha256": os.environ.get("RAMEN_STORAGE_MANIFEST_SHA256", "unknown"),
-    "kernel_efi_sha256": sha256_file(efi_path),
-    "init_img_sha256": sha256_file(init_path),
-    "serial_log": serial_log,
-    "marker": marker,
-    "graduation_mode": os.environ.get("RAMEN_HIL_GRADUATION", "") == "1",
-    "appliance": {
-        "enabled": appliance_enabled,
-        "appliance_id": os.environ.get("RAMEN_HIL_APPLIANCE_ID", "") if appliance_enabled else "",
-        "target_id": os.environ.get(
-            "RAMEN_HIL_TARGET_ID",
-            os.environ.get("RAMEN_MACHINE_ID", ""),
-        ) if appliance_enabled else "",
-        "controller_evidence": controller_evidence if appliance_enabled else "",
-        "controller_log": controller_log if appliance_enabled else "",
-        "controller_log_sha256": sha256_file(controller_log) if appliance_enabled and controller_log else "",
-        "power_events": parse_power_events() if appliance_enabled else [],
-    },
-}
-with open(out_path, "w", encoding="utf-8") as f:
-    json.dump(payload, f, indent=2)
-    f.write("\n")
-PY
+  python3 "$(dirname "${BASH_SOURCE[0]}")/provenance.py" emit \
+    "$out_path" "$gate_id" "$evidence_level" "$serial_log" "$marker" "$efi_path" "$init_path" "$claim_path"
 }

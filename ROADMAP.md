@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-07-19
 **Status:** Directional
 
 This document describes medium- and long-range sequencing. The authoritative
@@ -10,9 +10,10 @@ operational pair is [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
 ## Now
 
 1. Stabilize the S12.4.1 HIL appliance serial observer.
-2. Add the S12.4.2 fail-safe power/reset actuator.
-3. Graduate S13 storage on metal through appliance-mediated live capture.
-4. Re-run S12 physical graduation through the same evidence loop.
+2. Provision and validate the S12.4.2 Intel AMT 11 power/reset actuator.
+3. Run S12 physical work on the installed 240 GB SanDisk SATA SSD.
+4. Add compatible M.2 2280 PCIe NVMe storage and graduate S13 on metal through
+   appliance-mediated live capture.
 
 The G0 Org Kernel and Research Office continue in parallel as a bounded
 project-control track. They may not displace hardware execution or widen their

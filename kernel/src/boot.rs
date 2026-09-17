@@ -306,7 +306,7 @@ pub struct HilBuildProvenance {
     pub git_sha: &'static str,
     pub machine_id: &'static str,
     pub storage_manifest_sha256: &'static str,
-    pub kernel_efi_sha256: &'static str,
+    pub kernel_build_id: &'static str,
     pub init_img_sha256: &'static str,
 }
 

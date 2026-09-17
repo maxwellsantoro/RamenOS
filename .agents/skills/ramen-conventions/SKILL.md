@@ -17,7 +17,7 @@ user-invocable: false
 - No dynamic allocation until mm is stable
 - Keep arch-specific code in `kernel/arch/`
 - IPC message formats must be typed and versionable (defined in `kernel_api`)
-- No external crate dependencies in `kernel/` or `kernel_api/`
+- `kernel_api/` has no external dependencies. `kernel/` permits only the existing `spin` synchronization dependency (see DECISIONS.md); new dependencies require an explicit decision.
 
 ## Interface Discipline
 
@@ -36,7 +36,7 @@ user-invocable: false
 
 | Directory | Purpose | Dependencies |
 |-----------|---------|-------------|
-| `kernel/` | Core kernel library | None (no external crates) |
+| `kernel/` | Core kernel library | `spin` only (recorded exception) |
 | `kernel_api/` | Shared types for kernel/runtime | None |
 | `kernel_aarch64/` | aarch64 bootstrap | kernel |
 | `kernel_uefi/` | x86_64 UEFI boot | kernel, uefi crate |

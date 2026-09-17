@@ -12,7 +12,7 @@ use wasmtime::*;
 /// - payload_ptr: u32 - pointer to payload in linear memory
 /// - payload_len: u32 - length of payload
 /// - out_ptr: u32 - pointer to output buffer
-/// - out_len_ptr: u32 - pointer to write actual output length
+/// - out_len_ptr: u32 - signed i32 capacity on entry, actual output length on success
 /// - returns: i32 - status code
 pub fn create_echo_request_host(store: &mut Store<InstanceContext>, memory: Memory) -> Func {
     Func::wrap(
@@ -25,6 +25,15 @@ pub fn create_echo_request_host(store: &mut Store<InstanceContext>, memory: Memo
               out_ptr: u32,
               out_len_ptr: u32|
               -> i32 {
+            let output = match crate::guest_memory::ReplyBuffer::new(
+                memory.data(&caller),
+                out_ptr,
+                out_len_ptr,
+                payload_len as usize,
+            ) {
+                Ok(output) => output,
+                Err(status) => return status as i32,
+            };
             // 1. Read payload from linear memory (bounds-checked)
             let data = memory.data(&caller);
 
@@ -48,25 +57,7 @@ pub fn create_echo_request_host(store: &mut Store<InstanceContext>, memory: Memo
 
             // 3. Write reply to linear memory
             match result {
-                Ok(reply) => {
-                    let data = memory.data_mut(&mut caller);
-
-                    // Write reply bytes
-                    let copy_len = reply.len().min(data.len().saturating_sub(out_ptr as usize));
-                    if out_ptr as usize + copy_len <= data.len() {
-                        data[out_ptr as usize..out_ptr as usize + copy_len]
-                            .copy_from_slice(&reply[..copy_len]);
-                    }
-
-                    // Write actual length
-                    if out_len_ptr as usize + 4 <= data.len() {
-                        let len_bytes = (copy_len as u32).to_le_bytes();
-                        data[out_len_ptr as usize..out_len_ptr as usize + 4]
-                            .copy_from_slice(&len_bytes);
-                    }
-
-                    Status::Ok as i32
-                }
+                Ok(reply) => output.write(memory, &mut caller, &reply),
                 Err(status) => status as i32,
             }
         },

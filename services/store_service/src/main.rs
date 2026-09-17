@@ -6,7 +6,8 @@
 // V-007 Phase 3: Added audit logging, signature validation (stub), and access control (stub).
 
 use anyhow::{Context, Result};
-use artifact_store_core::{hash_blob, verify_blob_matches_manifest};
+use artifact_store_core::verify_blob_matches_manifest;
+mod ingest;
 use artifact_store_schema::{
     ContentId, Manifest,
     signature::{ManifestSignature, SignaturePolicy, SignatureValidationConfig, TrustedKeys},
@@ -621,6 +622,9 @@ fn handle_client(
                 (reply, Operation::IngestArtifact, params, result)
             }
             MSG_QUERY_PROJECTION_BY_PATH => {
+                let registry = domain_registry
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
@@ -629,10 +633,14 @@ fn handle_client(
                     access_control,
                     &client_info,
                     &index,
+                    &registry,
                 )?;
                 (reply, Operation::QueryProjectionByPath, params, result)
             }
             MSG_QUERY_PROJECTION_BY_TAG => {
+                let registry = domain_registry
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
@@ -641,6 +649,7 @@ fn handle_client(
                     access_control,
                     &client_info,
                     &index,
+                    &registry,
                 )?;
                 (reply, Operation::QueryProjectionByTag, params, result)
             }
@@ -771,7 +780,7 @@ fn handle_get_manifest(
         // S7 Security Hardening: Validate signatures with detailed logging
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1037,7 +1046,7 @@ fn handle_get_blob(
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1189,7 +1198,7 @@ fn handle_verify_artifact(
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
-            manifest_json.as_bytes(),
+            &artifact_store_schema::signature::manifest_signing_bytes(&manifest)?,
             sig_config,
         );
 
@@ -1329,17 +1338,15 @@ fn handle_ingest_artifact(
             });
         }
 
-        // Compute content hash
-        let content_id = hash_blob(src).context("failed to hash blob")?;
-        let id = ContentId::parse(&content_id)
-            .map_err(|_| anyhow::anyhow!("invalid content_id format"))?;
-
-        // Write blob
+        let staged = ingest::StagedBlob::read(src, store_root).context("failed to stage blob")?;
+        let id = staged.content_id.clone();
+        let content_id = id.as_str().to_string();
+        let size_bytes = staged.size_bytes;
+        domain_registry.check_registration(&id, cap.domain_id, cap.domain_id == 0)?;
         let blob_dst = store_root.join(format!("{}.blob", id.hash_hex()));
-        write_blob_atomic(&blob_dst, src).context("failed to write blob")?;
-
-        // Get size
-        let size_bytes = fs::metadata(&blob_dst)?.len();
+        staged
+            .publish(&blob_dst)
+            .context("failed to publish blob")?;
 
         // Create and write manifest
         let manifest = Manifest {
@@ -1356,13 +1363,9 @@ fn handle_ingest_artifact(
 
         // V-007 Phase 5: Register artifact ownership
         let is_global = cap.domain_id == 0; // Kernel artifacts are global
-        if let Err(err) = domain_registry.register_artifact(&id, cap.domain_id, is_global) {
-            eprintln!(
-                "store_service: failed to register artifact ownership: {}",
-                err
-            );
-            // Non-fatal: log error but continue
-        }
+        domain_registry
+            .register_artifact(&id, cap.domain_id, is_global)
+            .context("failed to persist artifact ownership")?;
 
         update_projection_index_after_ingest(
             projection_index,
@@ -1462,6 +1465,7 @@ fn handle_query_projection_by_path(
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByPathReply, QueryProjectionByPathRequest};
 
@@ -1470,7 +1474,7 @@ fn handle_query_projection_by_path(
     let request_id = request.request_id;
     let path = request.path.clone();
 
-    let _cap = match validate_capability::<QueryProjectionByPathRequest, _>(
+    let cap = match validate_capability::<QueryProjectionByPathRequest, _>(
         payload,
         STORE_RIGHT_READ,
         "query_projection_by_path",
@@ -1510,7 +1514,7 @@ fn handle_query_projection_by_path(
         ));
     }
 
-    match projection_index.query_by_path(&path) {
+    match projection_index.query_by_path_for_domain(&path, cap.domain_id, domain_registry) {
         Ok(content_id) => {
             let reply = QueryProjectionByPathReply {
                 request_id,
@@ -1545,6 +1549,7 @@ fn handle_query_projection_by_tag(
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByTagReply, QueryProjectionByTagRequest};
 
@@ -1553,7 +1558,7 @@ fn handle_query_projection_by_tag(
     let request_id = request.request_id;
     let tag = request.tag.clone();
 
-    let _cap = match validate_capability::<QueryProjectionByTagRequest, _>(
+    let cap = match validate_capability::<QueryProjectionByTagRequest, _>(
         payload,
         STORE_RIGHT_READ,
         "query_projection_by_tag",
@@ -1593,7 +1598,7 @@ fn handle_query_projection_by_tag(
         ));
     }
 
-    match projection_index.query_by_tag(&tag) {
+    match projection_index.query_by_tag_for_domain(&tag, cap.domain_id, domain_registry) {
         Ok(content_ids) => {
             let reply = QueryProjectionByTagReply {
                 request_id,
@@ -1632,26 +1637,6 @@ pub use store_service::client::{
 };
 
 // Helper functions
-fn write_blob_atomic(dst: &Path, src: &Path) -> Result<()> {
-    use std::io::Write;
-
-    // Create parent directory
-    if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    // Write to temporary file
-    let tmp_path = dst.with_extension("tmp");
-    let mut tmp = fs::File::create(&tmp_path)?;
-    let data = fs::read(src)?;
-    tmp.write_all(&data)?;
-
-    // Atomic rename
-    fs::rename(&tmp_path, dst)?;
-
-    Ok(())
-}
-
 fn write_manifest_atomic(dst: &Path, manifest: &Manifest) -> Result<()> {
     use std::io::Write;
 
@@ -1666,8 +1651,11 @@ fn write_manifest_atomic(dst: &Path, manifest: &Manifest) -> Result<()> {
     let data = serde_json::to_vec_pretty(manifest)?;
     tmp.write_all(&data)?;
 
-    // Atomic rename
+    tmp.sync_all()?;
     fs::rename(&tmp_path, dst)?;
+    if let Some(parent) = dst.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
 
     Ok(())
 }
@@ -2223,6 +2211,10 @@ mod integration_tests {
         let owner = domain_registry.get_owner(&content_id).unwrap();
         assert_eq!(owner.domain_id, 5);
         assert!(!owner.is_global); // Not kernel domain
+
+        let restarted = DomainArtifactRegistry::new(store_root).unwrap();
+        assert!(restarted.can_access(&content_id, 5));
+        assert!(!restarted.can_access(&content_id, 99));
     }
 
     #[test]
@@ -2367,6 +2359,95 @@ mod integration_tests {
         assert!(owner.is_global); // Should be marked as global
     }
 
+    #[test]
+    fn projection_queries_enforce_capability_domain_after_restart() {
+        let _guard = env_lock().lock().unwrap();
+        let _key = set_test_capability_trusted_key_env();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        let mut index = writable_projection_index(root.path());
+        let mut ids = Vec::new();
+        for (domain, digit) in [(42, 'a'), (99, 'b'), (0, 'c')] {
+            let cid = format!("sha256:{}", digit.to_string().repeat(64));
+            let id = ContentId::parse(&cid).unwrap();
+            fs::write(
+                root.path().join(format!("{}.blob", id.hash_hex())),
+                b"fixture",
+            )
+            .unwrap();
+            registry
+                .register_artifact(&id, domain, domain == 0)
+                .unwrap();
+            let (entry, projection) = ingest_projection_records(
+                &cid,
+                "shared_tag",
+                "stable",
+                Path::new("same.txt"),
+                domain,
+            );
+            index.upsert_entry(entry).unwrap();
+            index.upsert_path_projection(projection).unwrap();
+            ids.push(cid);
+        }
+        index.persist_atomic(root.path()).unwrap();
+        let registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        let index = writable_projection_index(root.path());
+        let access = AccessControl::new();
+        let client = ClientInfo {
+            pid: Some(1234),
+            uid: Some(0),
+            gid: Some(0),
+            ..ClientInfo::default()
+        };
+        for (domain, expected) in [(42, &ids[0]), (99, &ids[1]), (7, &ids[2])] {
+            let capability_bytes = bincode::serialize(&signed_test_capability(
+                domain,
+                STORE_RIGHT_READ,
+                domain + 1,
+            ))
+            .unwrap();
+            let path = QueryProjectionByPathRequest {
+                request_id: 1,
+                path: "/store/shared_tag/stable/same.txt".into(),
+                capability_bytes: capability_bytes.clone(),
+            };
+            let (reply, _, _) = handle_query_projection_by_path(
+                &bincode::serialize(&path).unwrap(),
+                &access,
+                &client,
+                &index,
+                &registry,
+            )
+            .unwrap();
+            let reply: QueryProjectionByPathReply = bincode::deserialize(&reply).unwrap();
+            assert_eq!(reply.status, STATUS_OK);
+            assert_eq!(&reply.content_id, expected);
+            let tag = QueryProjectionByTagRequest {
+                request_id: 2,
+                tag: "shared_tag".into(),
+                capability_bytes,
+            };
+            let (reply, _, _) = handle_query_projection_by_tag(
+                &bincode::serialize(&tag).unwrap(),
+                &access,
+                &client,
+                &index,
+                &registry,
+            )
+            .unwrap();
+            let reply: QueryProjectionByTagReply = bincode::deserialize(&reply).unwrap();
+            assert_eq!(reply.status, STATUS_OK);
+            let matches: Vec<_> = reply.content_ids.split(',').collect();
+            assert!(matches.contains(&ids[2].as_str()));
+            assert!(!matches.contains(&ids[if domain == 42 { 1 } else { 0 }].as_str()));
+        }
+        assert!(
+            index
+                .query_by_path_for_domain("/missing", 7, &registry)
+                .is_err()
+        );
+    }
+
     // V-007 Phase 6: Capability Extraction Tests
     // ============================================================================
 
@@ -2488,5 +2569,151 @@ mod integration_tests {
         // Verify the RequestWithCapability trait is implemented
         let capability_bytes = request.capability_bytes();
         assert_eq!(capability_bytes, vec![0x01, 0x02, 0x03]);
+    }
+    #[test]
+    fn review_signed_manifest_round_trip() {
+        use artifact_store_schema::signature::{
+            ManifestSignature, SignatureAlgorithm, SignatureValidationResult,
+            validate_manifest_signatures,
+        };
+        use base64::{Engine as _, engine::general_purpose};
+        use ed25519_dalek::{Signer, SigningKey};
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+        let bytes = b"signed artifact";
+        let content_id = artifact_store_core::hash_bytes(bytes);
+        let id = ContentId::parse(&content_id).unwrap();
+        fs::write(root.join(format!("{}.blob", id.hash_hex())), bytes).unwrap();
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: content_id.clone(),
+            size_bytes: bytes.len() as u64,
+            kind: "test".into(),
+            channels: vec!["test".into()],
+            signatures: vec![],
+        };
+        let unsigned = artifact_store_schema::signature::manifest_signing_bytes(&manifest).unwrap();
+        let key = SigningKey::from_bytes(&[42u8; 32]);
+        let sig = ManifestSignature {
+            algorithm: SignatureAlgorithm::Ed25519,
+            signature_data: general_purpose::STANDARD.encode(key.sign(&unsigned).to_bytes()),
+            key_id: "review-test".into(),
+            timestamp: None,
+            signer: None,
+        };
+        let mut trusted = TrustedKeys::new();
+        trusted
+            .add_ed25519_key("review-test".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let config = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: trusted,
+            ..Default::default()
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&sig).unwrap());
+        assert_eq!(
+            validate_manifest_signatures(&manifest.signatures, &unsigned, &config),
+            SignatureValidationResult::Valid
+        );
+        fs::write(
+            root.join(format!("{}.manifest.json", id.hash_hex())),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        registry.register_artifact(&id, 1, false).unwrap();
+        let capability_bytes =
+            bincode::serialize(&signed_test_capability(1, STORE_RIGHT_READ, 1)).unwrap();
+        let client = ClientInfo {
+            pid: Some(1234),
+            uid: Some(0),
+            gid: Some(0),
+            domain_id: Some(1),
+            rights: store_service::access_control::AccessRights::read_write(),
+            exe_path: None,
+            cmdline: None,
+        };
+        for tampered in [false, true] {
+            if tampered {
+                manifest.channels.push("unauthorized".into());
+            }
+            // Reordered fields and whitespace must not change the signed payload.
+            let value = serde_json::to_value(&manifest).unwrap();
+            fs::write(
+                root.join(format!("{}.manifest.json", id.hash_hex())),
+                serde_json::to_vec_pretty(&value).unwrap(),
+            )
+            .unwrap();
+            let expected = if tampered {
+                STATUS_VALIDATION_FAILED
+            } else {
+                STATUS_OK
+            };
+            let payload = bincode::serialize(&GetBlobRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_get_blob(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<GetBlobReply>(&raw).unwrap().status,
+                expected
+            );
+            let payload = bincode::serialize(&GetManifestRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_get_manifest(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<GetManifestReply>(&raw)
+                    .unwrap()
+                    .status,
+                expected
+            );
+            let payload = bincode::serialize(&VerifyArtifactRequest {
+                request_id: 1,
+                content_id: content_id.clone(),
+                capability_bytes: capability_bytes.clone(),
+            })
+            .unwrap();
+            let (raw, _, _) = handle_verify_artifact(
+                &payload,
+                root,
+                &config,
+                &AccessControl::new(),
+                &client,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                bincode::deserialize::<VerifyArtifactReply>(&raw)
+                    .unwrap()
+                    .status,
+                expected
+            );
+        }
     }
 }

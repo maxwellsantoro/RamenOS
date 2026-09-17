@@ -3,6 +3,46 @@
 ## [Unreleased]
 
 ### Changed
+- Enforced the WASM SDK's signed output capacity before bridge operations and
+  before copying replies, including fixed IDL reply sizes and raw shared-memory
+  reads. Added adjacent-sentinel, malformed-capacity, side-effect-preflight, and
+  valid-buffer regressions. Documented legacy Store ownership as trusted migration
+  input outside the typed manifest signature.
+- Fixed all seven memory/runtime/Store review findings: cleared reused shared
+  frames and page tails; preserved and enabled x86 NX; reserved shared addresses
+  in every recipient; connected generated WASM calls to guest memory; defined
+  unsigned manifest signing bytes; hashed and published one staged source read;
+  and synchronized per-domain trace reads/writes.
+- Added regressions for conflicting and repeated mappings, failed-map rollback,
+  guest-visible replies and invalid pointers, signed/tampered manifests across
+  all three Store read/verify handlers, CAS source replacement and special files,
+  and concurrent trace wrap. The QEMU shared-memory fixture now initializes its
+  target domain and checks live NX encoding plus EFER.NXE.
+- Fixed Store restart ownership loss and cross-domain projection queries; durable
+  ownership fails closed and same-path projections remain isolated by domain.
+- Restricted shared-memory backing to supported 4 KiB pages.
+- Made CI classification fail closed and require Foundry for executable tooling.
+- Fixed appliance opt-in fixture isolation and connected the gate to live serial
+  capture. Firmware-variable helpers now preserve PATH and write exact binary records.
+- Bound HIL graduation to prepared artifacts, a fresh expected nonce, and matching
+  controller evidence; separated embedded build ID from the final EFI digest.
+- Added `just foundry-review-boundaries` with restart, allocation, CI, firmware,
+  provenance, and synthetic-terminal regressions. Physical graduation remains pending.
+- Recorded the M900 storage swap to a 240 GB SanDisk SATA SSD and marked the
+  Pi↔M900 serial HIL chain as physically installed and ready. Live serial
+  capture, firmware preflight, and AMT validation remain the next executable
+  steps; M.2 NVMe is still required for S13 metal graduation.
+- Staged the acquired M900 for S12 on its installed SATA system drive while keeping
+  compatible M.2 2280 PCIe NVMe mandatory for S13 metal graduation. Switched
+  the appliance actuator contract to Intel AMT 11 first; smart-plug/PDU and
+  front-panel relay purchases are deferred until the AMT recovery matrix is tested.
+- Updated the S12 Tier-1 golden machine to the acquired Lenovo ThinkCentre M900
+  SFF (machine type 10FH, model 00SNUS) with an Intel Core i7-6700 and 8 GiB
+  RAM. Operator photos confirm its populated rear RS-232/DB9 port; firmware and
+  AMT preflight remain before physical HIL runs.
+- Recorded the acquired HIL serial hardware: Raspberry Pi 4 Model B with 4 GiB
+  RAM, FTDI USB-to-RS-232 adapter, and null-modem adapters. Wiring verification
+  and the first fresh live transcript remain pending evidence.
 - Sharpened the public README identity to "an evidence-gated OS lab for
   agent-native computing", added a compressed "Short Version" and a "Try the
   Smallest Proof" framing, restructured contributor help into three tracks, and

@@ -3,7 +3,7 @@
 
 schema_version = 1
 tier = 1
-status = "serial_observer_scaffold"
+status = "physically_ready_pending_live_capture"
 role = "hil_appliance_controller"
 gate = "tools/ci/foundry_hil_appliance_s12_4.sh"
 
@@ -21,12 +21,23 @@ os = "linux"
 network = "ethernet_preferred"
 trust_boundary = "lab_infrastructure_not_target_tcb"
 
+[inventory]
+controller = "Raspberry Pi 4 Model B"
+memory_gib = 4
+controller_status = "acquired"
+usb_rs232_adapter = "FTDI"
+usb_rs232_adapter_status = "acquired"
+null_modem_adapters = true
+serial_path_status = "physically_wired_pending_live_capture"
+physical_setup = "ready"
+inventory_source = "operator_report_2026-07-19"
+
 [requirements]
 ssh = true
 persistent_logs = true
 serial_capture = "usb_rs232_default"
-power_control = "relay_front_panel"
-reset_control = "relay_front_panel"
+power_control = "intel_amt_primary"
+reset_control = "intel_amt_primary"
 evidence_bundle = true
 
 [serial]
@@ -39,12 +50,17 @@ safe_default = "target_com_or_db9_to_usb_rs232_adapter"
 raw_gpio_uart = "ttl_3v3_only"
 forbidden = "direct_pi_gpio_to_rs232_db9"
 
-[relay]
-channels = ["pwr_sw", "reset_sw"]
-default_power_relay = "pwr_sw"
-default_reset_relay = "reset_sw"
-press_ms = 500
-hard_power_recovery = "optional_smart_plug_or_pdu"
+[amt]
+version = "11.0"
+transport = "wired_ethernet"
+provisioning = "pending_validation"
+required_actions = ["status", "power_on", "power_off", "reset", "power_cycle"]
+network_boundary = "trusted_lab_management_network"
+internet_exposure = "forbidden"
+
+[fallback]
+front_panel_relay = "deferred_unless_amt_validation_fails"
+smart_plug_or_pdu = "deferred_until_after_amt_validation"
 
 [kvm.future]
 video_capture = "uvc_hdmi_capture"
@@ -84,8 +100,8 @@ enable = "RAMEN_HIL_APPLIANCE=1"
 appliance_id = "RAMEN_HIL_APPLIANCE_ID"
 target_id = "RAMEN_HIL_TARGET_ID"
 serial_dev = "RAMEN_HIL_SERIAL_DEV"
-power_relay = "RAMEN_HIL_POWER_RELAY"
-reset_relay = "RAMEN_HIL_RESET_RELAY"
+amt_host = "RAMEN_HIL_AMT_HOST"
+amt_user = "RAMEN_HIL_AMT_USER"
 evidence_dir = "RAMEN_HIL_EVIDENCE_DIR"
 
 default_ci = "docs_and_manifest_only"

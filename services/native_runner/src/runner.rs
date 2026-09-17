@@ -346,24 +346,17 @@ impl NativeRunner {
         let mut store = Store::new(&self.engine, context);
         let mut linker = Linker::new(&self.engine);
 
-        // Create memory for the instance
-        let memory_type = MemoryType::new(1, None);
-        let memory = Memory::new(&mut store, memory_type)
-            .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
-
         // Register generated host functions (bridged to kernel)
-        crate::generated::harness_echo_v1_host::register_harness_echo_host(&mut linker, memory)
+        crate::generated::harness_echo_v1_host::register_harness_echo_host(&mut linker)
             .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
-        crate::generated::harness_trace_v2_host::register_harness_trace_host(&mut linker, memory)
+        crate::generated::harness_trace_v2_host::register_harness_trace_host(&mut linker)
             .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
         crate::generated::harness_shmem_control_v1_host::register_shared_memory_control_host(
             &mut linker,
-            memory,
         )
         .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
         crate::generated::services_semantic_state_v1_host::register_services_semantic_state_host(
             &mut linker,
-            memory,
         )
         .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
 
@@ -447,4 +440,101 @@ fn inject_capabilities(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod review_regressions {
+    use super::*;
+    #[test]
+    fn review_host_reply_updates_guest_memory() {
+        let runner = NativeRunner::for_testing();
+        let wasm=wat::parse_str(r#"(module
+          (import "ramen::harness.echo" "echo_request::call" (func $echo (param i64 i64 i32 i32 i32 i32) (result i32)))
+          (memory (export "memory") 1)
+          (func (export "_start") (result i32)
+            (i32.store (i32.const 128) (i32.const 99))
+            (drop (call $echo (i64.const 1) (i64.const 1) (i32.const 0) (i32.const 0) (i32.const 256) (i32.const 128)))
+            (i32.load (i32.const 128))))"#).unwrap();
+        let result = runner.load_and_run(&wasm, RunConfig::default()).unwrap();
+        assert_eq!(
+            result.exit_code, 0,
+            "mock reply length must replace guest sentinel with zero"
+        );
+    }
+
+    #[test]
+    fn review_guest_reads_nonempty_reply_and_length() {
+        use std::io::{Read, Write};
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("kernel.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut frame = [0u8; 88];
+            stream.read_exact(&mut frame).unwrap();
+            frame[4..8].copy_from_slice(&2u32.to_le_bytes());
+            frame[16..20].copy_from_slice(&4u32.to_le_bytes());
+            frame[20..24].copy_from_slice(&0x44332211u32.to_le_bytes());
+            stream.write_all(&frame).unwrap();
+        });
+        let runner = NativeRunner::new(RunnerConfig {
+            kernel_ipc: socket,
+            kernel_ipc_transport: KernelIpcTransport::default(),
+            trace_output: None,
+        })
+        .unwrap();
+        let wasm=wat::parse_str(r#"(module
+            (import "ramen::harness.echo" "echo_request::call" (func $echo (param i64 i64 i32 i32 i32 i32) (result i32)))
+            (memory (export "memory") 1)
+            (func (export "_start") (result i32)
+              (i32.store (i32.const 128) (i32.const 24))
+              (if (call $echo (i64.const 1) (i64.const 1) (i32.const 0) (i32.const 0) (i32.const 256) (i32.const 128)) (then unreachable))
+              (if (i32.ne (i32.load (i32.const 128)) (i32.const 4)) (then unreachable))
+              (i32.load (i32.const 256))))"#).unwrap();
+        let result = runner.load_and_run(&wasm, RunConfig::default()).unwrap();
+        server.join().unwrap();
+        assert_eq!(result.exit_code, 0x44332211);
+    }
+
+    #[test]
+    fn review_guest_invalid_output_or_missing_memory_fails_closed() {
+        for (memory, ptr, len_ptr) in [
+            ("(memory (export \"memory\") 1)", 65537u32, 128u32),
+            ("(memory (export \"memory\") 1)", 256, u32::MAX),
+            ("(memory 1)", 256, 128),
+        ] {
+            let wasm=wat::parse_str(format!(r#"(module
+                (import "ramen::harness.echo" "echo_request::call" (func $echo (param i64 i64 i32 i32 i32 i32) (result i32)))
+                {memory}
+                (func (export "_start") (result i32)
+                  (call $echo (i64.const 1) (i64.const 1) (i32.const 0) (i32.const 0) (i32.const {ptr}) (i32.const {len_ptr}))))"#)).unwrap();
+            let result = NativeRunner::for_testing()
+                .load_and_run(&wasm, RunConfig::default())
+                .unwrap();
+            assert_eq!(result.exit_code, crate::Status::InvalidArgument as i32);
+        }
+    }
+
+    #[test]
+    fn review_guest_reply_never_truncates_or_partially_writes() {
+        let wasm = wat::parse_str(
+            r#"(module
+          (import "ramen::shared_memory.control" "shmem_read::call"
+            (func $read (param i64 i64 i64 i32 i32 i32) (result i32)))
+          (memory (export "memory") 1)
+          (func (export "_start") (result i32)
+            (i32.store (i32.const 128) (i32.const 99))
+            (i32.store16 (i32.const 65534) (i32.const 1234))
+            (if (i32.ne (call $read (i64.const 1) (i64.const 1) (i64.const 0)
+                  (i32.const 4) (i32.const 65534) (i32.const 128)) (i32.const 3))
+              (then unreachable))
+            (if (i32.ne (i32.load (i32.const 128)) (i32.const 99)) (then unreachable))
+            (i32.load16_u (i32.const 65534))))"#,
+        )
+        .unwrap();
+        let result = NativeRunner::for_testing()
+            .load_and_run(&wasm, RunConfig::default())
+            .unwrap();
+        assert_eq!(result.exit_code, 1234);
+    }
 }

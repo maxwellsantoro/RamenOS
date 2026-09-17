@@ -9,6 +9,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 export CARGO_TARGET_DIR="$ROOT_DIR/target"
+source "$ROOT_DIR/tools/hil/hil_gate_common.sh"
+export RAMEN_HIL_CAPTURE_GATE=s12_3
 
 echo "=== S12.3 IOMMU Inventory Foundry Gate ==="
 
@@ -56,7 +58,11 @@ capture_serial_boot() {
   local log="$2"
   local timeout_s="$3"
 
-  if [[ ! -e "$dev" ]]; then
+  if [[ "${RAMEN_HIL_APPLIANCE:-}" == "1" ]]; then
+    ramen_hil_capture_appliance "$dev" "$log" "$timeout_s"
+    return
+  fi
+  if [[ ! -c "$dev" ]]; then
     fail "SERIAL_DEV_MISSING" "serial device not found: $dev"
   fi
 
@@ -67,7 +73,7 @@ capture_serial_boot() {
   if command -v stty >/dev/null 2>&1; then
     stty -f "$dev" 115200 raw -echo 2>/dev/null \
       || stty -F "$dev" 115200 raw -echo 2>/dev/null \
-      || true
+      || fail "SERIAL_STTY_FAILED" "cannot configure serial device"
   fi
 
   if command -v timeout >/dev/null 2>&1; then
@@ -133,27 +139,37 @@ echo "FOUNDRY_S12_IOMMU_INVENTORY_S12_3: INFO step=build_boot_artifacts"
 OUT_DIR="$ROOT_DIR/out"
 UEFI_DIR="$OUT_DIR/uefi"
 INIT_DIR="$OUT_DIR/init"
-LOG_DIR="$OUT_DIR/logs"
+LOG_DIR="${RAMEN_HIL_LOG_DIR:-$OUT_DIR/logs}"
 mkdir -p "$UEFI_DIR/x86_64/EFI/BOOT" "$INIT_DIR" "$LOG_DIR"
 
-cargo build -p kernel_uefi --target x86_64-unknown-uefi --quiet
 
-python3 "$ROOT_DIR/tools/init/build_init_image.py" \
-  --out "$INIT_DIR/init_iommu_inventory.img" \
-  --profile iommu_inventory
+if [[ -z "${RAMEN_HIL_EXPECTED_BUILD:-}" ]]; then
+  python3 "$ROOT_DIR/tools/init/build_init_image.py" \
+    --out "$INIT_DIR/init_iommu_inventory.img" \
+    --profile iommu_inventory
 
-X86_BIN="$(find_uefi_bin x86_64-unknown-uefi)"
-cp "$X86_BIN" "$UEFI_DIR/x86_64/EFI/BOOT/BOOTX64.EFI"
-cp "$INIT_DIR/init_iommu_inventory.img" "$UEFI_DIR/x86_64/EFI/BOOT/init.img"
+  X86_BIN="$(ramen_hil_build_kernel_uefi "$ROOT_DIR" "$INIT_DIR/init_iommu_inventory.img" iommu_inventory)"
+  cp "$X86_BIN" "$UEFI_DIR/x86_64/EFI/BOOT/BOOTX64.EFI"
+  cp "$INIT_DIR/init_iommu_inventory.img" "$UEFI_DIR/x86_64/EFI/BOOT/init.img"
+
+  python3 "$ROOT_DIR/tools/hil/provenance.py" relocate "$X86_BIN.provenance.json" \
+    "$UEFI_DIR/x86_64/EFI/BOOT/provenance.json" "$UEFI_DIR/x86_64/EFI/BOOT/BOOTX64.EFI" "$UEFI_DIR/x86_64/EFI/BOOT/init.img"
+  export RAMEN_HIL_EXPECTED_BUILD="$UEFI_DIR/x86_64/EFI/BOOT/provenance.json"
+
+fi
+ramen_hil_load_prepared_build iommu_inventory || fail "PREPARED_BUILD_INVALID" "invalid prepared boot artifacts"
 
 echo "FOUNDRY_S12_IOMMU_INVENTORY_S12_3: INFO operator_steps="
 echo "  1. Build USB boot tree with profile=iommu_inventory (or copy EFI/BOOT from gate output)."
-echo "  2. Ensure firmware VT-d is enabled on the Intel NUC reference."
+echo "  2. Ensure Intel VT-d is enabled in the Lenovo ThinkCentre M900 firmware."
 echo "  3. Boot from USB; serial must emit golden_machine: iommu_present=1."
+
+ramen_hil_resolve_serial_input || fail "SERIAL_POLICY" "invalid serial input"
 
 if [[ -n "${RAMEN_HIL_SERIAL_LOG:-}" ]]; then
   echo "FOUNDRY_S12_IOMMU_INVENTORY_S12_3: INFO step=validate_serial_log path=${RAMEN_HIL_SERIAL_LOG}"
   assert_serial_log "$RAMEN_HIL_SERIAL_LOG"
+  METAL_LOG="$RAMEN_HIL_SERIAL_LOG"
 elif [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
   LOG="$LOG_DIR/iommu_inventory_serial.log"
   TIMEOUT_S="${RAMEN_HIL_BOOT_TIMEOUT_S:-120}"
@@ -165,10 +181,16 @@ elif [[ -n "${RAMEN_HIL_SERIAL_DEV:-}" ]]; then
       "serial capture timed out before golden_machine: iommu_present=1"
   fi
   assert_serial_log "$LOG"
+  METAL_LOG="$LOG"
 else
   fail "SERIAL_INPUT_MISSING" \
     "set RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0 or RAMEN_HIL_SERIAL_LOG=/path/to/capture.log"
 fi
+
+EVIDENCE_LEVEL="$(ramen_hil_evidence_level)"
+ramen_hil_emit_evidence_json "${RAMEN_HIL_EVIDENCE_DIR:-$ROOT_DIR/out/evidence}/foundry_s12_iommu_inventory_s12_3.json" \
+  "foundry_s12_iommu_inventory_s12_3" "$EVIDENCE_LEVEL" "$METAL_LOG" "golden_machine: iommu_present=1" \
+  "$RAMEN_HIL_PREPARED_EFI" "$RAMEN_HIL_PREPARED_INIT"
 
 echo "FOUNDRY_S12_IOMMU_INVENTORY_S12_3: PASS"
 echo "FOUNDRY_S12_IOMMU_INVENTORY_S12_3: ok"

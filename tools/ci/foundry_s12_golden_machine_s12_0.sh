@@ -31,7 +31,7 @@ test -f "$DESIGN_DOC" \
 test -f "$MANIFEST" \
   || fail "MANIFEST_MISSING" "hardware/golden_machine_v0.toml not found"
 
-grep -q 'CHOSEN.*Intel NUC' "$DESIGN_DOC" \
+grep -q 'CHOSEN.*Lenovo ThinkCentre M900' "$DESIGN_DOC" \
   || fail "REFERENCE_MACHINE_UNPINNED" "design doc must pin Tier-1 reference machine"
 
 grep -q 'foundry_s12_golden_machine_s12_0.sh' "$DESIGN_DOC" \
@@ -42,6 +42,24 @@ grep -q 'tier = 1' "$MANIFEST" \
 
 grep -q 'iommu = "vtd"' "$MANIFEST" \
   || fail "IOMMU_CONTRACT_MISSING" "Tier-1 manifest must require VT-d"
+
+grep -q 'serial = "rs232_db9"' "$MANIFEST" \
+  || fail "SERIAL_CONTRACT_MISSING" "Tier-1 manifest must require rear RS-232/DB9 serial"
+
+grep -q 'id = "lenovo-thinkcentre-m900-i7-6700-lab-01"' "$MANIFEST" \
+  || fail "REFERENCE_MACHINE_ID_MISSING" "Tier-1 manifest must pin the acquired ThinkCentre M900"
+
+grep -q 'processor = "Intel Core i7-6700"' "$MANIFEST" \
+  || fail "REFERENCE_PROCESSOR_MISSING" "Tier-1 manifest must pin the acquired Core i7-6700 processor"
+
+grep -q 'memory_gib_min = 8' "$MANIFEST" \
+  || fail "REFERENCE_MEMORY_MISSING" "Tier-1 manifest must require at least 8 GiB RAM"
+
+grep -qE 'installed_system_drive = "(sata_hdd|sata_ssd)"' "$MANIFEST" \
+  || fail "REFERENCE_STORAGE_MISSING" "Tier-1 inventory must record the installed SATA system drive"
+
+grep -q 'storage_s13 = "m2_2280_pcie_nvme_required"' "$MANIFEST" \
+  || fail "GRADUATION_STORAGE_MISSING" "Tier-1 S13 graduation must still require M.2 NVMe"
 
 grep -q 'framebuffer = "uefi_gop"' "$MANIFEST" \
   || fail "GOP_CONTRACT_MISSING" "manifest must require UEFI GOP"
@@ -55,7 +73,7 @@ test -f docs/HARDWARE_STRATEGY.md \
 grep -q 'IOMMU' docs/HARDWARE_STRATEGY.md \
   || fail "HARDWARE_STRATEGY_IOMMU" "HARDWARE_STRATEGY must document IOMMU requirement"
 
-echo "FOUNDRY_S12_GOLDEN_MACHINE_S12_0: METRIC tier=1 reference_machine=intel-nuc-12-reference"
+echo "FOUNDRY_S12_GOLDEN_MACHINE_S12_0: METRIC tier=1 reference_machine=lenovo-thinkcentre-m900-i7-6700-lab-01"
 
 echo "FOUNDRY_S12_GOLDEN_MACHINE_S12_0: INFO step=negative_assertions"
 

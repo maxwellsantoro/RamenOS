@@ -23,3 +23,7 @@ pub use aarch64::mmu::AArch64Mmu;
 pub use mmu::{CACHE_MODE_UNCACHED, CACHE_MODE_WRITE_BACK, CACHE_MODE_WRITE_COMBINE};
 pub use mmu::{Mmu, MmuError, PAGE_SIZE, VirtAddr};
 pub use mmu::{RIGHTS_EXECUTE, RIGHTS_READ, RIGHTS_WRITE};
+
+#[cfg(any(target_arch = "x86_64", test))]
+#[path = "x86_64/page_table_entry.rs"]
+mod x86_64_page_entry;

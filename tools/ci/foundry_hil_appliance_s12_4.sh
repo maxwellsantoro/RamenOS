@@ -121,8 +121,8 @@ evidence = section("evidence")
 
 assert scalar(controller, "trust_boundary") == "lab_infrastructure_not_target_tcb"
 assert scalar(requirements, "serial_capture") == "usb_rs232_default"
-assert scalar(requirements, "power_control") == "relay_front_panel"
-assert scalar(requirements, "reset_control") == "relay_front_panel"
+assert scalar(requirements, "power_control") == "intel_amt_primary"
+assert scalar(requirements, "reset_control") == "intel_amt_primary"
 assert scalar(serial, "raw_gpio_uart") == "ttl_3v3_only"
 assert scalar(serial, "forbidden") == "direct_pi_gpio_to_rs232_db9"
 assert scalar(evidence, "schema") == "docs/HIL_APPLIANCE_EVIDENCE_V0.md"
@@ -147,7 +147,7 @@ for field in [
 PY
 
 appliance_line="$(grep -n '| P0 | S12.4.1 HIL appliance serial observer' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
-s13_line="$(grep -n '| P2 | S13 metal HIL graduation' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
+s13_line="$(grep -n '| P3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation' "$NEXT_TASKS" | head -n1 | cut -d: -f1 || true)"
 [[ -n "$appliance_line" ]] || fail "NEXT_TASKS_P0_MISSING" "NEXT_TASKS must put the serial observer appliance work as P0"
 [[ -n "$s13_line" ]] || fail "NEXT_TASKS_S13_MISSING" "NEXT_TASKS must keep S13 graduation after appliance work"
 if (( appliance_line >= s13_line )); then
@@ -156,64 +156,12 @@ fi
 
 echo "$GATE_ID: METRIC docs_manifest=pass"
 
-echo "$GATE_ID: INFO step=per_gate_evidence_contract"
-PER_GATE_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ramen-hil-gate-evidence.XXXXXX")"
-PER_GATE_JSON="$PER_GATE_TMP/s13_7_nvme_boot_evidence.json"
-PER_GATE_SERIAL="$PER_GATE_TMP/serial.log"
-cat >"$PER_GATE_SERIAL" <<'EOF'
-RAMEN OS
-persistent_storage: nvme_boot ok
-hil_evidence: git_sha=fixture
-hil_evidence: init_profile=nvme_boot
-hil_evidence: machine_id=intel-nuc-12-reference
-hil_evidence: storage_manifest_sha256=fixture
-hil_evidence: kernel_efi_sha256=fixture
-hil_evidence: init_img_sha256=fixture
-hil_evidence: boot_epoch_nonce=fixture
-EOF
-
-RAMEN_HIL_GRADUATION=1 \
-RAMEN_HIL_APPLIANCE=1 \
-RAMEN_HIL_APPLIANCE_ID=pi-hil-fixture \
-RAMEN_HIL_TARGET_ID=intel-nuc-fixture \
-RAMEN_HIL_CONTROLLER_EVIDENCE="$PER_GATE_TMP/hil_appliance_fixture.json" \
-  bash -c 'source tools/hil/hil_gate_common.sh; ramen_hil_emit_evidence_json "$0" "foundry_s13_nvme_boot_s13_7" "PASS/METAL" "$1" "persistent_storage: nvme_boot ok" "" ""' \
-  "$PER_GATE_JSON" "$PER_GATE_SERIAL"
-
-python3 - "$PER_GATE_JSON" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as f:
-    payload = json.load(f)
-
-assert payload["evidence_level"] == "PASS/METAL"
-assert payload["claim_path"] == "appliance-mediated"
-appliance = payload["appliance"]
-assert appliance["enabled"] is True
-assert appliance["appliance_id"] == "pi-hil-fixture"
-assert appliance["target_id"] == "intel-nuc-fixture"
-assert appliance["controller_evidence"] != ""
-PY
-
-RAMEN_HIL_GRADUATION=1 \
-  bash -c 'source tools/hil/hil_gate_common.sh; ramen_hil_emit_evidence_json "$0" "foundry_s13_nvme_boot_s13_7" "PASS/METAL" "$1" "persistent_storage: nvme_boot ok" "" ""' \
-  "$PER_GATE_JSON" "$PER_GATE_SERIAL"
-
-python3 - "$PER_GATE_JSON" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as f:
-    payload = json.load(f)
-
-assert payload["evidence_level"] == "PASS/METAL"
-assert payload["claim_path"] == "operator-golden-machine"
-assert payload["appliance"]["enabled"] is False
-PY
-
-rm -rf "$PER_GATE_TMP"
-echo "$GATE_ID: METRIC per_gate_evidence_contract=pass"
+# Contract fixtures must never inherit live hardware or graduation settings.
+(
+  for name in $(compgen -v RAMEN_HIL_); do unset "$name"; done
+  echo "$GATE_ID: INFO step=per_gate_evidence_contract"
+  python3 tools/hil/test_provenance.py ProvenanceTests
+  echo "$GATE_ID: METRIC per_gate_evidence_contract=pass"
 
 echo "$GATE_ID: INFO step=serial_observer_contract"
 SERIAL_OBSERVER_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ramen-hil-serial.XXXXXX")"
@@ -228,9 +176,9 @@ golden_machine: hil_boot ok
 persistent_storage: nvme_boot ok
 hil_evidence: git_sha=fixture
 hil_evidence: init_profile=hil_boot
-hil_evidence: machine_id=intel-nuc-12-reference
+hil_evidence: machine_id=lenovo-thinkcentre-m900-i7-6700-lab-01
 hil_evidence: storage_manifest_sha256=fixture
-hil_evidence: kernel_efi_sha256=fixture
+hil_evidence: kernel_build_id=fixture
 hil_evidence: init_img_sha256=fixture
 hil_evidence: boot_epoch_nonce=fixture
 EOF
@@ -305,6 +253,8 @@ fi
 
 rm -rf "$SERIAL_OBSERVER_TMP"
 echo "$GATE_ID: METRIC serial_observer_contract=pass"
+)
+
 
 echo "$GATE_ID: INFO step=default_ci_policy"
 if [[ "${RAMEN_HIL_APPLIANCE:-}" != "1" ]]; then
@@ -333,67 +283,9 @@ if command -v stty >/dev/null 2>&1; then
     || fail "SERIAL_STTY_FAILED" "failed to configure serial device: $SERIAL_DEV"
 fi
 
-POWER_RELAY="${RAMEN_HIL_POWER_RELAY:-pwr_sw}"
-RESET_RELAY="${RAMEN_HIL_RESET_RELAY:-reset_sw}"
-[[ -n "$POWER_RELAY" ]] || fail "POWER_RELAY_UNSET" "power relay name must be non-empty"
-[[ -n "$RESET_RELAY" ]] || fail "RESET_RELAY_UNSET" "reset relay name must be non-empty"
-
-EVIDENCE_DIR="${RAMEN_HIL_EVIDENCE_DIR:-out/evidence}"
-mkdir -p "$EVIDENCE_DIR"
-DRY_RUN_JSON="$EVIDENCE_DIR/hil_appliance_inventory_dry_run.json"
-
-python3 - "$DRY_RUN_JSON" "$SERIAL_DEV" "$POWER_RELAY" "$RESET_RELAY" <<'PY'
-import json
-import os
-import subprocess
-import sys
-import time
-from datetime import datetime, timezone
-
-out_path, serial_dev, power_relay, reset_relay = sys.argv[1:5]
-
-def git_sha() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    except Exception:
-        return "unknown"
-
-now_ms = int(time.time() * 1000)
-payload = {
-    "schema_version": 1,
-    "evidence_kind": "hil_appliance_run_v0",
-    "evidence_level": "PASS/HIL-APPLIANCE",
-    "run_id": "hil_appliance_inventory_dry_run",
-    "appliance_id": os.environ.get("RAMEN_HIL_APPLIANCE_ID", "pi-hil-01"),
-    "target_id": os.environ.get("RAMEN_HIL_TARGET_ID", os.environ.get("RAMEN_HIL_MACHINE_ID", "intel-nuc-12-reference")),
-    "git_sha": git_sha(),
-    "gate": "foundry_hil_appliance_s12_4",
-    "started_at_unix_ms": now_ms,
-    "ended_at_unix_ms": now_ms,
-    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-    "serial_device": serial_dev,
-    "serial_input_kind": "inventory_dry_run",
-    "serial_log": "",
-    "serial_log_sha256": "dry_run",
-    "controller_log": "",
-    "controller_log_sha256": "dry_run",
-    "power_events": [
-        {"kind": "relay_inventory", "channel": power_relay, "result": "configured"},
-        {"kind": "relay_inventory", "channel": reset_relay, "result": "configured"},
-    ],
-    "artifact_hashes": {},
-    "serial_markers_observed": [],
-    "target_hil_evidence_markers": {},
-    "gate_evidence": [],
-    "result": "pass",
-}
-with open(out_path, "w", encoding="utf-8") as f:
-    json.dump(payload, f, indent=2)
-    f.write("\n")
-PY
-
-[[ -s "$DRY_RUN_JSON" ]] || fail "EVIDENCE_DRY_RUN_MISSING" "dry-run evidence JSON not written"
-
-echo "$GATE_ID: METRIC evidence_dry_run=$DRY_RUN_JSON"
-echo "$GATE_ID: PASS/HIL-APPLIANCE inventory"
+# Inventory is not the completion signal: acquire an actual transcript.
+export RAMEN_HIL_APPLIANCE_ID="${RAMEN_HIL_APPLIANCE_ID:-pi-hil-01}"
+export RAMEN_HIL_TARGET_ID="${RAMEN_HIL_TARGET_ID:-${RAMEN_HIL_MACHINE_ID:-lenovo-thinkcentre-m900-i7-6700-lab-01}}"
+bash "$SERIAL_CAPTURE_SCRIPT"
+echo "$GATE_ID: PASS/HIL-APPLIANCE serial_observer"
 echo "$GATE_ID: ok"

@@ -1,7 +1,7 @@
 # S12.4 / S13.9: HIL Appliance Controller
 
-**Last Updated:** 2026-06-24
-**Status:** Active; S12.4.1 serial observer first, then S12.4.2 power/reset
+**Last Updated:** 2026-07-01
+**Status:** Active; S12.4.1 serial observer first, then S12.4.2 Intel AMT power/reset
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 **Related:** `hardware/hil_appliance_v0.toml`, `hardware/golden_machine_v0.toml`, `EVIDENCE_LEVELS.md`, `docs/HIL_APPLIANCE_EVIDENCE_V0.md`, `docs/plans/2026-06-21-s12-golden-machine-design.md`, `docs/plans/2026-06-21-s13-persistent-storage-design.md`
 
@@ -11,7 +11,7 @@
 
 RamenOS needs a stable physical test appliance between agents and the sacrificial golden machine.
 
-The HIL appliance is an always-on Raspberry Pi-class controller that provides serial observation, power/reset control, evidence capture, and later KVM-grade video/HID/virtual-media control. It exists to remove human reboot/cable/manual-log work from bare-metal development so agents can iterate against physical hardware safely and repeatably.
+The HIL appliance is an always-on Raspberry Pi-class controller that provides serial observation, Intel AMT power/reset control, evidence capture, and later KVM-grade video/HID/virtual-media control. It exists to remove human reboot/cable/manual-log work from bare-metal development so agents can iterate against physical hardware safely and repeatably.
 
 This is **not** part of the RamenOS target TCB. It is lab infrastructure. Its job is to make target evidence reproducible, timestamped, and machine-readable.
 
@@ -74,8 +74,19 @@ Minimum v0 appliance:
 - Linux userspace with SSH access from the build host.
 - USB-to-RS232 adapter for target PC COM/DB9 serial capture.
 - Optional motherboard COM-header-to-DB9 bracket on target side.
-- 2-channel relay or opto-isolated switch for `PWR_SW` and `RESET_SW` front-panel pins.
+- Wired Ethernet path from the appliance to the M900 Intel AMT 11 interface.
 - Stable power supply and persistent storage for logs.
+
+Acquired inventory as of 2026-07-19:
+
+- Raspberry Pi 4 Model B with 4 GiB RAM.
+- FTDI USB-to-RS-232 adapter.
+- Null-modem adapters.
+- ThinkCentre M900 target with a populated rear DB9 serial port and a 240 GB
+  SanDisk SATA SSD installed for S12 work.
+
+The physical serial chain is installed and ready. The next milestone is a
+successful live capture before it counts as `PASS/HIL-APPLIANCE` evidence.
 
 Electrical safety rule:
 
@@ -89,7 +100,7 @@ Planned KVM expansion:
 - UVC HDMI capture dongle for video evidence.
 - USB HID gadget for keyboard/mouse injection.
 - USB mass-storage gadget or controlled boot-media mux for artifact booting.
-- Optional smart plug / USB relay / network PDU for hard power recovery.
+- Deferred smart plug/PDU or front-panel relay only if AMT validation exposes a recovery gap.
 
 ---
 
@@ -102,12 +113,15 @@ Initial scripts should consume these env vars:
 ```bash
 RAMEN_HIL_APPLIANCE=1
 RAMEN_HIL_APPLIANCE_ID=pi-hil-01
-RAMEN_HIL_TARGET_ID=intel-nuc-12-reference
+RAMEN_HIL_TARGET_ID=lenovo-thinkcentre-m900-i7-6700-lab-01
 RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0
-RAMEN_HIL_POWER_RELAY=pwr_sw
-RAMEN_HIL_RESET_RELAY=reset_sw
+RAMEN_HIL_AMT_HOST=<trusted-lab-address>
+RAMEN_HIL_AMT_USER=admin
 RAMEN_HIL_EVIDENCE_DIR=out/evidence
 ```
+
+AMT credentials are runtime secrets and must never be written to the manifest,
+controller logs, or evidence JSON.
 
 ### 2.2 Controller commands
 
@@ -154,7 +168,7 @@ Minimum JSON fields:
   "evidence_level": "PASS/HIL-APPLIANCE",
   "run_id": "hil_appliance_20260622T131700Z_pi-hil-01_s13-hil",
   "appliance_id": "pi-hil-01",
-  "target_id": "intel-nuc-12-reference",
+  "target_id": "lenovo-thinkcentre-m900-i7-6700-lab-01",
   "git_sha": "...",
   "gate": "s13-hil",
   "started_at_unix_ms": 0,
@@ -211,23 +225,24 @@ Definition of done:
 - Transcript is archived under `out/evidence/`.
 - Stale `RAMEN_HIL_SERIAL_LOG` replay remains development-only and cannot satisfy appliance graduation.
 
-### S12.4.2 — Power/reset actuator
+### S12.4.2 — Intel AMT power/reset actuator
 
 Deliverables:
 
-- `tools/hil/appliance_press_power.sh`.
-- `tools/hil/appliance_press_reset.sh`.
-- `tools/hil/appliance_power_cycle.sh`.
-- Relay-backed power-button press.
-- Relay-backed reset-button press.
-- Hard timeout and recovery path.
+- AMT status and reachability probe.
+- AMT-backed power-on, power-off, reset, and power-cycle commands.
+- Secret-safe runtime credential handling.
+- Hard timeout and fail-closed error path.
 - Controller log records all actuator events.
 
 Definition of done:
 
-- Appliance can reboot the target without human intervention.
-- Appliance can recover from a hung boot by reset/power cycle.
+- Appliance can reboot the target without human intervention through AMT.
+- AMT remains reachable while the target is running, soft-off, and hung in the
+  target OS.
 - Evidence bundle records every actuation with timestamps.
+- A smart plug/PDU or front-panel relay is purchased only if these tests expose
+  an unhandled recovery state.
 
 ### S13.9.0 — Appliance-mediated S13 HIL
 
@@ -286,8 +301,8 @@ These remain out of scope until the appliance v0 loop is stable.
 | Mode | Env | Behavior |
 |------|-----|----------|
 | Default CI | none | Validate docs/manifests only; no hardware required |
-| Appliance inventory | `RAMEN_HIL_APPLIANCE=1` | Validate controller tools, serial device, relay config, dry-run evidence JSON |
-| HIL live | `RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_APPLIANCE=1` | Run live capture + power/reset control |
+| Appliance inventory | `RAMEN_HIL_APPLIANCE=1` | Validate controller tools, serial device, AMT config state, dry-run evidence JSON |
+| HIL live | `RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_APPLIANCE=1` | Run live capture + AMT power/reset control |
 | Graduation | `RAMEN_HIL_GRADUATION=1 RAMEN_HIL_APPLIANCE=1` | Disallow stale logs; require live serial + evidence JSON |
 | Strict | `RAMEN_CI_STRICT=1` | Hardware skips become failures |
 
@@ -310,7 +325,7 @@ Appliance-enabled assertions:
 
 - `RAMEN_HIL_SERIAL_DEV` exists;
 - serial device can be opened/configured at 115200 8N1;
-- relay config is present;
+- AMT configuration state is represented without exposing credentials;
 - controller can write an evidence JSON dry-run;
 - optional: target boot banner captured in a live run.
 
@@ -329,7 +344,8 @@ In scope now:
 
 - Pi appliance plan and manifest.
 - Serial observation.
-- Power/reset relay control.
+- Smart plug/PDU and front-panel relay fallback hardware until AMT testing
+  demonstrates a concrete need.
 - Evidence packaging.
 - Integration with S12/S13 HIL gate discipline.
 

@@ -6,13 +6,16 @@
 // 3. Artifacts explicitly shared with it (future)
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use artifact_store_schema::ContentId;
 
 /// Artifact ownership record
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ArtifactOwner {
     /// Content ID of the artifact
     pub content_id: ContentId,
@@ -31,8 +34,8 @@ pub struct ArtifactOwner {
 ///
 /// This registry tracks which domain owns each artifact.
 /// On startup, we scan existing artifacts to build the registry.
-/// For Phase 5, we use a simple in-memory HashMap.
-/// Future: Persist to disk for crash recovery.
+/// Ownership is durably committed in per-artifact sidecars before it is exposed.
+/// Missing or invalid ownership is never inferred to be global.
 ///
 /// # Thread Safety
 ///
@@ -103,34 +106,37 @@ impl DomainArtifactRegistry {
                     .store_root
                     .join(format!("{}.manifest.json", content_id.hash_hex()));
 
-                let (domain_id, is_global) = if manifest_path.exists() {
-                    // Read manifest to determine ownership
-                    match self.read_ownership_from_manifest(&manifest_path) {
-                        Ok((did, global)) => {
-                            eprintln!(
-                                "store_service: domain registry: artifact {:?} owned by domain {} (global={})",
-                                content_id, did, global
-                            );
-                            (did, global)
+                let ownership_path = self.ownership_path(&content_id);
+                let owner = if ownership_path.exists() {
+                    // A corrupt sidecar must not fall back to a more permissive legacy record.
+                    match std::fs::read(&ownership_path)
+                        .ok()
+                        .and_then(|raw| serde_json::from_slice::<ArtifactOwner>(&raw).ok())
+                    {
+                        Some(owner)
+                            if owner.content_id == content_id
+                                && (!owner.is_global || owner.domain_id == 0) =>
+                        {
+                            owner
                         }
-                        Err(e) => {
-                            eprintln!(
-                                "store_service: domain registry: failed to read ownership from manifest for {:?}: {}, assuming global",
-                                content_id, e
-                            );
-                            (0, true) // Default to global if manifest read fails
-                        }
+                        _ => continue,
                     }
                 } else {
-                    // No manifest: check directory structure
-                    self.determine_ownership_from_directory(&content_id)?
-                };
-
-                let owner = ArtifactOwner {
-                    content_id: content_id.clone(),
-                    domain_id,
-                    is_global,
-                    ingested_at: 0, // Unknown for existing artifacts
+                    // Legacy stores require explicit ownership; never infer it from presence.
+                    let ownership = if manifest_path.exists() {
+                        self.read_ownership_from_manifest(&manifest_path)
+                    } else {
+                        self.determine_ownership_from_directory(&content_id)
+                    };
+                    let Ok((domain_id, is_global)) = ownership else {
+                        continue;
+                    };
+                    ArtifactOwner {
+                        content_id: content_id.clone(),
+                        domain_id,
+                        is_global,
+                        ingested_at: 0,
+                    }
                 };
 
                 self.artifacts.insert(content_id_str, owner);
@@ -161,12 +167,12 @@ impl DomainArtifactRegistry {
                     .and_then(|v| v.as_bool())
                     .unwrap_or(domain_id == 0);
 
+                anyhow::ensure!(!is_global || domain_id == 0, "non-kernel global ownership");
                 return Ok((domain_id, is_global));
             }
         }
 
-        // Default: kernel-owned global artifact
-        Ok((0, true))
+        anyhow::bail!("explicit artifact ownership missing")
     }
 
     /// Determine ownership from directory structure
@@ -209,8 +215,7 @@ impl DomainArtifactRegistry {
             }
         }
 
-        // Default: kernel-owned global artifact
-        Ok((0, true))
+        anyhow::bail!("explicit artifact ownership missing")
     }
 
     /// Register a new artifact ownership
@@ -222,6 +227,7 @@ impl DomainArtifactRegistry {
         domain_id: u64,
         is_global: bool,
     ) -> Result<()> {
+        self.check_registration(content_id, domain_id, is_global)?;
         let owner = ArtifactOwner {
             content_id: content_id.clone(),
             domain_id,
@@ -242,8 +248,49 @@ impl DomainArtifactRegistry {
         eprintln!("store_service:   - Is Global: {}", is_global);
         eprintln!("store_service:   - Ingested At: {}", owner.ingested_at);
 
+        std::fs::create_dir_all(&self.store_root)?;
+        let path = self.ownership_path(content_id);
+        let tmp = path.with_extension("tmp");
+        {
+            let mut file = std::fs::File::create(&tmp)?;
+            file.write_all(&serde_json::to_vec(&owner)?)?;
+            file.sync_all()?;
+        }
+        std::fs::rename(&tmp, &path)?;
+        std::fs::File::open(&self.store_root)?.sync_all()?;
         self.artifacts.insert(hash.to_string(), owner);
 
+        Ok(())
+    }
+
+    fn ownership_path(&self, content_id: &ContentId) -> PathBuf {
+        self.store_root
+            .join(format!("{}.ownership.json", content_id.hash_hex()))
+    }
+
+    /// Reject ownership changes before any existing CAS metadata is overwritten.
+    pub fn check_registration(
+        &self,
+        id: &ContentId,
+        domain_id: u64,
+        is_global: bool,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            !is_global || domain_id == 0,
+            "only kernel artifacts may be global"
+        );
+        if let Some(owner) = self.get_owner(id) {
+            anyhow::ensure!(
+                owner.domain_id == domain_id && owner.is_global == is_global,
+                "artifact already belongs to another domain"
+            );
+        } else {
+            // A sidecar that failed validation cannot be silently repaired by an ingest.
+            anyhow::ensure!(
+                !self.ownership_path(id).exists(),
+                "invalid persisted ownership"
+            );
+        }
         Ok(())
     }
 
@@ -305,6 +352,47 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
+    fn missing_or_corrupt_ownership_never_becomes_global() {
+        let root = TempDir::new().unwrap();
+        let hash = "a".repeat(64);
+        let id = ContentId::parse(&format!("sha256:{hash}")).unwrap();
+        fs::write(root.path().join(format!("{hash}.blob")), b"private").unwrap();
+        for manifest in [
+            "{}",
+            "{broken",
+            r#"{"metadata":{"domain_id":42,"is_global":true}}"#,
+        ] {
+            fs::write(root.path().join(format!("{hash}.manifest.json")), manifest).unwrap();
+            let registry = DomainArtifactRegistry::new(root.path()).unwrap();
+            assert!(!registry.can_access(&id, 99));
+        }
+    }
+
+    #[test]
+    fn durable_ownership_rejects_reassignment_and_corrupt_sidecars() {
+        let root = TempDir::new().unwrap();
+        let id = ContentId::parse(&format!("sha256:{}", "a".repeat(64))).unwrap();
+        std::fs::write(
+            root.path().join(format!("{}.blob", id.hash_hex())),
+            b"private",
+        )
+        .unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        registry.register_artifact(&id, 42, false).unwrap();
+        registry.register_artifact(&id, 42, false).unwrap();
+        assert!(registry.register_artifact(&id, 99, false).is_err());
+        assert!(registry.register_artifact(&id, 0, true).is_err());
+        let reloaded = DomainArtifactRegistry::new(root.path()).unwrap();
+        assert!(reloaded.can_access(&id, 42));
+        assert!(!reloaded.can_access(&id, 99));
+        std::fs::write(registry.ownership_path(&id), b"{corrupt").unwrap();
+        let mut reloaded = DomainArtifactRegistry::new(root.path()).unwrap();
+        assert!(!reloaded.can_access(&id, 42));
+        assert!(!reloaded.can_access(&id, 99));
+        assert!(reloaded.register_artifact(&id, 99, false).is_err());
+    }
+
+    #[test]
     fn registry_scans_existing_artifacts() {
         let temp_dir = TempDir::new().unwrap();
         let store_root = temp_dir.path();
@@ -321,19 +409,14 @@ mod tests {
         // Create registry
         let registry = DomainArtifactRegistry::new(store_root).unwrap();
 
-        // Should have found 2 artifacts
-        assert_eq!(registry.artifacts.len(), 2);
-
-        // Both should be marked as global (kernel-owned)
-        for owner in registry.artifacts.values() {
-            assert_eq!(owner.domain_id, 0);
-            assert!(owner.is_global);
-        }
+        // Unattributed blobs are not globally visible.
+        assert!(registry.artifacts.is_empty());
     }
 
     #[test]
     fn registry_allows_domain_to_access_own_artifacts() {
-        let mut registry = DomainArtifactRegistry::new(Path::new("/tmp/store")).unwrap();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
 
         let content_id = ContentId::parse(
             "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -355,7 +438,8 @@ mod tests {
 
     #[test]
     fn registry_allows_kernel_to_access_global_artifacts() {
-        let mut registry = DomainArtifactRegistry::new(Path::new("/tmp/store")).unwrap();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
 
         let content_id = ContentId::parse(
             "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -376,7 +460,8 @@ mod tests {
 
     #[test]
     fn registry_denies_access_to_unknown_artifacts() {
-        let registry = DomainArtifactRegistry::new(Path::new("/tmp/store")).unwrap();
+        let root = TempDir::new().unwrap();
+        let registry = DomainArtifactRegistry::new(root.path()).unwrap();
 
         let content_id = ContentId::parse(
             "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -390,7 +475,8 @@ mod tests {
 
     #[test]
     fn registry_lists_domain_artifacts() {
-        let mut registry = DomainArtifactRegistry::new(Path::new("/tmp/store")).unwrap();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
 
         let content_id1 = ContentId::parse(
             "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -425,7 +511,8 @@ mod tests {
 
     #[test]
     fn domain_2_cannot_access_domain_1_artifact_even_if_hash_known() {
-        let mut registry = DomainArtifactRegistry::new(Path::new("/tmp/store")).unwrap();
+        let root = TempDir::new().unwrap();
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
 
         // Domain 1 creates an artifact
         let domain1_artifact = ContentId::parse(

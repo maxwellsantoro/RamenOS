@@ -812,28 +812,7 @@ pub fn handle_trace_service_envelope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::sync::atomic::{AtomicBool, Ordering};
     use kernel_api::generated::{CloseRegion, CreateRegion, MapRegion, UnmapRegion};
-
-    fn setup_test_mm() {
-        static INIT: AtomicBool = AtomicBool::new(false);
-        if INIT.load(Ordering::SeqCst) {
-            return;
-        }
-        let base = crate::mm::PhysFrame::from_frame_number(0x2000);
-        *crate::mm::FRAME_ALLOCATOR.lock() = Some(crate::mm::BitmapAllocator::new(base, 2048));
-
-        let mut table = crate::mm::AddressSpaceTable::new();
-        unsafe {
-            table.init_kernel(crate::mm::PhysAddr::new(0x5000));
-        }
-        for domain_id in [1u64, 2, 3] {
-            let domain_root = unsafe { crate::mm::PhysAddr::new(0x10000 + (domain_id * 0x1000)) };
-            table.set_root(domain_id as crate::domain_registry::DomainId, domain_root);
-        }
-        *crate::mm::ADDRESS_SPACE_TABLE.lock() = Some(table);
-        INIT.store(true, Ordering::SeqCst);
-    }
 
     #[test]
     fn validate_handle_rejects_invalid_handle() {
@@ -872,7 +851,7 @@ mod tests {
 
     #[test]
     fn handle_create_region_succeeds_with_valid_params() {
-        setup_test_mm();
+        let _memory_guard = crate::mm::test_support::setup();
         crate::cap_table::reset_smp_state_for_test();
         let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();
@@ -909,7 +888,7 @@ mod tests {
 
     #[test]
     fn handle_create_region_rejects_invalid_page_size() {
-        setup_test_mm();
+        let _memory_guard = crate::mm::test_support::setup();
         crate::cap_table::reset_smp_state_for_test();
         let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();
@@ -941,7 +920,7 @@ mod tests {
 
     #[test]
     fn handle_map_region_without_capability_fails() {
-        setup_test_mm();
+        let _memory_guard = crate::mm::test_support::setup();
         crate::cap_table::reset_smp_state_for_test();
         let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();
@@ -993,7 +972,7 @@ mod tests {
 
     #[test]
     fn handle_map_and_unmap_region_succeeds_with_capability() {
-        setup_test_mm();
+        let _memory_guard = crate::mm::test_support::setup();
         crate::cap_table::reset_smp_state_for_test();
         let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();
@@ -1062,7 +1041,7 @@ mod tests {
 
     #[test]
     fn handle_close_region_fails_with_active_mappings() {
-        setup_test_mm();
+        let _memory_guard = crate::mm::test_support::setup();
         crate::cap_table::reset_smp_state_for_test();
         let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();

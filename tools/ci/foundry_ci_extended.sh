@@ -6,6 +6,8 @@ set -euxo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+bash "$ROOT_DIR/tools/ci/foundry_review_boundaries.sh"
+
 echo "=== Running S7 security umbrella gate ==="
 "$ROOT_DIR/tools/ci/foundry_s7_all_security.sh"
 

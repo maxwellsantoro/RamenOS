@@ -13,20 +13,20 @@ Our primary target for bare-metal graduation. To be Tier-1, the hardware MUST su
 - USB xHCI
 - **A working IOMMU** (VT-d, AMD-Vi, or ARM SMMU)
 
-*Strategy:* We optimize for one specific x86_64 machine first (e.g., an Intel NUC or Framework laptop), followed by one PC-class ARM64 machine. IOMMU is strictly required so that user-space drivers are safely sandboxed in silicon, not just software.
+*Strategy:* We optimize for one specific x86_64 machine first (the acquired Lenovo ThinkCentre M900), followed by one PC-class ARM64 machine. IOMMU is strictly required so that user-space drivers are safely sandboxed in silicon, not just software.
 
-**S12 reference (2026-06-21):** Intel NUC 12/13 class is the pinned Tier-1 golden machine. See `hardware/golden_machine_v0.toml` and `docs/plans/2026-06-21-s12-golden-machine-design.md`.
+**S12 reference (2026-07-19):** The acquired Lenovo ThinkCentre M900 Small Form Factor (machine type 10FH, model 00SNUS) with an Intel Core i7-6700 and 8 GiB RAM is the pinned Tier-1 golden machine. Its populated rear RS-232/DB9 port makes the serial-observer HIL path direct and repeatable. The Pi↔M900 serial chain is physically installed and ready. S12 runs on the installed 240 GB SanDisk SATA SSD; a compatible M.2 2280 PCIe NVMe drive remains required for S13 metal graduation. See `hardware/golden_machine_v0.toml` and `docs/plans/2026-06-21-s12-golden-machine-design.md`.
 
 ## HIL Appliance Controller
 A Raspberry Pi-class controller is the preferred always-on lab appliance for physical development. It is **not** a RamenOS target and is **not** part of the target TCB. It observes and actuates the golden machine so agents can run bare-metal loops without manual reboot/cable/log work.
 
 Minimum appliance duties:
 - serial capture from target COM/DB9/header through a USB RS-232 adapter;
-- power/reset actuation through relays or opto-isolated switches;
+- power/reset actuation through the target's Intel AMT 11 interface;
 - timestamped evidence bundle generation;
 - later KVM-grade HDMI capture, USB HID injection, and virtual boot media.
 
-The S12.4.0 scaffold gate (`tools/ci/foundry_hil_appliance_s12_4.sh`) protects the docs/manifest/evidence-schema contract in normal CI. The next physical implementation work is S12.4.1 serial observation followed by S12.4.2 power/reset actuation.
+The S12.4.0 scaffold gate (`tools/ci/foundry_hil_appliance_s12_4.sh`) protects the docs/manifest/evidence-schema contract in normal CI. The next physical implementation work is S12.4.1 serial observation followed by S12.4.2 AMT power/reset actuation. A front-panel relay or smart plug/PDU is a deferred fallback, not a current purchase requirement.
 
 Electrical rule: Pi GPIO UART is 3.3V TTL only. Do not connect Pi GPIO directly to PC RS-232/DB9. See `hardware/hil_appliance_v0.toml`, `docs/plans/2026-06-22-hil-appliance-controller.md`, and `tools/ci/foundry_hil_appliance_s12_4.sh`.
 
