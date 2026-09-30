@@ -179,7 +179,7 @@ mod tests {
         let (_dir, path) = script("cat >/dev/null; printf '%100000s' x");
         assert_eq!(supervise(&path, &job()).unwrap_err(), STATUS_CAPACITY);
         let (_dir, path) = script(
-            "printf '{\"schema_version\":1,\"outcome\":\"valid\",\"diagnostics\":[],\"truncated\":true,\"guest_elapsed_ms\":0}'",
+            "cat >/dev/null; printf '{\"schema_version\":1,\"outcome\":\"valid\",\"diagnostics\":[],\"truncated\":true,\"guest_elapsed_ms\":0}'",
         );
         let (result, _) = supervise(&path, &job()).unwrap();
         assert!(result.truncated);
@@ -188,7 +188,7 @@ mod tests {
             artifact_store_schema::agent_task::ValidationOutcomeV0::HostFailure
         );
         let (_dir, path) = script(
-            "printf '{\"schema_version\":1,\"outcome\":\"valid\",\"diagnostics\":[],\"truncated\":false,\"guest_elapsed_ms\":501}'",
+            "cat >/dev/null; printf '{\"schema_version\":1,\"outcome\":\"valid\",\"diagnostics\":[],\"truncated\":false,\"guest_elapsed_ms\":501}'",
         );
         assert_eq!(
             supervise(&path, &job()).unwrap_err(),
