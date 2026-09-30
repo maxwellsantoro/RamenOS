@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A1 RamenOS scripted service proof; HIL appliance hardware runs await setup.
-A0 contract fixtures are implemented.
+**Now:** SW0 A1.1 RamenOS scripted service proof; HIL appliance hardware runs await setup.
+A0 contract fixtures and A1.0 control layouts/preflight are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,9 +74,10 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A1 — write the deterministic RT service-boundary task,
-denial, watchdog/cleanup, durable-receipt, audit and replay assertions, define
-missing operations via IDL/codegen, then implement one RamenOS scripted adapter.
+**Next software action:** A1.1 — write executable RT service-boundary assertions
+from the [A1.0 matrix](docs/AGENT_TASK_PROTOCOL_V1.md), freeze bulk-state and reply
+validation, then implement one RamenOS scripted adapter with scoped grants,
+worker cleanup, durable receipts, audit and replay.
 SW0 has no H0–H3 prerequisite. The
 [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
 consumer task: repair a scoped configuration, execute its pinned validator, and
@@ -85,9 +86,11 @@ report the resulting artifact while access to another workspace is denied.
 0. A0 is implemented: `just foundry-agent-task-contract-a0` checks the pure
    contract model and synthetic fixtures. It is not a useful task or an
    enforcement boundary. See [Agent Task Contract V0](docs/AGENT_TASK_CONTRACT_V0.md).
-1. A1: inventory the actual Semantic State, Store, broker, and native runner paths.
-   Write the task-success, forced-denial, revocation, conflict, audit, and replay
-   assertions first; define missing native operations through IDL/codegen.
+1. A1.0 is implemented: `just foundry-agent-task-protocol-a1-0` checks generated
+   fixed control layouts and fail-closed request preflight. The documented
+   call-path inventory and A1.1 matrix do not supply service enforcement.
+   A1.1: write the task-success, forced-denial, revocation, conflict, audit, and
+   replay assertions first; implement handlers behind the generated contract.
    Include validation bound to exact candidate/schema/policy/validator identities,
    revision/content preconditions, lost replies/restart, revocation during
    validation, and stalled backend cleanup. Implement the fixture and scripted
@@ -108,8 +111,8 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-Only A0's contract gate is implemented; A1/A2, the useful proof and model
-comparison are **not implemented**. Completion of the contract is not completion
+Only A0 and A1.0 contract gates are implemented; A1.1/A2, the useful proof and
+model comparison are **not implemented**. Completion of the contract is not completion
 of the experiment; an unfavorable comparison is a valid
 result and should inform the next software slice.
 

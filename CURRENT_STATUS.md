@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A0 contract gate implemented; A1 service proof is next
+**Software Lane:** SW0 A0 and A1.0 control-contract gates implemented; A1.1 service proof is next
 
 ## Active Execution Track
 
@@ -18,7 +18,8 @@ decision, and its own design/IDL/Oracle/gate prerequisites land.
 
 H0–H3 name the physical queue. SW0 is an independent software queue and can
 continue without waiting for NVMe graduation. Its A0 schema/reference model and
-deterministic gate are implemented; the useful service task and comparison remain
+deterministic gate plus A1.0's native control layouts/preflight are implemented;
+the useful service task and comparison remain
 pending. No live capture or actuation is scheduled while hardware setup is pending.
 These labels
 do not allocate new slice numbers or change governance authority.
@@ -34,7 +35,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0 schema/reference-model fixtures and host contract gate; existing components remain separate | A1 useful RT service proof, A2 Linux controls/mappings, bounded Phase B comparison, and task-specific target enforcement |
+| Agent Task Proof (SW0) | A0 model and A1.0 IDL/request preflight gates; existing components remain separate | A1.1 useful RT service proof, A2 Linux controls/mappings, bounded Phase B comparison, and task-specific target enforcement |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -42,6 +43,18 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A1.0 native control contract (2026-09-30)
+
+- Protocol 14 defines nine task request/reply pairs and one event through IDL
+  and generated bindings. Every control layout fits the 64-byte payload.
+- Allocation-free request preflight rejects unknown operations, reply injection,
+  malformed sizes/identifiers, excessive grants/candidates and noncanonical
+  shared-memory handles. `just foundry-agent-task-protocol-a1-0` runs in extended CI.
+- [Agent Task Protocol V1](docs/AGENT_TASK_PROTOCOL_V1.md) inventories real call
+  paths and specifies A1.1 service assertions. No handler or broker registration
+  is enabled. Bulk-state schema, response checks, service-owned grants, durable
+  transactions and worker containment remain required before the useful task.
 
 ### SW0 A0 contract fixtures and revised execution plan (2026-09-30)
 
@@ -52,7 +65,7 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
   fixtures in the extended CI suite. Synthetic IDs and trusted executor inputs
   establish a contract model only; no service/kernel authority or validator
   authenticity is supplied by these serializable types.
-- A1's next deliverable is one RT service task with IDL/codegen, durable receipt
+- A1's service deliverable is one RT task with durable receipt
   publication/recovery, bounded worker/IPC execution, forced denials, audit and
   replay. A2 adds Linux controls before comparative runs. No useful task or model
   advantage has been demonstrated by A0.
@@ -183,7 +196,7 @@ is [docs/plans/2026-06-23-research-backed-ramenorg.md](docs/plans/2026-06-23-res
 ## Known Gaps
 
 - No end-to-end Agent Task Proof or measured comparison with shell/tool agents;
-  A0 is a pure contract model, and A1 service integration is next.
+  A0 is a pure model, A1.0 is control preflight, and A1.1 service integration is next.
 - Native runner, Store, and Semantic State reactor remain host-side; default
   snapshot metadata includes placeholders, and execution-fabric routing is simulated.
 - No `PASS/METAL` claim for S12 or S13 yet.

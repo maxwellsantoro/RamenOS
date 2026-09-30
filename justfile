@@ -325,3 +325,6 @@ foundry-review-boundaries:
 
 foundry-agent-task-contract-a0:
 	bash ./tools/ci/foundry_agent_task_contract_a0.sh
+
+foundry-agent-task-protocol-a1-0:
+	bash ./tools/ci/foundry_agent_task_protocol_a1_0.sh

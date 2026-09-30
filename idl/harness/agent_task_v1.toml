@@ -1,0 +1,82 @@
+# SW0 A1.0 task transaction contract. No handler is registered yet.
+# Scope, lifetime, validation authenticity and durable publication are backend
+# obligations; see docs/AGENT_TASK_PROTOCOL_V1.md. All payloads fit 64 bytes.
+namespace = "harness.agent_task"
+version = "1"
+protocol = 14
+
+[message.read_input]
+msg_type = 1
+fields = ["task_cap:u64", "request_id:u64", "resource_id:u64"]
+
+[message.read_input_reply]
+msg_type = 2
+fields = ["request_id:u64", "input_shm_cap:u64", "content_id_hash:bytes32", "status:u32", "input_len:u32"]
+
+[message.request_grant]
+msg_type = 3
+fields = ["policy_cap:u64", "request_id:u64", "task_id:u64", "resource_id:u64", "lifetime_ms:u32", "rights:u32"]
+
+[message.request_grant_reply]
+msg_type = 4
+fields = ["request_id:u64", "task_cap:u64", "generation:u64", "expires_at_ms:u64", "status:u32", "rights:u32"]
+
+[message.stage_candidate]
+msg_type = 5
+fields = ["task_cap:u64", "request_id:u64", "source_shm_cap:u64", "source_len:u32", "reserved:u32"]
+
+[message.stage_candidate_reply]
+msg_type = 6
+fields = ["request_id:u64", "candidate_cap:u64", "content_id_hash:bytes32", "status:u32", "reserved:u32"]
+
+[message.validate_candidate]
+msg_type = 7
+fields = ["task_cap:u64", "request_id:u64", "candidate_cap:u64", "validator_content_id_hash:bytes32"]
+
+[message.validate_candidate_reply]
+msg_type = 8
+fields = ["request_id:u64", "diagnostics_shm_cap:u64", "valid_until_ms:u64", "status:u32", "outcome:u32", "diagnostics_len:u32", "diagnostics_flags:u32"]
+
+[message.commit_candidate]
+msg_type = 9
+fields = ["task_cap:u64", "request_id:u64", "candidate_cap:u64", "expected_revision:u64", "expected_content_id_hash:bytes32"]
+
+[message.commit_candidate_reply]
+msg_type = 10
+fields = ["request_id:u64", "receipt_cap:u64", "revision:u64", "content_id_hash:bytes32", "status:u32", "reserved:u32"]
+
+[message.get_receipt]
+msg_type = 11
+fields = ["task_cap:u64", "request_id:u64", "commit_request_id:u64"]
+
+[message.get_receipt_reply]
+msg_type = 12
+fields = ["request_id:u64", "commit_request_id:u64", "revision:u64", "content_id_hash:bytes32", "status:u32", "reserved:u32"]
+
+[message.get_task_state]
+msg_type = 13
+fields = ["task_cap:u64", "request_id:u64"]
+
+[message.get_task_state_reply]
+msg_type = 14
+fields = ["request_id:u64", "state_shm_cap:u64", "state_len:u32", "reserved:u32", "status:u32", "reserved2:u32"]
+
+[message.revoke_grant]
+msg_type = 15
+fields = ["policy_cap:u64", "request_id:u64", "task_cap:u64"]
+
+[message.revoke_grant_reply]
+msg_type = 16
+fields = ["request_id:u64", "generation:u64", "status:u32", "revoked_count:u32"]
+
+[message.subscribe_task]
+msg_type = 17
+fields = ["task_cap:u64", "request_id:u64", "event_mask:u32", "reserved:u32"]
+
+[message.subscribe_task_reply]
+msg_type = 18
+fields = ["request_id:u64", "subscription_cap:u64", "revision:u64", "status:u32", "reserved:u32"]
+
+[message.task_changed_event]
+msg_type = 19
+fields = ["subscription_cap:u64", "revision:u64", "state_shm_cap:u64", "state_len:u32", "event_type:u32"]

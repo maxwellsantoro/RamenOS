@@ -692,3 +692,25 @@ Physical work awaits test-hardware setup. H3 graduation additionally requires
 implemented slot publication/readback, selected-slot boot, and rollback/recovery
 with fresh per-boot provenance and artifact identities. Firmware NVMe detection
 and A/B metadata alone cannot establish those transitions or native block I/O.
+
+## 2026-09-30 — SW0 A1.0 control contract before service registration
+
+Reserve protocol 14 for the bounded task transaction IDL. A1.0 freezes fixed
+control layouts and request syntax; A1.1 must freeze bulk-state serialization,
+reply validation and service assertions before registering an endpoint. Do not
+add this interface to the current broker registry until task/resource/lifetime
+bindings can be enforced. Existing Semantic Store query, projection CoW and
+Semantic State prototypes do not provide that enforcement.
+
+Use opaque service-owned task/candidate/receipt/subscription objects and existing
+kernel Shmem handles for bulk bytes. Derive caller domain from trusted transport;
+never accept a caller-selected domain or validation attestation. Read/stage/
+validate/commit/observe rights are distinct. Receipt retrieval requires current
+COMMIT authority, consistent with A0 retry semantics; OBSERVE does not reveal
+commit receipts. Policy authority is separate from task rights. Revalidate
+subscriptions on every delivery, including expiry/revocation, and seal candidate
+bytes before validation. A1.0 preflight establishes none of these backend checks.
+
+Retain A1.1's durable transaction and supervised worker requirements. Keep its
+host service proof independent of Linux controls, model runs and hardware setup.
+The new gate reports `environment=host claim=wire-contract` only.

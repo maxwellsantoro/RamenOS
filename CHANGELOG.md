@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Changed
+- Defined SW0 A1.0's native task control contract through IDL/codegen: nine
+  request/reply pairs, one event and allocation-free fail-closed request preflight.
+  Added the extended-CI wire-contract gate and documented actual service gaps
+  and the A1.1 assertion matrix. This enables no handler or grant; the useful
+  service proof, durable receipts and outer worker containment remain pending.
 - Implemented SW0 A0 task-contract fixtures and the CI-bound Foundry gate:
   validation identity/authority binding, revision-checked commits, revocation,
   exact retries, malformed/over-budget results and bounded retained state.
