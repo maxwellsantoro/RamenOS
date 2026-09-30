@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A2 controls and protocol/authority conformance; HIL appliance hardware runs await setup.
-A0/A1.0 contracts and the opt-in A1.1 scripted host proof are implemented.
+**Now:** SW0 A2 shared model-facing adapters, LT transactions and protocol/authority conformance; HIL appliance hardware runs await setup.
+A0/A1.0 contracts, opt-in A1.1 host proof and A2.1 Linux scoped-shell foundation are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,9 +74,12 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A2 — implement Linux scoped-shell and typed controls,
-a model-facing RT adapter, common serializer/fixtures and canonical authority
-conformance. Preserve A1.1's independently runnable host gate and its explicit
+**Next software action:** A2 — implement a common model-facing serializer and
+RT adapter, an independent LT transaction backend, LS transaction commands and
+canonical authority conformance. A2.1's
+[Linux scoped-shell foundation](docs/AGENT_TASK_LINUX_CONTROL_V1.md) is runnable
+with real containment probes. Preserve A1.1's independently runnable host gate
+and its explicit
 [fixture boundary](docs/AGENT_TASK_SERVICE_PROOF_V1.md).
 SW0 has no H0–H3 prerequisite. The
 [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
@@ -93,7 +96,10 @@ report the resulting artifact while access to another workspace is denied.
    scripted host task, forced denials, worker bounds, durable receipt recovery,
    scoped events and audit/receipt replay. Production registration, separately
    isolated clients and target-kernel task enforcement remain outside its scope.
-2. A2: implement Linux scoped-shell and typed controls, common protocol fixtures,
+2. A2.1 implements a scripted Linux scoped-shell repair, shared development
+   fixture, pinned validation, measured Docker containment and named probes. It
+   does not supply LS durable commits or all-arm conformance. Continue A2 with
+   LT/RT model-facing adapters, LS transactions, common protocol fixtures,
    authority mapping/conformance and all-arm negative cases. Keep A1 runnable
    independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
@@ -107,8 +113,9 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-A0/A1.0 and the A1.1 scripted host proof are implemented; A2 controls and
-model comparison are **not implemented**. Completion of the contract is not completion
+A0/A1.0, the A1.1 host proof and A2.1 Linux scoped-shell foundation are implemented;
+full A2 conformance and model comparison are **not implemented**. Completion of
+the contract is not completion
 of the experiment; an unfavorable comparison is a valid
 result and should inform the next software slice.
 

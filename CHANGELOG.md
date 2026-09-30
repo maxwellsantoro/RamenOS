@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.1's real Linux scoped-shell development-fixture gate: pinned
+  Docker image, nonroot namespaces/mounts/seccomp/cgroups, shared RT fixture and
+  worker, immutable candidate validation, forced boundary/resource probes and
+  whole-container cleanup. Recorded retained-descriptor behavior and broader
+  shell authority. Full A2 typed/transaction conformance remains pending.
 - Implemented SW0 A1.1's opt-in scripted host task service and private validator
   worker. Added policy-bound grants, immutable staging, synchronized output/receipt
   publication, crash/retry recovery, scoped snapshots/events, worker deadlines,

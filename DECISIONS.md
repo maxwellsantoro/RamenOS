@@ -751,3 +751,26 @@ resynchronize by state read after notification loss. The independent verifier
 checks receipt/validation replay and audit hash integrity; it does not establish
 operator-resistant authenticity or complete OS-event replay. A2 remains required
 before comparative model collection, and physical work stays deferred.
+
+
+## 2026-09-30 — SW0 A2.1 measured Linux scoped-shell foundation
+
+Land the Linux substrate separately from full A2 conformance. Bubblewrap on
+`bigman` cannot initialize the isolated network namespace under current policy;
+use its available Docker engine without changing host security settings. Pin an
+installed Python image by digest and resolve its immutable ID. CI pulls that
+exact digest before the gate; no unavailable control or fallback can report PASS.
+Keep daemon/mount selection entirely in trusted tooling, outside the consumer.
+
+Inspect actual namespaces, UID/capabilities/seccomp, mounts and cgroup configuration
+and execute forced probes. Share A1.1's development fixture bytes and exact WASM
+worker; seal staged bytes into a read-only private CAS subset before validation.
+Remove the whole container on every exit and fail on uncertain creation/cleanup.
+Record broader shell helpers/metadata, process delegation and open descriptors
+surviving mode changes. Do not call these equivalent to RT grant revocation.
+
+The accepted artifact is evaluator evidence, not an LS durable commit receipt.
+One development instance is sufficient for this substrate milestone; it is not
+a hidden fixture bank or model comparison. Next are shared serializer/RT adapter,
+independent LT transactions, LS transaction commands and full all-arm authority
+mapping. A2 and Phase B stay pending; physical HIL remains deferred.

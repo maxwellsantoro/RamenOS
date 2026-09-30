@@ -1,7 +1,7 @@
 # Agent Task Proof: repair one workspace under bounded authority
 
 **Last Updated:** 2026-09-30
-**Status:** A1.1 scripted host proof implemented; A2 controls and comparison pending
+**Status:** A1.1 host proof and A2.1 Linux scoped-shell foundation implemented; full A2/comparison pending
 **Landing path:** Bounded integration of the S10 runtime, Semantic State, and Store contracts
 
 ## Question and product decision
@@ -358,8 +358,11 @@ Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY
 
 ## Landing sequence and claim boundaries
 
-A0, A1.0 and the A1.1 RT command are runnable today. Control/conformance and
-comparison commands below are planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
+A0, A1.0, A1.1 RT and A2.1 Linux scoped-shell commands are runnable today.
+[The Linux foundation](../AGENT_TASK_LINUX_CONTROL_V1.md) shares the development
+fixture/worker and records actual containment and named authority differences.
+LS transactions, LT/model-facing adapters, full conformance and comparison
+commands remain planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
 names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
 the actual call-path inventory and A1.1 service assertions.
 
@@ -368,6 +371,7 @@ the actual call-path inventory and A1.1 service assertions.
 | A0: contract fixtures | Versioned schema, pure transaction reference model, synthetic deterministic fixtures; `just foundry-agent-task-contract-a0` | The modeled contract rejects the named bad transitions; no service/kernel enforcement or useful task claim |
 | A1.0: native control contract | IDL/generated control layouts and request preflight; `just foundry-agent-task-protocol-a1-0` | Bounded request syntax only; no handler or grant enabled |
 | A1: RamenOS scripted proof | Implemented opt-in host fixture: RT service, pinned validator worker/watchdog, durable receipts, grants, denials, audit and receipt replay; `just foundry-agent-task-proof-rt` | One useful task and its negative cases work through named host service enforcement paths |
+| A2.1: Linux foundation | Shared development fixture, scripted shell repair, pinned worker validation, actual Docker containment/probes and descriptor-lifetime inventory; `just foundry-agent-task-linux-control` | One Linux scripted task and named probes; no durable LS transaction or full A2 conformance |
 | A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |

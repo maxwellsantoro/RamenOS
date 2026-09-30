@@ -7,6 +7,10 @@ edition = "2021"
 name = "store_service"
 path = "src/main.rs"
 
+[[example]]
+name = "export_agent_task_fixture"
+required-features = ["agent_task_v1_dev"]
+
 [dependencies]
 kernel_api = { path = "../../kernel_api" }
 artifact_store_core = { path = "../../artifact_store_core" }

@@ -332,3 +332,7 @@ foundry-agent-task-protocol-a1-0:
 # Opt-in host service proof; the gate enables its development features explicitly.
 foundry-agent-task-proof-rt:
 	bash ./tools/ci/foundry_agent_task_proof_rt.sh
+
+# Requires Linux + Docker and the locally installed pinned image; never skips.
+foundry-agent-task-linux-control:
+	bash ./tools/ci/foundry_agent_task_linux_control.sh
