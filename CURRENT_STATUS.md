@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A2.3 independent LT transactions implemented; LS transactions/subscriptions/full conformance are next
+**Software Lane:** SW0 A2.4 LS/LT transactions implemented; subscriptions/full conformance are next
 
 ## Active Execution Track
 
@@ -21,10 +21,11 @@ continue without waiting for NVMe graduation. Its A0 schema/reference model and
 deterministic gate plus A1.0's native control layouts/preflight are implemented;
 the A1.1 useful host task and A2.1 Linux scoped-shell foundation are implemented.
 A2.2 supplies shared JSON/RT transport; A2.3 supplies independent Linux typed
-transactions and named RT/LT point-case checks. LS transactions, shared model
-subscriptions, full A2 conformance and model comparison remain pending. No live capture or actuation is scheduled while hardware setup is pending.
-These labels
-do not allocate new slice numbers or change governance authority.
+transactions and named RT/LT point-case checks. A2.4 supplies contained LS
+commands and original-receipt recovery. Shared model subscriptions, full A2
+conformance and model comparison remain pending. No live capture or actuation is
+scheduled while hardware setup is pending. These labels do not allocate new slice
+numbers or change governance authority.
 
 The next action in each lane is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
 Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
@@ -37,7 +38,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 independent LT transactions | LS transactions, model subscriptions and full A2 authority conformance, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT and A2.4 LS transactions | Model subscriptions and full A2 authority conformance, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -45,6 +46,24 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.4 Linux scoped-shell durable transactions (2026-09-30)
+
+- `just foundry-agent-task-ls-transactions` drives a real contained shell through
+  eight conventional commands sharing Linux transaction enforcement with LT.
+  Candidate paths remain inside the container; the host broker sees bounded bytes
+  and fixed caller context, not a model-selected host path.
+- A standalone opt-in launcher keeps one session across commands. It preserves
+  bounded stdout/stderr and nonzero exit feedback, rejects budget overrides,
+  and never chooses a repair or automatically retries a transaction.
+- Independent journal grading, actual abandoned-reply receipt lookup, restart,
+  rights/pin/revocation denials, wrong-peer UID, malformed/stalled packet bounds,
+  descriptor inventory, protected mounts and uncertain-shell cleanup are gated.
+  Pending/uncertain cleanup checkpoints block restart until reconciliation.
+- [LS scope](docs/AGENT_TASK_LS_TRANSACTIONS_V1.md) records broader file/helper/
+  process/delegation authority, host deputy privileges, shell checkpoint overhead
+  and in-memory transport audit limits. Subscriptions, complete authority/hidden-bank
+  conformance and model evaluation remain pending; physical hardware stays deferred.
 
 ### SW0 A2.3 independent Linux typed transactions (2026-09-30)
 

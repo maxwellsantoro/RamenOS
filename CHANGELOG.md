@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.4's contained LS command helper and opt-in bounded shell launcher,
+  sharing Linux transactions with LT. Real shell repair/commit, abandoned-reply
+  receipt lookup, restart, peer credentials, malformed/stalled frames, descriptor
+  inventory and mount protection are gated. Persisted shell cleanup checkpoints
+  block uncertain recovery. Preserved nonzero shell output/exit feedback while
+  validators retain strict nonzero failure. Full A2 and model trials remain pending.
 - Added SW0 A2.3's independent Linux typed transaction broker and default-off
   executable using the same JSON descriptions/codec as RT. Sealed files, policy
   grants, Docker-contained validation, revision/hash commits and original receipts

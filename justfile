@@ -344,3 +344,7 @@ foundry-agent-task-adapter:
 # Independent LT transactions; requires Linux + Docker and pinned local image.
 foundry-agent-task-lt:
 	bash ./tools/ci/foundry_agent_task_lt.sh
+
+# Opt-in contained shell commands sharing the Linux durable transaction broker.
+foundry-agent-task-ls-transactions:
+	bash ./tools/ci/foundry_agent_task_ls_transactions.sh

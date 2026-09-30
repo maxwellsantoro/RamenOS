@@ -100,6 +100,7 @@ This is a bounded point-case check, not a proof of complete protocol equivalence
 `out/agent-task-lt/` contains the tool contract, consumer and paired point traces,
 source/lock/binary fingerprints, actual Docker run observations and a report.
 LT has no RT-style complete durable operation audit or asynchronous event stream.
-LS durable transaction commands, model subscription semantics, all-arm authority
+[A2.4](AGENT_TASK_LS_TRANSACTIONS_V1.md) supplies LS commands sharing this Linux
+engine. Model subscription semantics, all-arm authority
 inventories/conformance, hidden fixtures and model evaluation remain next. There
 are no model calls, physical runs, merge authority or security/graduation claims.

@@ -821,3 +821,28 @@ allowing only consistently aliased opaque handles and declared clock/duration
 fields. Do not generalize those cases to full equivalence, narrower authority or a
 model result. LS transactions, subscriptions, full authority inventories, hidden
 fixtures and evaluator session supervision remain next; hardware stays deferred.
+
+## 2026-09-30 — SW0 A2.4 contained shell commands share Linux transactions
+
+Expose conventional task commands inside the measured Linux container, backed by
+LT's independent Linux transaction engine. This isolates the Linux interface
+contrast; LS does not acquire a second repair/validation/publication implementation.
+A read-only task mount contains bootstrap/helper and one private Unix endpoint.
+The host broker requires real UID/GID 65534 peer credentials and fixes domain/task
+outside request bytes. Model file paths never reach it: the helper opens/bounds
+bytes inside the container. This is host experiment tooling, not a native OS API.
+
+Preserve ordinary command stdout/stderr and nonzero exit status explicitly. The
+shared substrate's strict nonzero failure remains the default for validators and
+existing gates. Persist a pending shell cleanup checkpoint before launch and a
+measured removal record afterward, alongside the existing shared container history.
+Uncertain create/removal/journal writes poison the session and block restart until
+trusted reconciliation. A dispatched commit can finish after a lost reply; never
+retry or infer no effect automatically. Transport audit records socket-write success,
+not delivery acknowledgment, and remain session-local rather than crash-persistent.
+
+Record the broader shell file/helper/process/delegation envelope, readable policy/
+validator pins, actual shell isolation versus the typed scripted harnesses, and
+additional checkpoint instrumentation. None establishes equal/narrower authority
+or substrate advantage. Shared subscriptions, canonical inventories, hidden-bank/
+evaluator/session controls remain next. No model or physical trial begins here.

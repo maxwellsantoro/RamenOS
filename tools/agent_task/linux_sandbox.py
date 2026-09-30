@@ -65,7 +65,7 @@ class Sandbox:
         for ro, mounts in [(True, readonly), (False, writable)]:
             for target, source in mounts.items():
                 # This launcher is trusted; only its fixed proof namespace may be mounted.
-                if target not in ['/inputs','/candidate','/store','/validator']:
+                if target not in ['/inputs','/candidate','/store','/validator','/task']:
                     raise SandboxFailure('invalid_mount')
                 path = Path(source).resolve(strict=True)
                 if ',' in str(path) or '\n' in str(path):
@@ -90,7 +90,7 @@ class Sandbox:
             raise SandboxFailure('engine_failure')
         return result.stdout
 
-    def run(self, command, *, input_bytes=b'', wall_ms=10000):
+    def run(self, command, *, input_bytes=b'', wall_ms=10000, allow_nonzero=False):
         if not command or not all(isinstance(p,str) and '\0' not in p for p in command):
             raise SandboxFailure('invalid_command')
         if len(input_bytes)>MAX_INPUT or not 1<=wall_ms<=35000:
@@ -184,7 +184,7 @@ class Sandbox:
                 except subprocess.TimeoutExpired as error:
                     raise SandboxFailure('timeout') from error
                 evidence['exit_code'] = returncode
-                if returncode:
+                if returncode and not allow_nonzero:
                     evidence['trusted_stderr'] = bytes(stderr).decode(errors='replace')
                     raise SandboxFailure('command_failed')
         except SandboxFailure as error:
