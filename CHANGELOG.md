@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.3's independent Linux typed transaction broker and default-off
+  executable using the same JSON descriptions/codec as RT. Sealed files, policy
+  grants, Docker-contained validation, revision/hash commits and original receipts
+  survive restart; uncertain publication fails closed and recovers explicitly.
+  Direct broker tests and shared RT/LT point cases run in the Linux CI gate.
+  LS durable commands, subscriptions and full A2 conformance remain pending.
+- Made forged-result worker test fixtures consume their job before exiting, so
+  CI tests result validation consistently instead of racing the input pipe.
 - Added SW0 A2.2's shared model-facing JSON contract and opt-in RT adapter:
   eight generated native operations, bounded lossless encodings, canonical byte
   payloads, redacted backend denials and mapping cleanup. A separate scripted

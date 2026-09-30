@@ -126,6 +126,9 @@ jobs:
           docker pull python@sha256:139020233cc412efe4c8135b0efe1c7569dc8b28ddd88bddb109b764f8977e30
           bash tools/ci/foundry_agent_task_linux_control.sh
 
+      - name: SW0 A2.3 independent Linux typed transactions
+        run: bash tools/ci/foundry_agent_task_lt.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:

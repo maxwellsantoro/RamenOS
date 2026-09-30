@@ -798,3 +798,26 @@ bridge has no subscription, hidden event queue or automatic observation calls.
 The LT backend must import these descriptions/codec and map the same virtual
 resources; its transactions, LS commands, full canonical authority conformance
 and hidden-bank partitioning remain next. No paid/model or physical run is begun.
+
+## 2026-09-30 — SW0 A2.3 independent Linux transaction enforcement
+
+Use a separate Python Linux broker behind the existing default-off Rust typed
+transport. It owns grants, generation/expiry, private file sealing and a single
+synchronized revision/receipt journal; it imports neither RT service enforcement
+nor the A0 reference state machine. The shared codec/descriptions remain the model
+contract, and direct broker tests independently check authority behind that codec.
+No new native interface, production registration or kernel dependency is added.
+
+Reuse the measured Docker substrate for a pinned worker and read-only three-blob
+subset. Stream and seal the large debug worker instead of buffering it wholesale.
+Invalidate prior validation before a new attempt. Treat IO uncertainty as a poisoned
+session; require explicit current-authority receipt lookup/retry after recovery.
+Replay receipt revisions independently of JSON key order and retain the original
+validation observation with each receipt. Host client isolation and abrupt broker
+cleanup remain unproved; this milestone uses trusted scripted consumers.
+
+Compare shared named RT/LT development cases with byte-identical descriptions,
+allowing only consistently aliased opaque handles and declared clock/duration
+fields. Do not generalize those cases to full equivalence, narrower authority or a
+model result. LS transactions, subscriptions, full authority inventories, hidden
+fixtures and evaluator session supervision remain next; hardware stays deferred.

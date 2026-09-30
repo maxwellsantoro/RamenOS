@@ -1,10 +1,11 @@
 //! Opt-in trusted launcher. Model bytes arrive only on bounded stdin JSON lines.
 use agent_task_adapter::{
-    protocol::{MAX_REQUEST_BYTES, tool_contract},
+    protocol::tool_contract,
     rt::{RtAdapter, fixture_from_directory},
+    stdio::serve,
 };
 use std::{
-    io::{self, BufRead, Read, Write},
+    io::{self, Write},
     os::fd::{AsRawFd, FromRawFd},
     path::PathBuf,
 };
@@ -56,32 +57,7 @@ fn run() -> io::Result<()> {
         PathBuf::from(&args[5]),
         domain,
     )?;
-    let mut out = io::stdout().lock();
-    out.write_all(&serde_json::to_vec(&rt.bootstrap())?)?;
-    out.write_all(b"\n")?;
-    out.flush()?;
-    let mut input = io::stdin().lock();
-    loop {
-        let mut line = Vec::new();
-        let count = (&mut input)
-            .take((MAX_REQUEST_BYTES + 2) as u64)
-            .read_until(b'\n', &mut line)?;
-        if count == 0 {
-            break;
-        }
-        if line.ends_with(b"\n") {
-            line.pop();
-        }
-        if line.len() > MAX_REQUEST_BYTES {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "request frame limit",
-            ));
-        }
-        out.write_all(&rt.execute_json(&line)?)?;
-        out.write_all(b"\n")?;
-        out.flush()?;
-    }
+    serve(&rt.bootstrap(), |line| rt.execute_json(line))?;
     Ok(())
 }
 fn main() {

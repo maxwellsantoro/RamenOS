@@ -340,3 +340,7 @@ foundry-agent-task-linux-control:
 # Requires Python jsonschema for independent request/response schema checks.
 foundry-agent-task-adapter:
 	bash ./tools/ci/foundry_agent_task_adapter.sh
+
+# Independent LT transactions; requires Linux + Docker and pinned local image.
+foundry-agent-task-lt:
+	bash ./tools/ci/foundry_agent_task_lt.sh

@@ -8,6 +8,8 @@ default = []
 # WARNING: trusted host fixture launcher; no production authentication or isolation claim.
 agent_task_v1_dev = ["dep:store_service", "store_service/agent_task_v1_dev", "dep:wat"]
 
+linux_task_v1_dev = []
+
 [dependencies]
 artifact_store_schema = { path = "../../artifact_store_schema" }
 kernel_api = { path = "../../kernel_api" }
@@ -26,3 +28,8 @@ tempfile = "3"
 name = "agent_task_rt_adapter"
 path = "src/main.rs"
 required-features = ["agent_task_v1_dev"]
+
+[[bin]]
+name = "agent_task_lt_adapter"
+path = "src/lt_main.rs"
+required-features = ["linux_task_v1_dev"]

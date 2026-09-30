@@ -10,7 +10,8 @@ tool description/schema artifact and canonical encoding. Its default library has
 no Store backend dependency. The RT bridge and standalone executable require
 `agent_task_v1_dev`, disabled by default. It is trusted host fixture tooling, not
 production authentication, a client sandbox, a model provider integration or a
-target-kernel authority boundary. The independent LT backend remains next.
+target-kernel authority boundary. [A2.3](AGENT_TASK_LT_BACKEND_V1.md) adds an independent Linux backend using this
+contract; full conformance remains pending.
 
 ## Operations and data
 
@@ -35,7 +36,7 @@ The executable emits a bootstrap record with task ID, policy cap and three
 resource bindings. Development IDs are `resource:0000000000000001` for
 `workspace:a/config`, `resource:0000000000000064` for `task:schema`, and
 `resource:0000000000000065` for `task:notes`. These are virtual resource names for
-both typed arms, with explicit backend mapping required for LT. The bootstrap
+both typed arms, with explicit backend mapping implemented by A2.3. The bootstrap
 contains no private workspace inventory, evaluator journal or grading result.
 
 Each request has `schema_version: 1`, a nonzero decimal-string `request_id` and a

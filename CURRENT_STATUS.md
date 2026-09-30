@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A1.1/A2.1 foundations and A2.2 shared JSON/RT adapter implemented; LT transactions/full conformance are next
+**Software Lane:** SW0 A2.3 independent LT transactions implemented; LS transactions/subscriptions/full conformance are next
 
 ## Active Execution Track
 
@@ -20,8 +20,9 @@ H0–H3 name the physical queue. SW0 is an independent software queue and can
 continue without waiting for NVMe graduation. Its A0 schema/reference model and
 deterministic gate plus A1.0's native control layouts/preflight are implemented;
 the A1.1 useful host task and A2.1 Linux scoped-shell foundation are implemented.
-The LT backend, shared model subscription semantics, full A2 conformance and model comparison
-remain pending. No live capture or actuation is scheduled while hardware setup is pending.
+A2.2 supplies shared JSON/RT transport; A2.3 supplies independent Linux typed
+transactions and named RT/LT point-case checks. LS transactions, shared model
+subscriptions, full A2 conformance and model comparison remain pending. No live capture or actuation is scheduled while hardware setup is pending.
 These labels
 do not allocate new slice numbers or change governance authority.
 
@@ -36,7 +37,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 host foundations and A2.2 shared JSON/RT adapter | LT/LS transactions, model subscriptions and full A2 authority conformance, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 independent LT transactions | LS transactions, model subscriptions and full A2 authority conformance, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -44,6 +45,24 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.3 independent Linux typed transactions (2026-09-30)
+
+- `just foundry-agent-task-lt` runs the shared JSON task against a separate Linux
+  broker with no RT/A0 enforcement dependency. Default-off host tooling owns
+  policy grants, sealed CAS bytes, validation, revision/hash publication and receipts.
+- The pinned worker runs in inspected Docker containment against a read-only
+  candidate/schema/validator subset. IO uncertainty poisons the session; journal
+  recovery verifies receipt history, pins and original validation evidence.
+- Direct broker tests bypass Rust syntax filtering for real authority denials,
+  expiry/revocation, writer exclusion, tampered bytes, stale revisions, later-revision
+  retry and an injected uncertain publication. An external JSON/schema consumer
+  checks useful repair, commit and restart. Named RT/LT point traces share descriptions
+  and compare results with declared opaque-handle/clock normalization.
+- [LT scope](docs/AGENT_TASK_LT_BACKEND_V1.md): development fixtures and scripted
+  consumers; no host client isolation, full authority equivalence or model result.
+  LS durable commands, subscriptions, complete audit/conformance and hidden-bank
+  evaluation remain pending. Physical hardware remains deferred.
 
 ### SW0 A2.2 shared JSON contract and RT adapter (2026-09-30)
 
@@ -58,8 +77,8 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
   malformed/duplicate data, wrong rights/kinds/pins and oversized frames. Service
   receipts replay through A0. CLI backend diagnostics stay outside model transport.
 - [Adapter scope](docs/AGENT_TASK_ADAPTER_V1.md): a model-facing transport exercised
-  by a script, with no model trial or LT backend/equivalence. Native subscriptions
-  are not yet exposed in JSON. Linux transactions, full conformance, hidden-bank
+  by a script, with no model trial or complete equivalence. A2.3 adds LT. Native subscriptions
+  are not yet exposed in JSON. LS transactions, full conformance, hidden-bank
   partitioning, production/target integration and physical HIL remain pending.
 
 ### SW0 A2.1 Linux scoped-shell foundation (2026-09-30)
