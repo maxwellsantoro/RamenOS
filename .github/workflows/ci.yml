@@ -46,7 +46,7 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf python3 gcc cpio gzip e2fsprogs curl
+          sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl
 
       - name: Prepare S2 compat kernel cache dir
         run: mkdir -p out/compat_s2/kernel

@@ -968,7 +968,9 @@ fn guest_and_start_section_loops_are_timed_out_without_accepting_output() {
         let a = stage(&s, &mut c, cap, br#"{"enabled":true,"label":"keep"}"#);
         let result = validate(&mut c, cap, a.candidate_cap, pin);
         assert_eq!(result.outcome, OUTCOME_TIMEOUT);
-        assert_eq!(
+        // A delayed caller can cross this fixture's 100 ms validation TTL.
+        // Both classifications must reject publication of the timed-out result.
+        assert!(matches!(
             commit(
                 &mut c,
                 cap,
@@ -978,8 +980,8 @@ fn guest_and_start_section_loops_are_timed_out_without_accepting_output() {
                 80
             )
             .status,
-            STATUS_VALIDATION_FAILED
-        );
+            STATUS_VALIDATION_FAILED | STATUS_EXPIRED
+        ));
         assert_eq!(s.lock().unwrap().accepted_bytes().unwrap(), fixture().input);
     }
 }

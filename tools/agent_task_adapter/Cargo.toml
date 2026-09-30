@@ -1,0 +1,28 @@
+[package]
+name = "agent_task_adapter"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+# WARNING: trusted host fixture launcher; no production authentication or isolation claim.
+agent_task_v1_dev = ["dep:store_service", "store_service/agent_task_v1_dev", "dep:wat"]
+
+[dependencies]
+artifact_store_schema = { path = "../../artifact_store_schema" }
+kernel_api = { path = "../../kernel_api" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.21"
+hex = "0.4"
+libc = "0.2"
+store_service = { path = "../../services/store_service", optional = true }
+wat = { version = "1", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "agent_task_rt_adapter"
+path = "src/main.rs"
+required-features = ["agent_task_v1_dev"]

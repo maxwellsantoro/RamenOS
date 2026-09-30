@@ -774,3 +774,27 @@ One development instance is sufficient for this substrate milestone; it is not
 a hidden fixture bank or model comparison. Next are shared serializer/RT adapter,
 independent LT transactions, LS transaction commands and full all-arm authority
 mapping. A2 and Phase B stay pending; physical HIL remains deferred.
+
+
+## 2026-09-30 — SW0 A2.2 shared JSON codec and opt-in RT bridge
+
+Put the model-facing contract in a backend-free host tooling library, with the
+Store bridge/launcher behind `agent_task_v1_dev`. Services do not acquire new
+cross-service IO dependencies. Wrap eight existing generated task operations;
+no new native authority, raw path, shell or caller-domain field is introduced.
+Use canonical string IDs through u64::MAX and bounded padded base64 for bytes.
+Backend grants and denials remain authoritative; syntax checks mint no authority.
+
+Publish one tool description and request/response schema artifact for both typed
+arms, independently exercised by a scripted executable consumer. Release source
+and reply mappings, preserve exact successful commit retry semantics, and never
+solve or retry a mutation in the adapter. Suppress legacy library stderr only in
+this standalone opt-in launcher; structured stdout remains the model transport
+and durable service audit remains in the private journal. Keep transport failure
+honest about potentially durable commits and require explicit recovery/retry.
+
+Defer model subscriptions to a separately versioned lifecycle contract. This
+bridge has no subscription, hidden event queue or automatic observation calls.
+The LT backend must import these descriptions/codec and map the same virtual
+resources; its transactions, LS commands, full canonical authority conformance
+and hidden-bank partitioning remain next. No paid/model or physical run is begun.

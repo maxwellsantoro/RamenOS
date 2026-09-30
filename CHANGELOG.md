@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.2's shared model-facing JSON contract and opt-in RT adapter:
+  eight generated native operations, bounded lossless encodings, canonical byte
+  payloads, redacted backend denials and mapping cleanup. A separate scripted
+  consumer/schema reader exercises repair, receipt recovery and revocation in
+  extended CI. LT/LS transactions, subscriptions and full A2 remain pending.
 - Added SW0 A2.1's real Linux scoped-shell development-fixture gate: pinned
   Docker image, nonroot namespaces/mounts/seccomp/cgroups, shared RT fixture and
   worker, immutable candidate validation, forced boundary/resource probes and

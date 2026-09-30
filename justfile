@@ -336,3 +336,7 @@ foundry-agent-task-proof-rt:
 # Requires Linux + Docker and the locally installed pinned image; never skips.
 foundry-agent-task-linux-control:
 	bash ./tools/ci/foundry_agent_task_linux_control.sh
+
+# Requires Python jsonschema for independent request/response schema checks.
+foundry-agent-task-adapter:
+	bash ./tools/ci/foundry_agent_task_adapter.sh
