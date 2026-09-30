@@ -135,6 +135,9 @@ jobs:
       - name: SW0 A2.5 shared typed subscription lifecycle
         run: bash tools/ci/foundry_agent_task_subscriptions.sh
 
+      - name: SW0 A2.6 fixed-universe authority and all-arm negative cases
+        run: bash tools/ci/foundry_agent_task_authority.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:

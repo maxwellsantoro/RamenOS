@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.6's finite canonical authority inventory and shared RT/LT/LS
+  development cases. The Linux CI gate checks 33 common cases, 15/15/21 forbidden
+  attempts with zero successes, actual LS file/process/session behavior and
+  independent accepted journal/byte grading. Task effects, probe effects, observed
+  availability and unknowns are separate; full authority and model claims remain pending.
+- Fixed LT scoped config reads after commit to use the current accepted CAS
+  reference, matching RT after renewal/restart. Original LS input mounts remain
+  immutable fixture observations rather than accepted-output aliases.
 - Added SW0 A2.5's shared version 2 typed subscription lifecycle while preserving
   the version 1 artifact. Generated native pull/poll/cancel messages and independent
   LT state bound queues, recheck observation authority and discard subscriptions

@@ -743,7 +743,14 @@ class LinuxTask:
             }.get(c["resource"])
             if name is None:
                 raise TaskError("denied")
-            data = self.inputs[name]
+            # Resource A denotes the current accepted output, matching the
+            # native contract. Immutable mounted fixture inputs remain separate
+            # LS observations; they do not roll back this logical resource.
+            data = (
+                self.load(self.state["content_id"])
+                if name == "config.json"
+                else self.inputs[name]
+            )
             return dict(
                 operation=op, content_id=digest(data), bytes_base64=encoded(data)
             )

@@ -203,6 +203,13 @@ class BackendTests(unittest.TestCase):
         req2["call"]["expected_revision"] = "1"
         req2["call"]["expected_content_id"] = receipt["result"]["content_id"]
         self.assertEqual(self.task.execute(req2)["result"]["revision"], "2")
+        read = self.call(
+            "read_input", task_cap=cap, resource="resource:0000000000000001"
+        )["result"]
+        self.assertEqual(read["content_id"], self.task.state["content_id"])
+        self.assertEqual(
+            base64.b64decode(read["bytes_base64"]), self.task.load(read["content_id"])
+        )
         req3 = json.loads(json.dumps(req2))
         req3["request_id"] = "2"
         self.assertEqual(self.task.execute(req3)["status"], "conflict")
@@ -226,6 +233,12 @@ class BackendTests(unittest.TestCase):
         self.assertTrue(all(r["removed"] for r in self.task.state["runs"]))
         # Existing receipt lookup cannot roll the accepted revision back.
         self.assertEqual(self.task.state["revision"], 2)
+        read = self.call(
+            "read_input",
+            task_cap=self.grant(["read"]),
+            resource="resource:0000000000000001",
+        )["result"]
+        self.assertEqual(read["content_id"], self.task.state["content_id"])
         self.task.close()
         journal = self.root / "journal.json"
         data = json.loads(journal.read_bytes())

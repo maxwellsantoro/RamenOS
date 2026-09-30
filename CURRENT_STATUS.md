@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A2.5 typed subscriptions implemented; full authority conformance is next
+**Software Lane:** SW0 A2.6 finite authority inventory implemented; hidden-fixture/evaluator controls and remaining authority coverage are next
 
 ## Active Execution Track
 
@@ -23,9 +23,10 @@ the A1.1 useful host task and A2.1 Linux scoped-shell foundation are implemented
 A2.2 supplies shared JSON/RT transport; A2.3 supplies independent Linux typed
 transactions and named RT/LT point-case checks. A2.4 supplies contained LS
 commands and original-receipt recovery. A2.5 supplies the shared version 2 typed
-subscription lifecycle. Full A2 conformance and model comparison remain pending.
-No live capture or actuation is
-scheduled while hardware setup is pending. These labels do not allocate new slice
+subscription lifecycle. A2.6 adds a finite canonical inventory and shared all-arm
+negative cases, preserving unknown authority. Full A2 conformance and model
+comparison remain pending. No live capture or actuation is scheduled while hardware
+setup is pending. These labels do not allocate new slice
 numbers or change governance authority.
 
 The next action in each lane is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
@@ -39,7 +40,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions and A2.5 typed subscriptions | Full A2 authority conformance, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions and A2.6 finite authority inventory | Full A2 authority/lifetime coverage and evaluator controls, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -47,6 +48,25 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.6 finite authority inventory and all-arm negative cases (2026-09-30)
+
+- `just foundry-agent-task-authority` freezes canonical resource/operation/scope/
+  lifetime/delegation tuples and runs 33 common cases through actual RT/LT tools
+  and contained LS commands. Fifteen common forbidden probes per arm plus six
+  additional LS OS probes have zero successes; private journal pointers and sealed
+  output bytes independently verify successful publication.
+- Available observations, scripted-task effects, evaluator-probe effects, phase/
+  clock samples, configuration provenance and unknowns remain separate. Measured
+  LS file/process/descriptor/raw-session access does not become a whole-system
+  comparison: full E_max/E(t), transitive authority and narrower claims remain unproved.
+- The gate exposed and fixed LT's post-commit logical config read: it now returns
+  current accepted CAS bytes, matching RT after renewal/restart. LS's original
+  fixture mount remains a distinct observation.
+- [Authority scope](docs/AGENT_TASK_AUTHORITY_V1.md) records virtual versus real
+  workspace-B probes, typed host-client isolation limits and unknown inclusion
+  results. Hidden-bank/evaluator controls and remaining authority coverage are next;
+  model trials and physical hardware remain deferred.
 
 ### SW0 A2.5 shared typed subscription lifecycle (2026-09-30)
 

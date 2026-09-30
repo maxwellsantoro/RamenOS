@@ -352,3 +352,7 @@ foundry-agent-task-ls-transactions:
 # Shared RT/LT v2 pull subscription lifecycle; requires Linux containment.
 foundry-agent-task-subscriptions:
 	bash ./tools/ci/foundry_agent_task_subscriptions.sh
+
+# Finite canonical authority inventory and shared all-arm negative cases.
+foundry-agent-task-authority:
+	bash ./tools/ci/foundry_agent_task_authority.sh

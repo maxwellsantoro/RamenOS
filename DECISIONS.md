@@ -871,3 +871,29 @@ that available authority and difference in the upcoming all-arm inventory. This
 milestone adds finite typed lifecycle evidence, not full protocol/authority
 equivalence, durable notification replay or model/target/metal evidence. Continue
 with canonical inventories and negative cases, then hidden-bank/evaluator controls.
+
+## 2026-09-30 — SW0 A2.6 finite canonical authority evidence
+
+Freeze a logical tuple universe and collect actual host RT, independent LT and
+contained LS observations through one scripted development consumer. Preserve
+separate task effects and evaluator probes; compare semantic point results and
+negative outcomes without substituting policy intent for available authority.
+A rejected virtual-resource grant is a delegate attempt, not a filesystem write;
+real unmounted LS canary reads/writes are distinct tuples. Retain actual credentials,
+namespace/mount/container data, backend clocks and independent accepted journal/byte
+checks. Previously returned observations survive grant revocation, and LS direct
+fixture/descriptors and raw session access retain their measured broader lifetimes.
+
+Use maximum observed availability and time-indexed samples as finite artifacts.
+Do not label these complete E_max/E(t), infer continuous access, or count handles
+as authority. Unmeasured host-client/transitive/unexercised authority stays unknown;
+set inclusion and narrower-claim eligibility remain blocked. The reducer rejects
+unsupported/tampered claims and any successful or unconfirmed forbidden probe.
+All data belong to isolated evaluator runs, not model context or cost samples.
+
+The shared post-commit read case revealed LT returning stale original fixture
+bytes while RT read accepted output. Make LT resource A resolve the current
+accepted CAS pointer, matching the existing native contract; preserve the original
+LS fixture mount as a separate observation. Gate renewal/restart reads accordingly.
+Continue with hidden-bank/evaluator session controls and remaining authority
+coverage. Full A2, model trials, target enforcement and physical runs remain pending.

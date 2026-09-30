@@ -26,8 +26,9 @@ advances the task generation and removes all outstanding grants. Restart advance
 it again, invalidating prior grants and validation freshness. Candidate handles
 and receipt IDs remain durable locators requiring a current authorized grant.
 
-The three logical read resources map to sealed initial configuration, schema and
-untrusted notes. Staging seals bounded bytes into private SHA-256 files. The broker
+The three logical read resources map to current accepted configuration, pinned
+schema and untrusted notes. A2.6 corrects the prior stale initial-config read after
+commit; LS original fixture mounts remain separate observations. Staging seals bounded bytes into private SHA-256 files. The broker
 rechecks content on use; agent-supplied outcomes and filesystem result files have
 no role. Only a successful, untruncated, budget-compliant observation of the pinned
 validator for that candidate and current generation permits a new commit. Starting
