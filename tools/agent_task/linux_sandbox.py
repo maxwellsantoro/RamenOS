@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import selectors
 import signal
 import stat
@@ -114,9 +115,17 @@ class Sandbox:
                     '--env','LANG=C.UTF-8','--workdir','/tmp']
             for target, path, ro in self.mounts:
                 args += ['--mount',f'type=bind,source={path},target={target}' + (',readonly' if ro else '')]
+            scope = os.environ.get('RAMEN_TASK_EVALUATOR_SCOPE')
+            if scope is not None:
+                if re.fullmatch(r'[0-9a-f]{32}',scope) is None:
+                    raise SandboxFailure('invalid_evaluator_scope')
+                args += ['--label','org.ramenos.evaluator-session=' + scope]
+                evidence['evaluator_scope'] = scope
             self._engine([*args,self.image,*command],deadline)
             evidence['created'] = True
             config = json.loads(self._engine(['inspect','--type','container',name],deadline))[0]
+            if scope is not None and (config['Config'].get('Labels') or {}).get('org.ramenos.evaluator-session') != scope:
+                raise SandboxFailure('configuration_mismatch')
             host = config['HostConfig']
             # Assert actual daemon configuration, including absence of inherited sockets/devices.
             if not (host['NetworkMode']=='none' and host['ReadonlyRootfs'] and

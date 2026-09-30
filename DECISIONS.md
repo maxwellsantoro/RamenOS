@@ -897,3 +897,32 @@ accepted CAS pointer, matching the existing native contract; preserve the origin
 LS fixture mount as a separate observation. Gate renewal/restart reads accordingly.
 Continue with hidden-bank/evaluator session controls and remaining authority
 coverage. Full A2, model trials, target enforcement and physical runs remain pending.
+
+## 2026-09-30 — SW0 A2.7 private bank contract and external session controls
+
+Keep development, pilot and final instance identities/initial/target hashes
+disjoint. Use five exact-target repair classes crossed with three instruction
+conditions per partition, HMAC-derived from an operator seed. A separate oracle
+and owner-only private root remain outside model input directories. Public
+commitments freeze bank/partition hashes; pilot/final selection requires a trusted
+bank-commit/study-bound release. This contract is not a signature or an OS boundary
+against the owner. Generate no real hidden bank during tuning or default CI.
+
+Run one actual adapter per fresh arm storage/grant/transcript, with external idle/
+whole-session and whole-frame deadlines, request/output/diagnostic/context bounds,
+and no implicit retry. Count every supplied visible description, task/bootstrap,
+request/reply and final text as role-prefixed UTF-8 transport bytes. This is not
+model token accounting. The scripted gate cycles six orders over unique IDs and
+retains all 45 attempted arm rows; actual validator deadline responses are failed
+tasks with unchanged publication pointers, not successful repairs or removed rows.
+Malformed/other task failures fail closed; every arm must demonstrate successful
+independently graded publication. Budgets are not widened to hide timeout effects.
+
+Track owned observed process identities/groups, stop them and reap the adapter.
+Give LT/LS containers an optional trusted evaluator label for scoped removal and
+inventory. Normal EOF/journal removal records plus empty inventory qualify normal
+gate cleanup. A forcibly interrupted daemon create may finish later, so even
+observed removal cannot certify that run: retain and quarantine uncertainty.
+Do not rewrite a poisoned journal or silently resume it. Resolve forced create/
+commit reconciliation, broader authority/lifetime/deputy mappings, actual hidden
+bank/study releases and provider/token accounting before full A2/Phase B claims.

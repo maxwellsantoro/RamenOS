@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.7's disjoint bank/release contract and external scripted sessions.
+  The Linux gate accounts for 15 synthetic development fixtures in all three arms
+  with independent grading, six arm orders, fresh storage/context and absolute
+  deadlines plus byte/frame/request bounds. Failure evidence and scoped container
+  reconciliation preserve forced daemon uncertainty and actual validator timeouts
+  remain in the attempted denominator; no hidden/model claim is made.
 - Added SW0 A2.6's finite canonical authority inventory and shared RT/LT/LS
   development cases. The Linux CI gate checks 33 common cases, 15/15/21 forbidden
   attempts with zero successes, actual LS file/process/session behavior and

@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A2.6 finite authority inventory implemented; hidden-fixture/evaluator controls and remaining authority coverage are next
+**Software Lane:** SW0 A2.7 synthetic bank and scripted evaluator controls implemented; termination/reconciliation and remaining authority coverage are next
 
 ## Active Execution Track
 
@@ -24,7 +24,8 @@ A2.2 supplies shared JSON/RT transport; A2.3 supplies independent Linux typed
 transactions and named RT/LT point-case checks. A2.4 supplies contained LS
 commands and original-receipt recovery. A2.5 supplies the shared version 2 typed
 subscription lifecycle. A2.6 adds a finite canonical inventory and shared all-arm
-negative cases, preserving unknown authority. Full A2 conformance and model
+negative cases, preserving unknown authority. A2.7 adds a disjoint bank contract
+and bounded scripted sessions. Full A2 conformance and model
 comparison remain pending. No live capture or actuation is scheduled while hardware
 setup is pending. These labels do not allocate new slice
 numbers or change governance authority.
@@ -40,7 +41,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions and A2.6 finite authority inventory | Full A2 authority/lifetime coverage and evaluator controls, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory and A2.7 scripted evaluator controls | Forced termination/reconciliation, full authority/lifetime coverage, real hidden-bank/study/provider controls, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -48,6 +49,24 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.7 synthetic bank and scripted evaluator controls (2026-09-30)
+
+- `just foundry-agent-task-evaluator-controls` checks a 45-instance disjoint bank
+  contract with five error classes and three instruction conditions per partition.
+  Private oracles stay outside input roots; real pilot/final selections require
+  bank/study-bound releases. CI creates synthetic instances and executes development.
+- External sessions bound launch/idle/request time, frames, request count,
+  diagnostics and visible bytes, including descriptions/bootstrap and final text.
+  Fresh arm roots/transcripts and six arm orders cover 45 scripted attempts;
+  successful repairs receive independent accepted revision/byte grading, and
+  validator timeouts retain their unchanged publication pointer and attempt row.
+- Failure and startup cases retain evidence. A real LS timeout removes observed
+  labeled containers but remains quarantined: interrupted create RPCs do not
+  certify cleanup. Observed host-process groups are stopped and adapters reaped.
+- [Evaluator scope](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md) preserves unknown
+  authority and incomplete real hidden-bank, provider/token and host-isolation
+  controls. Full A2, model and physical trials remain pending.
 
 ### SW0 A2.6 finite authority inventory and all-arm negative cases (2026-09-30)
 

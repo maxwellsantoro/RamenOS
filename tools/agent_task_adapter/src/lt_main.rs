@@ -60,6 +60,10 @@ fn run() -> io::Result<()> {
     if let Some(image) = std::env::var_os("RAMEN_TASK_LINUX_IMAGE") {
         command.env("RAMEN_TASK_LINUX_IMAGE", image);
     }
+    // Trusted evaluator cleanup identity; never accepted from model packets.
+    if let Some(scope) = std::env::var_os("RAMEN_TASK_EVALUATOR_SCOPE") {
+        command.env("RAMEN_TASK_EVALUATOR_SCOPE", scope);
+    }
     let mut broker = Broker(command.spawn()?);
     let mut output = BufReader::new(broker.0.stdout.take().ok_or_else(invalid)?);
     let bootstrap: Bootstrap =

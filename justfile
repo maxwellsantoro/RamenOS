@@ -356,3 +356,7 @@ foundry-agent-task-subscriptions:
 # Finite canonical authority inventory and shared all-arm negative cases.
 foundry-agent-task-authority:
 	bash ./tools/ci/foundry_agent_task_authority.sh
+
+# Synthetic fixture bank and bounded external sessions; no model trials.
+foundry-agent-task-evaluator-controls:
+	bash ./tools/ci/foundry_agent_task_evaluator_controls.sh

@@ -138,6 +138,9 @@ jobs:
       - name: SW0 A2.6 fixed-universe authority and all-arm negative cases
         run: bash tools/ci/foundry_agent_task_authority.sh
 
+      - name: SW0 A2.7 synthetic bank and scripted evaluator controls
+        run: bash tools/ci/foundry_agent_task_evaluator_controls.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:
