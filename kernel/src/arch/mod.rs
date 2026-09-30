@@ -27,3 +27,7 @@ pub use mmu::{RIGHTS_EXECUTE, RIGHTS_READ, RIGHTS_WRITE};
 #[cfg(any(target_arch = "x86_64", test))]
 #[path = "x86_64/page_table_entry.rs"]
 mod x86_64_page_entry;
+
+#[cfg(any(target_arch = "aarch64", test))]
+#[path = "aarch64/page_table_entry.rs"]
+mod aarch64_page_entry;

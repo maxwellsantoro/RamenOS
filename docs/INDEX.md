@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
@@ -49,6 +49,7 @@ The operational source of truth is
 - [Ring Buffer V0](RING_BUFFER_V0.md)
 - [Multi-Domain Architecture](MULTI_DOMAIN.md)
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
+- [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; A1 service enforcement remains pending.
 - [`idl/`](../idl/): canonical typed interfaces and generated-binding inputs.
 
 ## Active and Gate-Bound Plans

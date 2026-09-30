@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -617,3 +617,78 @@ a zero-byte requirement and set the returned length to zero on success. The fina
 writer also rejects an unexpectedly large backend reply before changing either
 destination. Import signatures and wire layouts are unchanged. Raw WAT callers
 must initialize capacity, just as the generated Rust SDK already does.
+
+## 2026-09-29 — Immutable Store publication and bounded WASM guest execution
+
+Store-owned CAS writers serialize publication using the service's existing
+registry/index lock. CoW receives that same live ownership registry, resolves
+only domain-visible source paths, and checks destination ownership before
+publishing. A readable global source may receive a domain-local overlay; global
+readability never grants permission to replace the source artifact's metadata.
+Fresh artifacts persist ownership before the new projection is exposed. Existing
+same-owner content is verified and reused byte-for-byte, including its manifest
+and signatures. Unattributed, corrupt, or incomplete pre-existing artifacts fail
+closed and require an explicit trusted repair/migration. Ordinary ingestion uses
+the same rules. Internal aggregate index snapshots preserve existing CAS metadata
+and remain unattributed, so they do not become globally readable. Snapshot CAS
+publication precedes working-copy publication; CoW and ordinary ingestion install
+their cloned indexes only after persistence succeeds. The final working-copy
+rename is followed by parent-directory synchronization. This retains the single
+serialized writer model; it does not introduce cross-process writer coordination
+or a multi-file transaction.
+
+Native WASM guest execution has a nonzero wall-clock budget (30 seconds by
+default), supplied by the launch plan or the native runner CLI. Wasmtime epoch
+interruption instruments guest code, including module start sections. Each run
+has a monotonic deadline; a shared engine epoch checks each invocation's own
+clock so one timer cannot interrupt another run early. The timer is cancelled
+and joined on every exit path. Zero/unrepresentable budgets fail closed, and
+expiration returns a distinct execution-timeout error. Compilation and blocking
+host calls are not preempted by epoch interruption; this is a guest-execution
+bound, not full host-process containment. Process watchdogs bound regression
+runs independently of the implementation under test.
+
+AArch64 descriptor assembly is a pure architecture helper compiled in host tests
+on either architecture. Leaf descriptors include the page-type bit, and both
+address and flag updates retain the supported PXN/UXN attributes. Tests inspect
+stored descriptors, including execute transitions and address replacement.
+This adds descriptor/build evidence, not target fault-recovery or metal claims.
+
+## 2026-09-30 — SW0 contract model before service integration
+
+SW0 Phase A is split into A0 contract fixtures, A1 one RamenOS scripted service
+proof, and A2 Linux/control conformance. A0 is a pure model in the schema crate,
+not a service or new native wire interface; A1 must define/generate missing
+operations through IDL before implementing boundary handlers. A0's synthetic
+fixture and trusted executor inputs provide no credential or validation
+authenticity. All IO, clocks, grant verification, watchdogs and persistence live
+outside the schema module. The existing CoW helper remains a foundation, not
+the task's transaction implementation.
+
+Accepted output publication follows immutable staging and successful validation
+bound to candidate/validator/schema/policy and task/domain/resource/generation.
+Commit checks revision plus content identity to reject ABA, rechecks authority
+and validation expiry, and retains the successful request binding and receipt.
+An exact retry returns that receipt without another effect; changed request-ID
+reuse fails. Receipt access requires current authority; revoked authority must
+be renewed before retrieval. Renewed authority requires fresh validation for a
+new commit. A0 bounds candidates and successful receipts to 64 each per task;
+capacity fails closed without eviction. A1 must atomically persist accepted
+reference, revision and receipt, with lost-reply/crash/restart assertions.
+
+A0 declares separate guest, whole-invocation, host-call and diagnostic limits.
+A1 uses a supervised worker/watchdog, bounded IPC/memory and explicit cleanup;
+epoch interruption alone does not meet the whole-invocation contract. Budget
+declarations and reported outcomes passing A0 do not prove timers or containment.
+
+The proposed Phase B ceiling is USD 100, 500 final matched blocks plus the
+30-block pilot, and 8 active model-run hours; a funded work order must freeze
+actual settings before collection. An unaffordable powered sample becomes an
+explicit exploratory report, not a truncated powered trial. S14 depends on a
+recorded proceed/defer decision over A1/A2 and that bounded report, H0/H1, and
+its own design/IDL/Oracle/gate; a positive comparative outcome is not required.
+
+Physical work awaits test-hardware setup. H3 graduation additionally requires
+implemented slot publication/readback, selected-slot boot, and rollback/recovery
+with fresh per-boot provenance and artifact identities. Firmware NVMe detection
+and A/B metadata alone cannot establish those transitions or native block I/O.

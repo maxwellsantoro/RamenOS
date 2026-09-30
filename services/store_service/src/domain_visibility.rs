@@ -294,10 +294,37 @@ impl DomainArtifactRegistry {
         Ok(())
     }
 
-    /// Check if a domain can access an artifact
-    ///
-    /// S7 Security Hardening: Logs all access denials for forensic analysis.
-    /// Returns true if the domain can access the artifact, false otherwise.
+    /// Validate an owned publication before any CAS bytes or metadata change.
+    /// The registry must describe this exact store; unattributed content is denied.
+    pub fn check_publication(
+        &self,
+        store_root: &Path,
+        id: &ContentId,
+        domain_id: u64,
+        is_global: bool,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            store_root == self.store_root,
+            "ownership registry/store root mismatch"
+        );
+        self.check_registration(id, domain_id, is_global)?;
+        if self.get_owner(id).is_none() {
+            anyhow::ensure!(
+                !self
+                    .store_root
+                    .join(format!("{}.blob", id.hash_hex()))
+                    .try_exists()?
+                    && !self
+                        .store_root
+                        .join(format!("{}.manifest.json", id.hash_hex()))
+                        .try_exists()?,
+                "existing artifact has no valid ownership"
+            );
+        }
+        Ok(())
+    }
+
+    /// Check if a domain can access an artifact; unknown ownership fails closed.
     pub fn can_access(&self, content_id: &ContentId, domain_id: u64) -> bool {
         let hash = content_id.hash_hex();
 

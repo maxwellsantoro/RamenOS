@@ -8,4 +8,6 @@ cargo test -p kernel create_region_rejects_unsupported_power_of_two_page_sizes -
 cargo test -p store_service --quiet
 cargo test -p kernel review_ --quiet
 cargo test -p native_runner review_ --quiet
+cargo test -p native_runner --test execution_deadline --quiet
+cargo test -p runtime_supervisor review_native_deadline --quiet
 echo "FOUNDRY_REVIEW_BOUNDARIES: PASS"

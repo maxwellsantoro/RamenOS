@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -8,15 +8,18 @@
 
 ## Parallel Execution Lanes
 
-**Now:** H0 HIL appliance serial observer — first live capture — and SW0 Agent Task Proof Phase A can proceed independently.
+**Now:** SW0 A1 RamenOS scripted service proof; HIL appliance hardware runs await setup.
+A0 contract fixtures are implemented.
+Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
-not the next item after H3. Start SW0 now without waiting for lab access or NVMe
+not the next item after H3. Continue SW0 without waiting for lab access or NVMe
 graduation. Lane labels are queue positions, not new slice identifiers.
 
 ## Physical Lane: H0–H3
 
-Run the first live capture on the physically ready Pi↔M900 chain, then provision
+When test hardware is available, run the first live capture on the Pi↔M900 chain,
+then provision
 and validate the M900's Intel AMT 11 power/reset path.
 S12 runs on the installed 240 GB SanDisk SATA SSD. Add a compatible M.2 2280
 PCIe NVMe drive before S13 metal graduation. Front-panel relays and a
@@ -27,7 +30,15 @@ smart plug/PDU remain deferred until AMT testing shows they are necessary.
 | H0 | S12.4.1 HIL appliance serial observer — first live capture | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0 just hil-appliance` captures live serial and emits valid controller evidence |
 | H1 | S12.4.2 Intel AMT power/reset actuator | AMT status, power-on, power-off, reset, and power-cycle are validated from the Pi and represented in controller evidence JSON |
 | H2 | S12 physical graduation on the installed SanDisk SATA SSD | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
-| H3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
+| H3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation using the completed reboot/rollback protocol | Provenance-bound boot and rollback captures verify slot/artifact transitions and recovery; existing `just s13-hil` metadata scaffold alone is insufficient |
+
+Before H3 graduation, implement a gate for inactive-slot publication and readback,
+revisioned boot selection, a new-slot boot and a rollback/recovery boot with fresh
+nonces, and recovered artifact identity. Define interrupted-write/selection cases
+and the storage flush/ordering contract first. Hardware runs remain deferred.
+S13.7 proves firmware boot from an NVMe ESP; native NVMe `harness.block` I/O needs
+its own controller Reference Vault, Oracle, implementation and target evidence.
+Neither firmware detection nor a manually set `rollback_ready` variable proves it.
 
 ### H0 Acceptance Criteria
 
@@ -63,36 +74,53 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** write Phase A's deterministic task, control-protocol,
-authority-mapping, denial, and replay assertions, then implement the adapters.
+**Next software action:** A1 — write the deterministic RT service-boundary task,
+denial, watchdog/cleanup, durable-receipt, audit and replay assertions, define
+missing operations via IDL/codegen, then implement one RamenOS scripted adapter.
 SW0 has no H0–H3 prerequisite. The
 [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
 consumer task: repair a scoped configuration, execute its pinned validator, and
 report the resulting artifact while access to another workspace is denied.
 
-1. Inventory the actual Semantic State, Store, broker, and native runner paths.
+0. A0 is implemented: `just foundry-agent-task-contract-a0` checks the pure
+   contract model and synthetic fixtures. It is not a useful task or an
+   enforcement boundary. See [Agent Task Contract V0](docs/AGENT_TASK_CONTRACT_V0.md).
+1. A1: inventory the actual Semantic State, Store, broker, and native runner paths.
    Write the task-success, forced-denial, revocation, conflict, audit, and replay
    assertions first; define missing native operations through IDL/codegen.
-2. Implement the fixture and scripted consumer across the host service boundary.
-   Ship a deterministic Foundry gate and inspectable evidence bundle. Report
-   host enforcement explicitly; no target-native or comparative claim yet.
+   Include validation bound to exact candidate/schema/policy/validator identities,
+   revision/content preconditions, lost replies/restart, revocation during
+   validation, and stalled backend cleanup. Implement the fixture and scripted
+   consumer across the host service boundary. Ship an independent RT gate and
+   inspectable evidence bundle. Report host enforcement explicitly; no
+   target-native or comparative claim yet.
+2. A2: implement Linux scoped-shell and typed controls, common protocol fixtures,
+   authority mapping/conformance and all-arm negative cases. Keep A1 runnable
+   independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
    and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
    authority mappings. Use the predeclared power rule to size and freeze the
-   final comparison, then run it opt-in. Report the three contrasts and separate
+   final comparison within a funded, predeclared ceiling, then run it opt-in.
+   If power is unaffordable, publish a bounded exploratory report and record the
+   proceed/defer decision with its limitations. Report the three contrasts and
+   separate
    completion, authority, cost, and audit/replay outcomes, including uncertainty.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-The proof and its proposed commands are **not implemented**. Completion of the
-plan is not completion of the experiment; an unfavorable comparison is a valid
+Only A0's contract gate is implemented; A1/A2, the useful proof and model
+comparison are **not implemented**. Completion of the contract is not completion
+of the experiment; an unfavorable comparison is a valid
 result and should inform the next software slice.
 
 ## S14 Expansion Prerequisites
 
 S14 USB xHCI/HID implementation depends on both lanes: a demonstrated stable
-H0/H1 observation-and-actuation loop, and review of SW0 Phase A evidence and
-Phase B comparison results. It also needs its own short design, Reference Vault
+H0/H1 observation-and-actuation loop, review of SW0 A1/A2 evidence, and a recorded
+proceed/defer decision on the bounded Phase B report. A budget-limited exploratory
+report may satisfy that review with explicit uncertainty, without a powered
+claim; a positive RamenOS advantage is not required. It also needs its own short
+design, Reference Vault
 and Oracle trace, IDL boundary, and Foundry gate definition before implementation.
 H2/H3 remain the physical graduation sequence; they do not block SW0. SW0 Phase C
 is a separate target-enforcement follow-up, not a prerequisite for the host study.

@@ -322,3 +322,6 @@ foundry-ci-extended:
 # Host-only regressions for ownership, allocation, CI and HIL provenance.
 foundry-review-boundaries:
 	bash ./tools/ci/foundry_review_boundaries.sh
+
+foundry-agent-task-contract-a0:
+	bash ./tools/ci/foundry_agent_task_contract_a0.sh

@@ -1,6 +1,6 @@
 # S12.4 / S13.9: HIL Appliance Controller
 
-**Last Updated:** 2026-07-01
+**Last Updated:** 2026-09-30
 **Status:** Active; S12.4.1 serial observer first, then S12.4.2 Intel AMT power/reset
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 **Related:** `hardware/hil_appliance_v0.toml`, `hardware/golden_machine_v0.toml`, `EVIDENCE_LEVELS.md`, `docs/HIL_APPLIANCE_EVIDENCE_V0.md`, `docs/plans/2026-06-21-s12-golden-machine-design.md`, `docs/plans/2026-06-21-s13-persistent-storage-design.md`
@@ -255,8 +255,15 @@ Deliverables:
 Definition of done:
 
 - S13.7 NVMe boot marker is captured live through the appliance.
-- S13.8 atomic-update marker and active-slot marker are captured live through the appliance.
+- S13.8 publication/readback, new-slot boot and separate rollback/recovery boot
+  pass the completed protocol verifier, with artifact/partition identities and
+  distinct fresh boot nonces. A metadata-marker transcript alone is insufficient.
 - Evidence includes target ID, appliance ID, git SHA, artifact hashes, serial transcript, and power-cycle transcript.
+
+The protocol implementation and evidence verifier are required before physical
+graduation; today's wrapper and `s13-hil` are probe scaffolds. Physical captures
+and actuation await test-hardware setup. See the S13 design's required software
+milestone for gate-first host/QEMU work that can proceed independently.
 
 ### S14-pre — KVM-grade control
 

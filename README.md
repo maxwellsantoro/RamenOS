@@ -30,7 +30,7 @@ Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 |------|----------------------------------|--------------------------|
 | Inspect | Read files and interpret command output | Receive task-scoped semantic state and typed query results |
 | Obtain authority | Configure process credentials and sandbox permissions | Request grants for specific resources and operations |
-| Repair and validate | Edit a file and invoke a validator | Commit a new artifact and launch a pinned validator through typed contracts |
+| Repair and validate | Edit a file and invoke a validator | Stage an immutable candidate, run its pinned validator, then commit the validated artifact |
 | Attempt forbidden access | Enforce the configured OS sandbox | Enforce the named backend boundary; test it independently of the adapter |
 | Report | Correlate outputs, exit status, and logs | Return content IDs, validation state, and a replayable record of requests and effects |
 
@@ -100,11 +100,13 @@ observations have different meanings. Default CI is hardware-free.
 ## What comes next
 
 The physical lane H0–H3 is **S12.4 live serial capture → AMT power/reset → S12
-on SATA → S13 NVMe graduation**. The independent software lane SW0 starts Agent
-Task Proof Phase A now: a deterministic task gate, then an opt-in three-arm
-comparison, followed by explicit target enforcement evidence. It does not wait
-for hardware graduation. S14 expansion requires the stable H0/H1 appliance loop,
-reviewed SW0 Phase A/B results, and its own design/IDL/Oracle/gate plan.
+on SATA → S13 NVMe boot and verified reboot/rollback**, awaiting test-hardware
+setup. SW0's [A0 contract fixtures](docs/AGENT_TASK_CONTRACT_V0.md) are runnable;
+next is A1's useful RamenOS service task, then A2 Linux controls, a bounded opt-in
+comparison, and explicit target enforcement evidence. It does not wait for
+hardware graduation. S14 requires the stable H0/H1 appliance loop, reviewed
+A1/A2 evidence and a recorded decision on the bounded comparison report, plus
+its own design/IDL/Oracle/gate plan.
 
 [Current Status](CURRENT_STATUS.md) records landed work and
 [Next Tasks](NEXT_TASKS.md) owns execution order.

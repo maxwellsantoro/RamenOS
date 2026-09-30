@@ -1,7 +1,7 @@
 # Agent Task Proof: repair one workspace under bounded authority
 
-**Last Updated:** 2026-09-16
-**Status:** Planned; no executable proof or comparative result yet
+**Last Updated:** 2026-09-30
+**Status:** A0 contract model/gate implemented; A1 service proof and comparison pending
 **Landing path:** Bounded integration of the S10 runtime, Semantic State, and Store contracts
 
 ## Question and product decision
@@ -33,9 +33,55 @@ agent's authority, checks the repaired configuration, validator exit status,
 unchanged unrelated fields, and unchanged workspace B.
 
 The agent must inspect current task state, request limited grants, read A's
-inputs, stage and commit a corrected artifact, run the validator, and report
+inputs, stage an immutable candidate, validate it, commit the validated candidate,
+and report
 the result. A scripted driver first exercises the complete sequence; a model
 then chooses its own sequence through the same operations.
+
+### Mutation and validation transaction
+
+The normative [A0 contract](../AGENT_TASK_CONTRACT_V0.md) fixes the order:
+`stage → validate → commit`. Staging creates a private immutable candidate;
+it never advances the accepted workspace output. Validation uses the exact
+candidate content ID and pinned validator/schema/policy. The trusted validation
+record binds those identities to the task, domain, resource, grant generation,
+expiry, outcome, execution measurements, and bounded diagnostics.
+
+Commit checks both the expected content ID and a monotonic output revision
+(including an A→B→A change), current resource authority, grant generation/expiry,
+and matching unexpired successful validation. Revocation between validation and
+commit requires a fresh allowed grant and fresh validation. Invalid, timed-out,
+or host-failed candidates cannot become the accepted output. A valid candidate
+may remain staged after a conflict; a retry needs a new expected revision and
+request ID within the same authority/budget.
+
+An exact successful retry of a commit request returns its original receipt
+without another effect; reuse of its request ID with different fields fails.
+Returning a receipt still requires current task/resource authority. A1 must
+atomically persist the accepted reference, revision, request binding, and receipt
+before success, recover them after restart, and test a crash/lost reply around
+publication. Failed staging/validation can leave private unreferenced CAS bytes;
+that is distinct from changing the accepted output. A0 models these semantics
+in memory only. It does not make the existing CoW helper transactional.
+
+### Execution budgets and cleanup
+
+Each validator invocation has a guest budget, whole-invocation wall deadline,
+per-host-call deadline, and diagnostic-size limit. The A0 fixture uses 30 seconds
+guest time, 35 seconds outer wall time, 1 second per host call, and 4096 diagnostic
+bytes. The outer deadline begins before compilation/instantiation and includes
+all service waits. Diagnostics stop at the limit with an explicit truncation
+indicator; oversized results cannot produce a valid attestation.
+
+A1 runs the validator in a supervised worker process with an external watchdog,
+bounded IPC, and bounded memory. Timeout terminates/reaps the worker and its
+owned descendants, closes transports, releases task handles/mappings, and emits
+a timeout result before returning. The worker cannot publish an accepted output.
+Test infinite guest code, a start-section loop, a stalled backend, compilation
+timeout, oversized diagnostics, and cleanup. Use the same limits across arms.
+The current runner's epoch timer handles guest loops; it does not yet implement
+the outer worker/IPC contract. A0 validates budget declarations and observations,
+not actual runtime containment.
 
 ### Authority and observation contract
 
@@ -289,8 +335,11 @@ these assertions written before the task adapter is implemented:
    use. Reject stale, wrong-domain, and wrong-kind handles, including direct calls
    that bypass adapter checks. Recovery requires a fresh permitted grant.
 6. **Commit conflict and validator failure:** reject an outdated expected
-   revision without partial writes. Reject invalid candidates and let the agent
-   retry within its original authority and budget.
+   revision/content ID without changing the accepted output. Reject invalid or
+   unvalidated candidates, swapped validation identities, and expired results.
+   Test concurrent commits, ABA revisions, exact retries, changed request-ID
+   reuse, revocation during validation, and durable receipt recovery. Let the
+   agent retry within its original authority and budget.
 7. **Complete evidence:** missing, reordered, duplicate, or tampered audit
    records fail verification. Every effect has a corresponding authorized call;
    a failed or skipped case cannot produce an overall pass.
@@ -300,21 +349,31 @@ these assertions written before the task adapter is implemented:
    all three arms map permissions and forced-probe outcomes into the canonical
    manifest. Test broad scopes, inherited authority, revocation lifetime, and
    unknown mappings. A missing control or mapping cannot yield a comparative pass.
+10. **Whole invocation limits:** the external watchdog and IPC deadlines bound
+    stalled backend/compilation cases as well as guest loops. Evidence verifies
+    worker cleanup, no late publication, and bounded diagnostics in each arm.
 
 No claim of a universal security boundary follows from these finite probes.
 Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY_STATUS.md).
 
 ## Landing sequence and claim boundaries
 
-The commands below are **planned names, not runnable commands today**.
+Only A0's command is runnable today. All remaining commands below are planned.
 
 | Phase | Deliverable and proposed command | Permitted conclusion |
 |-------|----------------------------------|----------------------|
-| A: deterministic integration | Common fixture/evaluator, LT/RT protocol fixtures, three backend adapters, typed contract gaps, scripted consumer, authority normalization, negative cases, evidence verifier, replay; `just foundry-agent-task-proof` | The task and denials work through the named host enforcement paths; controls exist for later comparison |
+| A0: contract fixtures | Versioned schema, pure transaction reference model, synthetic deterministic fixtures; `just foundry-agent-task-contract-a0` | The modeled contract rejects the named bad transitions; no service/kernel enforcement or useful task claim |
+| A1: RamenOS scripted proof | Define missing native operations via IDL/codegen; implement one RT service adapter, pinned validator worker/watchdog, durable commit receipts, scoped grants, forced denials, audit verifier and replay; `just foundry-agent-task-proof-rt` | One useful task and its negative cases work through named host service enforcement paths |
+| A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |
 
-Phase A should run without model credentials or network access in default CI.
+Each A milestone has its own gate and runs without model credentials or network
+access in default CI. A0 schemas are evaluator/reference types, not a native
+wire interface. A1 defines the actual service operations through IDL/codegen
+before implementation; neither the adapter nor a serialized A0 grant may mint
+service authority. A1 does not wait for LS/LT adapters or lab hardware. A2 must
+pass before any primary Phase B comparison.
 Phase B is opt-in and does not make CI depend on a model's stochastic behavior
 or a paid service. Phase C may be incremental; any remaining host enforcement
 must be named per operation. Full target-native execution remains a separate
@@ -330,12 +389,42 @@ the public report separate from the evaluator's private fixture state. Use
 `environment: host` or a precise mixed host/QEMU inventory; do not relabel a
 host gate as `PASS/QEMU` or invent a new hardware evidence level.
 
-Acceptance for Phase A is all deterministic assertions passing on a clean
-fixture across the three adapters, with no skipped negative cases or missing
-protocol/authority mappings. Phase B is complete when the frozen trial set and
+Acceptance for A0 is the contract fixture gate passing. Acceptance for A1 is
+the useful RT task, all applicable forced negative cases, outer deadline/cleanup,
+durable receipt recovery, audit verification and replay passing across the actual
+host service boundary. Acceptance for A2 is all deterministic assertions passing
+on clean fixtures across the three adapters, with no skipped negative cases or
+missing protocol/authority mappings. Phase B is complete when the frozen trial set and
 all outcomes are published in a reproducible local report, including failures,
 uncertainty, and each contrast's separate claims. A tie, inconclusive estimate,
 or regression is a valid finding and should drive the next integration fix.
+
+### Bounded study and S14 decision
+
+Before the pilot, record numeric margins and the model/provider cost schedule in
+a study manifest. Initial design defaults are `delta = 0.05` completion risk
+difference, `epsilon = 0.20` context-byte reduction, a 35% reduction alternative
+for power planning, 90% power, and familywise alpha 0.05 across six primary
+completion/cost contrasts (Bonferroni). These are product thresholds, not
+estimates or a sample-size claim; freeze or revise them before any pilot data.
+
+The proposed study ceiling is USD 100, 500 final matched blocks plus the separate
+30-block pilot, and 8 hours of active model-run wall time, whichever binds first.
+Phase B does not run until a work order records the funded ceiling and settings;
+this plan creates no paid-service invocation. If the projected powered sample
+exceeds a ceiling, publish the pilot/exploratory result with no powered claim.
+Do not begin a final trial set known to be unaffordable or silently truncate it.
+
+After A2 and the bounded Phase B report, record a `DECISIONS.md` entry mapping the
+outcome to the next action: interface-only benefit → improve typed controls and
+name the absent substrate evidence; RT-specific benefit → advance the evidenced
+integration; regression → repair the demonstrated cause; tie/inconclusive or
+budget-limited result → cap further study and name the remaining uncertainty.
+No result requires a positive OS-advantage claim. S14 may proceed after that
+reviewed proceed/defer decision, H0/H1 readiness, and its own IDL/Oracle/gate
+prerequisites. An exploratory report can satisfy the review prerequisite when
+its limitations and the decision are explicit; it cannot satisfy a powered
+comparative claim. A1 can be published as a bounded host demo before Phase B.
 
 The first public demo should show the actual typed exchanges, allowed state,
 requested/granted authority, a forced denial, the useful artifact, and a replay

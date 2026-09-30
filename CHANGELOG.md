@@ -3,6 +3,20 @@
 ## [Unreleased]
 
 ### Changed
+- Implemented SW0 A0 task-contract fixtures and the CI-bound Foundry gate:
+  validation identity/authority binding, revision-checked commits, revocation,
+  exact retries, malformed/over-budget results and bounded retained state.
+  Split the execution plan into A0/A1/A2, specified outer validator deadlines
+  and durable receipts, bounded the proposed study, and corrected H3 graduation
+  prerequisites. A0 is a pure model; service integration and hardware runs remain
+  pending, with physical work deferred until test-hardware setup.
+- Closed the September 29 project review findings: AArch64 leaf type and PXN/UXN
+  encoding, projection ownership/publication ordering, immutable CAS metadata
+  reuse, and enforced native WASM guest deadlines (including start sections).
+  Added cross-domain collision, restart retrieval, private-source, corrupt/orphan
+  ownership, failed-ingestion/snapshot persistence, concurrent deadline, and
+  supervisor-forwarding regressions. Host/QEMU evidence adds no physical
+  graduation claim.
 - Revised the Agent Task Proof to separate Linux scoped shell, Linux typed, and
   RamenOS typed effects using a shared typed protocol and hidden fixture bank.
   Defined canonical authority envelopes/probes, a pilot-to-powered-study rule,

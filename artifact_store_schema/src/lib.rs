@@ -107,6 +107,7 @@ pub struct Manifest {
 }
 
 // Schema modules (types and validation only, no IO)
+pub mod agent_task; // SW0 A0: task contract and pure reference semantics
 pub mod block_sector_trace; // S13.4: harness.block sector oracle trace schema
 pub mod claim;
 pub mod crash_context;

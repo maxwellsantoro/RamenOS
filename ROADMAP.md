@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Directional
 
 This document describes medium- and long-range sequencing. The authoritative
@@ -18,18 +18,25 @@ new slice numbers. SW0 can start now; it does not wait for H3 or lab access.
 2. **H1:** provision and validate S12.4.2 Intel AMT 11 power/reset actuation.
 3. **H2:** run S12 physical work on the installed 240 GB SanDisk SATA SSD.
 4. **H3:** add compatible M.2 2280 PCIe NVMe storage and graduate S13 on metal
-   through appliance-mediated live capture.
+   through appliance-mediated live capture of the implemented reboot/rollback
+   protocol. A metadata-probe pass is insufficient; implement slot publication,
+   readback/selection, recovery and the protocol verifier before graduation.
+
+Physical runs await test-hardware setup. Software contracts/gates can proceed.
 
 ### Software lane: SW0 Agent Task Proof
 
 - Before S14 expansion, integrate one useful task across intent, observation,
   scoped grants, artifact modification, validation execution, and evidence.
-- Start with a deterministic host gate over existing S10 components and the
-  smallest missing typed contracts. Test denied operations by forcing calls
+- A0's schema/reference-model fixtures and contract gate are implemented. Next,
+  A1 integrates one RT task across actual S10 host services and the smallest
+  missing IDL contracts, with durable receipts and worker/IPC deadlines.
+  Test denied operations by forcing calls
   against the enforcement backend, independently of model behavior.
-- Build Linux scoped shell, Linux typed, and RamenOS typed controls, with a shared
+- A2 adds Linux scoped shell and Linux typed controls to the A1 RamenOS path, with a shared
   protocol for the typed arms and a canonical cross-platform authority manifest.
-- Pilot the three-arm experiment, then freeze a powered final comparison.
+- Pilot the three-arm experiment within a predeclared funded ceiling, then
+  freeze an affordable powered final comparison or report exploratory evidence.
   Separate interface effects, substrate effects, and the total proposition;
   report completion, authority, cost, and audit/replay claims individually.
 - Add QEMU enforcement evidence per operation; keep host, simulation, and target
@@ -38,7 +45,8 @@ new slice numbers. SW0 can start now; it does not wait for H3 or lab access.
 The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines
 the fixture, gate assertions, comparison protocol, and landing sequence. This
 software lane proceeds independently of the physical track.
-No executable proof or comparative advantage is claimed yet.
+Only the A0 contract model is executable; no useful task proof or comparative
+advantage is claimed yet.
 
 The G0 Org Kernel and Research Office continue in parallel as a bounded
 project-control track. They may not displace either execution lane or widen their
@@ -48,8 +56,10 @@ own authority.
 
 ### S14: Interactivity
 
-- Require a stable H0/H1 appliance loop and review of SW0 Phase A evidence and
-  Phase B comparison results before implementation. H2/H3 do not block SW0.
+- Require a stable H0/H1 appliance loop, SW0 A1/A2 evidence, and a recorded
+  proceed/defer decision on the bounded Phase B report before implementation.
+  An exploratory report may satisfy review with named uncertainty, never a
+  powered claim. H2/H3 do not block SW0.
 - Land the S14 design, IDL boundary, and Foundry gate definition first.
 - Select one USB xHCI controller profile from the Tier-1 machine.
 - Capture an Oracle trace before writing native hardware interactions.

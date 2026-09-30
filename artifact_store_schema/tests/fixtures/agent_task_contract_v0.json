@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": 10,
+  "domain_id": 7,
+  "resource": "workspace:A/config",
+  "schema_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "policy_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "validator_id": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "execution_budget": {
+    "guest_ms": 30000,
+    "wall_ms": 35000,
+    "host_call_ms": 1000,
+    "max_diagnostics_bytes": 4096
+  }
+}

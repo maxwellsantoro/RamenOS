@@ -1342,11 +1342,7 @@ fn handle_ingest_artifact(
         let id = staged.content_id.clone();
         let content_id = id.as_str().to_string();
         let size_bytes = staged.size_bytes;
-        domain_registry.check_registration(&id, cap.domain_id, cap.domain_id == 0)?;
-        let blob_dst = store_root.join(format!("{}.blob", id.hash_hex()));
-        staged
-            .publish(&blob_dst)
-            .context("failed to publish blob")?;
+        domain_registry.check_publication(store_root, &id, cap.domain_id, cap.domain_id == 0)?;
 
         // Create and write manifest
         let manifest = Manifest {
@@ -1358,14 +1354,18 @@ fn handle_ingest_artifact(
             signatures: vec![], // V-007 Phase 3: No signatures yet
         };
 
-        let manifest_dst = store_root.join(format!("{}.manifest.json", id.hash_hex()));
-        write_manifest_atomic(&manifest_dst, &manifest).context("failed to write manifest")?;
+        artifact_store_core::publish_cas_artifact(store_root, &manifest, |blob| {
+            staged.publish(blob)
+        })
+        .context("failed to publish artifact")?;
 
         // V-007 Phase 5: Register artifact ownership
         let is_global = cap.domain_id == 0; // Kernel artifacts are global
-        domain_registry
-            .register_artifact(&id, cap.domain_id, is_global)
-            .context("failed to persist artifact ownership")?;
+        if domain_registry.get_owner(&id).is_none() {
+            domain_registry
+                .register_artifact(&id, cap.domain_id, is_global)
+                .context("failed to persist artifact ownership")?;
+        }
 
         update_projection_index_after_ingest(
             projection_index,
@@ -1448,15 +1448,17 @@ fn update_projection_index_after_ingest(
 
     let (entry, projection) =
         ingest_projection_records(content_id, kind, channel, src_path, domain_id);
-    projection_index
+    let mut candidate = projection_index.clone();
+    candidate
         .upsert_entry(entry)
         .context("failed to upsert projection index entry")?;
-    projection_index
+    candidate
         .upsert_path_projection(projection)
         .context("failed to upsert path projection")?;
-    projection_index
+    candidate
         .persist_atomic(store_root)
         .context("failed to persist projection index")?;
+    *projection_index = candidate;
     Ok(())
 }
 
@@ -1635,30 +1637,6 @@ pub use store_service::client::{
     QueryProjectionByTagReply, QueryProjectionByTagRequest, VerifyArtifactReply,
     VerifyArtifactRequest,
 };
-
-// Helper functions
-fn write_manifest_atomic(dst: &Path, manifest: &Manifest) -> Result<()> {
-    use std::io::Write;
-
-    // Create parent directory
-    if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    // Write to temporary file
-    let tmp_path = dst.with_extension("tmp");
-    let mut tmp = fs::File::create(&tmp_path)?;
-    let data = serde_json::to_vec_pretty(manifest)?;
-    tmp.write_all(&data)?;
-
-    tmp.sync_all()?;
-    fs::rename(&tmp_path, dst)?;
-    if let Some(parent) = dst.parent() {
-        fs::File::open(parent)?.sync_all()?;
-    }
-
-    Ok(())
-}
 
 // ============================================================================
 // Tests: Capability Verification Integration (V-007 Phase 5, Task 3)
@@ -2215,6 +2193,96 @@ mod integration_tests {
         let restarted = DomainArtifactRegistry::new(store_root).unwrap();
         assert!(restarted.can_access(&content_id, 5));
         assert!(!restarted.can_access(&content_id, 99));
+
+        // Repeat ingestion must retain existing publisher metadata and signatures.
+        let manifest_path = store_root.join(format!("{}.manifest.json", content_id.hash_hex()));
+        let mut manifest: Manifest =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        manifest.kind = "signed_validator".into();
+        manifest.signatures = vec!["signature-sentinel".into()];
+        artifact_store_core::write_manifest_atomic(&manifest_path, &manifest).unwrap();
+        let before = fs::read(&manifest_path).unwrap();
+        let (bytes, _, _) = handle_ingest_artifact(
+            &payload,
+            store_root,
+            &access_control,
+            &client_info,
+            &mut domain_registry,
+            &mut projection_index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(reply.status, STATUS_OK);
+        assert_eq!(fs::read(&manifest_path).unwrap(), before);
+    }
+
+    #[test]
+    fn review_ingest_failure_keeps_live_and_durable_projection() {
+        let _guard = env_lock().lock().expect("env lock poisoned");
+        let _cap_key_guard = set_test_capability_trusted_key_env();
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+        let src = root.join("source.txt");
+        fs::write(&src, b"failed projection publication").unwrap();
+        let content_id = artifact_store_core::hash_bytes(&fs::read(&src).unwrap());
+        let mut index = writable_projection_index(root);
+        index.persist_atomic(root).unwrap();
+        let index_path = ProjectionIndexStore::default_path(root);
+        let before = fs::read(&index_path).unwrap();
+
+        // An incomplete snapshot identity must reject publication before the
+        // working copy or live index changes.
+        let mut candidate = index.clone();
+        let (entry, projection) =
+            ingest_projection_records(&content_id, "test_kind", "beta", &src, 5);
+        candidate.upsert_entry(entry).unwrap();
+        candidate.upsert_path_projection(projection).unwrap();
+        let json = serde_json::to_vec_pretty(candidate.index()).unwrap();
+        let snapshot_id = ContentId::parse(&artifact_store_core::hash_bytes(&json)).unwrap();
+        fs::write(root.join(format!("{}.blob", snapshot_id.hash_hex())), json).unwrap();
+
+        let request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "test_kind".into(),
+            channel: "beta".into(),
+            src_path: src.to_string_lossy().into_owned(),
+            capability_bytes: bincode::serialize(&signed_test_capability(
+                5,
+                STORE_RIGHT_WRITE,
+                102,
+            ))
+            .unwrap(),
+        };
+        let client = ClientInfo {
+            pid: Some(1234),
+            uid: Some(0),
+            gid: Some(0),
+            domain_id: Some(1),
+            rights: store_service::access_control::AccessRights::read_write(),
+            exe_path: None,
+            cmdline: None,
+        };
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        let (bytes, _, status) = handle_ingest_artifact(
+            &bincode::serialize(&request).unwrap(),
+            root,
+            &AccessControl::new(),
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(reply.status, STATUS_IO_ERROR);
+        assert_eq!(status, OperationResult::IoError);
+        assert_eq!(fs::read(&index_path).unwrap(), before);
+        assert!(
+            index
+                .query_by_path_for_domain("/store/test_kind/beta/source.txt", 5, &registry)
+                .is_err()
+        );
+        assert!(index.query_by_tag_for_domain("beta", 5, &registry).is_err());
+        assert_eq!(serde_json::to_vec_pretty(index.index()).unwrap(), before);
     }
 
     #[test]

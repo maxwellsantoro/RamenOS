@@ -1,6 +1,6 @@
 # Platform Overview
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Architecture reference with explicit implementation boundaries
 
 RamenOS is an experimental Rust OS for agents, organized around OS Core,
@@ -202,7 +202,8 @@ The [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md) is the bounded
 next step: repair one workspace, run a pinned validator, deny access to another
 workspace, and produce a checked audit/replay bundle. Linux scoped shell, Linux
 typed, and RamenOS typed arms distinguish structured-interface effects from
-backend effects. No comparative result has landed, and the initial host proof
+backend effects. A0's pure contract model/gate is implemented; A1 service task
+and A2 Linux controls remain pending. No comparative result has landed, and the initial host proof
 will not establish a target-native environment or universal noninterference.
 
 ## 3. Compatibility Strategy — Partial
@@ -233,9 +234,10 @@ with negative cases. Implementations must meet kernel/service/Store boundaries
 and accurately name their evidence environment. See [Slices](SLICES.md) for
 the definition of done and [Agent Instructions](AGENTS.md) for contribution rules.
 
-H0–H3 cover the physical loop; SW0 starts Agent Task Proof Phase A independently.
-S14 expansion waits for a stable appliance loop, review of SW0's comparison
-results, and its own IDL/Oracle/gate design pass. See [Next Tasks](NEXT_TASKS.md)
+H0–H3 cover the physical loop, awaiting hardware setup. SW0 proceeds with A1
+service integration after A0 contract fixtures, then A2 controls. S14 expansion
+waits for a stable appliance loop, A1/A2 evidence, a recorded proceed/defer
+decision on the bounded comparison report, and its own IDL/Oracle/gate design pass. See [Next Tasks](NEXT_TASKS.md)
 for the authoritative prerequisites; SW0 does not wait for NVMe graduation.
 
 ## 6. Release Channels — Target promotion policy

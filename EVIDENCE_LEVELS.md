@@ -135,4 +135,10 @@ Per-gate HIL JSON includes:
 | S13.7/S13.8 **gate scaffolds** complete | S13 slice **complete** |
 | S13 `PASS/METAL` with `claim_path=operator-golden-machine` | S13 appliance-mediated graduation complete |
 
-S13 is **complete** only after `PASS/METAL` on Tier-1 class hardware for both S13.7 and S13.8 with the full two-boot atomic-update protocol (future hardening). Appliance evidence improves reproducibility but does not replace target-emitted provenance markers.
+S13 is **complete** only after `PASS/METAL` on Tier-1 class hardware for S13.7
+and the implemented atomic-update protocol: verified inactive-slot publication,
+new-slot boot, and a separate rollback/recovery boot with fresh per-boot nonces
+and matching artifact/slot identities. The protocol/verifier remains pending;
+today's S13.8 metadata scaffold pass is insufficient. Firmware NVMe boot does
+not establish a native NVMe driver. Appliance evidence improves reproducibility
+but does not replace target-emitted provenance markers.

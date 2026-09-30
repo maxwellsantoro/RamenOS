@@ -31,6 +31,10 @@ struct Args {
     /// Enable verbose output.
     #[arg(short, long)]
     verbose: bool,
+
+    /// Guest execution deadline in milliseconds (must be nonzero).
+    #[arg(long, default_value_t = native_runner::runner::DEFAULT_EXECUTION_TIMEOUT_MS)]
+    timeout_ms: u64,
 }
 
 fn main() -> ExitCode {
@@ -76,6 +80,7 @@ fn main() -> ExitCode {
         kernel_ipc: args.kernel_ipc,
         kernel_ipc_transport: KernelIpcTransport::default(),
         trace_output: args.trace_output,
+        timeout_ms: args.timeout_ms,
     };
 
     let runner = match NativeRunner::new(config) {

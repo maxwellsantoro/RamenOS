@@ -1,6 +1,6 @@
 # Vertical Slices
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
@@ -64,13 +64,15 @@ two-boot rollback evidence. Default `just s13` success is `PASS/QEMU`, not
 
 ## Planned Software Integration
 
-The independent SW0 software lane starts with Phase A of the
+The independent SW0 software lane has implemented A0's pure contract model and
+`just foundry-agent-task-contract-a0` fixtures. Next is A1's RT service proof of the
 [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md), before S14
-expansion. It combines S10 components around one task, three comparison adapters,
-protocol/authority conformance checks, and a denial/replay gate. SW0 does not wait
+expansion, with scoped grants, durable receipts, worker deadlines and denial/replay.
+A2 then adds Linux comparison adapters and protocol/authority conformance checks. SW0 does not wait
 for hardware graduation and is not a new S-number, completed slice, or agent
 performance result. S12.4 remains the active physical slice. S14 requires a stable
-H0/H1 loop, reviewed SW0 Phase A/B results, and its own design/IDL/Oracle/gate plan.
+H0/H1 loop, reviewed A1/A2 evidence, a recorded decision on the bounded Phase B
+report, and its own design/IDL/Oracle/gate plan. Physical runs await hardware setup.
 
 ## Definition of Done
 

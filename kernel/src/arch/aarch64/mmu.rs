@@ -25,121 +25,16 @@
 use core::arch::asm;
 
 #[cfg(test)]
-use crate::arch::mmu::RIGHTS_READ;
 use crate::arch::mmu::{
-    CACHE_MODE_UNCACHED, CACHE_MODE_WRITE_BACK, CACHE_MODE_WRITE_COMBINE, Mmu, MmuError,
-    RIGHTS_EXECUTE, RIGHTS_WRITE, VirtAddr,
+    CACHE_MODE_UNCACHED, CACHE_MODE_WRITE_BACK, CACHE_MODE_WRITE_COMBINE, RIGHTS_READ,
 };
+use crate::arch::mmu::{Mmu, MmuError, VirtAddr};
 use crate::domain_registry::{DomainId, MAX_DOMAINS};
 use crate::mm::address::PhysAddr;
 use crate::mm::address::PhysFrame;
 use crate::mm::frame::FrameAllocator;
 
-/// Page table entry for aarch64 4-level paging.
-///
-/// Each entry is 64 bits and contains a physical address along with
-/// various control flags.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct PageTableEntry {
-    value: u64,
-}
-
-impl PageTableEntry {
-    /// Valid bit - must be set for the entry to be used.
-    const VALID: u64 = 1 << 0;
-    /// Table descriptor bit - indicates next-level table.
-    const TABLE: u64 = 1 << 1;
-    /// Block/page descriptor at levels where the table bit is clear.
-    #[cfg(test)]
-    const BLOCK: u64 = 0;
-    /// Access flag - must be set for access.
-    const AF: u64 = 1 << 10;
-    /// Inner shareable.
-    const SH_INNER: u64 = 0b11 << 8;
-    /// Read/write at EL1.
-    const AP_RW: u64 = 0b00 << 6;
-    /// Read-only at EL1.
-    const AP_RO: u64 = 0b10 << 6;
-    /// Normal memory attribute.
-    const ATTRINDX_NORMAL: u64 = 0b111 << 2;
-    /// Device memory attribute.
-    const ATTRINDX_DEVICE: u64 = 0b000 << 2;
-    /// Non-cacheable memory attribute.
-    const ATTRINDX_NC: u64 = 0b010 << 2;
-    /// Privileged execute-never.
-    const PXN: u64 = 1 << 53;
-    /// Unprivileged execute-never.
-    const UXN: u64 = 1 << 54;
-    /// Create a new unused page table entry.
-    #[must_use]
-    const fn new() -> Self {
-        Self { value: 0 }
-    }
-
-    /// Check if the entry is valid (in use).
-    #[must_use]
-    fn is_valid(&self) -> bool {
-        self.value & Self::VALID != 0
-    }
-
-    /// Check if the entry is unused (not valid).
-    #[must_use]
-    #[cfg(test)]
-    fn is_unused(&self) -> bool {
-        self.value == 0
-    }
-
-    /// Set the physical address for this entry.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the address is not page-aligned.
-    fn set_addr(&mut self, addr: PhysAddr) {
-        assert!(
-            addr.is_page_aligned(),
-            "Page table entry address must be page-aligned"
-        );
-        // Clear the lower 12 bits (page offset) and set the new address
-        self.value = (self.value & 0xFFF) | addr.as_u64();
-    }
-
-    /// Get the physical address from this entry.
-    #[must_use]
-    fn addr(&self) -> PhysAddr {
-        // Mask out the lower 12 bits (flags) to get the physical address
-        // For aarch64, bits [47:12] contain the physical address
-        // SAFETY: The masked value is a valid physical address from page table entry
-        unsafe { PhysAddr::new(self.value & 0x0000_FFFF_FFFF_F000) }
-    }
-
-    /// Set the flags for this entry.
-    fn set_flags(&mut self, flags: u64) {
-        // Preserve the address bits and set new flags
-        self.value = (self.value & 0x0000_FFFF_FFFF_F000) | (flags & 0xFFF);
-    }
-
-    /// Get the flags from this entry.
-    #[must_use]
-    #[cfg(test)]
-    fn flags(&self) -> u64 {
-        self.value & 0xFFF
-    }
-
-    /// Check if this entry is a table descriptor.
-    #[must_use]
-    #[cfg(test)]
-    fn is_table(&self) -> bool {
-        self.is_valid() && (self.value & Self::TABLE != 0)
-    }
-
-    /// Check if this entry is a block descriptor.
-    #[must_use]
-    #[cfg(test)]
-    fn is_block(&self) -> bool {
-        self.is_valid() && (self.value & Self::TABLE == 0)
-    }
-}
+use crate::arch::aarch64_page_entry::PageTableEntry;
 
 /// Page table structure for aarch64 4-level paging.
 ///
@@ -166,36 +61,10 @@ pub struct AArch64Mmu;
 
 #[cfg_attr(test, allow(dead_code))]
 impl AArch64Mmu {
-    /// Convert rights and cache mode to page table entry flags.
+    /// Convert rights and cache mode to a level-three page descriptor.
     #[must_use]
     fn rights_to_flags(rights: u32, cache_mode: u32) -> u64 {
-        let mut flags = PageTableEntry::VALID | PageTableEntry::AF;
-
-        // Access permissions
-        if rights & RIGHTS_WRITE != 0 {
-            flags |= PageTableEntry::AP_RW;
-        } else {
-            flags |= PageTableEntry::AP_RO;
-        }
-
-        // Execute permissions
-        if rights & RIGHTS_EXECUTE == 0 {
-            flags |= PageTableEntry::PXN | PageTableEntry::UXN;
-        }
-
-        // Shareability
-        flags |= PageTableEntry::SH_INNER;
-
-        // Cache mode mapping
-        let attridx = match cache_mode {
-            CACHE_MODE_UNCACHED => PageTableEntry::ATTRINDX_DEVICE,
-            CACHE_MODE_WRITE_COMBINE => PageTableEntry::ATTRINDX_NC,
-            CACHE_MODE_WRITE_BACK => PageTableEntry::ATTRINDX_NORMAL,
-            _ => PageTableEntry::ATTRINDX_NORMAL,
-        };
-        flags |= attridx;
-
-        flags
+        PageTableEntry::page_flags(rights, cache_mode)
     }
 
     /// Get the L0 index from a virtual address.
@@ -653,6 +522,7 @@ impl Mmu for AArch64Mmu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arch::mmu::{RIGHTS_EXECUTE, RIGHTS_WRITE};
 
     #[test]
     fn page_table_entry_new_creates_unused_entry() {

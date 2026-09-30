@@ -1,23 +1,26 @@
 # Current Status
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 Agent Task Proof — planned; Phase A is the next software action
+**Software Lane:** SW0 A0 contract gate implemented; A1 service proof is next
 
 ## Active Execution Track
 
-S12.4 is building the physical HIL appliance loop: serial observation first,
-then Intel AMT 11 power/reset actuation. Once that loop is stable, the preferred S13 metal
+S12.4's physical HIL appliance loop awaits test-hardware setup: serial observation
+first, then Intel AMT 11 power/reset actuation. Once that loop is stable, the preferred S13 metal
 HIL graduation path runs through the appliance on Tier-1 or lab hardware.
 Standalone golden-machine graduation remains a distinct `PASS/METAL` path only
 when per-gate evidence stamps `claim_path: operator-golden-machine`. S14 USB
-xHCI and HID stays deferred until the H0/H1 appliance loop is proven, SW0 Phase
-A/B results are reviewed, and its own design/IDL/Oracle/gate prerequisites land.
+xHCI and HID stays deferred until the H0/H1 appliance loop is proven, SW0
+A1/A2 evidence and the bounded Phase B report have a recorded proceed/defer
+decision, and its own design/IDL/Oracle/gate prerequisites land.
 
 H0–H3 name the physical queue. SW0 is an independent software queue and can
-start now without waiting for NVMe graduation. Its current deliverable is a
-plan; no Agent Task Proof implementation or comparison has landed. These labels
+continue without waiting for NVMe graduation. Its A0 schema/reference model and
+deterministic gate are implemented; the useful service task and comparison remain
+pending. No live capture or actuation is scheduled while hardware setup is pending.
+These labels
 do not allocate new slice numbers or change governance authority.
 
 The next action in each lane is maintained in [NEXT_TASKS.md](NEXT_TASKS.md).
@@ -31,7 +34,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | Plan only; host Semantic State, Store, runner, and selected QEMU bridges exist separately | Three-arm task integration, protocol/authority mapping checks, denial/replay gate, powered model comparison, and task-specific target enforcement |
+| Agent Task Proof (SW0) | A0 schema/reference-model fixtures and host contract gate; existing components remain separate | A1 useful RT service proof, A2 Linux controls/mappings, bounded Phase B comparison, and task-specific target enforcement |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -39,6 +42,45 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A0 contract fixtures and revised execution plan (2026-09-30)
+
+- `artifact_store_schema::agent_task` defines pure stage → validate → commit
+  semantics, exact identity/authority bindings, monotonic output revisions,
+  revocation/renewal, bounded retained requests and idempotent successful retries.
+- `just foundry-agent-task-contract-a0` runs deterministic positive/negative
+  fixtures in the extended CI suite. Synthetic IDs and trusted executor inputs
+  establish a contract model only; no service/kernel authority or validator
+  authenticity is supplied by these serializable types.
+- A1's next deliverable is one RT service task with IDL/codegen, durable receipt
+  publication/recovery, bounded worker/IPC execution, forced denials, audit and
+  replay. A2 adds Linux controls before comparative runs. No useful task or model
+  advantage has been demonstrated by A0.
+- H3 now explicitly requires the implemented reboot/rollback protocol rather
+  than a successful metadata scaffold. Physical work awaits hardware setup.
+
+### Project review boundary fixes (2026-09-29)
+
+- AArch64 leaf descriptors use the level-three page type and preserve PXN/UXN
+  through flag and address updates. Pure descriptor assertions also run on x86
+  hosts; this establishes encoding correctness, not physical fault recovery.
+- Projection commits resolve sources through domain-aware visibility, reject
+  conflicting or invalid ownership before CAS publication, and durably register
+  fresh ownership before exposing the new projection. The live registry and
+  restarted Store queries both retain owner access and deny unrelated domains.
+- CoW, ordinary ingestion, and internal projection snapshots share immutable CAS
+  publication: existing blobs/manifests are validated and reused without changing
+  publisher metadata or signatures. Aggregate snapshots remain private internal
+  artifacts. Failed CoW/ingestion persistence does not publish its candidate in
+  memory. The final working-copy rename synchronizes its parent directory.
+- Native WASM execution enforces the launch plan's nonzero `timeout_ms` through
+  Wasmtime epoch interruption, including module start sections. Concurrent runs
+  have independent wall-clock deadlines, and completion cancels the timer.
+  This bounds guest execution; compilation and blocking host calls are outside
+  epoch preemption. The default guest budget is 30 seconds.
+- `just foundry-review-boundaries` and the projection gate cover these regressions,
+  including process watchdogs that prevent a broken guest deadline from hanging
+  the test harness. SW0 integration and physical graduation remain pending.
 
 ### Agent-facing proof plan and public docs (2026-09-16)
 
@@ -140,7 +182,8 @@ is [docs/plans/2026-06-23-research-backed-ramenorg.md](docs/plans/2026-06-23-res
 
 ## Known Gaps
 
-- No end-to-end Agent Task Proof or measured comparison with shell/tool agents.
+- No end-to-end Agent Task Proof or measured comparison with shell/tool agents;
+  A0 is a pure contract model, and A1 service integration is next.
 - Native runner, Store, and Semantic State reactor remain host-side; default
   snapshot metadata includes placeholders, and execution-fabric routing is simulated.
 - No `PASS/METAL` claim for S12 or S13 yet.

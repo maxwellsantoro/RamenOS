@@ -1,6 +1,6 @@
 # S13: Persistent Storage
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-30
 **Status:** Active reference; QEMU loop landed, metal graduation pending
 **Gate:** `tools/ci/foundry_s13_persistent_storage_s13_0.sh`
 **Related:** `docs/plans/2026-02-20-s11-driver-factory-mvp.md`, `hardware/storage_contract_v0.toml`, `ROADMAP.md` §12
@@ -108,6 +108,43 @@ persistent_storage: block_write ok
 - Reuse S1 artifact rollback discipline on metal
 - Serial marker `persistent_storage: atomic_update ok`
 
+#### Required software milestone before physical graduation
+
+The present S13.8 marker is an A/B metadata probe, not proof of a transaction.
+`RamenAbSlot.rollback_ready` is operator-supplied metadata; host S1 rehearsal
+does not establish target slot publication or recovery. Implement the protocol
+and verifier below before H3 graduation. Live test hardware is not available
+for execution yet; begin with gate-first host/QEMU fault/recovery assertions.
+
+1. Pin source/target artifacts, GPT slot identities and the storage backend.
+   Publish the new artifact to the inactive slot, flush according to an explicit
+   backend durability contract, and verify bytes by readback/content hash.
+2. Durably record the old/new artifact identities, transaction revision and
+   pending boot selection. Preserve the last known-good slot until the new
+   artifact is verified. Define interrupted-write, interrupted-selection and
+   failed-new-boot recovery before implementation.
+3. Boot the new slot and capture its actual selected partition/artifact identity,
+   transaction revision and fresh boot nonce. A variable naming slot B is not
+   evidence that B's bytes executed. Verify the target's successful health result
+   against that transaction before accepting it.
+4. Exercise rollback/recovery in a separate boot, with a different fresh nonce,
+   and verify the old slot/artifact identity and recovered state. Link both boot
+   bundles and publication/readback evidence into one protocol result.
+5. Reject missing, repeated, out-of-order, mismatched or failed phases. Inject
+   failures at each durability boundary in the host/QEMU protocol model; physical
+   reset/power-loss evidence is an explicit later hardware test, not inferred
+   from those simulations.
+
+At least the new-slot boot and rollback boot must have separate provenance-bound
+captures. A single metadata-marker transcript cannot satisfy this protocol.
+The verifier needs a versioned protocol evidence schema and fixtures before
+implementation; today's `just s13-hil` remains a probe/evidence scaffold.
+
+S13.7 separately establishes UEFI boot from an NVMe ESP device path. Native NVMe
+`harness.block` operation requires a pinned controller Reference Vault and Oracle,
+a distilled driver and target read/write/flush evidence. Neither firmware
+selection nor the virtio-blk QEMU loop establishes native NVMe I/O on metal.
+
 ---
 
 ## 3. S13 Definition of Done (full slice)
@@ -117,7 +154,10 @@ S13 is complete when:
 1. **Contract pinned** — manifest + design doc + S13.0 smoke gate PASS.
 2. **QEMU Driver Factory loop** — virtio-blk Oracle capture, replay, and `harness.block` runtime I/O PASS (`just s13` fast-path).
 3. **Metal NVMe boot** — S13.7 HIL gate PASS on Tier-1 class hardware.
-4. **Atomic update** — S13.8 HIL gate PASS: publish, reboot, rollback.
+4. **Atomic update** — completed protocol verifier PASS over publication/readback,
+   new-slot boot and separate rollback/recovery boot with matching artifact/slot
+   identities and fresh per-boot provenance. An S13.8 metadata scaffold pass alone
+   is insufficient; name the actual storage enforcement backend separately.
 
 Fast-path (target): `just s13` = S13.0 + S13.6 QEMU legs; metal legs opt-in via `RAMEN_HIL_GOLDEN_MACHINE=1`.
 
