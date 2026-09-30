@@ -1,4 +1,4 @@
-# SW0 A1.0 task transaction contract. No handler is registered yet.
+# SW0 task transaction contract. Host proof handler is opt-in; production is unregistered.
 # Scope, lifetime, validation authenticity and durable publication are backend
 # obligations; see docs/AGENT_TASK_PROTOCOL_V1.md. All payloads fit 64 bytes.
 namespace = "harness.agent_task"
@@ -86,3 +86,28 @@ fields = ["subscription_cap:u64", "revision:u64", "state_shm_cap:u64", "state_le
 [message.validator_input_header]
 msg_type = 20
 fields = ["magic:u32", "candidate_len:u32", "schema_len:u32", "reserved:u32"]
+
+# Additive A2.5 pull lifecycle. Push subscribe (17) retains its original meaning.
+[message.subscribe_task_pull]
+msg_type = 21
+fields = ["task_cap:u64", "request_id:u64", "event_mask:u32", "reserved:u32"]
+
+[message.subscribe_task_pull_reply]
+msg_type = 22
+fields = ["request_id:u64", "subscription_cap:u64", "revision:u64", "status:u32", "reserved:u32"]
+
+[message.poll_task]
+msg_type = 23
+fields = ["task_cap:u64", "request_id:u64", "subscription_cap:u64"]
+
+[message.poll_task_reply]
+msg_type = 24
+fields = ["request_id:u64", "state_shm_cap:u64", "revision:u64", "state_len:u32", "event_mask:u32", "status:u32", "reserved:u32"]
+
+[message.unsubscribe_task]
+msg_type = 25
+fields = ["task_cap:u64", "request_id:u64", "subscription_cap:u64"]
+
+[message.unsubscribe_task_reply]
+msg_type = 26
+fields = ["request_id:u64", "status:u32", "reserved:u32"]

@@ -12,7 +12,7 @@ fn encoding_rejects_ambiguous_authority_and_integer_forms() {
         ("/request_id", json!("-1")),
         ("/call/task_cap", json!("cap:0000000000000000")),
         ("/call/task_cap", json!("cap:FFFFFFFFFFFFFFFF")),
-        ("/schema_version", json!(2)),
+        ("/schema_version", json!(3)),
         ("/call/operation", json!("subscribe_task")),
     ] {
         let mut bad = valid.clone();
@@ -66,4 +66,35 @@ fn descriptions_and_serializer_are_backend_independent() {
     );
     let s = Status::from_native(999);
     assert_eq!(s, None);
+}
+
+#[test]
+fn subscriptions_require_v2_and_unique_bounded_event_types() {
+    let valid = json!({"schema_version":2,"request_id":"1","call":{"operation":"subscribe_task","task_cap":"cap:0000000000000001","event_types":["output_changed","validation_changed"]}});
+    assert!(decode_request(&serde_json::to_vec(&valid).unwrap()).is_ok());
+    for events in [
+        json!([]),
+        json!(["output_changed", "output_changed"]),
+        json!(["unknown"]),
+        json!(["output_changed", "validation_changed", "output_changed"]),
+    ] {
+        let mut bad = valid.clone();
+        bad["call"]["event_types"] = events;
+        assert!(decode_request(&serde_json::to_vec(&bad).unwrap()).is_err());
+    }
+    let mut old = valid;
+    old["schema_version"] = json!(1);
+    assert!(decode_request(&serde_json::to_vec(&old).unwrap()).is_err());
+    let description: Value = serde_json::from_slice(&tool_contract_v2()).unwrap();
+    assert_eq!(description["tools"].as_array().unwrap().len(), 11);
+    let bad = Response {
+        schema_version: 2,
+        request_id: Some(Decimal(1)),
+        status: Status::Ok,
+        result: Some(Reply::PollTask {
+            event_types: vec![EventType::OutputChanged],
+            state: None,
+        }),
+    };
+    assert!(encode_response(&bad).is_err());
 }

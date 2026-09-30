@@ -31,6 +31,9 @@ fn all_messages_fit_the_fixed_control_plane_without_implicit_padding() {
         RevokeGrant => 24, RevokeGrantReply => 24,
         SubscribeTask => 24, SubscribeTaskReply => 32,
         TaskChangedEvent => 32, ValidatorInputHeader => 16,
+        SubscribeTaskPull => 24, SubscribeTaskPullReply => 32,
+        PollTask => 24, PollTaskReply => 40,
+        UnsubscribeTask => 24, UnsubscribeTaskReply => 16,
     );
 }
 
@@ -96,10 +99,88 @@ fn unknown_protocol_operations_and_reply_injection_fail_closed() {
         MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_REPLY,
         MSG_AGENT_TASK_V1_TASK_CHANGED_EVENT,
         MSG_AGENT_TASK_V1_VALIDATOR_INPUT_HEADER,
+        MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_PULL_REPLY,
+        MSG_AGENT_TASK_V1_POLL_TASK_REPLY,
+        MSG_AGENT_TASK_V1_UNSUBSCRIBE_TASK_REPLY,
     ] {
         env.msg_type = msg_type;
         assert_eq!(parse_request(&env).unwrap_err(), ProtocolError::Operation);
     }
+}
+
+#[test]
+fn pull_lifecycle_preflight_binds_masks_handles_and_empty_polls() {
+    use kernel_api::agent_task_protocol::validate_reply;
+    let request = SubscribeTaskPull {
+        task_cap: 101,
+        request_id: 1,
+        event_mask: 3,
+        reserved: 0,
+    };
+    assert!(parse_request(&envelope(21, &request)).is_ok());
+    for mask in [0, 4, u32::MAX] {
+        assert!(
+            parse_request(&envelope(
+                21,
+                &SubscribeTaskPull {
+                    event_mask: mask,
+                    ..request
+                }
+            ))
+            .is_err()
+        );
+    }
+    let poll = PollTask {
+        task_cap: 101,
+        request_id: 1,
+        subscription_cap: 202,
+    };
+    assert!(parse_request(&envelope(23, &poll)).is_ok());
+    assert!(
+        parse_request(&envelope(
+            23,
+            &PollTask {
+                subscription_cap: 0,
+                ..poll
+            }
+        ))
+        .is_err()
+    );
+    let mut reply = PollTaskReply {
+        request_id: 1,
+        state_shm_cap: 0,
+        revision: 0,
+        state_len: 0,
+        event_mask: 0,
+        status: 0,
+        reserved: 0,
+    };
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_ok());
+    reply.event_mask = 1;
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_err());
+    reply.state_len = 100;
+    reply.state_shm_cap = Handle {
+        kind: HandleKind::Shmem,
+        index: 1,
+        generation: 1,
+    }
+    .pack();
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_ok());
+    reply.event_mask = 4;
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_err());
+    reply.event_mask = 3;
+    reply.state_len = 4097;
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_err());
+    reply.state_len = 100;
+    reply.status = 1;
+    assert!(validate_reply(&envelope(24, &reply), 23, 1).is_err());
+    let cancel = UnsubscribeTaskReply {
+        request_id: 1,
+        status: 0,
+        reserved: 0,
+    };
+    assert!(validate_reply(&envelope(26, &cancel), 25, 1).is_ok());
+    assert!(validate_reply(&envelope(26, &cancel), 25, 2).is_err());
 }
 
 #[test]

@@ -8,7 +8,8 @@ remain unregistered. See [the service proof](AGENT_TASK_SERVICE_PROOF_V1.md).
 
 The [A0 transaction model](AGENT_TASK_CONTRACT_V0.md) supplies the semantics.
 [`agent_task_v1.toml`](../idl/harness/agent_task_v1.toml) reserves protocol 14
-and defines nine request/reply pairs plus a task event. All control messages
+and defines twelve request/reply pairs plus a task event, including A2.5's
+additive pull subscription lifecycle (message types 21–26). All control messages
 fit the existing 64-byte envelope payload without implicit structure padding.
 Message type 20 additionally reserves the private validator memory header; it
 is never accepted as an IPC request.
@@ -37,6 +38,9 @@ maximum lifetime. Requesting known rights does not entitle a caller to them.
 | `get_task_state` | OBSERVE (16) for this task | Scoped state snapshot |
 | `revoke_grant` | Policy capability for the named task capability | Generation change invalidating dependent authority/validation |
 | `subscribe_task` | OBSERVE (16) for this task | Scoped subscription and starting revision |
+| `subscribe_task_pull` | OBSERVE (16) for this task | Connection-bound pull subscription and starting revision |
+| `poll_task` | Original current OBSERVE grant, same domain/connection | Coalesced pending mask and fresh shared-memory state, or an empty poll |
+| `unsubscribe_task` | Original current OBSERVE grant, same domain/connection | Cancellation; later authorized use returns NOT_FOUND |
 
 Rights are a bitmask bounded by 31; grant lifetime is 1–300000 ms. The backend
 uses its trusted monotonic clock, and rechecks lifetime and generation before
@@ -91,6 +95,13 @@ authorized state. Failed validation may return its own bounded diagnostics,
 never unrelated task metadata. Subscribe masks admit output-change (1) and
 validation-change (2); each event has exactly one declared event type and an
 authorized subscription. Revocation/expiry ends delivery and releases resources.
+
+[A2.5](AGENT_TASK_SUBSCRIPTIONS_V2.md) bounds pull subscriptions to 16 per
+connection and two pending types each. Empty polls contain zero mask, mapping,
+length and revision. Nonempty polls contain mask 1–3 and a fresh snapshot of
+1–4096 bytes; both types may be coalesced into one reply. Pull subscriptions never
+enter the push emitter. Polling drains at-most-once; disconnect/restart discards
+subscriptions and explicit reads resynchronize after a lost notification reply.
 
 Input, diagnostic and task-state bytes travel through shared memory with an
 explicit length. The opt-in A1.1 proof defines strict `TaskSnapshotV1` JSON and reply/event

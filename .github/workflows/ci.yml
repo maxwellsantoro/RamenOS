@@ -132,6 +132,9 @@ jobs:
       - name: SW0 A2.4 Linux scoped-shell durable transactions
         run: bash tools/ci/foundry_agent_task_ls_transactions.sh
 
+      - name: SW0 A2.5 shared typed subscription lifecycle
+        run: bash tools/ci/foundry_agent_task_subscriptions.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:

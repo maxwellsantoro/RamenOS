@@ -40,6 +40,9 @@ FIELDS = {
     "get_receipt": {"task_cap", "commit_request_id"},
     "get_task_state": {"task_cap"},
     "revoke_grant": {"policy_cap", "task_cap"},
+    "subscribe_task": {"task_cap", "event_types"},
+    "poll_task": {"task_cap", "subscription_cap"},
+    "unsubscribe_task": {"task_cap", "subscription_cap"},
 }
 BUDGET = {
     "guest_ms": 1500,
@@ -148,6 +151,7 @@ class LinuxTask:
         self.worker = Path(worker).resolve()
         self.domain = domain
         self.grants = {}
+        self.subscriptions = {}
         self.policy_cap = token()
         self.started = time.monotonic_ns()
         try:
@@ -279,6 +283,7 @@ class LinuxTask:
             raise
 
     def close(self):
+        self.subscriptions.clear()
         if self.lock is not None:
             self.lock.close()
             self.lock = None
@@ -474,6 +479,7 @@ class LinuxTask:
     def mint(self):
         used = (
             set(self.grants)
+            | set(self.subscriptions)
             | set(self.state["candidates"])
             | {r["reply"]["receipt_cap"] for r in self.state["receipts"].values()}
             | {self.policy_cap}
@@ -517,16 +523,18 @@ class LinuxTask:
 
     def execute(self, request):
         rid = None
+        version = 1
         try:
             if (
                 not isinstance(request, dict)
                 or set(request) != {"schema_version", "request_id", "call"}
                 or type(request["schema_version"]) is not int
-                or request["schema_version"] != 1
+                or request["schema_version"] not in (1, 2)
             ):
                 raise TaskError("invalid")
             decimal(request["request_id"], True)
             rid = request["request_id"]
+            version = request["schema_version"]
             c = request["call"]
             if self.poisoned:
                 raise TaskError("io")
@@ -536,11 +544,16 @@ class LinuxTask:
                 or set(c) != (FIELDS[c["operation"]] | {"operation"})
             ):
                 raise TaskError("invalid")
+            if (
+                c["operation"] in ("subscribe_task", "poll_task", "unsubscribe_task")
+                and version != 2
+            ):
+                raise TaskError("invalid")
             # Checks below independently enforce authorization even for direct
             # trusted-evaluator calls that bypass the Rust syntax boundary.
             result = self.dispatch(rid, c)
             return {
-                "schema_version": 1,
+                "schema_version": version,
                 "request_id": rid,
                 "status": "ok",
                 "result": result,
@@ -570,7 +583,7 @@ class LinuxTask:
             if status == "io":
                 self.poisoned = True
             return {
-                "schema_version": 1,
+                "schema_version": version,
                 "request_id": rid,
                 "status": status,
                 "result": None,
@@ -579,6 +592,71 @@ class LinuxTask:
     def dispatch(self, rid, c):
         op = c["operation"]
         now = self.now()
+        self.subscriptions = {
+            cap: s
+            for cap, s in self.subscriptions.items()
+            if s["grant"] in self.grants
+            and self.grants[s["grant"]]["generation"] == self.state["generation"]
+            and now < self.grants[s["grant"]]["expires"]
+        }
+        if op in ("subscribe_task", "poll_task", "unsubscribe_task"):
+            for name in ("task_cap", "subscription_cap"):
+                if name in c and (
+                    not isinstance(c[name], str)
+                    or not re.fullmatch(
+                        r"cap:(?!0000000000000000$)[0-9a-f]{16}", c[name]
+                    )
+                ):
+                    raise TaskError("invalid")
+            self.authorize(c["task_cap"], "observe")
+            if op == "subscribe_task":
+                types = c["event_types"]
+                if (
+                    not isinstance(types, list)
+                    or not 1 <= len(types) <= 2
+                    or any(
+                        type(e) is not str
+                        or e not in ("output_changed", "validation_changed")
+                        for e in types
+                    )
+                    or len(set(types)) != len(types)
+                ):
+                    raise TaskError("invalid")
+                if len(self.subscriptions) >= 16:
+                    raise TaskError("capacity")
+                cap = self.mint()
+                self.subscriptions[cap] = {
+                    "grant": c["task_cap"],
+                    "types": set(types),
+                    "pending": set(),
+                }
+                return dict(
+                    operation=op,
+                    subscription_cap=cap,
+                    revision=str(self.state["revision"]),
+                )
+            sub = self.subscriptions.get(c["subscription_cap"])
+            if sub is None:
+                raise TaskError("not_found")
+            if sub["grant"] != c["task_cap"]:
+                raise TaskError("denied")
+            if op == "unsubscribe_task":
+                del self.subscriptions[c["subscription_cap"]]
+                return dict(operation=op, cancelled=True)
+            types = [
+                e
+                for e in ("output_changed", "validation_changed")
+                if e in sub["pending"]
+            ]
+            state = (
+                self.dispatch(
+                    rid, {"operation": "get_task_state", "task_cap": c["task_cap"]}
+                )["state"]
+                if types
+                else None
+            )
+            sub["pending"].clear()
+            return dict(operation=op, event_types=types, state=state)
         if op == "request_grant":
             rs = c["rights"]
             life = c["lifetime_ms"]
@@ -603,6 +681,11 @@ class LinuxTask:
                 or life > self.policy["max_grant_ms"]
             ):
                 raise TaskError("denied")
+            self.grants = {
+                cap: g
+                for cap, g in self.grants.items()
+                if now < g["expires"] and g["generation"] == self.state["generation"]
+            }
             if len(self.grants) >= 256:
                 raise TaskError("capacity")
             cap = self.mint()
@@ -620,6 +703,11 @@ class LinuxTask:
                 rights=[r for r in RIGHTS if bits & RIGHTS[r]],
             )
         if op == "revoke_grant":
+            self.grants = {
+                cap: g
+                for cap, g in self.grants.items()
+                if now < g["expires"] and g["generation"] == self.state["generation"]
+            }
             if (
                 self.domain != 7
                 or c["policy_cap"] != self.policy_cap
@@ -631,6 +719,7 @@ class LinuxTask:
             count = len(self.grants)
             self.state["generation"] += 1
             self.grants.clear()
+            self.subscriptions.clear()
             self.save()
             return dict(
                 operation=op,
@@ -747,6 +836,7 @@ class LinuxTask:
                 "committed_at_ms": self.now(),
             }
             self.save()
+            self.signal("output_changed")
             return reply
         if op == "validate_candidate":
             if c["validator_id"] != self.pins["validator"]:
@@ -885,6 +975,7 @@ class LinuxTask:
             )
             self.state["last_validation"] = candidate["validation"]
             self.save()
+            self.signal("validation_changed")
             if failure:
                 raise TaskError(failure)
             return dict(
@@ -895,6 +986,11 @@ class LinuxTask:
                 truncated=truncated,
             )
         raise TaskError("invalid")
+
+    def signal(self, event):
+        for sub in self.subscriptions.values():
+            if event in sub["types"]:
+                sub["pending"].add(event)
 
 
 def main():

@@ -115,6 +115,7 @@ struct Subscription {
     grant: u64,
     mask: u32,
     pending: HashMap<u32, u64>,
+    pull: bool,
 }
 
 pub struct TaskService {
@@ -178,7 +179,9 @@ fn error_reply(request: &Envelope, code: u32) -> io::Result<Envelope> {
         9 | 11 => (64, 56),
         13 => (32, 24),
         15 => (24, 16),
-        17 => (32, 24),
+        17 | 21 => (32, 24),
+        23 => (40, 32),
+        25 => (16, 8),
         _ => return Err(invalid("unknown request operation")),
     };
     let mut e = Envelope::empty(14, request.msg_type + 1);
@@ -607,7 +610,9 @@ impl TaskService {
         let caps: Vec<_> = self
             .subscriptions
             .iter()
-            .filter(|(_, s)| s.domain == domain && connection.is_none_or(|id| s.connection == id))
+            .filter(|(_, s)| {
+                !s.pull && s.domain == domain && connection.is_none_or(|id| s.connection == id)
+            })
             .map(|(&cap, _)| cap)
             .collect();
         let mut events = Vec::new();
@@ -730,6 +735,15 @@ impl TaskService {
                 self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
             }
             TaskRequest::Subscribe(r) => {
+                self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+            }
+            TaskRequest::SubscribePull(r) => {
+                self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+            }
+            TaskRequest::Poll(r) => {
+                self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+            }
+            TaskRequest::Unsubscribe(r) => {
                 self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
             }
         }
@@ -947,6 +961,7 @@ impl TaskService {
                 ))
             }
             TaskRequest::Revoke(r) => {
+                self.clean();
                 if domain != self.fixture.contract.domain_id
                     || r.policy_cap != self.policy_cap
                     || !self.grants.contains_key(&r.task_cap)
@@ -981,6 +996,7 @@ impl TaskService {
                         grant: r.task_cap,
                         mask: r.event_mask,
                         pending: HashMap::new(),
+                        pull: false,
                     },
                 );
                 Ok(envelope(
@@ -989,6 +1005,106 @@ impl TaskService {
                         request_id: r.request_id,
                         subscription_cap: cap,
                         revision: self.journal.state.accepted().revision,
+                        status: 0,
+                        reserved: 0,
+                    },
+                ))
+            }
+            TaskRequest::SubscribePull(r) => {
+                self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+                self.clean();
+                if self.subscriptions.len() >= MAX_OBJECTS
+                    || self
+                        .subscriptions
+                        .values()
+                        .filter(|s| s.pull && s.connection == connection)
+                        .count()
+                        >= 16
+                {
+                    return Err(STATUS_CAPACITY);
+                }
+                let cap = self.object_cap();
+                self.subscriptions.insert(
+                    cap,
+                    Subscription {
+                        connection,
+                        domain,
+                        grant: r.task_cap,
+                        mask: r.event_mask,
+                        pending: HashMap::new(),
+                        pull: true,
+                    },
+                );
+                Ok(envelope(
+                    22,
+                    SubscribeTaskPullReply {
+                        request_id: r.request_id,
+                        subscription_cap: cap,
+                        revision: self.journal.state.accepted().revision,
+                        status: 0,
+                        reserved: 0,
+                    },
+                ))
+            }
+            TaskRequest::Poll(r) => {
+                let g = self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+                let sub = self
+                    .subscriptions
+                    .get(&r.subscription_cap)
+                    .ok_or(STATUS_NOT_FOUND)?;
+                if !sub.pull
+                    || sub.domain != domain
+                    || sub.connection != connection
+                    || sub.grant != r.task_cap
+                {
+                    return Err(STATUS_DENIED);
+                }
+                let mask = sub.pending.keys().fold(0, |bits, ty| bits | ty);
+                let (cap, len, revision) = if mask == 0 {
+                    (0, 0, 0)
+                } else {
+                    let b = self.snapshot(&g)?;
+                    let cap = self.mapping(domain, &b, false, Some(r.task_cap))?;
+                    (cap, b.len() as u32, self.journal.state.accepted().revision)
+                };
+                // Drain only after a snapshot mapping succeeds. Delivery is
+                // at-most-once; a lost reply requires an explicit state read.
+                self.subscriptions
+                    .get_mut(&r.subscription_cap)
+                    .ok_or(STATUS_NOT_FOUND)?
+                    .pending
+                    .clear();
+                Ok(envelope(
+                    24,
+                    PollTaskReply {
+                        request_id: r.request_id,
+                        state_shm_cap: cap,
+                        revision,
+                        state_len: len,
+                        event_mask: mask,
+                        status: 0,
+                        reserved: 0,
+                    },
+                ))
+            }
+            TaskRequest::Unsubscribe(r) => {
+                self.authorize(domain, r.task_cap, RIGHT_OBSERVE)?;
+                let sub = self
+                    .subscriptions
+                    .get(&r.subscription_cap)
+                    .ok_or(STATUS_NOT_FOUND)?;
+                if !sub.pull
+                    || sub.domain != domain
+                    || sub.connection != connection
+                    || sub.grant != r.task_cap
+                {
+                    return Err(STATUS_DENIED);
+                }
+                self.subscriptions.remove(&r.subscription_cap);
+                Ok(envelope(
+                    26,
+                    UnsubscribeTaskReply {
+                        request_id: r.request_id,
                         status: 0,
                         reserved: 0,
                     },
@@ -1191,7 +1307,9 @@ fn dispatch_connection(
             let offset = match env.msg_type {
                 1 | 5 => 48,
                 3 => 32,
-                7 | 13 | 17 => 24,
+                7 | 13 | 17 | 21 => 24,
+                23 => 32,
+                25 => 8,
                 9 | 11 => 56,
                 15 => 16,
                 _ => 0,

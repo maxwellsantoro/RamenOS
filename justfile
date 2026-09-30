@@ -348,3 +348,7 @@ foundry-agent-task-lt:
 # Opt-in contained shell commands sharing the Linux durable transaction broker.
 foundry-agent-task-ls-transactions:
 	bash ./tools/ci/foundry_agent_task_ls_transactions.sh
+
+# Shared RT/LT v2 pull subscription lifecycle; requires Linux containment.
+foundry-agent-task-subscriptions:
+	bash ./tools/ci/foundry_agent_task_subscriptions.sh

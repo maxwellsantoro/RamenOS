@@ -65,6 +65,44 @@ class BackendTests(unittest.TestCase):
             bytes_base64=base64.b64encode(data).decode(),
         )["result"]["candidate_cap"]
 
+    def test_subscription_shapes_and_grant_binding_bypass_the_codec(self):
+        cap = self.grant(["observe"])
+
+        def invoke(call):
+            return self.task.execute(
+                {"schema_version": 2, "request_id": "1000", "call": call}
+            )
+
+        subscribe = dict(
+            operation="subscribe_task", task_cap=cap, event_types=["output_changed"]
+        )
+        for invalid in [
+            dict(subscribe, task_cap={}),
+            dict(subscribe, event_types=[{}]),
+            dict(subscribe, event_types=["output_changed", "output_changed"]),
+        ]:
+            self.assertEqual(invoke(invalid)["status"], "invalid")
+            self.assertFalse(self.task.poisoned)
+        sub = invoke(subscribe)["result"]["subscription_cap"]
+        self.assertEqual(
+            invoke(dict(operation="poll_task", task_cap=cap, subscription_cap=[]))[
+                "status"
+            ],
+            "invalid",
+        )
+        self.assertFalse(self.task.poisoned)
+        other = self.grant(["observe"])
+        denied = invoke(
+            dict(operation="poll_task", task_cap=other, subscription_cap=sub)
+        )
+        self.assertEqual((denied["status"], denied["result"]), ("denied", None))
+        self.assertEqual(
+            invoke(dict(operation="poll_task", task_cap=cap, subscription_cap=sub))[
+                "result"
+            ]["event_types"],
+            [],
+        )
+
     def test_direct_authority_expiry_foreign_context_and_sealing(self):
         cap = self.grant(["read"])
         for op, fields in [

@@ -101,6 +101,7 @@ This is a bounded point-case check, not a proof of complete protocol equivalence
 source/lock/binary fingerprints, actual Docker run observations and a report.
 LT has no RT-style complete durable operation audit or asynchronous event stream.
 [A2.4](AGENT_TASK_LS_TRANSACTIONS_V1.md) supplies LS commands sharing this Linux
-engine. Model subscription semantics, all-arm authority
+engine. [A2.5](AGENT_TASK_SUBSCRIPTIONS_V2.md) adds an independent in-memory typed
+subscription lifecycle and shared version 2 description/codec. All-arm authority
 inventories/conformance, hidden fixtures and model evaluation remain next. There
 are no model calls, physical runs, merge authority or security/graduation claims.

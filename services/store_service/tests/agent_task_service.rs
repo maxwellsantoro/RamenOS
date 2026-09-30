@@ -57,6 +57,65 @@ fn connect(s: &Arc<Mutex<TaskService>>, domain: u64) -> UnixStream {
     });
     a
 }
+
+#[test]
+fn pull_subscriptions_are_connection_bound_and_discarded_on_disconnect() {
+    let dir = tempfile::tempdir().unwrap();
+    let worker = std::env::var_os("RAMEN_TASK_VALIDATOR_WORKER")
+        .unwrap()
+        .into();
+    let s = Arc::new(Mutex::new(
+        TaskService::open(dir.path(), fixture(), worker).unwrap(),
+    ));
+    let (mut owner, peer) = UnixStream::pair().unwrap();
+    let service = s.clone();
+    let thread = std::thread::spawn(move || {
+        let _ = serve_connection(service, 7, peer);
+    });
+    let cap = grant(&s, &mut owner, RIGHT_OBSERVE);
+    let sub: SubscribeTaskPullReply = read_payload(
+        &exchange(
+            &mut owner,
+            &req(
+                21,
+                &SubscribeTaskPull {
+                    task_cap: cap,
+                    request_id: 2,
+                    event_mask: 3,
+                    reserved: 0,
+                },
+            ),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(sub.status, STATUS_OK);
+    let mut other = connect(&s, 7);
+    let request = req(
+        23,
+        &PollTask {
+            task_cap: cap,
+            request_id: 3,
+            subscription_cap: sub.subscription_cap,
+        },
+    );
+    let denial: PollTaskReply = read_payload(&exchange(&mut other, &request).unwrap()).unwrap();
+    assert_eq!(denial.status, STATUS_DENIED);
+    assert_eq!(
+        (
+            denial.state_shm_cap,
+            denial.state_len,
+            denial.revision,
+            denial.event_mask
+        ),
+        (0, 0, 0, 0)
+    );
+    drop(owner);
+    thread.join().unwrap();
+    let absent: PollTaskReply = read_payload(&exchange(&mut other, &request).unwrap()).unwrap();
+    assert_eq!(absent.status, STATUS_NOT_FOUND);
+    assert_eq!(s.lock().unwrap().mapping_count(), 0);
+}
 fn grant(s: &Arc<Mutex<TaskService>>, c: &mut UnixStream, rights: u32) -> u64 {
     let policy_cap = s.lock().unwrap().policy_cap();
     let r: RequestGrantReply = read_payload(

@@ -56,6 +56,9 @@ pub enum TaskRequest {
     State(GetTaskState),
     Revoke(RevokeGrant),
     Subscribe(SubscribeTask),
+    SubscribePull(SubscribeTaskPull),
+    Poll(PollTask),
+    Unsubscribe(UnsubscribeTask),
 }
 
 fn fields(valid: bool) -> Result<(), ProtocolError> {
@@ -147,6 +150,27 @@ pub fn parse_request(env: &Envelope) -> Result<TaskRequest, ProtocolError> {
             )?;
             Ok(TaskRequest::Subscribe(req))
         }
+        MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_PULL => {
+            let req: SubscribeTaskPull = payload(env)?;
+            fields(
+                req.task_cap != 0
+                    && req.request_id != 0
+                    && req.reserved == 0
+                    && req.event_mask != 0
+                    && req.event_mask & !EVENT_ALL == 0,
+            )?;
+            Ok(TaskRequest::SubscribePull(req))
+        }
+        MSG_AGENT_TASK_V1_POLL_TASK => {
+            let req: PollTask = payload(env)?;
+            fields(req.task_cap != 0 && req.request_id != 0 && req.subscription_cap != 0)?;
+            Ok(TaskRequest::Poll(req))
+        }
+        MSG_AGENT_TASK_V1_UNSUBSCRIBE_TASK => {
+            let req: UnsubscribeTask = payload(env)?;
+            fields(req.task_cap != 0 && req.request_id != 0 && req.subscription_cap != 0)?;
+            Ok(TaskRequest::Unsubscribe(req))
+        }
         _ => Err(ProtocolError::Operation),
     }
 }
@@ -174,7 +198,9 @@ pub fn validate_reply(
         9 | 11 => (64, 56, &[60]),
         13 => (32, 24, &[20, 28]),
         15 => (24, 16, &[]),
-        17 => (32, 24, &[28]),
+        17 | 21 => (32, 24, &[28]),
+        23 => (40, 32, &[36]),
+        25 => (16, 8, &[12]),
         _ => return Err(ProtocolError::Operation),
     };
     fields(env.payload_len as usize == len)?;
@@ -232,6 +258,23 @@ pub fn validate_reply(
     }
     if status == STATUS_OK {
         match request_type {
+            23 => {
+                let count = word(24);
+                let mask = word(28);
+                let h = Handle::unpack(wide(8));
+                fields(
+                    mask & !EVENT_ALL == 0
+                        && if mask == 0 {
+                            count == 0 && wide(8) == 0 && wide(16) == 0
+                        } else {
+                            count != 0
+                                && count <= 4096
+                                && h.kind == HandleKind::Shmem
+                                && h.generation != 0
+                                && h.pack() == wide(8)
+                        },
+                )?;
+            }
             1 | 7 | 13 => {
                 let count = word(match request_type {
                     1 => 52,
@@ -271,7 +314,7 @@ pub fn validate_reply(
             15 => {
                 fields(wide(8) != 0)?;
             }
-            17 => {
+            17 | 21 => {
                 fields(wide(8) != 0)?;
             }
             _ => {}

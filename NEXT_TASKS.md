@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A2 model subscriptions and protocol/authority conformance; HIL appliance hardware runs await setup.
-A0/A1.0 contracts, A1.1/A2.1 host foundations and the opt-in A2.2 shared JSON/RT adapter and A2.3 LT and A2.4 LS durable transactions are implemented.
+**Now:** SW0 A2 canonical authority conformance and hidden-fixture/evaluator controls; HIL appliance hardware runs await setup.
+A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions and A2.5 typed subscriptions are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,8 +74,10 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A2 — define shared model subscription lifecycle, then
-complete canonical authority conformance and hidden-fixture/evaluator controls.
+**Next software action:** A2 — complete canonical available/exercised authority
+inventories and all-arm negative conformance, then hidden-fixture/evaluator controls.
+[A2.5 typed subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) supply a bounded
+version 2 poll/cancel lifecycle with named RT/LT comparisons and explicit LS scope.
 [A2.4 LS commands](docs/AGENT_TASK_LS_TRANSACTIONS_V1.md) provide contained shell
 transactions, a bounded launcher and receipt recovery. A2.3's
 [independent LT backend](docs/AGENT_TASK_LT_BACKEND_V1.md) runs the shared
@@ -105,11 +107,13 @@ report the resulting artifact while access to another workspace is denied.
    does not supply LS durable commits or all-arm conformance.
    A2.2 implements the shared JSON codec/descriptions and opt-in RT bridge with
    independent executable/schema assertions. A2.3 adds independent LT transactions,
-   direct broker denials/recovery and shared named point-case checks. Native
-   subscriptions are not exposed in JSON. A2.4 adds contained LS commands/launcher
+   direct broker denials/recovery and shared named point-case checks. A2.4 adds
+   contained LS commands/launcher
    using the same Linux transaction engine, with real peer and cleanup checks.
-   Continue with model subscriptions, common protocol fixtures,
-   authority mapping/conformance and all-arm negative cases. Keep A1 runnable
+   A2.5 adds shared typed subscriptions, coalescing, cancellation and lifecycle
+   comparisons while preserving version 1. Continue with common protocol fixtures,
+   authority mapping/conformance and all-arm negative cases, including LS raw
+   version 2 broker access and session lifetime differences. Keep A1 runnable
    independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
    and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
@@ -122,7 +126,7 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-A0/A1.0, the A1.1/A2.1 host foundations and A2.2 JSON/RT plus A2.3 LT and A2.4 LS transactions are implemented;
+A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions and A2.5 typed subscriptions are implemented;
 full A2 conformance and model comparison are **not implemented**. Completion of
 the contract is not completion
 of the experiment; an unfavorable comparison is a valid

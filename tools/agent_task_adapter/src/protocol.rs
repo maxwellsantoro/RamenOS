@@ -152,6 +152,26 @@ pub fn rights(bits: u32) -> Result<Vec<Right>, &'static str> {
     .filter(|r| bits & r.bit() != 0)
     .collect())
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventType {
+    OutputChanged,
+    ValidationChanged,
+}
+impl EventType {
+    pub fn bit(self) -> u32 {
+        match self {
+            Self::OutputChanged => 1,
+            Self::ValidationChanged => 2,
+        }
+    }
+}
+pub fn events(mask: u32) -> Vec<EventType> {
+    [EventType::OutputChanged, EventType::ValidationChanged]
+        .into_iter()
+        .filter(|e| mask & e.bit() != 0)
+        .collect()
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Call {
@@ -192,6 +212,18 @@ pub enum Call {
         policy_cap: Cap,
         task_cap: Cap,
     },
+    SubscribeTask {
+        task_cap: Cap,
+        event_types: Vec<EventType>,
+    },
+    PollTask {
+        task_cap: Cap,
+        subscription_cap: Cap,
+    },
+    UnsubscribeTask {
+        task_cap: Cap,
+        subscription_cap: Cap,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -205,10 +237,22 @@ pub fn decode_request(b: &[u8]) -> Result<Request, &'static str> {
         return Err("request bound");
     }
     let req: Request = serde_json::from_slice(b).map_err(|_| "request syntax")?;
-    if req.schema_version != 1 || req.request_id.0 == 0 {
+    if !matches!(req.schema_version, 1 | 2) || req.request_id.0 == 0 {
         return Err("request header");
     }
     match &req.call {
+        Call::SubscribeTask { .. } | Call::PollTask { .. } | Call::UnsubscribeTask { .. }
+            if req.schema_version != 2 =>
+        {
+            return Err("subscription version");
+        }
+        Call::SubscribeTask { event_types, .. }
+            if event_types.is_empty()
+                || event_types.len() > 2
+                || event_types.len() == 2 && event_types[0] == event_types[1] =>
+        {
+            return Err("event mask");
+        }
         Call::RequestGrant {
             task_id,
             rights,
@@ -368,6 +412,17 @@ pub enum Reply {
         generation: Decimal,
         revoked_count: u32,
     },
+    SubscribeTask {
+        subscription_cap: Cap,
+        revision: Decimal,
+    },
+    PollTask {
+        event_types: Vec<EventType>,
+        state: Option<Box<ModelState>>,
+    },
+    UnsubscribeTask {
+        cancelled: bool,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -388,11 +443,25 @@ impl Response {
     }
 }
 pub fn encode_response(r: &Response) -> Result<Vec<u8>, &'static str> {
-    if r.schema_version != 1
+    if !matches!(r.schema_version, 1 | 2)
         || matches!(r.status, Status::Denied | Status::Expired) && r.result.is_some()
         || r.status == Status::Ok && (r.request_id.is_none() || r.result.is_none())
     {
         return Err("response redaction");
+    }
+    match &r.result {
+        Some(
+            Reply::SubscribeTask { .. } | Reply::PollTask { .. } | Reply::UnsubscribeTask { .. },
+        ) if r.schema_version != 2 => return Err("subscription version"),
+        Some(Reply::PollTask { event_types, state })
+            if event_types.len() > 2
+                || event_types.is_empty() != state.is_none()
+                || event_types.len() == 2 && event_types[0] == event_types[1] =>
+        {
+            return Err("event response");
+        }
+        Some(Reply::UnsubscribeTask { cancelled: false }) => return Err("cancellation response"),
+        _ => {}
     }
     let b = serde_json::to_vec(r).map_err(|_| "response syntax")?;
     if b.len() > MAX_RESPONSE_BYTES {
@@ -451,13 +520,19 @@ fn object(properties: Value) -> Value {
     json!({"type":"object","additionalProperties":false,"required":required,"properties":properties})
 }
 pub fn tool_contract() -> Vec<u8> {
+    contract(1)
+}
+pub fn tool_contract_v2() -> Vec<u8> {
+    contract(2)
+}
+fn contract(version: u32) -> Vec<u8> {
     let cap =
         json!({"type":"string","pattern":"^cap:(?!0000000000000000$)[0-9a-f]{16}$(?![\\s\\S])"});
     let resource = json!({"type":"string","pattern":"^resource:(?!0000000000000000$)[0-9a-f]{16}$(?![\\s\\S])"});
     let hash = json!({"type":"string","pattern":"^sha256:[0-9a-f]{64}$(?![\\s\\S])"});
     let bytes = bytes_schema(false);
     let rights = json!({"type":"array","minItems":1,"maxItems":5,"uniqueItems":true,"items":{"enum":["read","stage","validate","commit","observe"]}});
-    let specifications = [
+    let mut specifications = vec![
         (
             "read_input",
             "Read one resource using the supplied current task grant.",
@@ -499,13 +574,20 @@ pub fn tool_contract() -> Vec<u8> {
             json!({"policy_cap":cap,"task_cap":cap}),
         ),
     ];
+    if version == 2 {
+        specifications.extend([
+            ("subscribe_task", "Subscribe under the supplied observation grant. Coalesce output and validation changes until explicit polling; no initial event or background tool calls.", json!({"task_cap":cap,"event_types":{"type":"array","minItems":1,"maxItems":2,"uniqueItems":true,"items":{"enum":["output_changed","validation_changed"]}}})),
+            ("poll_task", "Recheck this subscription's original observation grant, then drain coalesced event types with a fresh state snapshot. Empty polls have no snapshot. Lost replies require explicit state resynchronization.", json!({"task_cap":cap,"subscription_cap":cap})),
+            ("unsubscribe_task", "Cancel this connection-bound subscription using its original observation grant. Repeated cancellation returns not_found. Disconnect, expiry, revocation and restart discard subscriptions.", json!({"task_cap":cap,"subscription_cap":cap})),
+        ]);
+    }
     let tools:Vec<_>=specifications.into_iter().map(|(name,description,mut properties)|{
         properties["operation"]=json!({"const":name});
-        json!({"name":name,"description":description,"input_schema":object(json!({"schema_version":{"const":1},"request_id":decimal_schema(true),"call":object(properties)}))})
+        json!({"name":name,"description":description,"input_schema":object(json!({"schema_version":{"const":version},"request_id":decimal_schema(true),"call":object(properties)}))})
     }).collect();
-    serde_json::to_vec(&json!({"schema_version":1,"transport":"one JSON request/response per line","max_request_bytes":MAX_REQUEST_BYTES,"max_response_bytes":MAX_RESPONSE_BYTES,
+    serde_json::to_vec(&json!({"schema_version":version,"transport":"one JSON request/response per line","max_request_bytes":MAX_REQUEST_BYTES,"max_response_bytes":MAX_RESPONSE_BYTES,
         "status_vocabulary":["ok","denied","invalid","conflict","validation_failed","expired","timeout","capacity","io","request_reuse","not_found"],
-        "tools":tools,"response_schema":response_schema(),"bootstrap_schema":bootstrap_schema()})).expect("static schema")
+        "tools":tools,"response_schema":response_schema(version),"bootstrap_schema":bootstrap_schema()})).expect("static schema")
 }
 
 fn bytes_schema(empty: bool) -> Value {
@@ -513,7 +595,7 @@ fn bytes_schema(empty: bool) -> Value {
       "pattern":"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/][AQgw]==|[A-Za-z0-9+/]{2}[AEIMQUYcgkosw048]=)?$(?![\\s\\S])",
       "anyOf":[{"maxLength":87380},{"minLength":87384,"pattern":"==$(?![\\s\\S])"}],"contentEncoding":"base64"})
 }
-fn response_schema() -> Value {
+fn response_schema(version: u32) -> Value {
     let cap =
         json!({"type":"string","pattern":"^cap:(?!0000000000000000$)[0-9a-f]{16}$(?![\\s\\S])"});
     let resource = json!({"type":"string","pattern":"^resource:(?!0000000000000000$)[0-9a-f]{16}$(?![\\s\\S])"});
@@ -531,7 +613,7 @@ fn response_schema() -> Value {
       "schema_id":hash,"policy_id":hash,"validator_id":hash,"input_resources":{"type":"array","minItems":3,"maxItems":3,"items":resource},
       "validation":{"anyOf":[{"type":"null"},validation]},"validation_current":{"type":"boolean"}}),
     );
-    let replies = [
+    let mut replies = vec![
         (
             "read_input",
             json!({"content_id":hash,"bytes_base64":bytes_schema(false)}),
@@ -562,15 +644,26 @@ fn response_schema() -> Value {
             json!({"generation":decimal_schema(true),"revoked_count":{"type":"integer","minimum":0,"maximum":4294967295u64}}),
         ),
     ];
+    if version == 2 {
+        replies.extend([
+            ("subscribe_task", json!({"subscription_cap":cap,"revision":decimal_schema(false)})),
+            ("poll_task", json!({"event_types":{"type":"array","maxItems":2,"uniqueItems":true,"items":{"enum":["output_changed","validation_changed"]}},"state":{"anyOf":[{"type":"null"},state]}})),
+            ("unsubscribe_task", json!({"cancelled":{"const":true}})),
+        ]);
+    }
     let schemas: Vec<_> = replies
         .into_iter()
         .map(|(name, mut fields)| {
             fields["operation"] = json!({"const":name});
-            object(fields)
+            let mut result = object(fields);
+            if name == "poll_task" {
+                result["allOf"] = json!([{"if":{"properties":{"event_types":{"maxItems":0}}},"then":{"properties":{"state":{"type":"null"}}},"else":{"properties":{"state":{"type":"object"}}}}]);
+            }
+            result
         })
         .collect();
     let mut schema = object(
-        json!({"schema_version":{"const":1},"request_id":{"anyOf":[{"type":"null"},decimal_schema(true)]},
+        json!({"schema_version":{"const":version},"request_id":{"anyOf":[{"type":"null"},decimal_schema(true)]},
       "status":{"enum":["ok","denied","invalid","conflict","validation_failed","expired","timeout","capacity","io","request_reuse","not_found"]},
       "result":{"anyOf":[{"type":"null"},{"oneOf":schemas}]}}),
     );

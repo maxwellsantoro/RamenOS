@@ -94,11 +94,11 @@ termination diagnostics disclose no host paths or backend records. The saved
 stderr descriptor is close-on-exec. Durable service audit remains in the private
 journal; in-process evaluator APIs and that journal never become JSON operations.
 
-Subscriptions remain available only in the native A1.1 API. This adapter does
-not subscribe, paginate or deliver buffered events. Explicit `get_task_state`
-reads provide its current observation contract. Shared model subscription,
-coalescing and revalidation semantics need a separate versioned extension before
-full A2 equivalence. No generated native interface is altered by this wrapper.
+Version 1 exposes only explicit state reads. [A2.5's separately described version
+2 extension](AGENT_TASK_SUBSCRIPTIONS_V2.md) adds bounded pull subscriptions,
+coalescing, authority revalidation and cancellation through generated native
+message pairs. `--describe` and the eight-operation version 1 artifact are unchanged;
+`--describe-v2` supplies the extended contract. Neither version emits unsolicited JSON.
 
 ## Gate evidence and next work
 
@@ -121,9 +121,9 @@ Count all exposed schemas and messages in future interaction-cost measurements.
 Tool-contract bytes are identical across hosts; opaque caps, native timings,
 binaries and transcripts legitimately differ and retain their own provenance.
 
-LT/RT equivalence cannot be reported until LT uses this same codec/descriptions
-and an independently enforced Linux transaction backend. LS transaction commands,
-model subscriptions, common lifecycle probes, complete effective/exercised
-canonical authority mapping and a disjoint hidden fixture bank also remain.
+[A2.3](AGENT_TASK_LT_BACKEND_V1.md) supplies independent LT transactions,
+[A2.4](AGENT_TASK_LS_TRANSACTIONS_V1.md) supplies LS commands, and A2.5 adds named
+typed lifecycle comparisons. Complete effective/exercised canonical authority
+mapping, all-arm conformance and a disjoint hidden fixture bank remain.
 Full A2, Phase B comparison, production/target integration and physical HIL are
 still pending. No model credentials or paid service are used by this gate.

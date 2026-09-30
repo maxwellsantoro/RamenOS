@@ -30,8 +30,12 @@ fn frame(input: &mut impl BufRead) -> io::Result<Vec<u8>> {
 }
 fn run() -> io::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() == 1 && args[0] == "--describe" {
-        io::stdout().write_all(&tool_contract())?;
+    if args.len() == 1 && (args[0] == "--describe" || args[0] == "--describe-v2") {
+        io::stdout().write_all(&if args[0] == "--describe" {
+            tool_contract()
+        } else {
+            tool_contract_v2()
+        })?;
         io::stdout().write_all(b"\n")?;
         return Ok(());
     }
@@ -78,7 +82,9 @@ fn run() -> io::Result<()> {
         input.flush()?;
         let response: Response =
             serde_json::from_slice(&frame(&mut output)?).map_err(|_| invalid())?;
-        if response.request_id.map(|r| r.0) != Some(request.request_id.0) {
+        if response.schema_version != request.schema_version
+            || response.request_id.map(|r| r.0) != Some(request.request_id.0)
+        {
             return Err(invalid());
         }
         if let Some(result) = &response.result {

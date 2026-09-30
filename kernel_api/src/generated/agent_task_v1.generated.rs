@@ -75,6 +75,30 @@ pub struct GetTaskStateReply {
     pub reserved2: u32,
 }
 
+pub const MSG_AGENT_TASK_V1_POLL_TASK: u32 = 23;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct PollTask {
+    pub task_cap: u64,
+    pub request_id: u64,
+    pub subscription_cap: u64,
+}
+
+pub const MSG_AGENT_TASK_V1_POLL_TASK_REPLY: u32 = 24;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct PollTaskReply {
+    pub request_id: u64,
+    pub state_shm_cap: u64,
+    pub revision: u64,
+    pub state_len: u32,
+    pub event_mask: u32,
+    pub status: u32,
+    pub reserved: u32,
+}
+
 pub const MSG_AGENT_TASK_V1_READ_INPUT: u32 = 1;
 
 #[repr(C)]
@@ -179,6 +203,29 @@ pub struct SubscribeTask {
     pub reserved: u32,
 }
 
+pub const MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_PULL: u32 = 21;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct SubscribeTaskPull {
+    pub task_cap: u64,
+    pub request_id: u64,
+    pub event_mask: u32,
+    pub reserved: u32,
+}
+
+pub const MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_PULL_REPLY: u32 = 22;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct SubscribeTaskPullReply {
+    pub request_id: u64,
+    pub subscription_cap: u64,
+    pub revision: u64,
+    pub status: u32,
+    pub reserved: u32,
+}
+
 pub const MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_REPLY: u32 = 18;
 
 #[repr(C)]
@@ -201,6 +248,26 @@ pub struct TaskChangedEvent {
     pub state_shm_cap: u64,
     pub state_len: u32,
     pub event_type: u32,
+}
+
+pub const MSG_AGENT_TASK_V1_UNSUBSCRIBE_TASK: u32 = 25;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct UnsubscribeTask {
+    pub task_cap: u64,
+    pub request_id: u64,
+    pub subscription_cap: u64,
+}
+
+pub const MSG_AGENT_TASK_V1_UNSUBSCRIBE_TASK_REPLY: u32 = 26;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct UnsubscribeTaskReply {
+    pub request_id: u64,
+    pub status: u32,
+    pub reserved: u32,
 }
 
 pub const MSG_AGENT_TASK_V1_VALIDATE_CANDIDATE: u32 = 7;

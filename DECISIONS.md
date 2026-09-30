@@ -846,3 +846,28 @@ validator pins, actual shell isolation versus the typed scripted harnesses, and
 additional checkpoint instrumentation. None establishes equal/narrower authority
 or substrate advantage. Shared subscriptions, canonical inventories, hidden-bank/
 evaluator/session controls remain next. No model or physical trial begins here.
+
+## 2026-09-30 — SW0 A2.5 explicit typed subscription polling
+
+Use a separately described version 2 model contract with explicit subscribe,
+poll and cancel operations. Keep version 1's eight-operation artifact unchanged.
+Bound each connection/session to 16 subscriptions, with two coalesced pending
+event types each. Poll returns fresh authorized state only when an event is pending;
+there is no unsolicited JSON, background observation, initial event or repair policy.
+Recheck the original OBSERVE grant and connection/session before lookup/delivery.
+Cancellation, generation revocation, expiry and disconnect/restart discard queues.
+
+Add protocol-14 typed message pairs 21–26 through IDL/codegen, retaining existing
+push subscribe/events. RT uses the native service's signal path and shared-memory
+snapshot lifecycle; LT owns an independent in-memory implementation. Draining is
+at-most-once, so a lost poll response requires explicit state resynchronization.
+Revocation counts live grants after expiry reclamation. Named comparison permits
+only opaque-handle aliasing, declared clock fields and the predeclared expiry
+case's redacted expired/denied difference; other outputs must agree.
+
+LS's helper remains eight conventional version 1 verbs. Raw LS clients can reach
+the shared broker's version 2 operations with launcher-session lifetimes; record
+that available authority and difference in the upcoming all-arm inventory. This
+milestone adds finite typed lifecycle evidence, not full protocol/authority
+equivalence, durable notification replay or model/target/metal evidence. Continue
+with canonical inventories and negative cases, then hidden-bank/evaluator controls.

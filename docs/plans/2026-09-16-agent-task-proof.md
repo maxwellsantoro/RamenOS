@@ -358,16 +358,17 @@ Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY
 
 ## Landing sequence and claim boundaries
 
-A0, A1.0, A1.1 RT, A2.1 Linux, A2.2 JSON/RT, A2.3 LT and A2.4 LS transaction
-commands are runnable today.
+A0, A1.0, A1.1 RT, A2.1 Linux, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions
+and A2.5 typed subscriptions are runnable today.
 [The Linux foundation](../AGENT_TASK_LINUX_CONTROL_V1.md) shares the development
 fixture/worker and records actual containment and named authority differences.
 [A2.2](../AGENT_TASK_ADAPTER_V1.md) supplies a common codec/descriptions and RT
 bridge, exercised by a separate script. [A2.3](../AGENT_TASK_LT_BACKEND_V1.md) adds
 independent LT transactions and named typed point cases.
 [A2.4](../AGENT_TASK_LS_TRANSACTIONS_V1.md) adds contained LS commands/launcher,
-original-receipt recovery and peer/cleanup gates. Model subscriptions, full
-conformance and comparison commands remain planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
+original-receipt recovery and peer/cleanup gates. [A2.5](../AGENT_TASK_SUBSCRIPTIONS_V2.md)
+adds a shared version 2 typed pull/cancel lifecycle and named comparisons. Full
+authority conformance and comparison commands remain planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
 names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
 the actual call-path inventory and A1.1 service assertions.
 
@@ -380,6 +381,7 @@ the actual call-path inventory and A1.1 service assertions.
 | A2.2: JSON/RT adapter | Shared eight-operation codec/descriptions/schemas and opt-in native IPC bridge with external scripted consumer; `just foundry-agent-task-adapter` | The useful task works through the JSON contract; LT, model trials and all-arm equivalence remain pending |
 | A2.3: LT transactions | Independent Linux grants, sealed worker validation, durable revision/receipts and named RT/LT cases; `just foundry-agent-task-lt` | Scripted LT task and named point comparisons; no complete protocol/authority equivalence |
 | A2.4: LS transactions | Contained command helper/launcher sharing Linux transactions, real peer/transport/cleanup checks and original receipts; `just foundry-agent-task-ls-transactions` | Scripted shell task and recovery; no all-arm conformance or model result |
+| A2.5: typed subscriptions | Shared v2 codec/descriptions, generated native pull/poll/cancel messages, independent LT lifecycle and 50-operation RT/LT comparison; `just foundry-agent-task-subscriptions` | Named bounded lifecycle behavior; no full authority/protocol equivalence or model result |
 | A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |

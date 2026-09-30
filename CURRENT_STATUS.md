@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A2.4 LS/LT transactions implemented; subscriptions/full conformance are next
+**Software Lane:** SW0 A2.5 typed subscriptions implemented; full authority conformance is next
 
 ## Active Execution Track
 
@@ -22,8 +22,9 @@ deterministic gate plus A1.0's native control layouts/preflight are implemented;
 the A1.1 useful host task and A2.1 Linux scoped-shell foundation are implemented.
 A2.2 supplies shared JSON/RT transport; A2.3 supplies independent Linux typed
 transactions and named RT/LT point-case checks. A2.4 supplies contained LS
-commands and original-receipt recovery. Shared model subscriptions, full A2
-conformance and model comparison remain pending. No live capture or actuation is
+commands and original-receipt recovery. A2.5 supplies the shared version 2 typed
+subscription lifecycle. Full A2 conformance and model comparison remain pending.
+No live capture or actuation is
 scheduled while hardware setup is pending. These labels do not allocate new slice
 numbers or change governance authority.
 
@@ -38,7 +39,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT and A2.4 LS transactions | Model subscriptions and full A2 authority conformance, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions and A2.5 typed subscriptions | Full A2 authority conformance, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -46,6 +47,23 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.5 shared typed subscription lifecycle (2026-09-30)
+
+- `just foundry-agent-task-subscriptions` compares 50 version 2 operations per
+  adapter through actual RT IPC and independent Linux LT enforcement. Version 1's
+  eight-operation description artifact remains byte-identical.
+- Generated typed pull subscribe/poll/cancel messages preserve existing push
+  behavior. Each connection/session retains at most 16 subscriptions and two
+  pending event types each; polls recheck original observation authority and
+  return fresh scoped state, with no unsolicited model messages.
+- Wire/service/adapter assertions cover connection and grant substitution,
+  coalescing/filtering, capacity reuse, cancellation, queued-event revocation,
+  expiry redaction, disconnect/restart removal and mapping cleanup.
+- [Subscription scope](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) records at-most-once
+  notification delivery, explicit resynchronization, expiry status normalization
+  and LS's raw broker/session differences. Full authority conformance, hidden-bank
+  controls and model evaluation remain pending; physical hardware stays deferred.
 
 ### SW0 A2.4 Linux scoped-shell durable transactions (2026-09-30)
 

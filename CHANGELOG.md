@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.5's shared version 2 typed subscription lifecycle while preserving
+  the version 1 artifact. Generated native pull/poll/cancel messages and independent
+  LT state bound queues, recheck observation authority and discard subscriptions
+  on cancellation, revocation, expiry and disconnect/restart. A Linux CI gate
+  compares 50 operations per arm; native connection and mapping tests supplement
+  executable/schema checks. Full authority conformance and model trials remain pending.
 - Added SW0 A2.4's contained LS command helper and opt-in bounded shell launcher,
   sharing Linux transactions with LT. Real shell repair/commit, abandoned-reply
   receipt lookup, restart, peer credentials, malformed/stalled frames, descriptor

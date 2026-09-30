@@ -1,6 +1,6 @@
 //! Opt-in trusted launcher. Model bytes arrive only on bounded stdin JSON lines.
 use agent_task_adapter::{
-    protocol::tool_contract,
+    protocol::{tool_contract, tool_contract_v2},
     rt::{RtAdapter, fixture_from_directory},
     stdio::serve,
 };
@@ -37,8 +37,12 @@ impl Drop for BackendDiagnostics {
 }
 fn run() -> io::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() == 1 && args[0] == "--describe" {
-        io::stdout().write_all(&tool_contract())?;
+    if args.len() == 1 && (args[0] == "--describe" || args[0] == "--describe-v2") {
+        io::stdout().write_all(&if args[0] == "--describe" {
+            tool_contract()
+        } else {
+            tool_contract_v2()
+        })?;
         io::stdout().write_all(b"\n")?;
         return Ok(());
     }

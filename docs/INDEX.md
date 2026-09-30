@@ -51,6 +51,7 @@ The operational source of truth is
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
 - [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; the implemented A1.1 host proof has a separately documented fixture boundary.
 - [Agent Task Adapter V1](AGENT_TASK_ADAPTER_V1.md): A2.2 shared JSON codec/descriptions, opt-in RT bridge, external scripted consumer and remaining full-A2 work.
+- [Agent Task Subscriptions V2](AGENT_TASK_SUBSCRIPTIONS_V2.md): A2.5 shared typed pull/cancel lifecycle, bounded coalescing, current observation authority and RT/LT lifecycle checks.
 - [Agent Task LS Transactions V1](AGENT_TASK_LS_TRANSACTIONS_V1.md): A2.4 contained shell commands/launcher, shared Linux transactions, receipt recovery and peer/cleanup gates.
 - [Agent Task LT Backend V1](AGENT_TASK_LT_BACKEND_V1.md): A2.3 independent Linux grants/sealed validation/durable receipts and named RT/LT point-case checks.
 - [Agent Task Linux Control V1](AGENT_TASK_LINUX_CONTROL_V1.md): A2.1 scripted Linux repair, measured containment, forced probes and remaining all-arm conformance.

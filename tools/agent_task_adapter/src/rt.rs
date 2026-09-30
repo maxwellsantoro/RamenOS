@@ -231,7 +231,12 @@ impl RtAdapter {
     }
     pub fn execute_json(&mut self, bytes: &[u8]) -> io::Result<Vec<u8>> {
         let response = match decode_request(bytes) {
-            Ok(r) => self.execute(r)?,
+            Ok(r) => {
+                let version = r.schema_version;
+                let mut response = self.execute(r)?;
+                response.schema_version = version;
+                response
+            }
             Err(_) => Response::error(None, Status::Invalid),
         };
         encode_response(&response).map_err(|_| invalid())
@@ -350,6 +355,40 @@ impl RtAdapter {
                     policy_cap: policy_cap.0,
                     request_id: id,
                     task_cap: task_cap.0,
+                },
+            )?,
+            Call::SubscribeTask {
+                task_cap,
+                event_types,
+            } => env(
+                21,
+                SubscribeTaskPull {
+                    task_cap: task_cap.0,
+                    request_id: id,
+                    event_mask: event_types.into_iter().fold(0, |bits, e| bits | e.bit()),
+                    reserved: 0,
+                },
+            )?,
+            Call::PollTask {
+                task_cap,
+                subscription_cap,
+            } => env(
+                23,
+                PollTask {
+                    task_cap: task_cap.0,
+                    request_id: id,
+                    subscription_cap: subscription_cap.0,
+                },
+            )?,
+            Call::UnsubscribeTask {
+                task_cap,
+                subscription_cap,
+            } => env(
+                25,
+                UnsubscribeTask {
+                    task_cap: task_cap.0,
+                    request_id: id,
+                    subscription_cap: subscription_cap.0,
                 },
             )?,
         };
@@ -478,6 +517,42 @@ impl RtAdapter {
                             revoked_count: r.revoked_count,
                         },
                     )
+                }
+                21 => {
+                    let r = payload!(SubscribeTaskPullReply);
+                    status!(r);
+                    (
+                        r.status,
+                        Reply::SubscribeTask {
+                            subscription_cap: Cap(r.subscription_cap),
+                            revision: Decimal(r.revision),
+                        },
+                    )
+                }
+                23 => {
+                    let r = payload!(PollTaskReply);
+                    status!(r);
+                    let state = if r.event_mask == 0 {
+                        None
+                    } else {
+                        let s = self.snapshot(r.state_shm_cap, r.state_len)?;
+                        if s.revision.0 != r.revision {
+                            return Err(STATUS_IO);
+                        }
+                        Some(Box::new(s))
+                    };
+                    (
+                        r.status,
+                        Reply::PollTask {
+                            event_types: events(r.event_mask),
+                            state,
+                        },
+                    )
+                }
+                25 => {
+                    let r = payload!(UnsubscribeTaskReply);
+                    status!(r);
+                    (r.status, Reply::UnsubscribeTask { cancelled: true })
                 }
                 _ => return Err(STATUS_IO),
             })

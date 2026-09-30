@@ -129,3 +129,9 @@ log is in memory and does not prove complete crash-persistent operation audit.
 Model subscription lifecycle, complete canonical authority mapping/time-indexed
 inventories, shared hidden fixture/evaluator/session controls and all-arm negative
 conformance remain next. No model or physical-hardware trial runs in this gate.
+
+A2.5 adds [version 2 typed subscriptions](AGENT_TASK_SUBSCRIPTIONS_V2.md) to
+the shared Linux broker. The conventional helper remains eight version 1 verbs;
+raw LS clients can reach those subscription packets. Their lifetime is the whole
+LS launcher session across per-command socket closes. Include that additional
+available observation authority and lifecycle difference in all-arm conformance.
