@@ -82,7 +82,9 @@ The gate is wired into the extended Foundry suite and needs no network, model
 credentials or hardware. A0 does not claim replay/audit completeness, a useful
 configuration repair, Linux control equivalence, or target enforcement.
 
-Next is A1: write actual boundary assertions, define/generate missing native
+The [A1.1 host proof](AGENT_TASK_SERVICE_PROOF_V1.md) now implements the named
+service boundaries. Its original A1 requirement was to write boundary assertions
+and define/generate missing native
 grant/stage/validate/commit operations, integrate one RamenOS scripted consumer,
 add the outer validator worker/watchdog and bounded IPC, then prove durable
 receipts, forced denials, complete evidence and replay. A2 adds Linux controls;

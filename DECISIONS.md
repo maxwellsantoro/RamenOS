@@ -714,3 +714,40 @@ bytes before validation. A1.0 preflight establishes none of these backend checks
 Retain A1.1's durable transaction and supervised worker requirements. Keep its
 host service proof independent of Linux controls, model runs and hardware setup.
 The new gate reports `environment=host claim=wire-contract` only.
+
+## 2026-09-30 — SW0 A1.1 bounded host fixture service
+
+Implement the generated task contract in an opt-in Store task service, with a
+separate Native Runner worker and strict schema records. Both require
+`agent_task_v1_dev`, disabled by default; no production endpoint/broker is
+registered. A trusted launcher assigns domains to connected host transports and
+provides scoped file-backed mappings. These are named host proof boundaries,
+not production authentication, a client process sandbox or target enforcement.
+Use a tiny canonical-JSON equality dialect for the first useful fixture; general
+schema execution and model-facing adapters are subsequent work.
+
+Store keeps output reference/revision, semantic commit binding, original receipt,
+trusted validation and dispatched-call audit in one synchronized journal under
+an exclusive writer lock. A failed persistence attempt poisons the service until
+recovery. Restart invalidates grants/validation by advancing generation; stable
+candidate/receipt locators survive for exact successful retries. A renewed
+`task_cap` is permitted for a retry because current authority is checked afresh;
+all semantic fields must still match. Locators alone grant no authority. This
+clarifies A1.0's blanket generation wording without reviving revoked grants.
+
+The validator has no custom host imports. Its private guest input header goes
+through IDL/codegen as reserved type 20, never accepted in task request dispatch.
+Its worker verifies CAS hashes and handles JSON normalization; the pinned WASM
+program performs the comparison. CAS reads and compilation run inside the outer
+watchdog. Two validators per task is the viable initial admission limit; check
+caller authority before revealing exhaustion. Linux proves process-group cleanup
+and descendant reaping and imposes an address-space ceiling; macOS has a narrower
+containment claim. Storage/scheduler hard real-time and physical power-loss
+behavior are outside this host gate.
+
+Coalesce subscriptions to one pending event per type, bind delivery to the
+issuing connection/current observer grant and use fresh snapshots. Consumers
+resynchronize by state read after notification loss. The independent verifier
+checks receipt/validation replay and audit hash integrity; it does not establish
+operator-resistant authenticity or complete OS-event replay. A2 remains required
+before comparative model collection, and physical work stays deferred.

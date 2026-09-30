@@ -227,3 +227,14 @@ pub struct ValidateCandidateReply {
     pub diagnostics_len: u32,
     pub diagnostics_flags: u32,
 }
+
+pub const MSG_AGENT_TASK_V1_VALIDATOR_INPUT_HEADER: u32 = 20;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ValidatorInputHeader {
+    pub magic: u32,
+    pub candidate_len: u32,
+    pub schema_len: u32,
+    pub reserved: u32,
+}

@@ -7,6 +7,8 @@ edition = "2021"
 [features]
 # Feature for testing real kernel IPC (requires a running kernel socket)
 test_kernel_ipc = []
+# WARNING: private SW0 host-proof worker ABI; no production task routing.
+agent_task_v1_dev = []
 
 [lib]
 name = "native_runner"
@@ -15,6 +17,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "native_runner"
 path = "src/bin/native_runner.rs"
+
+[[bin]]
+name = "task_validator_worker"
+path = "src/bin/task_validator_worker.rs"
+required-features = ["agent_task_v1_dev"]
 
 [dependencies]
 wasmtime = "27"
@@ -25,6 +32,10 @@ kernel_api = { path = "../../kernel_api" }
 memmap2 = "0.9"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"
+hex = "0.4"
+artifact_store_schema = { path = "../../artifact_store_schema" }
+libc = "0.2" # Validator worker rlimits; outer watchdog is service-owned
 
 [dev-dependencies]
 tempfile = "3"

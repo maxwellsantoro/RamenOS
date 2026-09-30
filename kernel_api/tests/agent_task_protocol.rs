@@ -30,7 +30,7 @@ fn all_messages_fit_the_fixed_control_plane_without_implicit_padding() {
         GetTaskState => 16, GetTaskStateReply => 32,
         RevokeGrant => 24, RevokeGrantReply => 24,
         SubscribeTask => 24, SubscribeTaskReply => 32,
-        TaskChangedEvent => 32,
+        TaskChangedEvent => 32, ValidatorInputHeader => 16,
     );
 }
 
@@ -95,6 +95,7 @@ fn unknown_protocol_operations_and_reply_injection_fail_closed() {
         MSG_AGENT_TASK_V1_REVOKE_GRANT_REPLY,
         MSG_AGENT_TASK_V1_SUBSCRIBE_TASK_REPLY,
         MSG_AGENT_TASK_V1_TASK_CHANGED_EVENT,
+        MSG_AGENT_TASK_V1_VALIDATOR_INPUT_HEADER,
     ] {
         env.msg_type = msg_type;
         assert_eq!(parse_request(&env).unwrap_err(), ProtocolError::Operation);
@@ -239,4 +240,52 @@ fn subscriptions_only_accept_declared_task_events() {
         ..request
     };
     assert!(parse_request(&envelope(MSG_AGENT_TASK_V1_SUBSCRIBE_TASK, &invalid)).is_err());
+}
+
+#[test]
+fn reply_preflight_rejects_private_fields_on_denial_and_wrong_request_identity() {
+    use kernel_api::agent_task_protocol::{STATUS_DENIED, STATUS_OK, validate_reply};
+    let mut reply = CommitCandidateReply {
+        request_id: 7,
+        receipt_cap: 0,
+        revision: 0,
+        content_id_hash: [0; 32],
+        status: STATUS_DENIED,
+        reserved: 0,
+    };
+    assert!(validate_reply(&envelope(10, &reply), 9, 7).is_ok());
+    reply.content_id_hash[0] = 1;
+    assert!(validate_reply(&envelope(10, &reply), 9, 7).is_err());
+    reply.content_id_hash = [0; 32];
+    reply.status = STATUS_OK;
+    reply.receipt_cap = 8;
+    reply.revision = 1;
+    assert!(validate_reply(&envelope(10, &reply), 9, 7).is_ok());
+    assert!(validate_reply(&envelope(10, &reply), 9, 8).is_err());
+    assert!(validate_reply(&envelope(10, &reply), u32::MAX, 7).is_err());
+    reply.reserved = 1;
+    assert!(validate_reply(&envelope(10, &reply), 9, 7).is_err());
+}
+
+#[test]
+fn failure_replies_still_bound_diagnostics_and_reject_invalid_mapping_kinds() {
+    use kernel_api::agent_task_protocol::{OUTCOME_TIMEOUT, STATUS_TIMEOUT, validate_reply};
+    let mut reply = ValidateCandidateReply {
+        request_id: 1,
+        diagnostics_shm_cap: 0,
+        valid_until_ms: 0,
+        status: STATUS_TIMEOUT,
+        outcome: OUTCOME_TIMEOUT,
+        diagnostics_len: 65537,
+        diagnostics_flags: 0,
+    };
+    assert!(validate_reply(&envelope(8, &reply), 7, 1).is_err());
+    reply.diagnostics_len = 1;
+    reply.diagnostics_shm_cap = Handle {
+        kind: HandleKind::Ipc,
+        index: 1,
+        generation: 1,
+    }
+    .pack();
+    assert!(validate_reply(&envelope(8, &reply), 7, 1).is_err());
 }

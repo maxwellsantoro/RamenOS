@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A1.1 RamenOS scripted service proof; HIL appliance hardware runs await setup.
-A0 contract fixtures and A1.0 control layouts/preflight are implemented.
+**Now:** SW0 A2 controls and protocol/authority conformance; HIL appliance hardware runs await setup.
+A0/A1.0 contracts and the opt-in A1.1 scripted host proof are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,10 +74,10 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A1.1 — write executable RT service-boundary assertions
-from the [A1.0 matrix](docs/AGENT_TASK_PROTOCOL_V1.md), freeze bulk-state and reply
-validation, then implement one RamenOS scripted adapter with scoped grants,
-worker cleanup, durable receipts, audit and replay.
+**Next software action:** A2 — implement Linux scoped-shell and typed controls,
+a model-facing RT adapter, common serializer/fixtures and canonical authority
+conformance. Preserve A1.1's independently runnable host gate and its explicit
+[fixture boundary](docs/AGENT_TASK_SERVICE_PROOF_V1.md).
 SW0 has no H0–H3 prerequisite. The
 [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
 consumer task: repair a scoped configuration, execute its pinned validator, and
@@ -89,14 +89,10 @@ report the resulting artifact while access to another workspace is denied.
 1. A1.0 is implemented: `just foundry-agent-task-protocol-a1-0` checks generated
    fixed control layouts and fail-closed request preflight. The documented
    call-path inventory and A1.1 matrix do not supply service enforcement.
-   A1.1: write the task-success, forced-denial, revocation, conflict, audit, and
-   replay assertions first; implement handlers behind the generated contract.
-   Include validation bound to exact candidate/schema/policy/validator identities,
-   revision/content preconditions, lost replies/restart, revocation during
-   validation, and stalled backend cleanup. Implement the fixture and scripted
-   consumer across the host service boundary. Ship an independent RT gate and
-   inspectable evidence bundle. Report host enforcement explicitly; no
-   target-native or comparative claim yet.
+   A1.1 is implemented: `just foundry-agent-task-proof-rt` checks the useful
+   scripted host task, forced denials, worker bounds, durable receipt recovery,
+   scoped events and audit/receipt replay. Production registration, separately
+   isolated clients and target-kernel task enforcement remain outside its scope.
 2. A2: implement Linux scoped-shell and typed controls, common protocol fixtures,
    authority mapping/conformance and all-arm negative cases. Keep A1 runnable
    independently; comparative data collection requires all A2 controls to pass.
@@ -111,7 +107,7 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-Only A0 and A1.0 contract gates are implemented; A1.1/A2, the useful proof and
+A0/A1.0 and the A1.1 scripted host proof are implemented; A2 controls and
 model comparison are **not implemented**. Completion of the contract is not completion
 of the experiment; an unfavorable comparison is a valid
 result and should inform the next software slice.

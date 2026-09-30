@@ -3,7 +3,7 @@
 **Last Updated:** 2026-09-30
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A0 and A1.0 control-contract gates implemented; A1.1 service proof is next
+**Software Lane:** SW0 A1.1 scripted host service proof implemented; A2 controls/conformance are next
 
 ## Active Execution Track
 
@@ -19,8 +19,8 @@ decision, and its own design/IDL/Oracle/gate prerequisites land.
 H0–H3 name the physical queue. SW0 is an independent software queue and can
 continue without waiting for NVMe graduation. Its A0 schema/reference model and
 deterministic gate plus A1.0's native control layouts/preflight are implemented;
-the useful service task and comparison remain
-pending. No live capture or actuation is scheduled while hardware setup is pending.
+the A1.1 useful host task is implemented. Linux controls and the model comparison
+remain pending. No live capture or actuation is scheduled while hardware setup is pending.
 These labels
 do not allocate new slice numbers or change governance authority.
 
@@ -35,7 +35,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0 model and A1.0 IDL/request preflight gates; existing components remain separate | A1.1 useful RT service proof, A2 Linux controls/mappings, bounded Phase B comparison, and task-specific target enforcement |
+| Agent Task Proof (SW0) | A0/A1.0 contracts and opt-in A1.1 scripted host service proof | A2 controls/model-facing adapters and authority conformance, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -43,6 +43,24 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A1.1 scripted host service proof (2026-09-30)
+
+- `just foundry-agent-task-proof-rt` repairs one configuration across generated
+  native control messages and actual host stream IPC. A separate Native Runner
+  worker verifies CAS pins and executes a WASM validator with no host imports.
+- Current grants, immutable staging, revocation, revision/hash conflicts, ABA,
+  durable retries and private observation/mapping boundaries have backend tests.
+  One synchronized journal publishes the accepted reference and receipt together;
+  process-crash tests cover publication failure and lost replies after durability.
+- The worker watchdog includes CAS reads, IPC and compilation; guest/start loops,
+  a real stalled backend, bounded diagnostics and two-worker admission are tested.
+  Linux adds address-space limits and owned-descendant reaping.
+- [Service proof scope](docs/AGENT_TASK_SERVICE_PROOF_V1.md): opt-in development
+  features, launcher-bound domains, host mapping provider and a small equality
+  schema. No production listener/broker registration, client process sandbox,
+  target task authority, model advantage or physical result is established.
+- A2 controls, model-facing adapters and canonical authority conformance are next.
 
 ### SW0 A1.0 native control contract (2026-09-30)
 
@@ -195,8 +213,8 @@ is [docs/plans/2026-06-23-research-backed-ramenorg.md](docs/plans/2026-06-23-res
 
 ## Known Gaps
 
-- No end-to-end Agent Task Proof or measured comparison with shell/tool agents;
-  A0 is a pure model, A1.0 is control preflight, and A1.1 service integration is next.
+- No model-facing three-arm Agent Task Proof or measured comparison with shell/tool agents;
+  A1.1 proves a bounded host fixture; A2 controls and production/target integration remain.
 - Native runner, Store, and Semantic State reactor remain host-side; default
   snapshot metadata includes placeholders, and execution-fabric routing is simulated.
 - No `PASS/METAL` claim for S12 or S13 yet.

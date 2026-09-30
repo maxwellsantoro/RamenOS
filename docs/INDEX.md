@@ -49,8 +49,9 @@ The operational source of truth is
 - [Ring Buffer V0](RING_BUFFER_V0.md)
 - [Multi-Domain Architecture](MULTI_DOMAIN.md)
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
-- [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; A1 service enforcement remains pending.
-- [Agent Task Protocol V1](AGENT_TASK_PROTOCOL_V1.md): SW0 A1.0 native control layouts/preflight, call-path inventory and A1.1 service assertion matrix; no handler enabled.
+- [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; the implemented A1.1 host proof has a separately documented fixture boundary.
+- [Agent Task Service Proof V1](AGENT_TASK_SERVICE_PROOF_V1.md): opt-in A1.1 useful host task, worker/durability assertions and precise evidence scope.
+- [Agent Task Protocol V1](AGENT_TASK_PROTOCOL_V1.md): SW0 A1.0 native control layouts/preflight, call-path inventory and A1.1 service assertion matrix; production handler registration remains disabled.
 - [`idl/`](../idl/): canonical typed interfaces and generated-binding inputs.
 
 ## Active and Gate-Bound Plans

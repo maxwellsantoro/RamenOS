@@ -80,3 +80,9 @@ fields = ["request_id:u64", "subscription_cap:u64", "revision:u64", "status:u32"
 [message.task_changed_event]
 msg_type = 19
 fields = ["subscription_cap:u64", "revision:u64", "state_shm_cap:u64", "state_len:u32", "event_type:u32"]
+
+# Private validator memory layout, not a dispatchable request/reply operation.
+# Header at guest memory offset 0, candidate bytes at 16, schema immediately after.
+[message.validator_input_header]
+msg_type = 20
+fields = ["magic:u32", "candidate_len:u32", "schema_len:u32", "reserved:u32"]

@@ -1,7 +1,8 @@
 # Agent Task control protocol V1 — SW0 A1.0
 
 **Status:** IDL, generated kernel API bindings and request preflight implemented.
-No service handler, broker interface registration or task authority is enabled.
+An opt-in A1.1 host handler is now implemented; the production broker/listener
+remain unregistered. See [the service proof](AGENT_TASK_SERVICE_PROOF_V1.md).
 **Gate:** `just foundry-agent-task-protocol-a1-0`
 **Evidence:** host wire-contract assertions, not a useful task or enforcement proof.
 
@@ -9,6 +10,8 @@ The [A0 transaction model](AGENT_TASK_CONTRACT_V0.md) supplies the semantics.
 [`agent_task_v1.toml`](../idl/harness/agent_task_v1.toml) reserves protocol 14
 and defines nine request/reply pairs plus a task event. All control messages
 fit the existing 64-byte envelope payload without implicit structure padding.
+Message type 20 additionally reserves the private validator memory header; it
+is never accepted as an IPC request.
 `just codegen` generates the bindings; the allocation-free
 `kernel_api::agent_task_protocol::parse_request` checks exact payload sizes,
 known request operations, nonzero identifiers, bounded scalar fields and
@@ -40,7 +43,9 @@ uses its trusted monotonic clock, and rechecks lifetime and generation before
 every effect and observation, including event delivery and receipt retrieval.
 Task, candidate, receipt and subscription capabilities are opaque service
 registry objects, not additional kernel `HandleKind` values. Their registry
-must bind caller domain, object kind, task, resource and generation. Nonzero
+must bind caller domain, object kind, task and resource. Grants, mappings and
+subscriptions also bind generation; durable candidate/receipt locators require
+current grant authority on every use. Nonzero
 numbers alone are insufficient. The endpoint's kernel handle validation is
 separate from these service checks.
 
@@ -88,9 +93,9 @@ validation-change (2); each event has exactly one declared event type and an
 authorized subscription. Revocation/expiry ends delivery and releases resources.
 
 Input, diagnostic and task-state bytes travel through shared memory with an
-explicit length. The A1.1 service must define/version the bulk state schema and
-freeze response preflight, mapping rights, bounded lengths, mapping release and
-subscription overflow/resynchronization behavior before registering the handler.
+explicit length. The opt-in A1.1 proof defines strict `TaskSnapshotV1` JSON and reply/event
+preflight, scoped read-only host mappings, release and coalesced notifications.
+Its exact bounds and resynchronization behavior are in the service-proof document.
 A1.0 establishes fixed control layouts only. It does not claim zero-copy through
 the current host/WASM bridge, which can copy into guest memory.
 
@@ -107,9 +112,11 @@ the current host/WASM bridge, which can copy into guest memory.
 
 ## A1.1 assertions required before implementation
 
-The following are planned service tests, not assertions supplied by this gate.
-Write them against a real host service transport with forged requests bypassing
-the scripted consumer, then implement the bounded RT adapter and worker.
+The A1.1 host gate now exercises these assertions within its documented fixture
+scope. They are not assertions supplied by the A1.0 wire gate.
+The host proof uses real stream IPC and forged requests bypassing its scripted
+consumer, plus a separate bounded worker. Production/target integration remains
+outside that gate.
 
 | Assertion | Required observable evidence |
 |-----------|------------------------------|

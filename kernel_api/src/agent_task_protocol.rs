@@ -7,6 +7,7 @@ use crate::generated::agent_task_v1::*;
 use crate::ipc::Envelope;
 use crate::wire::read_payload;
 
+pub const VALIDATOR_MEMORY_MAGIC: u32 = 0x3154_5652;
 pub const RIGHT_READ: u32 = 1;
 pub const RIGHT_STAGE: u32 = 2;
 pub const RIGHT_VALIDATE: u32 = 4;
@@ -148,4 +149,155 @@ pub fn parse_request(env: &Envelope) -> Result<TaskRequest, ProtocolError> {
         }
         _ => Err(ProtocolError::Operation),
     }
+}
+
+/// Consumer preflight for a specific request's reply. This validates syntax and
+/// denied-field redaction, not transport authenticity or service authority.
+pub fn validate_reply(
+    env: &Envelope,
+    request_type: u32,
+    request_id: u64,
+) -> Result<(), ProtocolError> {
+    if env.protocol != AGENT_TASK_V1_PROTOCOL_ID
+        || env.msg_type
+            != request_type
+                .checked_add(1)
+                .ok_or(ProtocolError::Operation)?
+    {
+        return Err(ProtocolError::Protocol);
+    }
+    let (len, status_offset, reserved): (usize, usize, &[usize]) = match request_type {
+        1 => (56, 48, &[]),
+        3 => (40, 32, &[]),
+        5 => (56, 48, &[52]),
+        7 => (40, 24, &[]),
+        9 | 11 => (64, 56, &[60]),
+        13 => (32, 24, &[20, 28]),
+        15 => (24, 16, &[]),
+        17 => (32, 24, &[28]),
+        _ => return Err(ProtocolError::Operation),
+    };
+    fields(env.payload_len as usize == len)?;
+    let word = |offset: usize| {
+        u32::from_le_bytes(
+            env.payload[offset..offset + 4]
+                .try_into()
+                .expect("fixed payload"),
+        )
+    };
+    let wide = |offset: usize| {
+        u64::from_le_bytes(
+            env.payload[offset..offset + 8]
+                .try_into()
+                .expect("fixed payload"),
+        )
+    };
+    fields(
+        wide(0) == request_id
+            && request_id != 0
+            && reserved.iter().all(|&offset| word(offset) == 0),
+    )?;
+    let status = word(status_offset);
+    fields(status <= STATUS_NOT_FOUND)?;
+    if status == STATUS_DENIED || status == STATUS_EXPIRED {
+        fields(
+            env.payload[8..len]
+                .iter()
+                .enumerate()
+                .all(|(offset, &byte)| {
+                    (status_offset..status_offset + 4).contains(&(offset + 8)) || byte == 0
+                }),
+        )?;
+        return Ok(());
+    }
+    if request_type == 7 {
+        fields(word(28) <= OUTCOME_HOST_FAILURE && word(36) & !DIAGNOSTICS_TRUNCATED == 0)?;
+    }
+    if matches!(request_type, 1 | 7 | 13) {
+        let count = word(match request_type {
+            1 => 52,
+            7 => 32,
+            _ => 16,
+        });
+        fields(count <= if request_type == 13 { 4096 } else { 65_536 })?;
+        let handle = Handle::unpack(wide(8));
+        fields(if count == 0 {
+            wide(8) == 0
+        } else {
+            handle.kind == HandleKind::Shmem && handle.generation != 0 && handle.pack() == wide(8)
+        })?;
+        if request_type == 7 && word(28) == OUTCOME_VALID {
+            fields(status == STATUS_OK && word(36) == 0)?;
+        }
+    }
+    if status == STATUS_OK {
+        match request_type {
+            1 | 7 | 13 => {
+                let count = word(match request_type {
+                    1 => 52,
+                    7 => 32,
+                    _ => 16,
+                });
+                fields(count <= if request_type == 13 { 4096 } else { 65_536 })?;
+                let handle = Handle::unpack(wide(8));
+                fields(if count == 0 {
+                    wide(8) == 0 && request_type == 7
+                } else {
+                    handle.kind == HandleKind::Shmem
+                        && handle.generation != 0
+                        && handle.pack() == wide(8)
+                })?;
+                if request_type == 7 {
+                    fields(
+                        word(28) != OUTCOME_NOT_RUN && (word(28) != OUTCOME_VALID || word(36) == 0),
+                    )?;
+                }
+            }
+            3 => {
+                fields(
+                    wide(8) != 0
+                        && wide(16) != 0
+                        && wide(24) != 0
+                        && word(36) != 0
+                        && word(36) & !RIGHT_ALL == 0,
+                )?;
+            }
+            5 => {
+                fields(wide(8) != 0)?;
+            }
+            9 | 11 => {
+                fields(wide(8) != 0 && wide(16) != 0)?;
+            }
+            15 => {
+                fields(wide(8) != 0)?;
+            }
+            17 => {
+                fields(wide(8) != 0)?;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_event(env: &Envelope) -> Result<(), ProtocolError> {
+    if env.protocol != AGENT_TASK_V1_PROTOCOL_ID
+        || env.msg_type != MSG_AGENT_TASK_V1_TASK_CHANGED_EVENT
+    {
+        return Err(ProtocolError::Protocol);
+    }
+    let event: TaskChangedEvent = payload(env)?;
+    let handle = Handle::unpack(event.state_shm_cap);
+    fields(
+        event.subscription_cap != 0
+            && event.state_len != 0
+            && event.state_len <= 4096
+            && matches!(
+                event.event_type,
+                EVENT_OUTPUT_CHANGED | EVENT_VALIDATION_CHANGED
+            )
+            && handle.kind == HandleKind::Shmem
+            && handle.generation != 0
+            && handle.pack() == event.state_shm_cap,
+    )
 }

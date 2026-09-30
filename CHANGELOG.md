@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Implemented SW0 A1.1's opt-in scripted host task service and private validator
+  worker. Added policy-bound grants, immutable staging, synchronized output/receipt
+  publication, crash/retry recovery, scoped snapshots/events, worker deadlines,
+  bounded concurrency and independent receipt/audit replay. The CI-bound RT gate
+  exercises forged requests, actual backend stalls and guest/start loops. Host
+  fixture evidence adds no production, target-kernel, model-comparison or metal claim.
 - Defined SW0 A1.0's native task control contract through IDL/codegen: nine
   request/reply pairs, one event and allocation-free fail-closed request preflight.
   Added the extended-CI wire-contract gate and documented actual service gaps

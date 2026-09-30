@@ -22,9 +22,14 @@ time = { version = "0.3", features = ["formatting"] }  # V-007 Phase 3: Audit lo
 libc = "0.2"  # V-007 Phase 4: SO_PEERCRED Unix credentials
 ed25519-dalek = { version = "2", features = ["std"] }  # V-007 Phase 6: Ed25519 signature verification
 base64 = "0.21"  # V-007 Phase 6: Base64 encoding for public keys
+memmap2 = "0.9" # SW0 host data-plane mappings (not target kernel evidence)
+tempfile = "3" # Anonymous backing files for bounded host mappings
+rand = "0.8" # Service-owned opaque task objects
 
 [features]
 default = []
+# WARNING: opt-in host fixture authority/mappings; no public endpoint or production authentication.
+agent_task_v1_dev = []
 ## Enable development mode with fallback signing key.
 ## WARNING: This feature MUST NOT be enabled in production builds.
 ## It allows unsigned/insecure key fallback for development only.
@@ -33,6 +38,7 @@ dev_insecure = []
 [dev-dependencies]
 tempfile = "3"  # V-007 Phase 5: For testing domain visibility registry
 rand = "0.8"  # V-007 Phase 6: For generating test keypairs
+wat = "1"
 
 [lib]
 # V-007 Phase 2: Export client library for use by other services

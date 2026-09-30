@@ -328,3 +328,7 @@ foundry-agent-task-contract-a0:
 
 foundry-agent-task-protocol-a1-0:
 	bash ./tools/ci/foundry_agent_task_protocol_a1_0.sh
+
+# Opt-in host service proof; the gate enables its development features explicitly.
+foundry-agent-task-proof-rt:
+	bash ./tools/ci/foundry_agent_task_proof_rt.sh

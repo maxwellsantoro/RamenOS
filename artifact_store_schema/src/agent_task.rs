@@ -1,4 +1,5 @@
-//! SW0 A0 schema and pure reference model. No IO or enforcement backend.
+//! SW0 task schemas, pure A0 reference model and private host-worker records.
+//! No IO, credentials or enforcement backend live in these serializable types.
 //!
 //! Authority, monotonic time, content hashes, and validator outcomes are supplied
 //! by a trusted executor. These serializable records are not credentials or
@@ -178,14 +179,16 @@ pub struct CommitReceiptV0 {
     pub accepted: OutputRevisionV0,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct StagedCandidate {
     content_id: String,
     validation: Option<ValidationEvidenceV0>,
 }
 
 /// In-memory reference semantics only. A1 owns durable atomic publication.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaskStateV0 {
     contract: TaskContractV0,
     accepted: OutputRevisionV0,
@@ -201,6 +204,95 @@ fn valid_id(id: &str) -> Result<(), ContractError> {
 }
 
 impl TaskStateV0 {
+    /// Validate a trusted service journal after deserialization. This is not
+    /// authentication and must never accept an agent-supplied snapshot.
+    pub fn validate_journal(&self) -> Result<(), ContractError> {
+        self.contract.validate()?;
+        valid_id(&self.accepted.content_id)?;
+        if self.generation == 0
+            || self.staged.len() > MAX_RECORDS
+            || self.receipts.len() > MAX_RECORDS
+        {
+            return Err(ContractError::InvalidContract);
+        }
+        for (index, candidate) in self.staged.iter().enumerate() {
+            valid_id(&candidate.content_id)?;
+            if self.staged[..index]
+                .iter()
+                .any(|c| c.content_id == candidate.content_id)
+            {
+                return Err(ContractError::InvalidContract);
+            }
+            if let Some(e) = &candidate.validation {
+                if e.candidate_id != candidate.content_id
+                    || e.task_id != self.contract.task_id
+                    || e.domain_id != self.contract.domain_id
+                    || e.resource != self.contract.resource
+                    || e.schema_id != self.contract.schema_id
+                    || e.policy_id != self.contract.policy_id
+                    || e.validator_id != self.contract.validator_id
+                    || e.grant_generation == 0
+                    || e.grant_generation > self.generation
+                {
+                    return Err(ContractError::ValidationMismatch);
+                }
+            }
+        }
+        for (index, (request, receipt)) in self.receipts.iter().enumerate() {
+            valid_id(&request.candidate_id)?;
+            valid_id(&request.expected_content_id)?;
+            if request.request_id == 0
+                || request.task_id != self.contract.task_id
+                || request.domain_id != self.contract.domain_id
+                || request.resource != self.contract.resource
+                || receipt.request_id != request.request_id
+                || receipt.task_id != request.task_id
+                || receipt.domain_id != request.domain_id
+                || receipt.resource != request.resource
+                || receipt.grant_generation == 0
+                || receipt.grant_generation > self.generation
+                || receipt.prior.revision != request.expected_revision
+                || receipt.prior.content_id != request.expected_content_id
+                || receipt.accepted.content_id != request.candidate_id
+                || receipt.accepted.revision != index as u64 + 1
+                || receipt.prior.revision != index as u64
+                || self.receipts[..index]
+                    .iter()
+                    .any(|(r, _)| r.request_id == request.request_id)
+                || (index > 0 && receipt.prior != self.receipts[index - 1].1.accepted)
+            {
+                return Err(ContractError::InvalidContract);
+            }
+        }
+        if self.accepted.revision != self.receipts.len() as u64
+            || self
+                .receipts
+                .last()
+                .is_some_and(|(_, r)| r.accepted != self.accepted)
+        {
+            return Err(ContractError::InvalidContract);
+        }
+        Ok(())
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn committed_receipts(&self) -> impl Iterator<Item = (&CommitRequestV0, &CommitReceiptV0)> {
+        self.receipts
+            .iter()
+            .map(|(request, receipt)| (request, receipt))
+    }
+
+    pub fn candidate_validation(&self, content_id: &str) -> Option<&ValidationEvidenceV0> {
+        self.staged
+            .iter()
+            .find(|entry| entry.content_id == content_id)?
+            .validation
+            .as_ref()
+    }
+
     pub fn new(contract: TaskContractV0, initial_content_id: &str) -> Result<Self, ContractError> {
         contract.validate()?;
         valid_id(initial_content_id)?;
@@ -394,4 +486,56 @@ impl TaskStateV0 {
         self.accepted = receipt.accepted.clone();
         Ok(receipt)
     }
+}
+
+/// Private supervisor/worker IPC, never an agent-facing validation attestation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorJobV0 {
+    pub schema_version: u32,
+    pub store_root: String,
+    pub validator_id: String,
+    pub candidate_id: String,
+    pub schema_id: String,
+    pub budget: ExecutionBudgetV0,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorResultV0 {
+    pub schema_version: u32,
+    pub outcome: ValidationOutcomeV0,
+    pub diagnostics: Vec<u8>,
+    pub truncated: bool,
+    pub guest_elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskPolicyV1 {
+    pub schema_version: u32,
+    pub task_id: u64,
+    pub domain_id: u64,
+    pub resource_id: u64,
+    pub allowed_rights: u32,
+    pub max_grant_ms: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskSnapshotV1 {
+    pub schema_version: u32,
+    pub task_id: u64,
+    pub resource_id: u64,
+    pub revision: u64,
+    pub content_id: String,
+    pub grant_generation: u64,
+    pub granted_rights: u32,
+    pub grant_expires_at_ms: u64,
+    pub now_ms: u64,
+    pub schema_id: String,
+    pub policy_id: String,
+    pub validator_id: String,
+    pub input_resources: [u64; 3],
+    pub validation: Option<ValidationEvidenceV0>,
+    pub validation_current: bool,
 }

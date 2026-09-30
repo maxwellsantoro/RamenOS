@@ -1,7 +1,7 @@
 # Agent Task Proof: repair one workspace under bounded authority
 
 **Last Updated:** 2026-09-30
-**Status:** A0 model and A1.0 control-contract gates implemented; A1.1 service proof and comparison pending
+**Status:** A1.1 scripted host proof implemented; A2 controls and comparison pending
 **Landing path:** Bounded integration of the S10 runtime, Semantic State, and Store contracts
 
 ## Question and product decision
@@ -358,15 +358,16 @@ Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY
 
 ## Landing sequence and claim boundaries
 
-A0 and A1.0 commands are runnable today. Service-proof and comparison commands
-below are planned. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
+A0, A1.0 and the A1.1 RT command are runnable today. Control/conformance and
+comparison commands below are planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
+names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
 the actual call-path inventory and A1.1 service assertions.
 
 | Phase | Deliverable and proposed command | Permitted conclusion |
 |-------|----------------------------------|----------------------|
 | A0: contract fixtures | Versioned schema, pure transaction reference model, synthetic deterministic fixtures; `just foundry-agent-task-contract-a0` | The modeled contract rejects the named bad transitions; no service/kernel enforcement or useful task claim |
 | A1.0: native control contract | IDL/generated control layouts and request preflight; `just foundry-agent-task-protocol-a1-0` | Bounded request syntax only; no handler or grant enabled |
-| A1: RamenOS scripted proof | Define missing native operations via IDL/codegen; implement one RT service adapter, pinned validator worker/watchdog, durable commit receipts, scoped grants, forced denials, audit verifier and replay; `just foundry-agent-task-proof-rt` | One useful task and its negative cases work through named host service enforcement paths |
+| A1: RamenOS scripted proof | Implemented opt-in host fixture: RT service, pinned validator worker/watchdog, durable receipts, grants, denials, audit and receipt replay; `just foundry-agent-task-proof-rt` | One useful task and its negative cases work through named host service enforcement paths |
 | A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |
