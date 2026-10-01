@@ -11,7 +11,9 @@ import signal
 import subprocess
 import threading
 import time
+import tempfile
 import uuid
+from lifecycle_ledger import Ledger, LedgerError, encoded as ledger_encoded
 
 
 class SessionStopped(RuntimeError):
@@ -87,7 +89,15 @@ def proc_table():
 
 
 class Session:
-    def __init__(self, command, limits=Limits(), *, visible, docker_scope=False):
+    def __init__(
+        self,
+        command,
+        limits=Limits(),
+        *,
+        visible,
+        docker_scope=False,
+        lifecycle_parent=None,
+    ):
         self.limits = limits
         self.started = time.monotonic()
         self.deadline = self.started + limits.wall_ms / 1000
@@ -108,7 +118,7 @@ class Session:
         self.lock = threading.RLock()
         self.done = threading.Event()
         self.scope = uuid.uuid4().hex if docker_scope else None
-        self.may_create = False
+        self.lifecycle = None
         self.process = None
         self.watchdog = None
         self.cleanup_deadline = None
@@ -122,6 +132,14 @@ class Session:
             }
             if self.scope:
                 env["RAMEN_TASK_EVALUATOR_SCOPE"] = self.scope
+                parent = (
+                    Path(lifecycle_parent)
+                    if lifecycle_parent is not None
+                    else Path(tempfile.mkdtemp(prefix="ramenos-lifecycle-"))
+                )
+                parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                self.lifecycle = Ledger.create(parent / self.scope, self.scope)
+                env["RAMEN_TASK_EVALUATOR_LEDGER"] = str(self.lifecycle.root.resolve())
             if "RAMEN_TASK_LINUX_IMAGE" in os.environ:
                 env["RAMEN_TASK_LINUX_IMAGE"] = os.environ["RAMEN_TASK_LINUX_IMAGE"]
             self.process = subprocess.Popen(
@@ -202,6 +220,11 @@ class Session:
 
     def terminate(self):
         with self.lock:
+            if self.lifecycle is not None:
+                try:
+                    self.lifecycle.fence()
+                except (LedgerError, OSError):
+                    self.lifecycle_failure = "fence_failed"
             if self.process is None:
                 return
             if self.cleanup_deadline is None:
@@ -379,11 +402,6 @@ class Session:
             self.stop("request_limit_bytes")
         self.offer("request", payload)
         self.requests += 1
-        self.may_create = (
-            self.may_create
-            or "command" in request
-            or request.get("call", {}).get("operation") == "validate_candidate"
-        )
         return self.receive("response", request=payload)
 
     def finish(self, text):
@@ -396,9 +414,17 @@ class Session:
         self.offer("final", data)
         self.finished = True
 
-    def reconcile_containers(self, forced):
+    def reconcile_containers(self):
         if not self.scope:
             return dict(required=False)
+        if self.lifecycle is None:
+            return dict(
+                required=True,
+                scope=self.scope,
+                certified=False,
+                observed_empty=False,
+                failure="lifecycle_unavailable",
+            )
         deadline = self.cleanup_deadline or (
             time.monotonic() + self.limits.cleanup_ms / 1000
         )
@@ -416,22 +442,78 @@ class Session:
 
         try:
             selector = "label=org.ramenos.evaluator-session=" + self.scope
-            ids = engine(["ps", "-aq", "--filter", selector]).decode().split()
+            ids = (
+                engine(["ps", "-aq", "--no-trunc", "--filter", selector])
+                .decode()
+                .split()
+            )
+            state = self.lifecycle.snapshot()
+            if state["state"] != "fenced":
+                raise LedgerError("scope not fenced")
+            known = {
+                r["container_id"]
+                for r in state["entries"].values()
+                if r["container_id"] is not None
+            }
+            untracked = set(ids) - known
             if ids:
                 engine(["rm", "--force", *ids])
             empty = not engine(["ps", "-aq", "--filter", selector]).strip()
-            # Killing a create RPC does not certify that the daemon cannot finish
-            # it later. Retain and quarantine that outcome even after observed removal.
-            certified = empty and not (forced and self.may_create)
+            for identity, receipt in state["entries"].items():
+                if receipt["phase"] == "acknowledged":
+                    # Inspect the immutable acknowledgement ID as well as the
+                    # label inventory; a changed label cannot hide a live object.
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError("cleanup deadline")
+                    result = subprocess.run(
+                        [
+                            "docker",
+                            "inspect",
+                            "--type",
+                            "container",
+                            receipt["container_id"],
+                        ],
+                        capture_output=True,
+                        timeout=remaining,
+                    )
+                    if result.returncode != 1 or b"No such" not in result.stderr:
+                        raise LedgerError("acknowledged object still exists")
+                    self.lifecycle.removed(identity)
+            pending = [
+                i
+                for i, r in self.lifecycle.snapshot()["entries"].items()
+                if r["phase"] == "intent"
+            ]
+            certified = (
+                empty
+                and not pending
+                and not untracked
+                and not getattr(self, "lifecycle_failure", None)
+            )
+            proof = (
+                self.lifecycle.seal_reconciliation(observed_empty=empty)
+                if certified
+                else None
+            )
             return dict(
                 required=True,
                 scope=self.scope,
                 removed_count=len(ids),
                 observed_empty=empty,
                 certified=certified,
-                possible_inflight_create=forced and self.may_create,
+                possible_inflight_create=bool(pending),
+                pending_intents=pending,
+                untracked_containers=sorted(untracked),
+                reconciliation=proof,
             )
-        except (OSError, RuntimeError, subprocess.TimeoutExpired, TimeoutError):
+        except (
+            OSError,
+            RuntimeError,
+            subprocess.TimeoutExpired,
+            TimeoutError,
+            LedgerError,
+        ):
             return dict(
                 required=True,
                 scope=self.scope,
@@ -486,9 +568,7 @@ class Session:
             ):
                 if not stream.closed:
                     stream.close()
-        self.container_cleanup = self.reconcile_containers(
-            forced or self.reason is not None
-        )
+        self.container_cleanup = self.reconcile_containers()
         if self.container_cleanup.get("required") and not self.container_cleanup.get(
             "certified"
         ):
@@ -505,6 +585,12 @@ class Session:
             )
 
     def evidence(self):
+        try:
+            lifecycle = (
+                self.lifecycle.snapshot() if self.lifecycle is not None else None
+            )
+        except (LedgerError, OSError):
+            lifecycle = None
         return dict(
             schema_version=1,
             outcome=self.reason or ("completed" if self.closed else "running"),
@@ -527,6 +613,10 @@ class Session:
             else None,
             process_cleanup=dict(self.cleanup),
             container_cleanup=getattr(self, "container_cleanup", None),
+            lifecycle=lifecycle,
+            lifecycle_sha256=digest(ledger_encoded(lifecycle))
+            if lifecycle is not None
+            else None,
             model_trial=False,
             token_accounting=False,
         )

@@ -473,7 +473,7 @@ def main():
         assert (
             failure["outcome"] == "session_timeout"
             and failure["container_cleanup"]["observed_empty"]
-            and not failure["container_cleanup"]["certified"]
+            and isinstance(failure["container_cleanup"]["certified"], bool)
             and failure["process_cleanup"]["observed_descendants_not_running"]
         ), failure
         retain(forced, args.evidence, "retained-timeout", forced_root / "store")
@@ -521,7 +521,7 @@ def main():
         full_a2_conformance=False,
         authority_inclusion="unknown",
         token_accounting=False,
-        forced_cleanup_certification=False,
+        forced_cleanup_certification=failure["container_cleanup"]["certified"],
     )
     (args.evidence / "report.json").write_bytes(encoded(report) + b"\n")
     print(

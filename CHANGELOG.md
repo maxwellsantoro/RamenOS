@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.8 named forced lifecycle cleanup and interrupted commit recovery.
+  Private durable intent/acknowledged-ID/removal ledgers fence new invocations and
+  keep unresolved creates uncertified despite empty inventory. Explicit locked
+  LT/LS cleanup reconciliation preserves task effects; the Linux gate checks six
+  actual all-arm recovery cases without commit retry and a late actual Docker
+  create/stale-start case. Broader authority and model/target claims remain pending.
 - Added SW0 A2.7's disjoint bank/release contract and external scripted sessions.
   The Linux gate accounts for 15 synthetic development fixtures in all three arms
   with independent grading, six arm orders, fresh storage/context and absolute

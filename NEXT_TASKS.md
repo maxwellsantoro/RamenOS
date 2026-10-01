@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-01
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A2 forced termination/reconciliation and remaining authority coverage; HIL appliance hardware runs await setup.
-A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory and A2.7 scripted evaluator controls are implemented.
+**Now:** SW0 A2 remaining authority/lifetime/deputy coverage; HIL appliance hardware runs await setup.
+A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls and A2.8 named reconciliation are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,15 +74,18 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A2 — resolve forced termination and interrupted daemon
-create/commit reconciliation. Extend requestable/unexercised authority and
+**Next software action:** A2 — extend requestable/unexercised authority and
 continuous lifetime coverage; resolve or explicitly bound host-client/deputy
 differences. Freeze real bank/study releases and provider/token accounting before
 full A2 or comparative model collection.
+[A2.8 reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md) checks named
+acknowledged lifecycle cleanup and explicit all-arm interrupted-commit recovery.
+Unresolved create intents remain quarantined until explicit evidence resolves them.
 [A2.7 evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md) supply the
 bank/release contract and external session bounds across 45 synthetic development
 attempts. Validator timeouts remain in the denominator; a separate forced LS
-timeout remains quarantined with uncertain cleanup.
+timeout remains a failed task; its cleanup is certified only with complete
+acknowledged-ID evidence.
 [A2.6 finite authority inventory](docs/AGENT_TASK_AUTHORITY_V1.md) freezes logical
 tuples and compares 33 common cases in all arms, preserving unknown mappings.
 [A2.5 typed subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) supply a bounded
@@ -125,7 +128,8 @@ report the resulting artifact while access to another workspace is denied.
    available/task/probe effects. Full E_max/E(t), unexercised/deputy/isolation
    authority remain incomplete. A2.7 adds bank/release contracts and bounded
    scripted sessions with private failure evidence; real hidden-bank qualification,
-   provider/token accounting and forced daemon reconciliation remain pending. Keep A1 runnable
+   provider/token accounting remain pending. A2.8 adds durable lifecycle fencing and
+   explicit receipt recovery; unacknowledged daemon work stays unknown. Keep A1 runnable
    independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
    and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
@@ -138,7 +142,7 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory and A2.7 scripted evaluator controls are implemented;
+A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls and A2.8 named reconciliation are implemented;
 full A2 conformance and model comparison are **not implemented**. Completion of
 the contract is not completion
 of the experiment; an unfavorable comparison is a valid

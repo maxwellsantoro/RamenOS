@@ -861,6 +861,7 @@ class LinuxTask:
             truncated = False
             guest = 0
             failure = None
+            run_index = None
             with tempfile.TemporaryDirectory(
                 prefix="ramenos-lt-validator-"
             ) as temporary:
@@ -903,10 +904,27 @@ class LinuxTask:
                     job["budget"]["host_call_ms"] = min(
                         BUDGET["host_call_ms"], remaining
                     )
-                    run = sandbox.run(
-                        ["/validator"], input_bytes=canonical(job), wall_ms=remaining
+                    invocation = secrets.token_hex(16)
+                    run_index = len(self.state["runs"])
+                    self.state["runs"].append(
+                        dict(
+                            role="lt_validator",
+                            lifecycle_invocation=invocation,
+                            created=False,
+                            removed=False,
+                            invocation_pending=True,
+                        )
                     )
-                    self.state["runs"].append(run.evidence)
+                    self.save()
+                    run = sandbox.run(
+                        ["/validator"],
+                        input_bytes=canonical(job),
+                        wall_ms=remaining,
+                        invocation_id=invocation,
+                    )
+                    self.state["runs"][run_index] = dict(
+                        run.evidence, role="lt_validator"
+                    )
                     result = decode(run.stdout)
                     if (
                         set(result)
@@ -944,15 +962,23 @@ class LinuxTask:
                         outcome = "host_failure"
                 except SandboxFailure as error:
                     if error.evidence:
-                        self.state["runs"].append(error.evidence)
+                        record = dict(error.evidence, role="lt_validator")
+                        if run_index is None:
+                            self.state["runs"].append(record)
+                        else:
+                            self.state["runs"][run_index] = record
                         if (
                             error.evidence.get("removed") is not True
                             or error.reason == "creation_not_confirmed"
                         ):
-                            error.evidence["reconciliation_required"] = True
+                            record["reconciliation_required"] = True
                             self.poisoned = True
                             self.save()
                             raise TaskError("io") from None
+                    elif run_index is not None:
+                        self.poisoned = True
+                        self.save()
+                        raise TaskError("io") from None
                     outcome = "timeout" if error.reason == "timeout" else "host_failure"
                     failure = "timeout" if outcome == "timeout" else "io"
                 except (ValueError, KeyError, TypeError, TaskError):

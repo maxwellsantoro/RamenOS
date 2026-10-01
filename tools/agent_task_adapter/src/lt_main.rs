@@ -64,6 +64,9 @@ fn run() -> io::Result<()> {
     if let Some(scope) = std::env::var_os("RAMEN_TASK_EVALUATOR_SCOPE") {
         command.env("RAMEN_TASK_EVALUATOR_SCOPE", scope);
     }
+    if let Some(ledger) = std::env::var_os("RAMEN_TASK_EVALUATOR_LEDGER") {
+        command.env("RAMEN_TASK_EVALUATOR_LEDGER", ledger);
+    }
     let mut broker = Broker(command.spawn()?);
     let mut output = BufReader::new(broker.0.stdout.take().ok_or_else(invalid)?);
     let bootstrap: Bootstrap =

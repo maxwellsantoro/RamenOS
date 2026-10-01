@@ -182,8 +182,9 @@ tool schema, prompt, and response in context cost.
 [A2.7 scripted controls](../AGENT_TASK_EVALUATOR_CONTROLS_V1.md) implement the
 disjoint bank/release contract and external session/frame/context bounds. CI uses
 synthetic instances, not a real hidden bank, and retains validator timeouts within
-the full attempted denominator. Forced Docker termination remains quarantined
-because an interrupted create RPC cannot certify cleanup. Real bank/study
+the full attempted denominator. [A2.8 reconciliation](../AGENT_TASK_RECONCILIATION_V1.md)
+adds named acknowledged-ID cleanup and explicit interrupted-commit recovery;
+unresolved create intents remain quarantined. Real bank/study
 freezing, provider/token accounting and remaining authority controls are pending.
 
 ### Canonical authority manifest
@@ -367,7 +368,7 @@ Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY
 
 A0, A1.0, A1.1 RT, A2.1 Linux, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions,
 A2.5 typed subscriptions, A2.6 finite authority inventory and A2.7 scripted
-evaluator controls are runnable today.
+evaluator controls and A2.8 named reconciliation are runnable today.
 [The Linux foundation](../AGENT_TASK_LINUX_CONTROL_V1.md) shares the development
 fixture/worker and records actual containment and named authority differences.
 [A2.2](../AGENT_TASK_ADAPTER_V1.md) supplies a common codec/descriptions and RT
@@ -380,7 +381,8 @@ adds a shared version 2 typed pull/cancel lifecycle and named comparisons.
 cases and measured LS extras, retaining unknown host/deputy/lifetime authority.
 [A2.7](../AGENT_TASK_EVALUATOR_CONTROLS_V1.md) adds the bank/release contract,
 fresh bounded sessions and private failure evidence; real hidden-bank/model
-controls and uncertain forced daemon cleanup remain incomplete.
+controls remain incomplete. [A2.8](../AGENT_TASK_RECONCILIATION_V1.md) adds named
+forced cleanup and explicit receipt recovery while retaining unknown daemon work.
 Full authority conformance and comparison commands remain planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
 names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
 the actual call-path inventory and A1.1 service assertions.
@@ -397,6 +399,7 @@ the actual call-path inventory and A1.1 service assertions.
 | A2.5: typed subscriptions | Shared v2 codec/descriptions, generated native pull/poll/cancel messages, independent LT lifecycle and 50-operation RT/LT comparison; `just foundry-agent-task-subscriptions` | Named bounded lifecycle behavior; no full authority/protocol equivalence or model result |
 | A2.6: finite authority inventory | Frozen logical tuples, separate observed/task/probe effects, 33 shared cases and actual LS configuration/negative probes; `just foundry-agent-task-authority` | Named finite authority observations; unknowns block full E_max/E(t), inclusion and narrower claims |
 | A2.7: scripted evaluator controls | Disjoint bank/release contract, external deadline/frame/context budgets, fresh sessions and 45 synthetic development attempts; `just foundry-agent-task-evaluator-controls` | Scripted control behavior and retained failures; no real hidden-bank, model/token comparison or certified forced daemon cleanup |
+| A2.8: named reconciliation | Durable lifecycle fencing, exact acknowledged-ID removal, explicit cleanup checkpoint repair and six all-arm interrupted commit cases; `just foundry-agent-task-reconciliation` | Named host recovery without commit retry; unresolved creates and broader host/daemon failure modes remain unknown |
 | A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |

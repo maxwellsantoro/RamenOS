@@ -15,6 +15,7 @@ import stat
 import subprocess
 import time
 import uuid
+from lifecycle_ledger import Ledger, LedgerError
 
 DEFAULT_IMAGE = 'python@sha256:139020233cc412efe4c8135b0efe1c7569dc8b28ddd88bddb109b764f8977e30'
 MAX_OUTPUT = 16384
@@ -91,20 +92,24 @@ class Sandbox:
             raise SandboxFailure('engine_failure')
         return result.stdout
 
-    def run(self, command, *, input_bytes=b'', wall_ms=10000, allow_nonzero=False):
+    def run(self, command, *, input_bytes=b'', wall_ms=10000, allow_nonzero=False, invocation_id=None):
         if not command or not all(isinstance(p,str) and '\0' not in p for p in command):
             raise SandboxFailure('invalid_command')
         if len(input_bytes)>MAX_INPUT or not 1<=wall_ms<=35000:
             raise SandboxFailure('input_limit')
         start = time.monotonic()
         deadline = start + wall_ms/1000
-        name = 'ramenos-sw0-' + uuid.uuid4().hex
+        invocation_id = invocation_id or uuid.uuid4().hex
+        if re.fullmatch(r'[0-9a-f]{32}',invocation_id) is None:
+            raise SandboxFailure('invalid_invocation')
+        name = 'ramenos-sw0-' + invocation_id
         evidence = {'name':name,'image_id':self.image,'engine':self.engine,
                     'wall_ms':wall_ms,'removed':False,'created':False}
         cli = None
         failure = None
         stdout = bytearray()
         stderr = bytearray()
+        ledger = None
         try:
             args = ['create','--name',name,'--interactive','--network','none','--read-only',
                     '--cap-drop','ALL','--security-opt','no-new-privileges',
@@ -121,8 +126,19 @@ class Sandbox:
                     raise SandboxFailure('invalid_evaluator_scope')
                 args += ['--label','org.ramenos.evaluator-session=' + scope]
                 evidence['evaluator_scope'] = scope
-            self._engine([*args,self.image,*command],deadline)
+            ledger_root = os.environ.get('RAMEN_TASK_EVALUATOR_LEDGER')
+            if ledger_root is not None:
+                ledger = Ledger(ledger_root,scope)
+                ledger.begin(invocation_id,self.image)
+                evidence['lifecycle_invocation'] = invocation_id
+            output = self._engine([*args,self.image,*command],deadline)
             evidence['created'] = True
+            container_id = output.strip().decode('ascii')
+            if re.fullmatch(r'[0-9a-f]{64}',container_id) is None:
+                raise SandboxFailure('create_ack_invalid')
+            evidence['container_id'] = container_id
+            if ledger is not None:
+                ledger.acknowledge(invocation_id,container_id)
             config = json.loads(self._engine(['inspect','--type','container',name],deadline))[0]
             if scope is not None and (config['Config'].get('Labels') or {}).get('org.ramenos.evaluator-session') != scope:
                 raise SandboxFailure('configuration_mismatch')
@@ -198,6 +214,8 @@ class Sandbox:
                     raise SandboxFailure('command_failed')
         except SandboxFailure as error:
             failure = error.reason
+        except (LedgerError,OSError):
+            failure = 'lifecycle_error'
         finally:
             evidence['invocation_elapsed_ms'] = round((time.monotonic()-start)*1000)
             cleanup_start = time.monotonic()
@@ -216,12 +234,15 @@ class Sandbox:
                     if stream and not stream.closed:
                         stream.close()
             try:
-                subprocess.run(['docker','rm','--force',name],capture_output=True,timeout=10)
-                missing = subprocess.run(['docker','inspect','--type','container',name],capture_output=True,timeout=10)
+                target = evidence.get('container_id',name)
+                subprocess.run(['docker','rm','--force',target],capture_output=True,timeout=10)
+                missing = subprocess.run(['docker','inspect','--type','container',target],capture_output=True,timeout=10)
                 if missing.returncode != 1 or b'No such' not in missing.stderr:
                     raise SandboxFailure('cleanup_failed')
                 evidence['removed'] = True
-            except (subprocess.TimeoutExpired,SandboxFailure):
+                if ledger is not None:
+                    ledger.removed(invocation_id)
+            except (subprocess.TimeoutExpired,SandboxFailure,LedgerError,OSError):
                 failure = 'cleanup_failed'
             evidence['cleanup_elapsed_ms'] = round((time.monotonic()-cleanup_start)*1000)
             if not evidence['created']:

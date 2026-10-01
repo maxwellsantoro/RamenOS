@@ -13,6 +13,7 @@ import struct
 import tempfile
 import threading
 import time
+import uuid
 
 from linux_sandbox import Sandbox
 from lt_backend import FIELDS, LinuxTask, TaskError, canonical, decode
@@ -119,6 +120,7 @@ class LinuxShellTask:
     def run(self, command, *, input_bytes=b"", wall_ms=10000):
         if self.stopping.is_set() or self.transport_poison or self.task.poisoned:
             raise TaskError("LS session stopped")
+        invocation = uuid.uuid4().hex
         with self.guard:
             if len(self.runs) >= MAX_SHELLS or len(self.task.state["runs"]) >= 128:
                 raise TaskError("capacity")
@@ -131,6 +133,7 @@ class LinuxShellTask:
                     "created": False,
                     "removed": False,
                     "invocation_pending": True,
+                    "lifecycle_invocation": invocation,
                 }
             )
             try:
@@ -141,7 +144,11 @@ class LinuxShellTask:
                 raise
         try:
             result = self.sandbox.run(
-                command, input_bytes=input_bytes, wall_ms=wall_ms, allow_nonzero=True
+                command,
+                input_bytes=input_bytes,
+                wall_ms=wall_ms,
+                allow_nonzero=True,
+                invocation_id=invocation,
             )
         except Exception as error:
             record = dict(getattr(error, "evidence", {}) or {}, role="ls_shell")

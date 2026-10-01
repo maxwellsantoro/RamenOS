@@ -360,3 +360,7 @@ foundry-agent-task-authority:
 # Synthetic fixture bank and bounded external sessions; no model trials.
 foundry-agent-task-evaluator-controls:
 	bash ./tools/ci/foundry_agent_task_evaluator_controls.sh
+
+# Named forced lifecycle and explicit interrupted-commit receipt recovery.
+foundry-agent-task-reconciliation:
+	bash ./tools/ci/foundry_agent_task_reconciliation.sh

@@ -141,6 +141,9 @@ jobs:
       - name: SW0 A2.7 synthetic bank and scripted evaluator controls
         run: bash tools/ci/foundry_agent_task_evaluator_controls.sh
 
+      - name: SW0 A2.8 named forced lifecycle and interrupted commit recovery
+        run: bash tools/ci/foundry_agent_task_reconciliation.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:

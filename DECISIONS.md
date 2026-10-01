@@ -926,3 +926,29 @@ observed removal cannot certify that run: retain and quarantine uncertainty.
 Do not rewrite a poisoned journal or silently resume it. Resolve forced create/
 commit reconciliation, broader authority/lifetime/deputy mappings, actual hidden
 bank/study releases and provider/token accounting before full A2/Phase B claims.
+
+## 2026-10-01 — SW0 A2.8 named lifecycle receipts and explicit reconciliation
+
+Persist a bounded private intent before each evaluator-contained Docker create,
+then its immutable acknowledged ID and verified removal. Fence the scope before
+stopping observed processes; forbid new intents but allow an already-issued RPC's
+acknowledgement to resolve later. Certify only fenced scopes with every intent
+resolved and every acknowledged object removed, empty inventory and no untracked
+objects. An empty inventory alone never resolves pending work. Use a controlled
+late actual create to exercise that distinction, then verify stale start fails.
+This is named trusted host lifecycle evidence, not general daemon/host crash,
+power-loss, unobserved escape or malicious-host isolation proof. Keep uncertainty.
+
+LT validators and LS shells persist invocation-linked pending cleanup checkpoints.
+Provide a separate trusted, explicit reconciliation function using the matching
+ledger proof and existing exclusive writer lock. Repair only cleanup rows and
+retain their prior hashes; preserve all other journal fields. Ordinary failed
+sessions never rewrite or resume themselves. Restart with fresh grants and look
+up original receipts explicitly; do not retry commits. Gate before-dispatch and
+after-publication interruptions in all three arms, including an LS shell still
+running after durable commit, and the existing native abrupt crash cases.
+
+A smaller durable ledger suffices for these named cases; defer a guardian service
+and general daemon restart/recovery contract until evidence requires them. Keep
+full A2 authority/lifetime/deputy coverage, real hidden-bank/provider controls,
+model comparison and target integration separate. Hardware remains deferred.

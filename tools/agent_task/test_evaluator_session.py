@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from evaluator_session import Session, Limits, SessionStopped
 
@@ -12,6 +13,20 @@ BOOT = "print('{\"ready\":true}', flush=True);"
 
 
 class SessionTests(unittest.TestCase):
+    def test_unavailable_lifecycle_stops_before_backend_launch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "not-a-directory"
+            parent.write_bytes(b"blocked")
+            with patch("evaluator_session.subprocess.Popen") as launch:
+                with self.assertRaises(FileExistsError):
+                    Session(
+                        [sys.executable],
+                        visible=[("task", b"repair")],
+                        docker_scope=True,
+                        lifecycle_parent=parent,
+                    )
+                launch.assert_not_called()
+
     def make(self, code, **limits):
         return Session(
             [sys.executable, "-u", "-c", code],

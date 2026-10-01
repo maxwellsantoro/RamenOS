@@ -92,17 +92,19 @@ and typed clients remain trusted host scaffolding.
 A trusted random session label is forwarded to LT and attached to LT/LS
 containers. Successful runs require normal EOF, backend journal removal records
 and an empty scoped daemon inventory. Forced termination removes observed labeled
-containers, but a killed Docker create RPC could finish later. Such runs retain
-`possible_inflight_create` and **uncertified cleanup**, even after observed
-removal, and are quarantined rather than accepted comparative samples. Already
-dispatched service effects are not promised to cancel.
+containers. [A2.8 reconciliation](AGENT_TASK_RECONCILIATION_V1.md) adds a private
+fenced lifecycle ledger: every exact acknowledged ID must be verified removed
+before named cleanup certification. An unresolved create intent can finish late,
+so it retains `possible_inflight_create` and **uncertified cleanup** despite an
+empty inventory. Forced tasks retain their failure row even when this named
+cleanup is certified. Already dispatched service effects are not promised to cancel.
 
 The gate accounts for **15 development fixtures × 3 arms = 45 attempts**. Completed
 repairs independently check accepted revision/bytes; actual validator deadline
 responses retain the unchanged publication pointer and their full attempt row.
 Other protocol/task failures fail the gate. Each arm must demonstrate successful
 repair; no failed row is retried or removed from the denominator. A separate real
-LS timeout retains uncertified cleanup. Six bank tests and eight session tests cover partition/release/tamper,
+LS timeout retains actual lifecycle cleanup certification or uncertainty. Six bank tests and nine session tests cover partition/release/tamper,
 fresh context, byte/request bounds, partial/idle/startup deadlines, bad frames,
 diagnostics and observed process-group cleanup. No pilot/final tasks execute.
 
@@ -110,9 +112,9 @@ diagnostics and observed process-group cleanup. No pilot/final tasks execute.
 hashes, aggregate report, private per-arm transcript/session/journal files and the
 retained timeout. Evidence is trusted evaluator output, not signed attestation.
 The report preserves false hidden-bank/model/full-A2 claims, unknown authority
-inclusion and uncertified forced cleanup.
+inclusion; cleanup certification reflects the persisted lifecycle evidence.
 
-Next resolve forced termination/reconciliation and requestable/unexercised,
+Next extend requestable/unexercised,
 continuous-lifetime and deputy/isolation authority. Freeze the real bank and
 study releases, model/provider/token accounting, and sample-size/budget decision
 before Phase B. Physical testing remains deferred.
