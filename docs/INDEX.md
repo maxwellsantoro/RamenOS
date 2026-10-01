@@ -52,6 +52,7 @@ The operational source of truth is
 - [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; the implemented A1.1 host proof has a separately documented fixture boundary.
 - [Agent Task Adapter V1](AGENT_TASK_ADAPTER_V1.md): A2.2 shared JSON codec/descriptions, opt-in RT bridge, external scripted consumer and remaining full-A2 work.
 - [Agent Task Evaluator Controls V1](AGENT_TASK_EVALUATOR_CONTROLS_V1.md): A2.7 disjoint bank/release contract, external scripted session bounds, private failure evidence and retained forced failures.
+- [Agent Task Requestable Authority V1](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md): A2.9 all-subset grant issuance under two policies, single-right effects and named lifetime points; broader authority remains unknown.
 - [Agent Task Reconciliation V1](AGENT_TASK_RECONCILIATION_V1.md): A2.8 named acknowledged lifecycle cleanup, unresolved-create quarantine and explicit all-arm receipt recovery.
 - [Agent Task Authority V1](AGENT_TASK_AUTHORITY_V1.md): A2.6 finite canonical inventory, shared RT/LT/LS negative cases, observed/task/probe distinctions and unknown authority boundaries.
 - [Agent Task Subscriptions V2](AGENT_TASK_SUBSCRIPTIONS_V2.md): A2.5 shared typed pull/cancel lifecycle, bounded coalescing, current observation authority and RT/LT lifecycle checks.

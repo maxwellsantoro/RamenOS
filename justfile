@@ -364,3 +364,7 @@ foundry-agent-task-evaluator-controls:
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh
+
+# Finite issued-right projections and named authority lifetime witnesses.
+foundry-agent-task-requestable-authority:
+	bash ./tools/ci/foundry_agent_task_requestable_authority.sh

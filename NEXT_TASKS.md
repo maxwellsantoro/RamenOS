@@ -8,8 +8,8 @@
 
 ## Parallel Execution Lanes
 
-**Now:** SW0 A2 remaining authority/lifetime/deputy coverage; HIL appliance hardware runs await setup.
-A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls and A2.8 named reconciliation are implemented.
+**Now:** SW0 A2 remaining host/deputy/unexercised and continuous authority coverage; HIL appliance hardware runs await setup.
+A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented.
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -74,10 +74,15 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A2 — extend requestable/unexercised authority and
-continuous lifetime coverage; resolve or explicitly bound host-client/deputy
-differences. Freeze real bank/study releases and provider/token accounting before
+**Next software action:** A2 — bound remaining host-client/deputy differences and
+unexercised authority outside the declared interface; extend continuous lifetime
+coverage beyond named points and fixture policies. Freeze real bank/study releases
+and provider/token accounting before
 full A2 or comparative model collection.
+[A2.9 requestable authority](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) checks
+31 grant subsets under two policies, single-right effects and named expiry/renewal/
+revocation points. Equality is limited to the issued-right interface projection;
+whole envelopes and broader host/deputy reach remain unknown.
 [A2.8 reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md) checks named
 acknowledged lifecycle cleanup and explicit all-arm interrupted-commit recovery.
 Unresolved create intents remain quarantined until explicit evidence resolves them.
@@ -129,7 +134,9 @@ report the resulting artifact while access to another workspace is denied.
    authority remain incomplete. A2.7 adds bank/release contracts and bounded
    scripted sessions with private failure evidence; real hidden-bank qualification,
    provider/token accounting remain pending. A2.8 adds durable lifecycle fencing and
-   explicit receipt recovery; unacknowledged daemon work stays unknown. Keep A1 runnable
+   explicit receipt recovery; unacknowledged daemon work stays unknown. A2.9 adds
+   finite requestable grant subsets and lifetime witnesses, not complete envelopes.
+   Keep A1 runnable
    independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
    and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
@@ -142,7 +149,7 @@ report the resulting artifact while access to another workspace is denied.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls and A2.8 named reconciliation are implemented;
+A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented;
 full A2 conformance and model comparison are **not implemented**. Completion of
 the contract is not completion
 of the experiment; an unfavorable comparison is a valid

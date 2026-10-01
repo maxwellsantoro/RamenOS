@@ -144,6 +144,9 @@ jobs:
       - name: SW0 A2.8 named forced lifecycle and interrupted commit recovery
         run: bash tools/ci/foundry_agent_task_reconciliation.sh
 
+      - name: SW0 A2.9 finite requestable rights and lifetime points
+        run: bash tools/ci/foundry_agent_task_requestable_authority.sh
+
   org-governance:
     runs-on: ubuntu-latest
     steps:

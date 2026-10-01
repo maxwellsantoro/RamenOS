@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Changed
+- Added SW0 A2.9's finite requestable rights and named lifetime gate. All three
+  arms enumerate 31 grant subsets under full and read/observe-only policies,
+  demonstrate actual single-right effects and reject old grants across expiry,
+  renewal and generation revocation. LS mounted and inherited-descriptor reads
+  remain explicit broader lifetime observations. Issued-right projection equality
+  does not qualify whole/continuous authority or model/target claims.
 - Added SW0 A2.8 named forced lifecycle cleanup and interrupted commit recovery.
   Private durable intent/acknowledged-ID/removal ledgers fence new invocations and
   keep unresolved creates uncertified despite empty inventory. Explicit locked

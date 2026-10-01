@@ -3,7 +3,7 @@
 **Last Updated:** 2026-10-01
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
-**Software Lane:** SW0 A2.8 named lifecycle and interrupted commit recovery implemented; remaining authority coverage is next
+**Software Lane:** SW0 A2.9 finite requestable rights and lifetime points implemented; remaining host/deputy and continuous authority coverage is next
 
 ## Active Execution Track
 
@@ -26,7 +26,8 @@ commands and original-receipt recovery. A2.5 supplies the shared version 2 typed
 subscription lifecycle. A2.6 adds a finite canonical inventory and shared all-arm
 negative cases, preserving unknown authority. A2.7 adds a disjoint bank contract
 and bounded scripted sessions. A2.8 adds named forced lifecycle cleanup and explicit
-interrupted-commit recovery. Full A2 conformance and model
+interrupted-commit recovery. A2.9 adds finite issued-right projections and named
+expiry/renewal/revocation witnesses. Full A2 conformance and model
 comparison remain pending. No live capture or actuation is scheduled while hardware
 setup is pending. These labels do not allocate new slice
 numbers or change governance authority.
@@ -42,7 +43,7 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
 | S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
-| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls and A2.8 named reconciliation | Full authority/lifetime coverage, real hidden-bank/study/provider controls, bounded Phase B comparison, production/target integration |
+| Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points | Remaining host/deputy/unexercised and continuous authority coverage, real hidden-bank/study/provider controls, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
 
 `PASS/QEMU` is not metal evidence. `PASS/HIL-LOG`, `PASS/HIL-LIVE`,
@@ -50,6 +51,25 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### SW0 A2.9 finite requestable rights and lifetime points (2026-10-01)
+
+- `just foundry-agent-task-requestable-authority` enumerates all 31 nonempty
+  rights subsets in RT/LT/LS under full and read/observe-only fixture policies.
+  The full policy issues 31 subsets; the attenuated policy issues exactly three
+  and denies the other 28 with null results. Both reject an over-ceiling lifetime.
+- Subset operation probes check missing rights and preconditions. Separate
+  single-right grants demonstrate actual read, stage, validate, commit/receipt and
+  observe effects. Independent bytes, pins, accepted CAS and receipt checks keep
+  issuance distinct from task effects and opaque locator aliases.
+- Nine operations are blocked after expiry, after renewal of another grant and
+  after generation revocation. Fresh policy-backed generation grants work without
+  reviving old capabilities/subscriptions. LS mounted reads and inherited child
+  descriptors survive those grant transitions and remain separate observations.
+- [Requestable authority scope](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md)
+  qualifies equality only for the declared-interface issued-right projection.
+  Whole authority inclusion, continuous lifetimes, host/deputy/unexercised reach,
+  real hidden-bank/provider/model and target/physical claims remain pending.
 
 ### SW0 A2.8 named lifecycle and interrupted commit recovery (2026-10-01)
 

@@ -952,3 +952,31 @@ A smaller durable ledger suffices for these named cases; defer a guardian servic
 and general daemon restart/recovery contract until evidence requires them. Keep
 full A2 authority/lifetime/deputy coverage, real hidden-bank/provider controls,
 model comparison and target integration separate. Hardware remains deferred.
+
+## 2026-10-01 — SW0 A2.9 finite issuance projections and lifetime witnesses
+
+Enumerate every nonempty subset of the five declared task rights under two fresh
+fixture policies: full (31) and read/observe-only (17), with the same 60000 ms
+lifetime ceiling. Bind a separate right-to-canonical-tuple catalog and the existing
+A2.6 universe hash. Require exact issued-right echoes and redacted denials; prove
+actual subset read/observe access and separately execute useful single-right
+read/stage/validate/commit/observe effects using explicit evaluator prerequisites.
+Do not equate permission issuance with successful data effects, or compare opaque
+locator aliases. Independently grade bytes, pins, accepted references and receipts.
+
+Qualify equality only within this declared-interface issued-right projection.
+A commit bit does not bypass validation or revision/content guards. Keep VALIDATE
+unexercised in issuance enumeration and demonstrate its effect in a separate
+witness. Trace auxiliary probes separately from future model task/cost records.
+Whole E_max/E(t), arbitrary policies/resources and host/transitive reach remain
+unknown; no narrower-authority score or readiness follows from these finite cases.
+
+Use actual backend clocks to witness short-grant expiry, test every task operation
+again after renewal, and revoke the generation. Fresh policy-backed grants remain
+requestable, without reviving old grants/subscriptions. Retain raw denied/expired
+statuses and normalize only their terminal rejection for this named conclusion.
+Demonstrate that LS mounted reads and open descriptors passed to children survive
+expiry/revocation; do not erase them from its authority inventory. These are named
+points, not continuous scheduling or isolation proof. Continue with remaining
+host-client/deputy/unexercised and continuous coverage plus real bank/study/provider
+controls. Keep physical testing deferred.

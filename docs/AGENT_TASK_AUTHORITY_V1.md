@@ -104,8 +104,12 @@ unknown transitive/host authority and incomplete lifetime coverage block inclusi
 Negative probes run in isolated development runs, not model trials, and all source
 and grading artifacts remain outside future model context.
 
-Next define hidden-fixture partitioning and evaluator session/context/deadline
-controls, extend coverage of requestable/unexercised authority and continuous
-lifetimes, and resolve or explicitly bound remaining deputy/isolation differences.
+[A2.7](AGENT_TASK_EVALUATOR_CONTROLS_V1.md) supplies scripted bank/session controls;
+[A2.8](AGENT_TASK_RECONCILIATION_V1.md) adds named reconciliation.
+[A2.9](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) enumerates issued-right subsets
+under two policies and checks named expiry/renewal/revocation witnesses, retaining
+LS mounted/descriptor lifetimes. These qualify a finite interface projection, not
+whole inclusion. Next extend unexercised/continuous authority and bound remaining
+host-client/deputy differences, real hidden-bank and provider controls.
 Full A2 and narrower-authority claims require their matching controls and evidence.
 Hardware remains deferred.
