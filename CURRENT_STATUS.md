@@ -16,8 +16,12 @@ and evidence boundaries. [NEXT_TASKS.md](NEXT_TASKS.md) owns the next work;
 The S12.4 physical lane awaits test-hardware setup: first live serial capture,
 then Intel AMT 11 power/reset, S12 on SATA, and S13 NVMe boot/update/rollback.
 No live capture or actuation is scheduled. SW0 continues independently of lab
-access and NVMe graduation. S14's prerequisites from both lanes remain in
-`NEXT_TASKS.md`; USB xHCI/HID and the S15 desktop are future work.
+access and NVMe graduation. The dependency-driven queue in `NEXT_TASKS.md` also
+allows S14/S15 contracts, host/replay work, and QEMU implementation to proceed
+without the model comparison or physical qualification. Driver work retains its
+own Reference Vault, Oracle and gate requirements; physical integration requires
+the prepared observation/actuation loop. USB xHCI/HID, the target runtime, and
+the S15 desktop remain future work, not implemented by this scheduling change.
 
 ## Implemented foundations and their boundaries
 
@@ -140,6 +144,14 @@ boot with fresh nonces and matching artifact identities. Firmware NVMe detection
 and vector-backed block transfers establish neither native NVMe I/O nor that protocol.
 
 ## Documentation maintenance
+
+The 2026-10-04 roadmap review replaces global sequencing barriers with bounded
+parallel work and explicit integration checkpoints. The coordinator owns the
+shared contract and status files; sub-agents own disjoint changes and return
+gate evidence for review. Project skills share one source across agent clients.
+The governance drift gate now checks that agent instructions route to maintained
+planning owners, with negative cases for missing links and duplicated queues.
+This adds workflow/documentation validation, not OS, model, or hardware evidence.
 
 The 2026-10-03 documentation review consolidates status here, execution criteria
 in `NEXT_TASKS.md`, and direction in `ROADMAP.md`. Current references and agent

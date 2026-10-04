@@ -1,11 +1,13 @@
 # Claim Artifact V0 Schema
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-10-04
 **Status:** Active
 
 ## 0) Purpose
-Claims are content-addressed JSON documents that record queue item ownership.
-They enable an auditable, offline-first claim/lock workflow.
+Claims are content-addressed JSON documents recording intended ownership of
+Store porting queue items. They support offline coordination; the timestamp
+resolver is not a distributed lock or an authenticated authority grant. Agent
+file ownership is assigned by the [coordinator workflow](AGENTIC_WORKFLOW.md).
 
 Rule: "Latest valid claim wins" — the most recent claim for a queue item takes precedence.
 
@@ -59,9 +61,14 @@ Optional notes about the claim.
 
 ## 4) Claim resolution
 The "latest valid claim wins" rule means:
-1. Claims are sorted by timestamp
-2. The most recent valid claim takes precedence
-3. Expired claims (past lease duration) are ignored
+1. Submitted claims must validate; an invalid claim fails resolution.
+2. Expired claims (past lease duration) are ignored.
+3. The newest timestamp wins; equal timestamps select the lexically greatest
+   claimant ID. Omitted leases do not expire.
+
+[claim.rs](../artifact_store_schema/src/claim.rs) owns these rules. Callers must
+select claims for the intended item and establish identity/trust separately;
+the resolver alone does not authenticate the claimant or its clock.
 
 ---
 

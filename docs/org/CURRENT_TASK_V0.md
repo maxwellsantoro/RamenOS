@@ -1,14 +1,22 @@
 # CurrentTaskV0
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-04
 **Status:** G0.8 scaffold
 
-`CurrentTaskV0` is the machine-readable source for the active RamenOrg packet
+`CurrentTaskV0` is the machine-readable source for one RamenOrg packet
 set. The renderer reads `docs/org/current_task.yaml`; the governance gate
 validates it against `schemas/org/current_task_v0.schema.json` before rendering.
 
 It is not an authority grant. Authority still comes from bounded work orders and
 explicit decisions.
+
+The checked-in source retains the G0.8.1 serial-observer trial and is exercised
+by governance fixtures. It is not a scheduler for the whole project, and its
+task label must not override [Next Tasks](../../NEXT_TASKS.md). Parallel dispatch
+uses [Agentic Workflow](../AGENTIC_WORKFLOW.md) within the user's authorized
+scope. A new bounded G0 trial needs its own current scope and validated intake;
+do not reuse the retained packet as authority for another task or overwrite it
+merely to represent simultaneous workers.
 
 ## Validation Rules
 

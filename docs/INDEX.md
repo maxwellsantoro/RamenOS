@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
@@ -18,18 +18,37 @@ parts of that product, with implementation status and evidence recorded separate
 | Product vision and description guidance | [Vision](../VISION.md) |
 | Project overview and first commands | [README](../README.md) |
 | Landed state | [Current Status](../CURRENT_STATUS.md) |
-| Next executable work | [Next Tasks](../NEXT_TASKS.md) |
+| Ready work, dependencies and acceptance | [Next Tasks](../NEXT_TASKS.md) |
 | Product destination and medium-range direction | [Roadmap](../ROADMAP.md) |
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
 | Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
-| Coding-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
+| Coordinator/sub-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
 | Terms and concepts | [Glossary](GLOSSARY.md) |
 
 The operational source of truth is
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) plus
 [NEXT_TASKS.md](../NEXT_TASKS.md). `ROADMAP.md` is directional.
+
+## Load context for the assigned task
+
+Read [AGENTS.md](../AGENTS.md), the status/task pair and the applicable contract
+first. The coordinator assigns a bounded outcome and file ownership using
+[Agentic Workflow](AGENTIC_WORKFLOW.md); workers then load only the references
+needed for that outcome. This index is a map, not a required reading list.
+
+| Work | Additional starting context |
+|------|-----------------------------|
+| Native interfaces and target integration | [Constitution](../CONSTITUTION.md), [IDL Tools](../idl/tools/README.md), the relevant S10/S14/S15 contract and affected consumers |
+| SW0 controls or evaluation | [Study plan](plans/2026-09-16-agent-task-proof.md), then the matching A0–A2.9 contracts below |
+| Drivers, storage or HIL | [Evidence Levels](../EVIDENCE_LEVELS.md), the device [Reference Vault](../drivers/reference_vaults/README.md), and the relevant S11/S12/S13 plan |
+| Store or compatibility | [Store Spec](../STORE_SPEC.md), [Development Reference](DEVELOPMENT_REFERENCE.md), the affected artifact/runner contract |
+| Governance or research | The relevant [RamenOrg contract](#ramenorg-and-research) or [research question](research/INDEX.md) |
+
+Host/replay/QEMU preparation and physical qualification have separate prerequisites.
+Use the queue's dependency edges; a historical phase number or a blocked hardware
+run does not impose a global stop on independent software work.
 
 ## Architecture and Policy
 
@@ -75,14 +94,15 @@ owns implemented SW0 scope and commands. Contract references, in milestone order
 - [IDL Tools](../idl/tools/README.md): required IDs/types, regeneration, versioning.
 - [Reference Vaults](../drivers/reference_vaults/README.md): driver context and Oracle evidence.
 
-## Active and Gate-Bound Plans
+## Maintained Plans and Contract References
 
-These files remain under `docs/plans/` because they describe current work,
-deferred design surfaces, or contracts consumed directly by Foundry gates.
+`docs/plans/` contains both executable plans and maintained architecture
+references. A file's presence here does not put every remaining idea on the ready
+queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 
 ### OS and Hardware
 
-- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization, and pilot/powered comparison plan before S14; scripted foundations landed, model comparison pending
+- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization and bounded comparison; scripted foundations landed, model comparison pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)
@@ -125,7 +145,9 @@ and [vulnerability reporting policy](../SECURITY.md).
 - [RamenOrg plan](plans/2026-06-23-research-backed-ramenorg.md)
 
 The G0 milestone plans and trial reports remain in place because the governance
-gate validates their exact paths.
+gate validates their exact paths. Their historical banners bound their authority;
+they are not new work. `current_task.yaml` supplies one retained packet set, not
+the coordinator's multi-task queue. See [CurrentTaskV0](org/CURRENT_TASK_V0.md).
 
 ## Maintenance and ownership
 
@@ -134,15 +156,17 @@ gate validates their exact paths.
 | Product framing and description guidance | [Vision](../VISION.md) |
 | Stable contributor/agent invariants | [AGENTS.md](../AGENTS.md), [Constitution](../CONSTITUTION.md) |
 | Landed behavior and evidence limits | [Current Status](../CURRENT_STATUS.md) |
-| Next work, dependencies and acceptance | [Next Tasks](../NEXT_TASKS.md) |
+| Ready work, dependencies and acceptance | [Next Tasks](../NEXT_TASKS.md) |
+| Coordinator dispatch, ownership and integration | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
 | Direction and deferred choices | [Roadmap](../ROADMAP.md) |
 | Milestone history / decision rationale | [Changelog](../CHANGELOG.md), [Decisions](../DECISIONS.md) |
 | Exact native layout / artifact validation | IDL, schema source and named gates |
 | Superseded plans and investigations | [Archive](archive/README.md) |
 
 Update the relevant owner instead of copying its queue or history into another
-reference. Design docs may record the implemented contract and its limits; proposed
-behavior and commands must be labeled. Preserve gate-bound paths and original
-trial evidence. When archiving an analysis behind a stable reference, repair its
-links and add a historical banner. Recheck local links/anchors and recipe names
+reference. The coordinator integrates shared status/queue/history edits once per
+landed unit; workers return evidence and proposed deltas. Design docs record the
+contract and limits; label proposed behavior and commands. Archive superseded
+analysis under the [archive policy](archive/README.md), preserving gate-bound
+paths and original trial evidence. Recheck local links/anchors and recipe names
 against `justfile`; run the required governance and affected Foundry gates.

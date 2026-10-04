@@ -1,10 +1,10 @@
 # Slice Namespacing
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Authoritative
 
-RamenOS now runs **three** parallel work tracks, and their slice identifiers
-must not collide. This document fixes the namespaces so a single slice id has
+RamenOS uses **three** slice namespaces; each can contain multiple parallel tasks.
+Their identifiers must not collide. This document fixes the namespaces so a single slice id has
 one unambiguous meaning across the OS, the research program, and the org.
 
 ## Namespaces
@@ -34,6 +34,9 @@ research-slice documents.
 4. The drift checker ([status_drift.py](../../tools/org/status_drift.py)) checks
    required active references and research-slice headings. It is not a complete
    scan of every identifier in prose; review allocations and cross-references too.
+5. Queue/lane labels and coordinator work-item IDs are scheduling identifiers,
+   not new slices. Keep the owning slice and its gate/evidence boundary explicit;
+   split work without allocating a new slice number for every agent.
 
 ## Current allocations
 

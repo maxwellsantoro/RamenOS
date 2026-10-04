@@ -1,6 +1,6 @@
 # RQ-0001: Offer-Shaped Service Boundaries
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-04
 **Status:** Research question
 
 ## Question
@@ -58,5 +58,9 @@ Initial landing should be doc and gate-first:
 
 ## Dependencies
 
-Do not displace the active S12.4/S13 metal track. Use this question to prepare a
-post-HIL service-boundary slice.
+Research and a concrete contract/gate proposal can proceed independently of
+physical HIL. The [R-OFFERS-1 prototype](../slices/R-OFFERS-1-airlock-leakage-meter.md)
+depends on this question supporting implementation and on a chosen service
+boundary with usable source evidence. That dependency blocks offer-boundary
+implementation, not unrelated OS work. The coordinator selects scope and capacity
+from [Next Tasks](../../../NEXT_TASKS.md).

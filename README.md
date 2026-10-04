@@ -147,15 +147,18 @@ transfers and do not establish device-backed native net/block I/O.
 
 ## What comes next
 
-The physical lane H0–H3 is **S12.4 live serial capture → AMT power/reset → S12
-on SATA → S13 NVMe boot and verified reboot/rollback**, awaiting test-hardware
-setup. SW0's A0/A1 host task and A2 Linux controls through A2.9 finite requestable
-authority are implemented. Next are the remaining host/deputy/unexercised and
-continuous-authority controls in [Next Tasks](NEXT_TASKS.md), followed by a bounded
-opt-in comparison and explicit target enforcement evidence. It does not wait for
-hardware graduation. S14 requires the stable H0/H1 appliance loop, reviewed
-A1/A2 evidence and a recorded decision on the bounded comparison report, plus
-its own design/IDL/Oracle/gate plan.
+Development follows a dependency-driven plan for a coordinator and simultaneous
+agents. The next product checkpoint is one complete human task: launch an app,
+understand its permissions, use keyboard input, save and reopen an artifact, and
+recover from a failed component without an AI model. Contracts and focused gates
+let runtime, input, desktop, Store, and SW0 work progress independently before
+integration. [Next Tasks](NEXT_TASKS.md) identifies the bounded work ready to assign.
+
+The physical lane remains **live serial capture → AMT power/reset → S12 on SATA
+→ S13 NVMe boot and verified reboot/rollback**, awaiting setup. Driver work still
+requires its Reference Vault, Oracle traces, and gates. Host/replay/QEMU preparation
+does not wait for physical qualification or the opt-in model comparison; each
+claim requires evidence from its actual execution environment.
 
 [Current Status](CURRENT_STATUS.md) records landed work and
 [Next Tasks](NEXT_TASKS.md) owns execution order.
@@ -182,6 +185,9 @@ See [Security Status](SECURITY_STATUS.md) for implementation limits and open ris
 - **Contribute a slice:** [Contributing](CONTRIBUTING.md), [Agent Instructions](AGENTS.md),
   and [Slices](SLICES.md). Each slice needs a consumer, a bounded contract, and
   a deterministic Foundry gate.
+- **Coordinate parallel work:** [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) defines
+  assignment, shared-file ownership, review, and integration; the project
+  [coordinate-work skill](.agents/skills/coordinate-work/SKILL.md) applies it.
 - **Find other docs:** [Documentation Index](docs/INDEX.md), including the
   subordinate RamenOrg governance and research tracks. Those artifacts grant no
   merge, release, hardware, or public-support authority on their own.

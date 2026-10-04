@@ -1,11 +1,17 @@
 # Observed Capability Summary V0
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-10-04
 **Status:** Active
 
 ## 0) Purpose
 Observed caps are content-addressed JSON summaries that record **what capabilities were
 actually used** during a run. They reference evidence (protocol traces) by content ID.
+
+Observation covers only the recorded scenarios and instrumentation. It does not
+enumerate all available, requestable, transitive or future authority. Use it to
+derive a candidate port manifest, then validate that manifest against the intended
+scenarios. SW0's broader authority comparison has a separate
+[inventory contract](AGENT_TASK_AUTHORITY_V1.md).
 
 ---
 

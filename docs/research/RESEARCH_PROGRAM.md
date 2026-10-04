@@ -1,6 +1,6 @@
 # Research Program
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** G0 scaffold
 
 Research serves the [Vision](../../VISION.md) of an everyday, post-Unix OS for
@@ -43,9 +43,16 @@ research question
 
 ## Research Office
 
-The Research Office is product-bound. It may block shallow implementation when a
-problem is not understood well enough to support the claim being made, but it
-must also keep every question attached to a landing path.
+The Research Office is product-bound. An unresolved question blocks the specific
+design or claim that depends on it. Independent implementation, fixture work,
+and measurements can proceed when their own contracts and evidence are available.
+The coordinator records that dependency in [Next Tasks](../../NEXT_TASKS.md).
+
+A research task should name the decision to unblock, the smallest sufficient
+evidence packet, an agreed time/compute limit and a stop condition. Return a
+decision-ready comparison or an explicit unresolved assumption; a paper is needed
+only when the product question warrants it. Do not require the whole research
+program to finish before integrating a bounded result.
 
 Responsibilities:
 

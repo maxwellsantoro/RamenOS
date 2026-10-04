@@ -66,6 +66,7 @@ require_file "tools/org/test_validate_packets.py" "PACKET_VALIDATOR_TEST_MISSING
 require_file "tools/org/test_intake_bundle.py" "INTAKE_BUNDLE_TEST_MISSING"
 require_file "tools/org/test_context_grant.py" "CONTEXT_GRANT_TEST_MISSING"
 require_file "tools/org/status_drift.py" "STATUS_DRIFT_TOOL_MISSING"
+require_file "tools/org/test_status_drift.py" "STATUS_DRIFT_TEST_MISSING"
 require_file "docs/plans/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_PLAN_MISSING"
 require_file "docs/org/trials/2026-06-23-g0-9-first-a2-to-a3-loop.md" "G0_9_TRIAL_MISSING"
 require_file "docs/org/HUMAN_DIRECTIVE_V0.md" "HUMAN_DIRECTIVE_DOC_MISSING"
@@ -96,6 +97,9 @@ grep -q 'Handoff packets' docs/research/questions/RQ-0002-ai-org-kernel.md \
 
 echo "$GATE_ID: INFO step=status_drift"
 python3 tools/org/status_drift.py --root "$ROOT_DIR" --out out/org/status_drift.json
+
+echo "$GATE_ID: INFO step=status_drift_negative"
+python3 tools/org/test_status_drift.py
 
 echo "$GATE_ID: INFO step=validate_current_task"
 python3 tools/org/validate_packets.py --root "$ROOT_DIR" \

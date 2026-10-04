@@ -1,0 +1,1 @@
+../../../.agents/skills/coordinate-work/SKILL.md

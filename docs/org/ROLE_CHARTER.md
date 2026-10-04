@@ -1,11 +1,17 @@
 # RamenOrg Role Charter
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-04
 **Status:** G0 scaffold
 
 Roles are capability scopes, not personalities. A role may be filled by an
 agent, a human, or a mixed review loop, but the authority and veto domain stay
 the same.
+
+These are review scopes, not a requirement to launch one worker per row. The
+coordinator assigns only the roles relevant to a bounded task and records their
+checks in its handoff. Ordinary coordination follows
+[Agentic Workflow](../AGENTIC_WORKFLOW.md); G0 trials retain their packet and
+independent-review requirements. A role assignment cannot grant new authority.
 
 | Role | Primary authority | Veto domain |
 |------|-------------------|-------------|

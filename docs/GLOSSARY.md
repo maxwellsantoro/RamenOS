@@ -2,6 +2,9 @@
 
 This document defines key terms used throughout the RamenOS project documentation and codebase.
 
+Definitions describe intended roles; [Current Status](../CURRENT_STATUS.md)
+records where those roles are implemented and their evidence limits.
+
 ## Table of Contents
 
 - [Architecture Terms](#architecture-terms)
@@ -35,7 +38,9 @@ the goal rather than current desktop or release readiness.
 
 ### Kernel
 
-The core of RamenOS providing IPC, capabilities, memory management, and domain isolation. The kernel implements capability validation for fast-path operations and maintains strict separation between control plane (typed messages) and data plane (zero-copy shared memory).
+The core mechanisms for IPC, capabilities, memory management and intended domain
+isolation. The kernel validates capabilities on implemented fast paths. A general
+target userspace environment and complete isolation qualification remain work.
 
 **Related Terms:** Service, Domain, Capability
 
@@ -63,7 +68,9 @@ Store Service for artifact I/O and verification. The complete product UI remains
 
 ### Harness
 
-A kernel-level service interface providing core OS capabilities. Harnesses include `shmem_control` (shared memory management), `trace_service` (kernel tracing), and `echo_harness` (IPC testing). Harnesses are accessed via IPC with capability validation.
+A typed native interface defined in IDL, such as shared-memory control, tracing,
+network or block operations. The provider may be a kernel path or a service;
+the contract specifies ownership, authority checks and the bounded data plane.
 
 **Related Terms:** Service, Portal, Capability
 
@@ -71,7 +78,9 @@ A kernel-level service interface providing core OS capabilities. Harnesses inclu
 
 ### Portal
 
-A user-space portal for desktop integration. Portals provide controlled access to system resources like clipboard, file picker, notifications, and screen capture. Portals implement the principle of least privilege by requiring explicit capability grants.
+A typed user-facing integration boundary, intended for operations such as file
+selection, clipboard, notifications or screen capture. Specific portal contracts
+and gates determine which operations are available; the complete desktop is pending.
 
 **Related Terms:** Harness, Service, Capability
 
@@ -122,7 +131,10 @@ A discriminator indicating the type of resource a handle references. HandleKinds
 
 ### Token
 
-A cryptographic credential used for authentication and authorization. Unlike capabilities (which are kernel-managed), tokens are cryptographic constructs that can be verified without kernel involvement. Examples include display capability tokens for GPU access.
+A credential whose issuer, verification rule, scope and lifetime determine its
+meaning. Cryptographic display tokens and scoped host-service handles have
+different contracts; neither a token-shaped string nor a kernel-style name grants
+authority without validation by its owner.
 
 **Related Terms:** Capability, Signature
 
@@ -145,7 +157,10 @@ its stated lifetime/reuse bounds; it is not an unlimited anti-aliasing guarantee
 
 ### Slice
 
-A vertical development unit that ships a complete feature end-to-end. Slices cut across all layers (kernel, services, IDL, tests) rather than building horizontal subsystems in isolation. Each slice has defined completion criteria and Foundry gates.
+A bounded behavior or contract with a consumer and a Foundry gate. It crosses
+the boundary needed for that behavior; it need not change every layer. A
+coordinator can split a slice into parallel tasks while preserving shared
+contracts and one integration acceptance decision.
 
 **Related Terms:** Foundry, Gate
 
@@ -195,7 +210,9 @@ length prefix. The payload capacity is not the total message size.
 
 ### Capsule
 
-An isolated execution unit that can be either a driver or compatibility domain. Capsules run with restricted capabilities and communicate with the rest of the system via well-defined interfaces. Driver capsules provide hardware abstraction; compat capsules run legacy OS code.
+A bounded compatibility or driver execution unit behind a typed interface.
+Actual containment depends on the selected VM, host scaffold or future target
+domain; the label alone does not establish isolation.
 
 **Related Terms:** Compat Domain, Domain, Capsule Relay
 
@@ -213,7 +230,9 @@ on the host with its documented rlimits-only default; it does not manage that VM
 
 ### Domain Manager
 
-The service managing domain lifecycle and resource allocation. The Domain Manager creates, destroys, and configures domains, allocates memory and capabilities, and facilitates IPC setup between domains.
+The service responsible for domain lifecycle and broker grant policy. Current
+host registries and selected bridges implement parts of that role; they do not
+create a complete target userspace execution boundary.
 
 **Related Terms:** Domain, Service, Capability
 
@@ -229,7 +248,9 @@ The service providing artifact storage and verification. The Store Service imple
 
 ### Capsule Relay
 
-The service bridging capsules to VM backends. The Capsule Relay manages communication between RamenOS domains and capsule execution environments, handling IPC translation and capability mediation.
+The host scaffold that exercises typed capsule control and echo contracts and
+emits evidence. An optional VM path has its own limits; the relay is not a
+general target-domain loader or a complete driver containment boundary.
 
 **Related Terms:** Capsule, Service, VM Backend
 
@@ -241,7 +262,10 @@ The service bridging capsules to VM backends. The Capsule Relay manages communic
 
 ### Shared Memory (Shmem)
 
-A zero-copy data plane communication mechanism. Shared memory enables high-throughput data transfer between domains without copying through the kernel. Shmem regions are capability-controlled and require explicit allocation and mapping.
+Memory mapped for authorized participants so bulk data need not travel inside
+control messages. Allocation and mapping require capability validation and
+lifetime checks. Particular ring, host or WASM adapters may still copy bytes;
+shared memory alone does not prove copy-free end-to-end performance.
 
 **Related Terms:** Frame, Address Space, Capability
 
@@ -267,7 +291,10 @@ isolation and multi-core qualification require additional integration evidence.
 
 ### Ring Buffer
 
-A lock-free single-producer single-consumer (SPSC) queue for kernel-userspace communication. Ring buffers are used for trace events, IPC notifications, and other high-frequency data streams. They enable efficient communication without kernel transitions.
+A bounded queue over shared storage. The shared-memory SPSC primitive has one
+producer and one consumer, copies payload bytes and requires valid cooperating
+peers and mappings. Tracing has its own ring implementation and domain contract;
+one ring's tests do not establish all notification or transport behavior.
 
 **Related Terms:** Trace, IPC
 

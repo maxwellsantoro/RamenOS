@@ -5,12 +5,13 @@ with everyday use as the destination. The three pillars are **OS Core** (kernel,
 services, runtimes), **Foundry** (tooling and evidence gates), and **Store**
 (discovery, permission previews, execution, and native ports).
 
-This is the stable agent contract. Read [VISION.md](VISION.md) for product
-direction, [CURRENT_STATUS.md](CURRENT_STATUS.md) for landed behavior, and
-[NEXT_TASKS.md](NEXT_TASKS.md) for executable work. [ROADMAP.md](ROADMAP.md)
-is directional; [SLICES.md](SLICES.md) defines slices; [CHANGELOG.md](CHANGELOG.md)
-and [DECISIONS.md](DECISIONS.md) preserve history and rationale. Do not copy the
-task queue or milestone history into this file. `CLAUDE.md` links to this file.
+This is the stable agent contract; `CLAUDE.md` links here. Start with
+[CURRENT_STATUS.md](CURRENT_STATUS.md) for landed behavior and
+[NEXT_TASKS.md](NEXT_TASKS.md) for ready work and dependencies, then read only the
+maintained contracts needed for the task. [VISION.md](VISION.md) owns product
+direction, [ROADMAP.md](ROADMAP.md) milestone dependencies, and
+[SLICES.md](SLICES.md) slice definitions. Use [docs/INDEX.md](docs/INDEX.md) to
+find references. Do not copy the queue or milestone history into instructions.
 
 ## Product and evidence
 
@@ -47,16 +48,26 @@ an IDL contract, add a Foundry assertion, or implement a Store feature consuming
 OS capability. Documentation and governance changes must support those outcomes
 and their evidence.
 
-1. Read the authoritative status/task pair and the relevant maintained contract.
+1. Select a ready packet from the authoritative status/task pair and read its contract.
 2. **Gate-first:** write behavior, denial, and failure assertions before implementation.
 3. Define new native interfaces in `idl/harness/`, `idl/portals/`, or `idl/services/`.
 4. Run `just codegen`; never hand-edit `*.generated.rs` or any `generated/` content.
 5. Implement the smallest path across the intended boundary and run affected gates.
 6. Update `CURRENT_STATUS.md` and `CHANGELOG.md` per milestone; update `NEXT_TASKS.md`
-   when work is completed or its order changes. Record design choices in `DECISIONS.md`.
+   when work or dependencies change. Record design choices in `DECISIONS.md`.
 
 If design is blocked, choose the simplest viable default within the Constitution,
 record it, and continue. Missing authority or evidence cannot be replaced by a default.
+
+## Parallel agent work
+
+For coordinator/sub-agent execution, use [Agentic Workflow](docs/AGENTIC_WORKFLOW.md).
+The coordinator freezes contracts and assertions, assigns disjoint writable paths,
+and owns integration. Name one writer for shared registries, generated outputs,
+`justfile`, and status/history files. Workers return scoped changes and reproducible
+gate evidence; independent review precedes integration. Use separate worktrees
+when needed for source or test-output isolation, not as a substitute for ownership.
+Keep work bounded by ready dependencies, worker capacity, and review capacity.
 
 ## Code guardrails
 
@@ -82,23 +93,14 @@ record it, and continue. Missing authority or evidence cannot be replaced by a d
 - For application ports, derive the capability manifest from `observed_caps_v0`
   and validate it against scenarios. Observation of one run is not all possible authority.
 
-## Active track and validation
+## Validation
 
-- **Now:** S12.4 HIL appliance v0 physical loop; live serial observation precedes actuation. Physical runs await setup; see `NEXT_TASKS.md`.
-- **Independent software lane:** SW0 continues without H0–H3 or NVMe graduation.
-  The status/task pair owns its landed scope and remaining controls, including S14 prerequisites.
-- **Keep green for org/research planning:** `just s11`, `just s12`, `just s13`,
-  and `just foundry-org-governance-g0`. Run `just hil-appliance` for appliance docs/contracts.
-
-Use the pinned toolchain in `rust-toolchain.toml` and commands in [justfile](justfile):
-
-| Work | Commands |
-|------|----------|
-| Formatting and host lint | `just fmt`, `just clippy` |
-| Generated bindings and IDL checks | `just codegen`, `just idl-lint` |
-| Host / bare-metal / UEFI builds | `just build-host`, `just build-targets`, `just build-uefi` |
-| Boot baseline | `just foundry-s0` |
-| Complete local CI sequence | `just preflight` |
+Use the pinned toolchain in `rust-toolchain.toml`, focused gates while iterating,
+and affected consumer/integration gates before handoff. Resolve commands from
+[justfile](justfile). For roadmap, org, and research planning changes, keep
+`just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` green;
+run `just hil-appliance` for appliance docs/contracts. Serialize gates that share
+fixed output paths or hardware; the coordinator runs the final integrated checks.
 
 Full preflight requires Linux, Python `jsonschema`, Docker with builtin seccomp,
 and the already installed pinned image. Missing prerequisites produce `INCOMPLETE`.
@@ -117,9 +119,7 @@ and S2 inputs are in [Getting Started](docs/GETTING_STARTED.md) and
   Follow [the implementer-bot guide](docs/org/RAMEN_IMPLEMENTER_BOT.md) for credentials
   and exact commands; this file grants no approval, merge, or release authority.
 - RamenOrg work uses bounded `WorkOrderV0`, `HandoffPacketV0`, and `BoardVoteV0`
-  artifacts. A2-local grants no merge, release, self-approval, HIL actuation, or
-  public-support authority. Preserve separation of duties.
+  artifacts. A2-local and agent delegation grant no merge, release, self-approval,
+  HIL actuation, spending, or public-support authority. Preserve separation of duties.
 - Research must connect a product risk, claim boundary, evidence plan, and landing
   path. Use [the research index](docs/research/INDEX.md); RamenOS is research-backed.
-
-Use [docs/INDEX.md](docs/INDEX.md) to find maintained references and archive policy.
