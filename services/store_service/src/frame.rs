@@ -10,6 +10,7 @@
 
 use anyhow::Context;
 use std::io::{Read, Write};
+use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::time::Instant;
 
@@ -21,15 +22,64 @@ pub fn read_message_until(stream: &mut UnixStream, deadline: Instant) -> anyhow:
     struct DeadlineReader<'a>(&'a mut UnixStream, Instant);
     impl Read for DeadlineReader<'_> {
         fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-            let remaining = self
-                .1
-                .checked_duration_since(Instant::now())
-                .filter(|time| !time.is_zero())
-                .ok_or_else(|| {
-                    std::io::Error::new(std::io::ErrorKind::TimedOut, "request deadline")
-                })?;
-            self.0.set_read_timeout(Some(remaining))?;
-            self.0.read(buffer)
+            if buffer.is_empty() {
+                return Ok(0);
+            }
+            loop {
+                let remaining = self
+                    .1
+                    .checked_duration_since(Instant::now())
+                    .filter(|time| !time.is_zero())
+                    .ok_or_else(|| {
+                        std::io::Error::new(std::io::ErrorKind::TimedOut, "frame deadline")
+                    })?;
+                let mut poll = libc::pollfd {
+                    fd: self.0.as_raw_fd(),
+                    events: libc::POLLIN,
+                    revents: 0,
+                };
+                // Round up to avoid spinning for a sub-millisecond remainder.
+                let millis = remaining
+                    .as_millis()
+                    .saturating_add(1)
+                    .min(i32::MAX as u128) as i32;
+                // SAFETY: one initialized pollfd remains live for this call.
+                let ready = unsafe { libc::poll(&mut poll, 1, millis) };
+                if ready < 0 {
+                    let error = std::io::Error::last_os_error();
+                    if error.kind() == std::io::ErrorKind::Interrupted {
+                        continue;
+                    }
+                    return Err(error);
+                }
+                if ready == 0 || Instant::now() >= self.1 {
+                    continue;
+                }
+                // Drain buffered data even on POLLHUP. Reconfiguring a socket
+                // timeout after peer closure can fail on macOS while bytes are
+                // still queued. Per-call nonblocking recv also closes the race
+                // between readiness and read without changing stream mode.
+                // SAFETY: the stream owns the fd and buffer is writable for len.
+                let count = unsafe {
+                    libc::recv(
+                        self.0.as_raw_fd(),
+                        buffer.as_mut_ptr().cast(),
+                        buffer.len(),
+                        libc::MSG_DONTWAIT,
+                    )
+                };
+                if count >= 0 {
+                    return Ok(count as usize);
+                }
+                let error = std::io::Error::last_os_error();
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::Interrupted | std::io::ErrorKind::WouldBlock
+                ) {
+                    continue;
+                }
+                return Err(error);
+            }
         }
     }
     read_message(&mut DeadlineReader(stream, deadline))
@@ -110,6 +160,18 @@ pub fn write_message<W: Write>(writer: &mut W, payload: &[u8]) -> anyhow::Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn complete_response_remains_readable_after_peer_closes() {
+        use std::time::Duration;
+        let (mut sender, mut receiver) = UnixStream::pair().unwrap();
+        write_message(&mut sender, b"complete response").unwrap();
+        drop(sender);
+        assert_eq!(
+            read_message_until(&mut receiver, Instant::now() + Duration::from_secs(1)).unwrap(),
+            b"complete response"
+        );
+    }
 
     #[test]
     fn partial_frames_cannot_reset_the_absolute_deadline() {

@@ -75,6 +75,16 @@ acceptance and the three separate contrasts. No comparative agent advantage is c
 
 ## Recent boundary fixes
 
+The StoreClient transport follow-up applies socket timeouts on initial and
+replacement connections and one absolute deadline across response-frame reads.
+Retained clients reconnect when peer closure is observable before dispatch;
+transport failures discard the stream for the next explicit operation. Uncertain
+requests, including ingestion, are never silently replayed. Real-server idle
+expiry and fake-server lost/malformed/truncated reply and withheld/trickled
+response regressions cover both ordinary reads and descriptor ingestion. This
+is host transport evidence; connect and individual writes are not covered by
+the response-frame deadline.
+
 The 2026-10-04 follow-up defines `validation_current` as observation freshness in
 RT/LT, independently of commit eligibility. RT direct/poll regressions cover failed
 outcomes, truncation, expiry and revocation; portable LT predicate checks pass.

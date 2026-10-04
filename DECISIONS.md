@@ -3,6 +3,30 @@
 **Last Updated:** 2026-10-04
 **Status:** Active
 
+## 2026-10-04 — Recover StoreClient transports without replaying uncertain effects
+
+Use one socket-configuration path for initial and replacement Store connections.
+Before dispatch, a nonblocking peek can detect an idle peer's already visible
+closure and permit reconnecting. Once request writes begin, any exchange failure
+drops the stream and returns the error. The next explicit operation reconnects;
+the client never automatically replays a dispatched ingestion whose publication
+may have succeeded. Callers must reconcile artifact/ownership state before a
+deliberate retry. This fixes retained consumers such as the file picker without
+changing Store authority, receipt semantics, or native IDL contracts.
+
+The configured timeout bounds the whole response frame and each blocking write;
+connect and request dispatch are not one invocation-wide budget. Frame reads use
+readiness polling and per-call nonblocking receive against one absolute deadline,
+including partial reads. This also preserves complete queued replies after a
+peer closes: changing receive timeouts at that point fails on the macOS host.
+
+Gate-first regressions reproduce the old initial unbounded wait, repeated dead
+stream reuse, real-server idle expiry and response trickles. Fake peers observe
+complete ingestion dispatch followed by lost, malformed or truncated replies
+and check that only a later explicit read reaches the replacement connection.
+The existing review-boundaries gate includes these tests. This is host transport
+evidence, not target-native enforcement or general filesystem containment.
+
 ## 2026-02-03 — Monorepo with hard boundaries
 We start as a monorepo to move quickly while IDLs stabilize. Boundaries are enforced by directory structure and contracts.
 

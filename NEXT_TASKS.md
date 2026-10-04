@@ -101,6 +101,11 @@ experimental contract and proposed future commands. The implemented gate/contrac
 map is in [Current Status](CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment).
 Full A2 conformance and model comparison are **not implemented**.
 
+The StoreClient lifecycle follow-up is implemented with host regressions for
+idle recovery, bounded response waits, and lost-reply recovery without mutation
+replay. Continue the A2 controls above; invocation-wide Store connect/write
+deadlines and publication/filesystem limits remain separate follow-ups.
+
 Carry forward the [authority inventory](docs/AGENT_TASK_AUTHORITY_V1.md),
 [requestable/lifetime boundary](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md),
 [evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md), and

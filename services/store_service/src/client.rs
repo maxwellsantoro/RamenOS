@@ -8,9 +8,10 @@
 use crate::capability::{STORE_RIGHT_READ, STORE_RIGHT_WRITE, StoreCapability};
 use crate::frame;
 use crate::status::*;
+use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // Message types
 const MSG_GET_MANIFEST: u8 = 1;
@@ -146,6 +147,12 @@ pub enum StoreClientError {
 
 /// Store service client for IPC communication
 ///
+/// Observed peer closure before dispatch reconnects without sending a request
+/// on the expired connection. Any failure during an exchange discards the
+/// transport and returns an error; requests are never automatically replayed.
+/// In particular, an ingestion error after dispatch can leave publication
+/// uncertain. The next explicit operation opens a fresh connection.
+///
 /// # Example
 ///
 /// ```no_run
@@ -171,7 +178,8 @@ pub struct StoreClient {
 impl StoreClient {
     /// Connect to store service at the given socket path
     ///
-    /// Uses default timeout of 30 seconds for read operations.
+    /// Uses a default 30-second deadline for the complete response frame and a
+    /// 30-second timeout for each blocking write.
     /// Defaults to domain 0 (kernel) with no capability.
     pub fn connect<P: AsRef<Path>>(socket_path: P) -> Result<Self, StoreClientError> {
         Self::connect_with_timeout_and_capability(socket_path, DEFAULT_READ_TIMEOUT, 0, None)
@@ -225,7 +233,7 @@ impl StoreClient {
     ///
     /// # Arguments
     /// * `socket_path` - Path to Unix domain socket
-    /// * `timeout` - Read timeout
+    /// * `timeout` - Complete response-frame budget and per-write timeout
     /// * `domain_id` - Domain ID this client represents
     /// * `capability` - Optional capability to present
     pub fn connect_with_timeout_and_capability<P: AsRef<Path>>(
@@ -236,8 +244,7 @@ impl StoreClient {
     ) -> Result<Self, StoreClientError> {
         let socket_path = socket_path.as_ref().to_path_buf();
 
-        // Set socket timeout
-        let stream = UnixStream::connect(&socket_path)?;
+        let stream = Self::open_connection(&socket_path, timeout)?;
 
         Ok(Self {
             socket_path,
@@ -401,15 +408,9 @@ impl StoreClient {
                 "ingest requires a regular file".into(),
             ));
         }
-        self.ensure_connected()?;
         let mut msg = vec![MSG_INGEST_ARTIFACT];
         msg.extend_from_slice(&bincode::serialize(&request)?);
-        let stream = self.stream.as_mut().unwrap();
-        frame::write_message(stream, &msg)
-            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
-        crate::source_fd::send(stream, &source)?;
-        let reply_bytes = frame::read_message(stream)
-            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
+        let reply_bytes = self.exchange(&msg, Some(&source))?;
         let reply: IngestArtifactReply = bincode::deserialize(&reply_bytes)?;
         self.validate_request_id(reply.request_id, request_id)?;
         self.ensure_status_ok("ingest_artifact", reply.status)?;
@@ -481,13 +482,77 @@ impl StoreClient {
         id
     }
 
-    fn ensure_connected(&mut self) -> Result<(), StoreClientError> {
-        if self.stream.is_none() {
-            let stream = UnixStream::connect(&self.socket_path)?;
-            stream.set_read_timeout(Some(self.timeout))?;
-            self.stream = Some(stream);
+    fn open_connection(path: &Path, timeout: Duration) -> std::io::Result<UnixStream> {
+        let stream = UnixStream::connect(path)?;
+        stream.set_read_timeout(Some(timeout))?;
+        stream.set_write_timeout(Some(timeout))?;
+        Ok(stream)
+    }
+
+    /// Peek without consuming bytes or changing the socket's blocking mode.
+    /// This only observes closure already visible before dispatch; closure can
+    /// still race the following write, which must return an error without replay.
+    fn peer_closed(stream: &UnixStream) -> std::io::Result<bool> {
+        let mut byte = 0u8;
+        loop {
+            // SAFETY: the live stream owns the fd; the one-byte buffer is valid
+            // for the call. MSG_PEEK leaves queued data and descriptors intact.
+            let count = unsafe {
+                libc::recv(
+                    stream.as_raw_fd(),
+                    (&mut byte as *mut u8).cast(),
+                    1,
+                    libc::MSG_PEEK | libc::MSG_DONTWAIT,
+                )
+            };
+            if count >= 0 {
+                return Ok(count == 0);
+            }
+            let error = std::io::Error::last_os_error();
+            match error.kind() {
+                std::io::ErrorKind::WouldBlock => return Ok(false),
+                std::io::ErrorKind::Interrupted => continue,
+                _ => return Err(error),
+            }
         }
+    }
+
+    fn ensure_connected(&mut self) -> Result<(), StoreClientError> {
+        if let Some(stream) = &self.stream {
+            match Self::peer_closed(stream) {
+                Ok(false) => return Ok(()),
+                Ok(true) => self.stream = None,
+                Err(error) => {
+                    self.stream = None;
+                    return Err(error.into());
+                }
+            }
+        }
+        self.stream = Some(Self::open_connection(&self.socket_path, self.timeout)?);
         Ok(())
+    }
+
+    fn exchange(
+        &mut self,
+        msg: &[u8],
+        source: Option<&std::fs::File>,
+    ) -> Result<Vec<u8>, StoreClientError> {
+        self.ensure_connected()?;
+        // Take ownership so every early error drops the failed transport. Once
+        // writes begin, even a write error may represent partial dispatch.
+        let mut stream = self.stream.take().unwrap();
+        frame::write_message(&mut stream, msg)
+            .map_err(|e| StoreClientError::FramingFailed(format!("{e:#}")))?;
+        if let Some(source) = source {
+            crate::source_fd::send(&mut stream, source)?;
+        }
+        let deadline = Instant::now().checked_add(self.timeout).ok_or_else(|| {
+            StoreClientError::InvalidResponse("response deadline overflow".into())
+        })?;
+        let reply = frame::read_message_until(&mut stream, deadline)
+            .map_err(|e| StoreClientError::FramingFailed(format!("{e:#}")))?;
+        self.stream = Some(stream);
+        Ok(reply)
     }
 
     fn send_request<T: serde::Serialize>(
@@ -495,8 +560,6 @@ impl StoreClient {
         msg_type: u8,
         request: &T,
     ) -> Result<Vec<u8>, StoreClientError> {
-        self.ensure_connected()?;
-
         // Serialize request
         let request_payload = bincode::serialize(request)?;
 
@@ -504,15 +567,7 @@ impl StoreClient {
         let mut msg = vec![msg_type];
         msg.extend_from_slice(&request_payload);
 
-        // Write to socket
-        frame::write_message(self.stream.as_mut().unwrap(), &msg)
-            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
-
-        // Read reply
-        let reply_payload = frame::read_message(self.stream.as_mut().unwrap())
-            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
-
-        Ok(reply_payload)
+        self.exchange(&msg, None)
     }
 
     fn validate_request_id(&self, reply_id: u64, expected_id: u64) -> Result<(), StoreClientError> {

@@ -169,3 +169,34 @@ fn stalled_descriptor_and_oversize_ingest_do_not_monopolize_reads_or_publish() {
             .exists()
     );
 }
+
+#[test]
+fn retained_client_recovers_after_server_idle_expiry_before_reads_and_ingestion() {
+    let temp = tempfile::tempdir().unwrap();
+    let socket = temp.path().join("store.sock");
+    let root = temp.path().join("cas");
+    let _service = start_service(&temp, &socket, &root);
+    let source = temp.path().join("source");
+    std::fs::write(&source, b"first artifact").unwrap();
+    let cap = StoreCapability::new(7, store_service::capability::STORE_RIGHT_ALL, 99);
+    let mut client =
+        store_service::StoreClient::connect_with_capability(&socket, 7, Some(cap)).unwrap();
+    let first = client.ingest_artifact("config", "test", &source).unwrap();
+    // The real server's fixture idle budget is 500ms.
+    std::thread::sleep(Duration::from_millis(800));
+    assert_eq!(
+        std::fs::read(client.get_blob(&first.content_id).unwrap().blob_path).unwrap(),
+        b"first artifact"
+    );
+    std::thread::sleep(Duration::from_millis(800));
+    std::fs::write(&source, b"second artifact").unwrap();
+    let second = client.ingest_artifact("config", "test", &source).unwrap();
+    assert_eq!(
+        second.content_id,
+        artifact_store_core::hash_bytes(b"second artifact")
+    );
+    assert_eq!(
+        std::fs::read(client.get_blob(&second.content_id).unwrap().blob_path).unwrap(),
+        b"second artifact"
+    );
+}
