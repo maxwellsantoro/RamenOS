@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "environment": "host",
+  "claim": "scripted-task-and-named-service-boundaries",
+  "source_revision": "ea7c019c2cc4619987e0cbd0ae60823e433a648e",
+  "dirty_diff_sha256": "1ac2347813341d792862323ee8dc5b4fac5ace046f5fbdec99ce5ea689ebf14f",
+  "source_files_sha256": "1a2e2ef8ac2828cfbeeb4f771bad323e190076cbff8e406aa995ade16ec76818",
+  "cargo_lock_sha256": "fe029db5568f59903d812e7e0f3ededa36ccad3def364a23f7c0f9de76f2a5c4",
+  "rustc_version": "rustc 1.95.0-nightly (c7f5f3e0d 2026-02-07)",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "development_features": [
+    "store_service/agent_task_v1_dev",
+    "native_runner/agent_task_v1_dev"
+  ],
+  "physical_hardware": false,
+  "task_kernel_enforcement": false,
+  "model_comparison": false,
+  "producer": "just foundry-agent-task-proof-rt",
+  "retained_on": "2026-10-04",
+  "source_worktree_dirty": true,
+  "artifacts": {
+    "report.json": "612c35250b3089ef5b6e3be92a3e1307324aba5cae5f679ea34357b9a083441c",
+    "journal.json": "403f7fa423303ae6d1cd31e6b9af6147ca83f6f14ec439843aa84f41afba9ac8"
+  }
+}

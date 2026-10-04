@@ -68,7 +68,13 @@ responses always have null result. Validation outcomes and bounded diagnostic
 bytes are explicit; other backend errors never acquire success-shaped data.
 Task state reports real pins, accepted revision/hash, current grant rights,
 expiry, service clock offsets, latest validation and its separate freshness flag.
-No target or model result is synthesized.
+`validation_current` means the last observation belongs to the current grant
+generation and `now_ms < valid_until_ms`, independently of outcome, diagnostics
+truncation or execution timing. It describes freshness in both typed backends,
+including direct reads and subscription snapshots. A fresh invalid/timeout/host-
+failure result cannot authorize commit. Commit separately requires successful,
+unexpired, untruncated evidence within the execution budgets, bound to the
+candidate and pins. No target or model result is synthesized.
 
 ## Transport, recovery and observations
 

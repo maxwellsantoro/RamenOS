@@ -97,6 +97,20 @@ def exercise(binary, store):
             )
         config = json.loads(base64.b64decode(inputs[0]["bytes_base64"]))
         target = json.loads(base64.b64decode(inputs[1]["bytes_base64"]))
+        # A fresh failed observation must have the same meaning in both arms.
+        failed = call(20, "stage_candidate", task_cap=cap,
+                      bytes_base64=inputs[0]["bytes_base64"])
+        observation = call(21, "validate_candidate", task_cap=cap,
+                           candidate_cap=failed["candidate_cap"],
+                           validator_id=state["validator_id"])
+        assert observation["outcome"] == "invalid"
+        failed_state = call(22, "get_task_state", task_cap=cap)["state"]
+        assert failed_state["validation"]["outcome"] == "invalid"
+        assert failed_state["validation_current"] is True
+        call(23, "commit_candidate", "validation_failed", task_cap=cap,
+             candidate_cap=failed["candidate_cap"],
+             expected_revision=state["revision"],
+             expected_content_id=state["content_id"])
         config["enabled"] = target["enabled"]
         candidate = json.dumps(config, sort_keys=True, separators=(",", ":")).encode()
         staged = call(

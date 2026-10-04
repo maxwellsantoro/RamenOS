@@ -65,6 +65,29 @@ class BackendTests(unittest.TestCase):
             bytes_base64=base64.b64encode(data).decode(),
         )["result"]["candidate_cap"]
 
+    def test_validation_freshness_is_independent_of_commit_eligibility(self):
+        cap = self.grant()
+        # Trusted records exercise outcome, truncation, timing, expiry and
+        # generation boundaries without a Docker run or manufactured success.
+        for outcome, truncated, wall, guest in [
+            ("valid", False, 0, 0), ("invalid", False, 0, 0),
+            ("timeout", False, 0, 0), ("host_failure", False, 0, 0),
+            ("valid", True, 0, 0), ("valid", False, 100000, 100000),
+        ]:
+            v = dict(generation=str(self.task.state["generation"]),
+                     valid_until_ms=str(self.task.now() + 10000), outcome=outcome,
+                     diagnostics_truncated=truncated,
+                     wall_elapsed_ms=str(wall), guest_elapsed_ms=str(guest))
+            self.task.state["last_validation"] = v
+            state = self.call("get_task_state", task_cap=cap)["result"]["state"]
+            self.assertTrue(state["validation_current"])
+            self.assertEqual(self.task.valid(v), outcome == "valid" and not truncated and wall == 0)
+            v["valid_until_ms"] = str(self.task.now())
+            self.assertFalse(self.call("get_task_state", task_cap=cap)["result"]["state"]["validation_current"])
+            v["valid_until_ms"] = str(self.task.now() + 10000)
+            v["generation"] = "0"
+            self.assertFalse(self.call("get_task_state", task_cap=cap)["result"]["state"]["validation_current"])
+
     def test_subscription_shapes_and_grant_binding_bypass_the_codec(self):
         cap = self.grant(["observe"])
 

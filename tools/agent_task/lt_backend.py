@@ -510,11 +510,17 @@ class LinuxTask:
         self.load(c["content_id"])
         return c
 
-    def valid(self, v):
+    def validation_current(self, v):
+        """Freshness of the last observation, irrespective of success/usability."""
         return (
             v is not None
             and v["generation"] == str(self.state["generation"])
             and self.now() < int(v["valid_until_ms"])
+        )
+
+    def valid(self, v):
+        return (
+            self.validation_current(v)
             and v["outcome"] == "valid"
             and not v["diagnostics_truncated"]
             and int(v["wall_elapsed_ms"]) <= BUDGET["wall_ms"]
@@ -804,7 +810,7 @@ class LinuxTask:
                 validator_id=self.pins["validator"],
                 input_resources=[r["resource"] for r in self.bootstrap["resources"]],
                 validation=v,
-                validation_current=self.valid(v),
+                validation_current=self.validation_current(v),
             )
             return dict(operation=op, state=state)
         candidate = self.candidate(c["candidate_cap"])

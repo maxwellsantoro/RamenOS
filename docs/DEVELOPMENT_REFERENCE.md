@@ -69,6 +69,29 @@ Store service:
 - `RAMEN_STORE_ACCESS_POLICY`: `AllowAll`, `RequireCredentials`,
   `RequireKnownService`, or `Whitelist`; default is fail-closed.
 - `RAMEN_STORE_SOCKET`, `RAMEN_STORE_ROOT`, `RAMEN_STORE_AUDIT_LOG`: local paths.
+- `RAMEN_STORE_INGEST_MAX_BYTES`: per-artifact ceiling, default 1 GiB, range
+  1 byte–16 GiB; independent of SW0's configuration-file ceiling.
+- `RAMEN_STORE_MAX_INGESTIONS`: concurrent preparation/publication reservations,
+  default 4, range 1–16. Their byte ceilings bound live staging capacity.
+- `RAMEN_STORE_INGEST_TIMEOUT_MS`: preparation deadline, default 30000 ms,
+  range 1–3600000 ms; source metadata/read, output copy/hash/sync run in a
+  supervised child outside the registry/projection locks.
+- `RAMEN_STORE_MAX_CONNECTIONS`: active connection ceiling, default 32,
+  range 1–1024; excess connections are closed.
+- `RAMEN_STORE_REQUEST_TIMEOUT_MS`: absolute frame/descriptor handshake and idle
+  connection budget, default 5000 ms, range 1–60000 ms. Reconnect after idle expiry.
+
+Invalid settings fail startup. Host ingestion validates write authority before
+receiving the descriptor, stages privately, then revalidates authority and current
+ownership before publication. Disconnect during preparation cancels the worker;
+no candidate is published. Timeout requests termination of the acknowledged
+worker process group; if kernel-stalled work cannot yet be reaped, the request
+returns and its reservation remains occupied until termination is confirmed.
+This avoids unbounded replacement workers. These controls bound source work and
+live staging, not total retained CAS size or every local filesystem operation.
+Publication still performs durable Store IO under the locks; a filesystem stall
+there remains a separate availability limit. A lost reply after publication does
+not establish that publication failed.
 
 POSIX runner:
 

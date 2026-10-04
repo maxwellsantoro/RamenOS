@@ -1,6 +1,6 @@
 # Current Status
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
 **Software Lane:** SW0 foundations through A2.9 implemented; full A2 and comparison pending
@@ -55,7 +55,7 @@ consumers and trusted host fixtures, not model trials or target-native task clie
 | A2.2 | Shared strict JSON codec/descriptions and opt-in RT IPC adapter | `just foundry-agent-task-adapter` · [Adapter](docs/AGENT_TASK_ADAPTER_V1.md) |
 | A2.3 | Independent LT broker, grants, sealed validation, durable transactions and named RT/LT cases | `just foundry-agent-task-lt` · [LT backend](docs/AGENT_TASK_LT_BACKEND_V1.md) |
 | A2.4 | Contained LS commands/launcher, shared Linux transactions, peer checks and original-receipt recovery | `just foundry-agent-task-ls-transactions` · [LS transactions](docs/AGENT_TASK_LS_TRANSACTIONS_V1.md) |
-| A2.5 | Shared v2 pull/poll/cancel subscriptions and 50-operation typed lifecycle comparison | `just foundry-agent-task-subscriptions` · [Subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) |
+| A2.5 | Shared v2 pull/poll/cancel subscriptions and typed lifecycle comparison | `just foundry-agent-task-subscriptions` · [Subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) |
 | A2.6 | Finite canonical inventory, 33 common cases and separate LS OS probes; unknown authority retained | `just foundry-agent-task-authority` · [Authority](docs/AGENT_TASK_AUTHORITY_V1.md) |
 | A2.7 | Synthetic bank/release contract, bounded sessions, 45 development attempts and retained failures | `just foundry-agent-task-evaluator-controls` · [Evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md) |
 | A2.8 | Named acknowledged-ID cleanup, unresolved-create quarantine and explicit interrupted-commit receipt recovery | `just foundry-agent-task-reconciliation` · [Reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md) |
@@ -74,6 +74,19 @@ The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines t
 acceptance and the three separate contrasts. No comparative agent advantage is claimed.
 
 ## Recent boundary fixes
+
+The 2026-10-04 follow-up defines `validation_current` as observation freshness in
+RT/LT, independently of commit eligibility. RT direct/poll regressions cover failed
+outcomes, truncation, expiry and revocation; portable LT predicate checks pass.
+Expanded paired Linux cases run in the required Linux/Docker gates; local macOS
+checks establish RT execution and portable LT predicates.
+Ordinary Store preparation now has configurable byte/concurrency/deadline bounds,
+runs outside the global registry/projection locks, and cancels on disconnect.
+A two-client stalled-worker test checks unrelated reads and cleanup; publication
+revalidates authority and preserves owner-bound intents. Durable publication IO
+still uses the locks; total CAS quota and crash-orphan staging cleanup remain work.
+The README now leads with the runnable RT host proof and a retained fixture result.
+These changes add host evidence, not a model comparison or target/hardware claim.
 
 The 2026-10-03 review changes are implemented and recorded in `CHANGELOG.md`:
 
@@ -95,6 +108,10 @@ changelog and their contract/gate documents. They establish host/QEMU behavior,
 not complete SMP, client isolation, physical durability or production assurance.
 
 ## Physical inventory and graduation boundary
+
+The x86_64 COM1 console uses 115200 8N1, matching the HIL appliance contract
+and capture tools. The S12 GOP gate checks the emulated UART's programmed
+parameters in a QEMU trace; first live Pi/ThinkCentre validation remains pending.
 
 The pinned reference is the Lenovo ThinkCentre M900 SFF, machine type 10FH,
 Core i7-6700, 8 GiB RAM, with a 240 GB SanDisk SATA SSD. The Raspberry Pi 4

@@ -15,6 +15,18 @@ cargo test -p store_service --features agent_task_v1_dev --test agent_task_servi
 python3 - "$RAMEN_TASK_EVIDENCE_DIR" <<'PY'
 import hashlib,json,pathlib,platform,subprocess,sys
 root=pathlib.Path(sys.argv[1])
+report=json.loads((root/"report.json").read_bytes())
+assert report["validation"]["outcome"] == "valid"
+assert report["candidate"]["content_id"] == report["accepted"]["content_id"]
+assert report["denied_operation"]["status"] == 1 and report["denied_operation"]["mapping_cap"] == 0
+assert report["receipt_replay_checked"] is True
+print("Host proof (scripted consumer):")
+print("  input:",report["input_content_id"])
+print("  candidate:",report["candidate"]["bytes_utf8"],report["candidate"]["content_id"])
+print("  validation:",report["validation"]["outcome"])
+print("  output:",report["accepted"]["content_id"],"revision",report["accepted"]["revision"])
+print("  denied: read_input resource",report["denied_operation"]["resource_id"],"(no mapping)")
+print("  receipt request:",report["receipt"]["request_id"],"restart retry and independent replay checked")
 manifest={"schema_version":1,"environment":"host","claim":"scripted-task-and-named-service-boundaries","source_revision":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),"dirty_diff_sha256":hashlib.sha256(subprocess.check_output(["git","diff","HEAD"])).hexdigest(),"host":platform.platform(),"physical_hardware":False,"task_kernel_enforcement":False,"model_comparison":False}
 files=sorted(set(subprocess.check_output(["git","ls-files","-co","--exclude-standard","-z"]).decode().split("\0"))-{ "" })
 source={p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in files if pathlib.Path(p).is_file()}

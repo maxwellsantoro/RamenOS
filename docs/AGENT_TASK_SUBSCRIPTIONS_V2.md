@@ -87,9 +87,18 @@ additional observable authority and lifecycle difference are retained in the
 The standalone gate tests generated wire bounds/redaction, native cross-connection
 denial and disconnect removal, adapter capacity/cancellation/restart/mapping
 cleanup, and an independent executable/schema consumer. The latter compares
-50 operations per arm, including repeated validation coalescing, filtered output
+the lifecycle sequence, including failed validation observed through both state
+reads and subscription polling, repeated validation coalescing, filtered output
 events, observer-only snapshots, grant substitution, queued-event revocation,
 expiry, cancellation, capacity reuse, malformed requests and orderly EOF/restart.
+Four additional controlled trusted-worker cases cover invalid, timeout,
+host-failure and successful-but-truncated results, including fresh direct/poll
+observations, commit denial, evidence expiry while an event is pending, and
+revocation before polling. These workers test observation semantics; actual
+execution supervision and Docker cleanup retain their separate gates. Paired
+transcripts and worker source/hashes are retained in `failed-observations.json`
+and the report. The expanded comparison requires its Linux/Docker gate;
+macOS checks establish only the RT consumer paths and portable LT predicates.
 Version 1's description hash remains
 `24af8e0fe29809ee8a5b849f4fda1af1b3d5e2430437e96d12a140bd04498290`.
 

@@ -5,7 +5,7 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Public pre-alpha, active development
 
 RamenOS is a modern, post-Unix operating system being built for **humans and AI
@@ -32,33 +32,60 @@ unproved.
 
 Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
-## One step toward the vision: the Agent Task Proof
+## Run the useful host task proof
 
-> Repair one workspace's configuration, run its validator, and return the
-> validated artifact. Access to another workspace must remain denied even if
-> retrieved content tells the agent to use it.
+A **scripted, host-only proof works today**: read a scoped configuration, stage an
+immutable repair, run the pinned WASM validator, commit the artifact, deny an
+unrelated resource read, and recover the original receipt after restart.
+Install the pinned Rust toolchain and `just` using [Getting Started](docs/GETTING_STARTED.md), then run:
 
-| Step | Conventional shell/tool workflow | Planned shared typed workflow (Linux and RamenOS) |
-|------|----------------------------------|--------------------------|
-| Inspect | Read files and interpret command output | Receive task-scoped semantic state and typed query results |
-| Obtain authority | Configure process credentials and sandbox permissions | Request grants for specific resources and operations |
-| Repair and validate | Edit a file and invoke a validator | Stage an immutable candidate, run its pinned validator, then commit the validated artifact |
-| Attempt forbidden access | Enforce the configured OS sandbox | Enforce the named backend boundary; test it independently of the adapter |
-| Report | Correlate outputs, exit status, and logs | Return content IDs, validation state, and a replayable record of requests and effects |
+```bash
+git clone https://github.com/maxwellsantoro/RamenOS.git
+cd RamenOS
+just foundry-agent-task-proof-rt
+```
 
-This is the **planned [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md)**,
-not a transcript of a working demo. It uses three arms with equivalent task
-resources: **Linux scoped shell, Linux typed, and RamenOS typed**. The typed arms
-share the agent-visible protocol wherever possible:
+This gate needs neither QEMU nor a model provider. It writes inspectable evidence
+to `out/agent-task-proof-rt/`: `report.json` contains the input/candidate/output
+identities, validation, denied operation and receipt; `journal.json` retains the
+transactions and audit; `manifest.json` records the source and host fingerprints.
+The tests verify receipt replay before saving those files. Set
+`RAMEN_TASK_EVIDENCE_DIR` to retain a run in another directory.
+
+A [retained host result](docs/examples/agent-task-proof-rt/report.json) and its
+[journal](docs/examples/agent-task-proof-rt/journal.json) show this actual repair:
+
+| Observation | Retained result |
+|-------------|-----------------|
+| Input | `sha256:8c28330c…`, revision 0, `enabled: false` |
+| Staged candidate | `{"enabled":true,"label":"keep"}`, `sha256:9ec6d48c…` |
+| Pinned validation | `valid`, untruncated diagnostics |
+| Committed output | `sha256:9ec6d48c…`, revision 1 |
+| Denied operation | `read_input` for resource 999: denied, no returned mapping |
+| Receipt and replay | Request 4 binds revisions 0 → 1; restart retry returns the original receipt; independent replay checked |
+
+The linked files retain full hashes. Their [provenance](docs/examples/agent-task-proof-rt/provenance.json)
+identifies a local worktree run. These are trusted development fixtures and a
+scripted consumer, with **host-service enforcement**. They establish neither
+model performance nor task-specific RamenOS kernel enforcement. See the
+[service proof contract](docs/AGENT_TASK_SERVICE_PROOF_V1.md) for its scope.
+
+## The planned controlled comparison
+
+The [Agent Task Proof study](docs/plans/2026-09-16-agent-task-proof.md) uses three
+arms with equivalent task resources: **Linux scoped shell, Linux typed, and
+RamenOS typed**. The typed arms share their agent-visible protocol:
 
 - Linux typed vs Linux shell measures the value of structured interaction.
-- RamenOS typed vs Linux typed tests what the implemented substrate adds.
+- RamenOS typed vs Linux typed tests what the implemented host service designs add.
 - RamenOS typed vs Linux shell measures the complete task-level proposition.
 
-One hidden fixture bank and evaluator check completion, normalized effective
-authority, forbidden backend probes, context/tool cost, recovery, and audit/replay.
-Success, authority, and cost claims are reported separately. Linux can enforce
-narrow permissions too; no comparative advantage is claimed yet.
+Implemented controls support this future experiment; the complete controlled
+model comparison and target-native task environment remain unfinished. The study
+will check completion, effective authority, forbidden probes, context/tool cost,
+recovery, and audit/replay, reporting success, authority and cost separately.
+No comparative advantage is claimed yet. Host results cannot establish an
+advantage arising from the RamenOS kernel.
 
 ## What is real today
 
@@ -68,7 +95,8 @@ narrow permissions too; no comparative advantage is claimed yet.
 | Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Native interfaces are IDL-defined; project policy forbids ioctl-style escape hatches |
 | Native WASM runner | Wasmtime execution, granted-handle injection, missing-capability rejection | Host runtime, not Wasmtime running on the target |
 | Semantic State | Snapshot contracts, subscriptions, capability-filtered host views | Host reactor plus selected QEMU snapshot/IPC bridges; default snapshot metadata still contains placeholders |
-| Store and projections | Artifact ingestion, ownership checks, queries, copy-on-write foundations | Host services; complete task-scoped mutation/launch integration remains work |
+| Store and projections | Artifact ingestion, ownership checks, queries, copy-on-write foundations | Host services; full user launch/porting integration remains work |
+| Task transaction | Scoped repair, immutable staging, pinned validation, durable commit receipts and replay | Scripted host proof; model comparison and target task enforcement pending |
 | Execution fabric | Placement and launch-plan contracts | Simulation-only routing/load; no distributed transport claim |
 | Driver Foundry | virtio-net and virtio-blk Oracle/replay loops and harness vector transfers | Host replay, Linux Oracle devices, and QEMU harness fixtures |
 | Hardware loop | Golden-machine contract, appliance inventory and serial-capture tooling | First live Pi↔M900 capture and physical graduation remain pending |
@@ -95,7 +123,8 @@ just foundry-s0
 ```
 
 The first command exercises host component behavior; the second proves the boot
-and IPC baseline. Neither runs an autonomous agent or the planned task proof.
+and IPC baseline. The useful task proof is the host entry point above; these
+additional gates cover other components and require no autonomous model.
 
 | Evidence to inspect | Command |
 |---------------------|---------|

@@ -537,5 +537,8 @@ pub struct TaskSnapshotV1 {
     pub validator_id: String,
     pub input_resources: [u64; 3],
     pub validation: Option<ValidationEvidenceV0>,
+    /// Last observation belongs to this generation and has not expired.
+    /// Invalid/timeout/host-failure or unusable successful evidence can be fresh;
+    /// this boolean never grants commit authority.
     pub validation_current: bool,
 }

@@ -1,0 +1,72 @@
+{
+  "accepted": {
+    "content_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c",
+    "revision": 1
+  },
+  "candidate": {
+    "bytes_utf8": "{\"enabled\":true,\"label\":\"keep\"}",
+    "content_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c"
+  },
+  "consumer": "scripted",
+  "contract": {
+    "domain_id": 7,
+    "execution_budget": {
+      "guest_ms": 1500,
+      "host_call_ms": 1000,
+      "max_diagnostics_bytes": 4096,
+      "wall_ms": 2500
+    },
+    "policy_id": "sha256:f27dbae80422788bf5a5168428cb8f95ba0c9717ceb68e1ec1a6a9825c3723f1",
+    "resource": "workspace:a/config",
+    "schema_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c",
+    "schema_version": 1,
+    "task_id": 17,
+    "validator_id": "sha256:9d0e698e7b4798dcc994016100826d9efa9879772e46cbae1413e38997847c4f"
+  },
+  "denied_operation": {
+    "mapping_cap": 0,
+    "operation": "read_input",
+    "resource_id": 999,
+    "status": 1
+  },
+  "environment": "host",
+  "input_content_id": "sha256:8c28330c746aeeb9cb37a7f2ea4e02a67a9f1dbd4bf820cd02682f69b4decb4b",
+  "model_comparison": false,
+  "receipt": {
+    "accepted": {
+      "content_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c",
+      "revision": 1
+    },
+    "domain_id": 7,
+    "grant_generation": 2,
+    "prior": {
+      "content_id": "sha256:8c28330c746aeeb9cb37a7f2ea4e02a67a9f1dbd4bf820cd02682f69b4decb4b",
+      "revision": 0
+    },
+    "request_id": 4,
+    "resource": "workspace:a/config",
+    "task_id": 17
+  },
+  "receipt_replay_checked": true,
+  "repair_checked": true,
+  "schema_version": 1,
+  "target_kernel_enforcement": false,
+  "task": "scoped-configuration-repair",
+  "unrelated_fields_preserved": true,
+  "validation": {
+    "candidate_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c",
+    "diagnostics_bytes": 0,
+    "diagnostics_truncated": false,
+    "domain_id": 7,
+    "grant_generation": 2,
+    "guest_elapsed_ms": 0,
+    "outcome": "valid",
+    "policy_id": "sha256:f27dbae80422788bf5a5168428cb8f95ba0c9717ceb68e1ec1a6a9825c3723f1",
+    "resource": "workspace:a/config",
+    "schema_id": "sha256:9ec6d48ceaa1057dd759718045e156d3c30f9f21454796a66d0aad3597e78a6c",
+    "task_id": 17,
+    "valid_until_ms": 2782,
+    "validator_id": "sha256:9d0e698e7b4798dcc994016100826d9efa9879772e46cbae1413e38997847c4f",
+    "wall_elapsed_ms": 15
+  }
+}

@@ -112,6 +112,23 @@ def exercise(binary, fixture, worker, root, schema):
             call("poll_task", "denied", task_cap=cap, subscription_cap=sub)
             call("unsubscribe_task", "denied", task_cap=cap, subscription_cap=sub)
             state = call("get_task_state", task_cap=cap)["state"]
+            failed = call(
+                "stage_candidate", task_cap=cap,
+                bytes_base64=base64.b64encode((fixture / "config.json").read_bytes()).decode(),
+            )["candidate_cap"]
+            assert call("validate_candidate", task_cap=cap, candidate_cap=failed,
+                        validator_id=state["validator_id"])["outcome"] == "invalid"
+            direct = call("get_task_state", task_cap=observer)["state"]
+            event = call("poll_task", task_cap=observer, subscription_cap=sub)
+            assert event["event_types"] == ["validation_changed"]
+            assert direct == event["state"] or all(
+                direct[k] == event["state"][k] for k in direct if k != "now_ms"
+            )
+            assert direct["validation"]["outcome"] == "invalid"
+            assert direct["validation_current"] is True
+            call("commit_candidate", "validation_failed", task_cap=cap,
+                 candidate_cap=failed, expected_revision=state["revision"],
+                 expected_content_id=state["content_id"])
             candidate = call(
                 "stage_candidate",
                 task_cap=cap,
@@ -247,6 +264,75 @@ def exercise(binary, fixture, worker, root, schema):
     return transcripts
 
 
+def exercise_observation(binary, fixture, worker, root, schema, outcome):
+    """Controlled trusted-worker observations, plus delivery/expiry/revocation.
+
+    These fixtures test observation semantics; they do not certify real timeout
+    or host-failure supervision, which has separate backend gates.
+    """
+    process = subprocess.Popen(
+        [str(binary), "--fixture", str(fixture), "--store", str(root), "--worker", str(worker)],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+    )
+    transcript = []
+    response = Draft202012Validator(schema["response_schema"])
+    requests = {t["name"]: Draft202012Validator(t["input_schema"]) for t in schema["tools"]}
+    try:
+        bootstrap = read(process)
+        Draft202012Validator(schema["bootstrap_schema"]).validate(bootstrap)
+        def call(operation, expected="ok", **fields):
+            request = dict(schema_version=2, request_id=str(len(transcript) + 1),
+                           call=dict(operation=operation, **fields))
+            requests[operation].validate(request)
+            process.stdin.write(json.dumps(request).encode() + b"\n")
+            process.stdin.flush()
+            reply = read(process)
+            response.validate(reply)
+            assert reply["status"] == expected, (request, reply)
+            transcript.append(dict(request=request, response=reply))
+            return reply["result"]
+        cap = call("request_grant", policy_cap=bootstrap["policy_cap"],
+                   task_id=bootstrap["task_id"], resource=bootstrap["resources"][0]["resource"],
+                   lifetime_ms=60000, rights=["read", "stage", "validate", "commit", "observe"])["task_cap"]
+        sub = call("subscribe_task", task_cap=cap, event_types=["validation_changed"])["subscription_cap"]
+        initial = call("get_task_state", task_cap=cap)["state"]
+        assert not initial["validation_current"]
+        candidate = call("stage_candidate", task_cap=cap,
+                         bytes_base64=base64.b64encode((fixture / "config.json").read_bytes()).decode())["candidate_cap"]
+        validation = dict(task_cap=cap, candidate_cap=candidate, validator_id=initial["validator_id"])
+        assert call("validate_candidate", **validation)["outcome"] == outcome
+        direct = call("get_task_state", task_cap=cap)["state"]
+        event = call("poll_task", task_cap=cap, subscription_cap=sub)
+        assert event["event_types"] == ["validation_changed"]
+        assert direct["validation_current"] and event["state"]["validation_current"]
+        assert normalize(direct) == normalize(event["state"])
+        call("commit_candidate", "validation_failed", task_cap=cap, candidate_cap=candidate,
+             expected_revision=initial["revision"], expected_content_id=initial["content_id"])
+        call("validate_candidate", **validation)  # Leave a pending event across evidence expiry.
+        time.sleep(1.65)  # Development fixture TTL is 1500 ms; grant remains live.
+        stale = call("get_task_state", task_cap=cap)["state"]
+        event = call("poll_task", task_cap=cap, subscription_cap=sub)
+        assert not stale["validation_current"] and not event["state"]["validation_current"]
+        assert normalize(stale) == normalize(event["state"])
+        call("validate_candidate", **validation)  # Revoke before this queued event is consumed.
+        call("revoke_grant", policy_cap=bootstrap["policy_cap"], task_cap=cap)
+        call("get_task_state", "denied", task_cap=cap)
+        call("poll_task", "denied", task_cap=cap, subscription_cap=sub)
+        assert transcript[-1]["response"]["result"] is None
+        assert transcript[-2]["response"]["result"] is None
+        return transcript
+    finally:
+        process.stdin.close()
+        try:
+            assert process.wait(timeout=10) == 0
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+            process.stdout.close()
+            process.stderr.close()
+
+
 def normalize(value, aliases=None):
     if aliases is None:
         aliases = {}
@@ -287,6 +373,8 @@ def main():
     assert subprocess.check_output([str(args.rt.resolve()), "--describe"]).rstrip(
         b"\n"
     ) == subprocess.check_output([str(args.lt.resolve()), "--describe"]).rstrip(b"\n")
+    observations = {}
+    controlled_workers = {}
     with tempfile.TemporaryDirectory(prefix="ramenos-subscriptions-") as temp:
         transcripts = [
             exercise(
@@ -298,6 +386,24 @@ def main():
             )
             for name, b in (("rt", args.rt), ("lt", args.lt))
         ]
+        for name, source_outcome, truncated, observed in (
+            ("invalid", "invalid", False, "invalid"),
+            ("timeout", "timeout", False, "timeout"),
+            ("host_failure", "host_failure", False, "host_failure"),
+            ("truncation", "valid", True, "host_failure"),
+        ):
+            result = dict(schema_version=1, outcome=source_outcome, diagnostics=[],
+                          truncated=truncated, guest_elapsed_ms=0)
+            worker = Path(temp) / (name + "-worker")
+            body = "#!/bin/sh\ncat >/dev/null\nprintf '%s' '" + json.dumps(result) + "'\n"
+            worker.write_text(body)
+            worker.chmod(0o700)
+            controlled_workers[name] = dict(source=body, sha256=hashlib.sha256(worker.read_bytes()).hexdigest())
+            rows = [exercise_observation(binary.resolve(), args.fixture.resolve(), worker,
+                        Path(temp) / (arm + "-" + name), schema, observed)
+                    for arm, binary in (("RT", args.rt), ("LT", args.lt))]
+            assert normalize(rows[0]) == normalize(rows[1]), (name, rows)
+            observations[name] = dict(RT=rows[0], LT=rows[1])
     a, b = [normalize(t) for t in transcripts]
     # Native registry reclamation may turn an expired cap into denied. Both
     # are terminal and fully redacted; this is the only status allowance.
@@ -320,6 +426,7 @@ def main():
         (args.evidence / (name + "-transcript.json")).write_text(
             json.dumps(transcript, indent=2) + "\n"
         )
+    (args.evidence / "failed-observations.json").write_text(json.dumps(observations, indent=2) + "\n")
     paths = (
         subprocess.check_output(["git", "ls-files", "-co", "--exclude-standard", "-z"])
         .decode()
@@ -368,6 +475,10 @@ def main():
         },
         operations_per_arm=len(transcripts[0]),
         coalescing=True,
+        failed_observation_cases=list(observations),
+        failed_observation_requests_per_case=len(next(iter(observations.values()))["RT"]),
+        controlled_workers=controlled_workers,
+        failed_observations_sha256=hashlib.sha256((args.evidence / "failed-observations.json").read_bytes()).hexdigest(),
         cancellation=True,
         capacity=16,
         revoke_before_poll=True,
