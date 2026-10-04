@@ -50,7 +50,8 @@ pub mod serial {
             // The initialization sequence follows the 16550 UART datasheet:
             // - Disable interrupts (COM1 + 1 = 0x00)
             // - Set DLAB to access divisor latch (COM1 + 3 = 0x80)
-            // - Set divisor low byte (COM1 + 0 = 0x03) for 38400 baud
+            // - Set divisor low byte (COM1 + 0 = 0x01) for 115200 baud,
+            //   matching hardware/hil_appliance_v0.toml and HIL capture tools
             // - Set divisor high byte (COM1 + 1 = 0x00)
             // - Clear DLAB and set 8N1 format (COM1 + 3 = 0x03)
             // - Enable FIFO with 14-byte threshold (COM1 + 2 = 0xC7)
@@ -59,7 +60,7 @@ pub mod serial {
             outb(COM1 + 3, 0x80);
             // 16550 THR is COM1+0; offset written explicitly for datasheet parity.
             #[allow(clippy::identity_op)]
-            outb(COM1 + 0, 0x03);
+            outb(COM1 + 0, 0x01);
             outb(COM1 + 1, 0x00);
             outb(COM1 + 3, 0x03);
             outb(COM1 + 2, 0xC7);

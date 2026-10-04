@@ -16,12 +16,13 @@ use std::fs;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use store_service::access_control::{AccessControl, ClientInfo};
 use store_service::audit::{
     AuditLogEntry, AuditLogParameters, AuditLogger, Operation, OperationResult, Timer,
     current_timestamp,
 };
-use store_service::frame::{read_message, write_message};
+use store_service::frame::{read_message_until, write_message};
 
 // Import capability types
 use serde::Deserialize;
@@ -257,7 +258,71 @@ impl RequestWithCapability for store_service::client::QueryProjectionByTagReques
     }
 }
 
+struct ServiceLimits {
+    worker: PathBuf,
+    max_bytes: u64,
+    ingest_timeout: Duration,
+    request_timeout: Duration,
+    connections: ingest::Admission,
+    preparations: ingest::Admission,
+}
+fn positive_setting(name: &str, default: u64, maximum: u64) -> Result<u64> {
+    let value = match std::env::var(name) {
+        Ok(value) => value
+            .parse::<u64>()
+            .with_context(|| format!("invalid {name}"))?,
+        Err(std::env::VarError::NotPresent) => default,
+        Err(error) => return Err(error.into()),
+    };
+    anyhow::ensure!(
+        value > 0 && value <= maximum,
+        "{name} must be between 1 and {maximum}"
+    );
+    Ok(value)
+}
+impl ServiceLimits {
+    fn from_env() -> Result<Self> {
+        Ok(Self {
+            worker: std::env::current_exe()?,
+            max_bytes: positive_setting(
+                "RAMEN_STORE_INGEST_MAX_BYTES",
+                1024 * 1024 * 1024,
+                16 * 1024 * 1024 * 1024,
+            )?,
+            ingest_timeout: Duration::from_millis(positive_setting(
+                "RAMEN_STORE_INGEST_TIMEOUT_MS",
+                30_000,
+                3_600_000,
+            )?),
+            request_timeout: Duration::from_millis(positive_setting(
+                "RAMEN_STORE_REQUEST_TIMEOUT_MS",
+                5_000,
+                60_000,
+            )?),
+            connections: ingest::Admission::new(positive_setting(
+                "RAMEN_STORE_MAX_CONNECTIONS",
+                32,
+                1024,
+            )? as usize),
+            preparations: ingest::Admission::new(positive_setting(
+                "RAMEN_STORE_MAX_INGESTIONS",
+                4,
+                16,
+            )? as usize),
+        })
+    }
+}
+
 fn main() -> Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("--internal-ingest-worker") {
+        let max_bytes = std::env::args()
+            .nth(2)
+            .context("missing byte limit")?
+            .parse::<u64>()?;
+        ingest::run_worker(max_bytes)?;
+        return Ok(());
+    }
+    let limits = Arc::new(ServiceLimits::from_env()?);
     println!("store_service: starting (V-007 Phase 3: Audit logging enabled)");
 
     // Get configuration from environment
@@ -495,6 +560,11 @@ fn main() -> Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
+                let Some(connection_permit) = limits.connections.acquire() else {
+                    eprintln!("store_service: connection limit reached");
+                    continue;
+                };
+                let limits = limits.clone();
                 let store_root = Arc::clone(&store_root);
                 let audit_logger = Arc::clone(&audit_logger);
                 let sig_config = Arc::clone(&sig_config);
@@ -503,14 +573,15 @@ fn main() -> Result<()> {
                 let projection_index = Arc::clone(&projection_index);
 
                 std::thread::spawn(move || {
+                    let _connection_permit = connection_permit;
                     if let Err(err) = handle_client(
                         stream,
                         &store_root,
                         &audit_logger,
                         &sig_config,
                         &access_control,
-                        domain_registry,
-                        projection_index,
+                        (domain_registry, projection_index),
+                        limits,
                     ) {
                         eprintln!("store_service: client thread error: {}", err);
                     }
@@ -531,8 +602,11 @@ fn handle_client(
     audit_logger: &AuditLogger,
     sig_config: &SignatureValidationConfig,
     access_control: &AccessControl,
-    domain_registry: Arc<Mutex<DomainArtifactRegistry>>,
-    projection_index: Arc<Mutex<ProjectionIndexStore>>,
+    (domain_registry, projection_index): (
+        Arc<Mutex<DomainArtifactRegistry>>,
+        Arc<Mutex<ProjectionIndexStore>>,
+    ),
+    limits: Arc<ServiceLimits>,
 ) -> Result<()> {
     // Get client info (V-007 Phase 3: Stub, will be enhanced in Phase 4)
     let client_info = ClientInfo::from_stream(&stream);
@@ -543,7 +617,8 @@ fn handle_client(
 
     // Handle requests until connection closes
     loop {
-        let msg = match read_message(&mut stream) {
+        let deadline = Instant::now() + limits.request_timeout;
+        let msg = match read_message_until(&mut stream, deadline) {
             Ok(msg) => msg,
             Err(err) => {
                 // Connection closed or error
@@ -561,6 +636,7 @@ fn handle_client(
 
         // Process request with audit logging
         let timer = Timer::new();
+        let mut close_after_reply = false;
         let (reply, operation, parameters, result) = match msg_type {
             MSG_GET_MANIFEST => {
                 let registry = domain_registry
@@ -605,23 +681,63 @@ fn handle_client(
                 (reply, Operation::VerifyArtifact, params, result)
             }
             MSG_INGEST_ARTIFACT => {
-                let source = store_service::source_fd::receive(&stream)?;
-                let mut registry = domain_registry
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
-                let mut index = projection_index
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
-                let (reply, params, result) = handle_ingest_artifact(
-                    &msg[1..],
-                    Some(source),
-                    store_root,
-                    access_control,
-                    &client_info,
-                    &mut registry,
-                    &mut index,
-                )?;
-                (reply, Operation::IngestArtifact, params, result)
+                let payload = &msg[1..];
+                let authorized = ingest_authorized(payload, access_control, &client_info)?;
+                let result = if !authorized {
+                    // Close after replying: an already-sent fd must never become
+                    // the header of a subsequent frame on a denied connection.
+                    close_after_reply = true;
+                    ingest_failure(payload, STATUS_PERMISSION_DENIED)?
+                } else {
+                    let remaining = deadline
+                        .checked_duration_since(Instant::now())
+                        .filter(|time| !time.is_zero())
+                        .context("descriptor deadline expired")?;
+                    stream.set_read_timeout(Some(remaining))?;
+                    let source = store_service::source_fd::receive(&stream)?;
+                    let prepared = match limits.preparations.acquire() {
+                        Some(permit) => ingest::StagedBlob::prepare(
+                            source,
+                            store_root,
+                            limits.max_bytes,
+                            limits.ingest_timeout,
+                            &limits.worker,
+                            Some((&stream, permit)),
+                        ),
+                        None => Err(std::io::Error::other("ingestion capacity reached")),
+                    };
+                    match prepared {
+                        Ok(staged) => {
+                            anyhow::ensure!(
+                                !ingest::client_closed(&stream)?,
+                                "client cancelled before publication"
+                            );
+                            // Copy/hash/sync have finished. Revalidate capability
+                            // expiry and access policy under publication locks;
+                            // publish_owned rechecks current owner and intents.
+                            let mut registry = domain_registry
+                                .lock()
+                                .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
+                            let mut index = projection_index
+                                .lock()
+                                .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
+                            handle_ingest_artifact(
+                                payload,
+                                Some(staged),
+                                store_root,
+                                access_control,
+                                &client_info,
+                                &mut registry,
+                                &mut index,
+                            )?
+                        }
+                        Err(error) => {
+                            eprintln!("store_service: preparation failed: {error}");
+                            ingest_failure(payload, STATUS_IO_ERROR)?
+                        }
+                    }
+                };
+                (result.0, Operation::IngestArtifact, result.1, result.2)
             }
             MSG_QUERY_PROJECTION_BY_PATH => {
                 let registry = domain_registry
@@ -662,6 +778,7 @@ fn handle_client(
         };
 
         // Send reply
+        stream.set_write_timeout(Some(limits.request_timeout))?;
         write_message(&mut stream, &reply)?;
 
         // Write audit log
@@ -677,6 +794,9 @@ fn handle_client(
 
         if let Err(err) = audit_logger.log(&audit_entry) {
             eprintln!("store_service: failed to write audit log: {}", err);
+        }
+        if close_after_reply {
+            break;
         }
     }
 
@@ -1287,9 +1407,42 @@ fn handle_verify_artifact(
     }
 }
 
+fn ingest_authorized(payload: &[u8], access: &AccessControl, client: &ClientInfo) -> Result<bool> {
+    // Deserialize the typed request even on denied authority, but do not receive
+    // or inspect a source descriptor until write authority has been checked.
+    let _: IngestArtifactRequest = bincode::deserialize(payload)?;
+    Ok(
+        extract_and_validate_capability::<IngestArtifactRequest>(payload)
+            .ok()
+            .flatten()
+            .is_some_and(|cap| cap.has_right(STORE_RIGHT_WRITE))
+            && access.can_write(client) == store_service::access_control::AccessDecision::Allowed,
+    )
+}
+fn ingest_failure(
+    payload: &[u8],
+    status: u32,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let request: IngestArtifactRequest = bincode::deserialize(payload)?;
+    Ok((
+        bincode::serialize(&IngestArtifactReply {
+            request_id: request.request_id,
+            status,
+            ..Default::default()
+        })?,
+        AuditLogParameters::IngestArtifact {
+            kind: request.kind,
+            channel: request.channel,
+            src_path: request.src_path,
+            content_id: None,
+        },
+        OperationResult::from_status_code(status),
+    ))
+}
+
 fn handle_ingest_artifact(
     payload: &[u8],
-    source: Option<fs::File>,
+    source: Option<ingest::StagedBlob>,
     store_root: &Path,
     access_control: &AccessControl,
     client_info: &ClientInfo,
@@ -1360,15 +1513,13 @@ fn handle_ingest_artifact(
 
     let result = (|| -> Result<IngestArtifactReply> {
         let src = Path::new(&src_path);
-        let Some(source) = source else {
+        let Some(staged) = source else {
             return Ok(IngestArtifactReply {
                 request_id,
                 status: STATUS_PERMISSION_DENIED,
                 ..Default::default()
             });
         };
-        let staged =
-            ingest::StagedBlob::read_file(source, store_root).context("failed to stage blob")?;
         let id = staged.content_id.clone();
         let content_id = id.as_str().to_string();
         let size_bytes = staged.size_bytes;
@@ -1676,6 +1827,193 @@ mod integration_tests {
     use store_service::capability::{STORE_RIGHT_READ, STORE_RIGHT_WRITE, StoreCapability};
     use store_service::domain_visibility::DomainArtifactRegistry;
     use tempfile::TempDir;
+
+    #[test]
+    fn stalled_copy_allows_a_second_client_read_and_disconnect_cancels_it() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        let _guard = env_lock().lock().unwrap();
+        let _trusted = set_test_capability_trusted_key_env();
+        let _dev = EnvVarGuard::set("RAMEN_STORE_DEV_MODE", "0".into());
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("cas");
+        fs::create_dir(&root).unwrap();
+        let worker = dir.path().join("blocked-copy");
+        fs::write(&worker, "#!/bin/sh\necho $$ > \"$0.pid\"\nexec sleep 30\n").unwrap();
+        fs::set_permissions(&worker, fs::Permissions::from_mode(0o700)).unwrap();
+        let limits = Arc::new(ServiceLimits {
+            worker: worker.clone(),
+            max_bytes: 1024,
+            ingest_timeout: Duration::from_secs(10),
+            request_timeout: Duration::from_secs(2),
+            connections: ingest::Admission::new(2),
+            preparations: ingest::Admission::new(1),
+        });
+        let registry = Arc::new(Mutex::new(DomainArtifactRegistry::new(&root).unwrap()));
+        let index = Arc::new(Mutex::new(writable_projection_index(&root)));
+        let bytes = b"unrelated readable artifact";
+        let id = artifact_store_core::hash_bytes(bytes);
+        let manifest = Manifest {
+            schema_version: 1,
+            content_id: id.clone(),
+            size_bytes: bytes.len() as u64,
+            kind: "test".into(),
+            channels: vec!["test".into()],
+            signatures: vec![],
+        };
+        registry
+            .lock()
+            .unwrap()
+            .publish_owned(&root, &manifest, 7, false, |path| fs::write(path, bytes))
+            .unwrap();
+        let connect = || {
+            let (client, server) = UnixStream::pair().unwrap();
+            client
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let (root, registry, index, limits) = (
+                root.clone(),
+                registry.clone(),
+                index.clone(),
+                limits.clone(),
+            );
+            let audit = AuditLogger::new(dir.path().join("audit")).unwrap();
+            let thread = std::thread::spawn(move || {
+                let _ = handle_client(
+                    server,
+                    &root,
+                    &audit,
+                    &SignatureValidationConfig::default(),
+                    &AccessControl::with_policy(
+                        store_service::access_control::AccessPolicy::AllowAll,
+                    ),
+                    (registry, index),
+                    limits,
+                );
+            });
+            (client, thread)
+        };
+        let cap = signed_test_capability(7, STORE_RIGHT_ALL, 100);
+        let (mut first, first_thread) = connect();
+        let request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "test".into(),
+            channel: "test".into(),
+            src_path: "label-only".into(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let mut frame = vec![MSG_INGEST_ARTIFACT];
+        frame.extend(bincode::serialize(&request).unwrap());
+        write_message(&mut first, &frame).unwrap();
+        store_service::source_fd::send(&mut first, &tempfile::tempfile().unwrap()).unwrap();
+        let until = Instant::now() + Duration::from_secs(2);
+        while !worker.with_extension("pid").exists() {
+            assert!(Instant::now() < until);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let (mut second, second_thread) = connect();
+        // The occupied preparation reservation rejects another writer without
+        // affecting this connection's unrelated read.
+        write_message(&mut second, &frame).unwrap();
+        store_service::source_fd::send(&mut second, &tempfile::tempfile().unwrap()).unwrap();
+        let denied: IngestArtifactReply =
+            bincode::deserialize(&store_service::frame::read_message(&mut second).unwrap())
+                .unwrap();
+        assert_eq!(denied.status, STATUS_IO_ERROR);
+        let request = GetBlobRequest {
+            request_id: 2,
+            content_id: id,
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let mut frame = vec![MSG_GET_BLOB];
+        frame.extend(bincode::serialize(&request).unwrap());
+        write_message(&mut second, &frame).unwrap();
+        let began = Instant::now();
+        let reply: GetBlobReply =
+            bincode::deserialize(&store_service::frame::read_message(&mut second).unwrap())
+                .unwrap();
+        assert_eq!(reply.status, STATUS_OK);
+        assert!(began.elapsed() < Duration::from_secs(1));
+        assert_eq!(fs::read(reply.blob_path).unwrap(), bytes);
+        // Unread pipelined bytes cannot mask a peer disconnect during preparation.
+        first.write_all(&[0]).unwrap();
+        let cancelled = Instant::now();
+        drop(first); // Abort before any publication; worker must be terminated.
+        first_thread.join().unwrap();
+        assert!(cancelled.elapsed() < Duration::from_secs(1));
+        let pid = fs::read_to_string(worker.with_extension("pid"))
+            .unwrap()
+            .trim()
+            .parse::<i32>()
+            .unwrap();
+        assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
+        assert!(
+            !fs::read_dir(&root)
+                .unwrap()
+                .filter_map(Result::ok)
+                .any(|e| e.file_name().to_string_lossy().starts_with(".ingest-"))
+        );
+        assert_eq!(registry.lock().unwrap().list_domain_artifacts(7).len(), 1);
+        drop(second);
+        second_thread.join().unwrap();
+        // All worker admission is reusable only after cleanup was confirmed.
+        assert!(limits.preparations.acquire().is_some());
+    }
+
+    #[test]
+    fn prepared_ingest_revalidates_authority_before_publication() {
+        use base64::{Engine as _, engine::general_purpose};
+        let _guard = env_lock().lock().unwrap();
+        let _trusted = set_test_capability_trusted_key_env();
+        let _dev = EnvVarGuard::set("RAMEN_STORE_DEV_MODE", "0".into());
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let access =
+            AccessControl::with_policy(store_service::access_control::AccessPolicy::AllowAll);
+        let client = ClientInfo::default();
+        let request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "test".into(),
+            channel: "test".into(),
+            src_path: "label".into(),
+            capability_bytes: bincode::serialize(&signed_test_capability(7, STORE_RIGHT_WRITE, 88))
+                .unwrap(),
+        };
+        let payload = bincode::serialize(&request).unwrap();
+        assert!(ingest_authorized(&payload, &access, &client).unwrap());
+        let source = root.join("source");
+        fs::write(&source, b"prepared snapshot").unwrap();
+        let staged = ingest::StagedBlob::read_file(fs::File::open(source).unwrap(), root).unwrap();
+        let id = staged.content_id.clone();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        let mut index = writable_projection_index(root);
+        // Trusted policy withdraws the signing key between preparation and publication.
+        let key = ed25519_dalek::SigningKey::from_bytes(&[0u8; 32]).verifying_key();
+        let _withdrawn = EnvVarGuard::set(
+            "RAMEN_STORE_CAP_TRUSTED_KEYS",
+            general_purpose::STANDARD.encode(key.as_bytes()),
+        );
+        let (reply, _, _) = handle_ingest_artifact(
+            &payload,
+            Some(staged),
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&reply).unwrap();
+        assert_eq!(reply.status, STATUS_PERMISSION_DENIED);
+        assert!(registry.get_owner(&id).is_none());
+        assert!(!root.join(format!("{}.blob", id.hash_hex())).exists());
+        assert!(
+            !fs::read_dir(root)
+                .unwrap()
+                .filter_map(Result::ok)
+                .any(|e| e.file_name().to_string_lossy().starts_with(".ingest-"))
+        );
+    }
 
     fn env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -2140,7 +2478,9 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, store_root).ok()),
             store_root,
             &access_control,
             &client_info,
@@ -2194,7 +2534,9 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, store_root).ok()),
             store_root,
             &access_control,
             &client_info,
@@ -2232,7 +2574,9 @@ mod integration_tests {
         let before = fs::read(&manifest_path).unwrap();
         let (bytes, _, _) = handle_ingest_artifact(
             &payload,
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, store_root).ok()),
             store_root,
             &access_control,
             &client_info,
@@ -2294,7 +2638,9 @@ mod integration_tests {
         let mut registry = DomainArtifactRegistry::new(root).unwrap();
         let (bytes, _, status) = handle_ingest_artifact(
             &bincode::serialize(&request).unwrap(),
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, root).ok()),
             root,
             &AccessControl::new(),
             &client,
@@ -2351,7 +2697,9 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, store_root).ok()),
             store_root,
             &access_control,
             &client_info,
@@ -2433,7 +2781,9 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
-            fs::File::open(&request.src_path).ok(),
+            fs::File::open(&request.src_path)
+                .ok()
+                .and_then(|source| ingest::StagedBlob::read_file(source, store_root).ok()),
             store_root,
             &access_control,
             &client_info,
@@ -3036,7 +3386,10 @@ mod integration_tests {
         fs::write(&caller_source, b"explicit caller snapshot").unwrap();
         let (raw, _, _) = handle_ingest_artifact(
             &payload,
-            Some(fs::File::open(&caller_source).unwrap()),
+            Some(
+                ingest::StagedBlob::read_file(fs::File::open(&caller_source).unwrap(), &root)
+                    .unwrap(),
+            ),
             &root,
             &AccessControl::default(),
             &client,

@@ -10,8 +10,30 @@
 
 use anyhow::Context;
 use std::io::{Read, Write};
+use std::os::unix::net::UnixStream;
+use std::time::Instant;
 
 const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024; // 16MB
+
+/// One absolute deadline covers partial header/body reads; a trickle does not
+/// reset the budget. The same deadline can then cover descriptor receipt.
+pub fn read_message_until(stream: &mut UnixStream, deadline: Instant) -> anyhow::Result<Vec<u8>> {
+    struct DeadlineReader<'a>(&'a mut UnixStream, Instant);
+    impl Read for DeadlineReader<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            let remaining = self
+                .1
+                .checked_duration_since(Instant::now())
+                .filter(|time| !time.is_zero())
+                .ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::TimedOut, "request deadline")
+                })?;
+            self.0.set_read_timeout(Some(remaining))?;
+            self.0.read(buffer)
+        }
+    }
+    read_message(&mut DeadlineReader(stream, deadline))
+}
 
 /// Read a length-prefixed message from a stream
 ///
@@ -88,6 +110,25 @@ pub fn write_message<W: Write>(writer: &mut W, payload: &[u8]) -> anyhow::Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn partial_frames_cannot_reset_the_absolute_deadline() {
+        use std::time::Duration;
+        let (mut sender, mut receiver) = UnixStream::pair().unwrap();
+        let writer = std::thread::spawn(move || {
+            for byte in [8u8, 0, 0, 0, 1, 2, 3, 4] {
+                if sender.write_all(&[byte]).is_err() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(40));
+            }
+        });
+        let start = Instant::now();
+        assert!(read_message_until(&mut receiver, start + Duration::from_millis(100)).is_err());
+        assert!(start.elapsed() < Duration::from_millis(300));
+        drop(receiver);
+        writer.join().unwrap();
+    }
 
     #[test]
     fn write_and_read_round_trip() {

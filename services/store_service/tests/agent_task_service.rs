@@ -360,6 +360,23 @@ fn useful_repair_and_restart_retry_have_one_durable_effect() {
         commit(&mut c, cap, staged.candidate_cap, 1, r.content_id_hash, 4).status,
         STATUS_REQUEST_REUSE
     );
+    let denial: ReadInputReply = read_payload(
+        &exchange(
+            &mut c,
+            &req(
+                1,
+                &ReadInput {
+                    task_cap: cap,
+                    request_id: 106,
+                    resource_id: 999,
+                },
+            ),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(denial.status, STATUS_DENIED);
+    assert_eq!(denial.input_shm_cap, 0);
     let evidence = s.lock().unwrap().evidence().unwrap();
     let accepted = store_service::agent_task::verify_evidence(
         &evidence,
@@ -372,7 +389,18 @@ fn useful_repair_and_restart_retry_have_one_durable_effect() {
         let root = std::path::PathBuf::from(path);
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("journal.json"), &evidence).unwrap();
-        let report = serde_json::json!({"schema_version":1,"environment":"host","task":"scoped-configuration-repair","accepted":accepted,"contract":fixture().contract,"repair_checked":true,"unrelated_fields_preserved":true,"receipt_replay_checked":true,"target_kernel_enforcement":false,"model_comparison":false});
+        let journal: serde_json::Value = serde_json::from_slice(&evidence).unwrap();
+        let report = serde_json::json!({
+            "schema_version":1,"environment":"host","consumer":"scripted",
+            "task":"scoped-configuration-repair","accepted":accepted,"contract":fixture().contract,
+            "input_content_id":id(&fixture().input),
+            "candidate":{"content_id":id(&repaired),"bytes_utf8":String::from_utf8(repaired).unwrap()},
+            "validation":journal["receipts"][0]["validation"],
+            "receipt":journal["receipts"][0]["receipt"],
+            "denied_operation":{"operation":"read_input","resource_id":999,"status":denial.status,"mapping_cap":denial.input_shm_cap},
+            "repair_checked":true,"unrelated_fields_preserved":true,"receipt_replay_checked":true,
+            "target_kernel_enforcement":false,"model_comparison":false
+        });
         std::fs::write(
             root.join("report.json"),
             serde_json::to_vec_pretty(&report).unwrap(),
@@ -1273,5 +1301,155 @@ fn forbidden_guest_imports_cannot_execute_even_when_the_program_is_pinned() {
             .status,
             STATUS_VALIDATION_FAILED
         );
+    }
+}
+
+#[test]
+fn failed_observations_are_fresh_in_direct_and_subscription_state_but_cannot_commit() {
+    use std::os::unix::fs::PermissionsExt;
+    for (outcome, truncated, expected) in [
+        ("invalid", false, OUTCOME_INVALID),
+        ("timeout", false, OUTCOME_TIMEOUT),
+        ("host_failure", false, OUTCOME_HOST_FAILURE),
+        ("valid", true, OUTCOME_HOST_FAILURE),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let worker = dir.path().join("observation-worker");
+        let result = serde_json::json!({"schema_version":1,"outcome":outcome,
+            "diagnostics":[],"truncated":truncated,"guest_elapsed_ms":0});
+        std::fs::write(
+            &worker,
+            format!("#!/bin/sh\ncat >/dev/null\nprintf '%s' '{}'\n", result),
+        )
+        .unwrap();
+        std::fs::set_permissions(&worker, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let s = Arc::new(Mutex::new(
+            TaskService::open(dir.path(), fixture(), worker).unwrap(),
+        ));
+        let mut c = connect(&s, 7);
+        let cap = grant(&s, &mut c, RIGHT_ALL);
+        let sub: SubscribeTaskPullReply = read_payload(
+            &exchange(
+                &mut c,
+                &req(
+                    21,
+                    &SubscribeTaskPull {
+                        task_cap: cap,
+                        request_id: 100,
+                        event_mask: 2,
+                        reserved: 0,
+                    },
+                ),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(sub.status, STATUS_OK);
+        let candidate = stage(&s, &mut c, cap, br#"{"enabled":false,"label":"keep"}"#);
+        assert_eq!(
+            validate(
+                &mut c,
+                cap,
+                candidate.candidate_cap,
+                content_hash(&fixture().validator)
+            )
+            .outcome,
+            expected
+        );
+        let read_state = |c: &mut UnixStream| {
+            let r: GetTaskStateReply = read_payload(
+                &exchange(
+                    c,
+                    &req(
+                        13,
+                        &GetTaskState {
+                            task_cap: cap,
+                            request_id: 101,
+                        },
+                    ),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(r.status, STATUS_OK);
+            let mut service = s.lock().unwrap();
+            let state: store_service::agent_task::TaskSnapshotV1 =
+                serde_json::from_slice(&service.read_mapping(7, r.state_shm_cap).unwrap()).unwrap();
+            service.release_mapping(7, r.state_shm_cap).unwrap();
+            state
+        };
+        let direct = read_state(&mut c);
+        let poll: PollTaskReply = read_payload(
+            &exchange(
+                &mut c,
+                &req(
+                    23,
+                    &PollTask {
+                        task_cap: cap,
+                        request_id: 102,
+                        subscription_cap: sub.subscription_cap,
+                    },
+                ),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(poll.status, STATUS_OK);
+        assert_eq!(poll.event_mask, 2);
+        let mut service = s.lock().unwrap();
+        let delivered: store_service::agent_task::TaskSnapshotV1 =
+            serde_json::from_slice(&service.read_mapping(7, poll.state_shm_cap).unwrap()).unwrap();
+        service.release_mapping(7, poll.state_shm_cap).unwrap();
+        drop(service);
+        assert!(direct.validation_current && delivered.validation_current);
+        assert_eq!(direct.validation, delivered.validation);
+        assert_eq!(
+            commit(
+                &mut c,
+                cap,
+                candidate.candidate_cap,
+                0,
+                content_hash(&fixture().input),
+                103
+            )
+            .status,
+            STATUS_VALIDATION_FAILED
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1550));
+        assert!(!read_state(&mut c).validation_current);
+        let policy_cap = s.lock().unwrap().policy_cap();
+        let revoked: RevokeGrantReply = read_payload(
+            &exchange(
+                &mut c,
+                &req(
+                    15,
+                    &RevokeGrant {
+                        policy_cap,
+                        task_cap: cap,
+                        request_id: 104,
+                    },
+                ),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(revoked.status, STATUS_OK);
+        let denied: PollTaskReply = read_payload(
+            &exchange(
+                &mut c,
+                &req(
+                    23,
+                    &PollTask {
+                        task_cap: cap,
+                        request_id: 105,
+                        subscription_cap: sub.subscription_cap,
+                    },
+                ),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(denied.status, STATUS_DENIED);
+        assert_eq!(denied.state_shm_cap, 0);
     }
 }

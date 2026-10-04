@@ -3,6 +3,20 @@
 ## [Unreleased]
 
 ### Fixed
+- Aligned the x86_64 COM1 console with the HIL appliance's 115200 8N1
+  contract by changing its UART divisor from 3 to 1. The S12 GOP gate checks
+  QEMU's UART parameter trace as well as boot output, rejecting the former
+  38400 baud setting. COM2 IPC retains its existing configuration; physical
+  Pi/ThinkCentre serial validation remains pending.
+- Defined RT/LT `validation_current` as freshness of the last observation,
+  separate from successful validation required for commit. Added failed-outcome,
+  truncation, expiry/revocation and direct/subscription transition assertions.
+  Expanded paired Linux comparisons run in the Linux/Docker gates.
+- Moved ordinary Store source preparation outside registry/projection locks.
+  Added configurable artifact, preparation, connection and handshake bounds;
+  supervised source reads/copy/sync, disconnect cancellation, and publication-time
+  authority revalidation. Stalled two-client and byte-limit tests check reads,
+  admission, termination and cleanup while preserving descriptor/hash/owner identity.
 - Bound Store reads/verification to the requested content ID, authenticated
   manifest, and blob bytes. Native WASM execution verifies its consumed snapshot.
 - Replaced host ingestion's service-side pathname reads with caller-opened source
@@ -24,6 +38,9 @@
   not depend on the S0 smoke gate's former shared output directory.
 
 ### Changed
+- Made the scripted RT host task the README entry point, with retained input,
+  candidate, validation, denial, output and replayed receipt evidence. The full
+  controlled model comparison and target-native task environment remain pending.
 - Consolidated documentation ownership: stable agent rules, landed status, next
   work, and directional roadmap now avoid repeated milestone histories. Repaired
   setup/Store examples, IDL guidance, agent skills, and host/target references.

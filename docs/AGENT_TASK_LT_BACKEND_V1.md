@@ -97,7 +97,13 @@ compares request/response traces, preserving rights, statuses, outcomes, bytes,
 content/pin hashes, revisions and diagnostics. It normalizes only consistently
 aliased opaque capability identities and the declared clock/duration fields:
 `expires_at_ms`, `now_ms`, `valid_until_ms`, `wall_elapsed_ms`, `guest_elapsed_ms`.
-It checks real successful validation and publication separately from trace equality.
+It checks real successful validation and publication separately from trace equality,
+and now includes unsuccessful validation followed by an explicit state read and
+commit denial. `validation_current` is freshness of the last observation, matching
+RT; LT's separate `valid()` predicate still enforces successful, untruncated,
+in-budget evidence for commit. The [subscription comparison](AGENT_TASK_SUBSCRIPTIONS_V2.md)
+adds controlled outcome, expiry and revocation transitions. The expanded Linux
+cases require a Linux/Docker rerun before claiming paired execution evidence.
 This is a bounded point-case check, not a proof of complete protocol equivalence.
 
 `out/agent-task-lt/` contains the tool contract, consumer and paired point traces,

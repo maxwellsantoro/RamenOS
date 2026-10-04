@@ -8,6 +8,36 @@ from lt_backend import LinuxTask, TaskError, digest
 
 
 class StagingTests(unittest.TestCase):
+    def test_last_observation_freshness_does_not_authorize_commit(self):
+        task = LinuxTask.__new__(LinuxTask)
+        task.subscriptions = {}
+        task.grants = {}
+        task.now = lambda: 10
+        task.state = {"generation": "1", "revision": 0, "content_id": digest(b"input")}
+        task.pins = {name: digest(name.encode()) for name in ("schema", "policy", "validator")}
+        task.bootstrap = {"resources": []}
+        task.load = lambda content_id: b"input"
+        task.authorize = lambda cap, right: {"bits": 31, "expires": 100}
+        for outcome, truncated, wall, guest in [
+            ("valid", False, 0, 0), ("invalid", False, 0, 0),
+            ("timeout", False, 0, 0), ("host_failure", False, 0, 0),
+            ("valid", True, 0, 0), ("valid", False, 100000, 100000),
+        ]:
+            record = dict(generation="1", valid_until_ms="11", outcome=outcome,
+                          diagnostics_truncated=truncated,
+                          wall_elapsed_ms=str(wall), guest_elapsed_ms=str(guest))
+            task.state["last_validation"] = record
+            def state():
+                return task.dispatch("1", {"operation": "get_task_state", "task_cap": "cap:0000000000000001"})["state"]
+            self.assertTrue(state()["validation_current"])
+            self.assertEqual(task.valid(record), outcome == "valid" and not truncated and wall == 0)
+            record["valid_until_ms"] = "10"
+            self.assertFalse(state()["validation_current"])
+            record["valid_until_ms"] = "11"
+            record["generation"] = "0"
+            self.assertFalse(state()["validation_current"])
+        self.assertFalse(task.validation_current(None))
+
     def test_duplicate_stage_preserves_validation_and_unique_capacity(self):
         # Exercise the actual dispatch/CAS implementation with a minimal in-memory
         # journal. No platform or sandbox bypass is presented as containment proof.

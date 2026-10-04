@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -47,6 +47,9 @@ Neither firmware detection nor a manually set `rollback_ready` variable proves i
 
 ### H0 Acceptance Criteria
 
+- Capture the target COM1 console at 115200 8N1, matching the kernel and
+  `hardware/hil_appliance_v0.toml`; QEMU parameter assertions do not replace
+  this live Pi/ThinkCentre check.
 - `tools/hil/appliance_capture_serial.sh` captures from the configured appliance
   serial device without accepting stale graduation logs.
 - Empty transcripts and unsafe run ids fail closed.
@@ -80,7 +83,8 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 ## Software Lane: SW0 Agent Task Proof
 
 **Next software action:** complete the remaining A2 controls before model
-collection. Preserve the independently runnable A1.1 host proof. SW0 has no
+collection. Run the expanded RT/LT point and subscription transition gates on
+Linux/Docker as part of conformance. Preserve the independently runnable A1.1 host proof. SW0 has no
 H0–H3 prerequisite; its consumer is a scoped configuration repair, pinned
 validation and checked artifact publication.
 

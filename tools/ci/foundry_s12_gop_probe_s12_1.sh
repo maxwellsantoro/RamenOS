@@ -139,7 +139,8 @@ OVMF_VARS_TEMPLATE="$(find_firmware OVMF_VARS \
 OVMF_VARS="$(prepare_vars "$OVMF_VARS_TEMPLATE" "$UEFI_DIR/x86_64_vars.fd")"
 
 LOG="$LOG_DIR/qemu_x86_64_gop_probe.log"
-rm -f "$LOG"
+UART_TRACE="$LOG_DIR/qemu_x86_64_gop_probe.protocol_trace.log"
+rm -f "$LOG" "$UART_TRACE"
 
 echo "FOUNDRY_S12_GOP_PROBE_S12_1: INFO qemu boot x86_64"
 if [[ -n "${OVMF_VARS:-}" ]]; then
@@ -148,12 +149,14 @@ if [[ -n "${OVMF_VARS:-}" ]]; then
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive if=pflash,format=raw,file="$OVMF_VARS" \
     -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
+    -trace enable=serial_update_parameters,file="$UART_TRACE" \
     -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
 else
   qemu-system-x86_64 \
     -machine q35 -m 512M \
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
+    -trace enable=serial_update_parameters,file="$UART_TRACE" \
     -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
 fi
 QEMU_PID=$!
@@ -174,6 +177,31 @@ grep -q "golden_machine: gop_probe ok" "$LOG" \
   || fail "GOP_PROBE_MISSING" "gop_probe marker not in log"
 grep -q "golden_machine: gop_fill ok" "$LOG" \
   || fail "GOP_FILL_MISSING" "gop_fill marker not in log"
+
+# QEMU file chardevs deliver bytes even at the wrong baud. Inspect the emulated
+# UART's programmed parameters as well as its output so HIL baud drift fails CI.
+python3 - "$UART_TRACE" "$ROOT_DIR/hardware/hil_appliance_v0.toml" <<'PY' \
+  || fail "SERIAL_PARAMETERS_MISMATCH" "target console must match the HIL serial contract"
+import re
+import sys
+from pathlib import Path
+
+manifest = Path(sys.argv[2]).read_text()
+serial = re.search(r"^\[serial\]\n(.*?)(?=^\[|\Z)", manifest, re.M | re.S)
+assert serial, "HIL serial contract missing"
+contract = serial.group(1)
+assert re.search(r"^baud\s*=\s*115200\s*$", contract, re.M), "expected 115200 baud"
+assert re.search(r"^data_bits\s*=\s*8\s*$", contract, re.M), "expected 8 data bits"
+assert re.search(r'^parity\s*=\s*"none"\s*$', contract, re.M), "expected no parity"
+assert re.search(r"^stop_bits\s*=\s*1\s*$", contract, re.M), "expected 1 stop bit"
+parameters = re.findall(
+    r"serial_update_parameters baudrate=(\d+) parity='([NEO])' data=(\d+) stop=(\d+)",
+    Path(sys.argv[1]).read_text(),
+)
+assert parameters, "UART parameter trace missing"
+assert parameters[-1] == ("115200", "N", "8", "1"), parameters[-1]
+print("FOUNDRY_S12_GOP_PROBE_S12_1: METRIC serial_parameters=115200_8N1")
+PY
 
 GOP_WIDTH="$(grep -E 'golden_machine: gop_width=[0-9]+' "$LOG" | head -n1 \
   | sed -E 's/.*gop_width=([0-9]+).*/\1/')"

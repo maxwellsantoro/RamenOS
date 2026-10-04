@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-04
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -1049,3 +1049,60 @@ there is no unsafe legacy pathname fallback. Recovery trusts the private Store
 root's durable intent, not requester assertions, and does not automatically repair
 preexisting orphan/corrupt artifacts. These changes add bounded host/QEMU evidence
 and no physical, native device-I/O, whole-system isolation, or readiness claim.
+
+## 2026-10-04 — Fresh validation observations and bounded host Store preparation
+
+**Decision:** Preserve the existing RT meaning of `validation_current`: the last
+observation matches the generation and has not expired. LT uses that same
+predicate for observations and keeps its stronger successful/untruncated/in-budget
+predicate for commit. This resolves a shared-interface ambiguity without changing
+the versioned schema or admitting invalid candidates.
+
+Ordinary host Store ingestion authenticates before descriptor receipt, then
+copies/hashes/synchronizes the caller-opened regular file in a same-binary worker
+outside registry/projection locks. The operator configures a byte ceiling
+(default 1 GiB), concurrent preparation reservations (4), preparation deadline
+(30 seconds), active connections (32) and absolute request/descriptor budget
+(5 seconds). A byte ceiling is enforced during copying, including growing files;
+reservations remain held through publication and uncertain worker termination.
+Disconnect during preparation cancels; deadline sends termination and bounds the
+request's reap wait. A kernel-stalled worker retains its reservation for reaping
+rather than freeing capacity for unbounded replacements. The helper consumes
+inherited descriptors and emits a bounded hash/size receipt; it is trusted host
+code, not a new native interface or general sandbox.
+
+Publication reacquires the existing locks and revalidates write authority/access
+and owner-bound durable intent. The published bytes are the hashed snapshot.
+The default staging ceiling is four GiB in flight, distinct from SW0 limits and
+from total retained CAS quota. Local staging creation and durable publication IO
+still depend on the filesystem; those operations and crash-orphan staging
+reclamation are not certified by the source watchdog. Cancellation after
+publication begins retains ordinary lost-reply uncertainty.
+
+**Evidence:** Gate-first transport assertions fail on the prior descriptor
+handshake. Host tests now cover two clients during a stalled preparation,
+admission rejection, disconnect cleanup, worker timeout/reaping, byte ceilings
+and withdrawn authority before publication. RT state delivery and portable LT
+predicates are checked locally; expanded paired Linux cases require their
+Linux/Docker gate. No model, target-kernel, physical, release or whole-authority
+claim follows from these controls.
+
+## 2026-10-04 — Match the COM1 boot console to the HIL serial contract
+
+Use 115200 8N1 for the x86_64 COM1 console, as already specified by
+`hardware/hil_appliance_v0.toml` and the serial capture scripts. Correct the
+existing divisor from 3 to 1 rather than lowering the controller contract to
+38400. COM2's framed IPC configuration remains separate and unchanged.
+
+The S12 GOP gate observes QEMU's `serial_update_parameters` protocol trace and
+requires the final UART state to be 115200 8N1 alongside successful boot/GOP
+output. QEMU's file-backed serial channel does not enforce baud matching, so
+readable boot logs alone previously missed the mismatch. The assertion fails
+on the original kernel's observed 38400 8N1 state.
+
+Reference evidence for this bounded existing-console correction is retained in
+`out/evidence/serial_console_reference_vault/`: hash-pinned QEMU UART model
+sources, emulator version, and the pre-fix protocol trace. This is QEMU model
+and target-initialization evidence, not a Linux Oracle capture, a new driver
+Harness qualification, or physical UART evidence. First live Pi/ThinkCentre
+capture and metal graduation remain pending.
