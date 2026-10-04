@@ -5,24 +5,28 @@ disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-Create the interface requested in $ARGUMENTS. Read `AGENTS.md` and
-`idl/tools/README.md`; use an existing relevant IDL as a template.
+Create or evolve the interface requested in $ARGUMENTS. Read `AGENTS.md` and
+`idl/tools/README.md`; use a relevant existing IDL for the current syntax and wire
+limits. Generated syntax is not evidence of enforcement or target availability.
 
 1. Resolve ownership and interface purpose from context. Choose `idl/harness/`,
    `idl/portals/`, or `idl/services/`. Clarify only missing requirements that
    prevent a useful contract; routine naming choices need no confirmation.
-2. Check existing IDLs and `tools/ci/idl_lint.py` for protocol ownership. Supply
-   explicit nonzero `protocol` and per-message `msg_type`, plus `namespace`,
-   `version`, and ordered `fields`. Never copy another interface's protocol ID.
-3. Native Rust wire fields support `u8`, `u16`, `u32`, `u64`, and fixed `bytesN`
-   (1–64), not signed integers or dynamic strings/slices. Keep the total payload
-   bounded; use validated handles/offsets for bulk shared-memory data.
-4. Register outputs in `tools/ci/run_codegen.sh`, which owns codegen for Just/CI.
-   Register handwritten inclusion points such as `kernel_api/src/lib.rs` using
-   the existing pattern. Never hand-edit generated files or aggregators.
-5. Write the consumer's Foundry assertion before its handler, including denial,
-   version, length, reserved-field, and range cases relevant to the contract.
-6. Run `just codegen`, `just idl-lint`, and `cargo build -p kernel_api`; inspect
-   generated diffs and affected producer/consumer checks.
-7. Report spec/output paths, checks, and remaining implementation scope. Generated
-   syntax is not evidence of authority enforcement or target availability.
+2. Check existing IDLs and `tools/ci/idl_lint.py` for protocol ownership. Allocate
+   protocol/message IDs and freeze the producer/consumer contract with the
+   coordinator before parallel implementation. Never copy another protocol's ID.
+3. Specify bounded fields, error results, request and observable authority, and
+   referenced-object lifetime/range checks. Review alignment and initialized
+   padding; use the supported wire types from the generator reference. Version
+   incompatible layouts or meanings and identify affected consumers.
+4. Write consumer assertions before handlers: behavior, denial, invalid version,
+   length, reserved fields, and ranges as applicable. An interface-only scaffold
+   must not claim these consumers are implemented.
+5. Register outputs in `tools/ci/run_codegen.sh` and handwritten inclusion points
+   such as `kernel_api/src/lib.rs`. In a team, send these shared edits to their
+   assigned owner; that owner runs codegen once the batch's IDLs are settled.
+   Never hand-edit generated files or aggregators.
+6. Run `just codegen`, `just idl-lint`, `cargo build -p kernel_api`, and affected
+   producer/consumer checks under that ownership. Inspect generated diffs.
+7. Report contract/output paths, compatibility decisions, checks and evidence,
+   and remaining implementation scope through the assigned handoff.

@@ -1,6 +1,6 @@
 # Agent Task Proof: repair one workspace under bounded authority
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** A0/A1 foundations and bounded A2 controls through A2.9 implemented; full A2/comparison pending
 **Landing path:** Bounded integration of the S10 runtime, Semantic State, and Store contracts
 
@@ -9,8 +9,8 @@
 This proof evaluates the agent-facing part of the [RamenOS Vision](../../VISION.md):
 an everyday, post-Unix OS for humans and AI agents. It supplies a bounded design
 input alongside hardware qualification and future human interaction/desktop
-validation. Its proceed/defer decision informs sequencing without replacing the
-broader product destination.
+validation. Its report informs agent-facing follow-ups without gating unrelated
+human interaction or replacing the broader product destination.
 
 Does structured interaction help an agent, and does the RamenOS substrate add
 anything beyond typed tools on Linux? Test Linux scoped shell, Linux typed,
@@ -18,10 +18,12 @@ and RamenOS typed separately. Task success, effective authority, interaction
 cost, and audit/replay are distinct outcomes. A successful scripted test does
 not establish that the interface helps a model or that a new OS is necessary.
 
-Build this proof before expanding into S14 USB/HID or desktop work. It can
-proceed on the development host while S12.4 live serial capture, AMT validation,
-and S13 physical graduation continue in their existing order. It does not
-require native Wasmtime on the target, a desktop, or execution-fabric transport.
+Develop this proof in parallel with S14/S15 contracts, host/QEMU work and the
+target-runtime path. S12.4 live serial capture, AMT validation and S13 physical
+graduation retain their own physical order. SW0 does not require native Wasmtime
+on target, a desktop or execution-fabric transport; desktop work does not require
+SW0 model collection. Complete A2 and the frozen study controls still precede
+the opt-in, funded Phase B pilot/comparison.
 
 ## One useful task
 
@@ -85,9 +87,9 @@ owned descendants, closes transports, releases task handles/mappings, and emits
 a timeout result before returning. The worker cannot publish an accepted output.
 Test infinite guest code, a start-section loop, a stalled backend, compilation
 timeout, oversized diagnostics, and cleanup. Use the same limits across arms.
-The current runner's epoch timer handles guest loops; it does not yet implement
-the outer worker/IPC contract. A0 validates budget declarations and observations,
-not actual runtime containment.
+The runner's epoch timer alone handles guest loops, not the whole worker/IPC
+contract; A1's host service proof adds the supervised worker and watchdog.
+A0 validates budget declarations and observations, not actual runtime containment.
 
 ### Authority and observation contract
 
@@ -110,19 +112,19 @@ private inventory, and grading oracle must never enter model context. Denial
 responses are bounded and exclude private metadata. These checks establish only
 the tested observation boundary, not hidden-affordance noninterference.
 
-## Reuse and missing integration
+## Reuse and remaining target integration
 
-| Existing component | Reuse | Work still required |
+| Existing component | Reuse | Current integration boundary |
 |--------------------|-------|---------------------|
-| [`services.semantic_state_v1`](../../idl/services/semantic_state_v1.toml) | Typed snapshot/subscription envelopes and shmem payloads | Populate task state from this run, with provenance; the default boot ID, uptime, and timestamp are fixtures |
+| [`services.semantic_state_v1`](../../idl/services/semantic_state_v1.toml) | Typed snapshot/subscription envelopes and shmem payloads | A1 supplies run-specific host task state; live target aggregation remains work and the general default boot/time metadata includes fixtures |
 | [`harness.semantic_store_v1`](../../idl/harness/semantic_store_v1.toml) | Path/tag discovery | This IDL is query-only; it does not provide the scoped mutation/commit contract above |
-| Store and projection storage | CAS output, domain ownership, copy-on-write foundations | Bind task grants to allowed objects and commit revisions across the actual service boundary |
-| Native runner and broker | Granted handle injection, fail-closed launch, pinned WASM consumer | Connect scoped launch policy and validation result to the task audit |
+| Store and projection storage | CAS output, domain ownership, copy-on-write foundations | A1 binds host task grants, objects, revisions and receipts; production registration and target persistence remain work |
+| Native runner and broker | Granted handle injection, fail-closed launch, pinned WASM consumer | A1 has a host supervised validator and audit; target execution and per-operation enforcement remain work |
 | S10.5 QEMU bridge | A path for later target-side assertions | The existing snapshot/IPC bridge does not enforce this entire task |
 
-Inventory the real call paths before writing the adapter. Any missing native
-write, commit, launch, or grant operation needs an IDL definition, generated
-bindings, and a negative Foundry assertion before implementation. Do not expose
+Inventory the real call paths for each extension. Any new native write, commit,
+launch or grant operation needs an IDL definition, generated bindings and a
+negative Foundry assertion before implementation. Do not expose
 an unrestricted host path or shell escape as a shortcut. Keep host service
 enforcement distinct from kernel validation in all reports.
 
@@ -330,8 +332,9 @@ state, and document every normalized field.
 
 ## Gate first: required assertions
 
-The future gate must test behavior across the consumer/service boundary, with
-these assertions written before the task adapter is implemented:
+These assertions define conformance across the consumer/service boundary.
+Existing A0/A1/A2 gates cover the named portions documented in Current Status;
+write each missing denial/failure assertion before implementing its extension:
 
 1. **Useful result:** the clean task produces a valid new config, preserves
    unrelated fields, and reports the exact committed content ID and execution
@@ -370,53 +373,33 @@ these assertions written before the task adapter is implemented:
 No claim of a universal security boundary follows from these finite probes.
 Known service and supervisor risks remain in [SECURITY_STATUS.md](../../SECURITY_STATUS.md).
 
-## Landing sequence and claim boundaries
+## Landing dependencies and claim boundaries
 
-A0, A1.0, A1.1 RT, A2.1 Linux, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions,
-A2.5 typed subscriptions, A2.6 finite authority inventory and A2.7 scripted
-evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime
-witnesses are runnable today.
-[The Linux foundation](../AGENT_TASK_LINUX_CONTROL_V1.md) shares the development
-fixture/worker and records actual containment and named authority differences.
-[A2.2](../AGENT_TASK_ADAPTER_V1.md) supplies a common codec/descriptions and RT
-bridge, exercised by a separate script. [A2.3](../AGENT_TASK_LT_BACKEND_V1.md) adds
-independent LT transactions and named typed point cases.
-[A2.4](../AGENT_TASK_LS_TRANSACTIONS_V1.md) adds contained LS commands/launcher,
-original-receipt recovery and peer/cleanup gates. [A2.5](../AGENT_TASK_SUBSCRIPTIONS_V2.md)
-adds a shared version 2 typed pull/cancel lifecycle and named comparisons.
-[A2.6](../AGENT_TASK_AUTHORITY_V1.md) adds a finite tuple universe, 33 shared
-cases and measured LS extras, retaining unknown host/deputy/lifetime authority.
-[A2.7](../AGENT_TASK_EVALUATOR_CONTROLS_V1.md) adds the bank/release contract,
-fresh bounded sessions and private failure evidence; real hidden-bank/model
-controls remain incomplete. [A2.8](../AGENT_TASK_RECONCILIATION_V1.md) adds named
-forced cleanup and explicit receipt recovery while retaining unknown daemon work.
-[A2.9](../AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) checks all grant subsets under
-two policies and named lifetime points; issued-right equality does not qualify
-whole authority inclusion or continuous envelopes.
-Full authority conformance and comparison commands remain planned. The [service proof](../AGENT_TASK_SERVICE_PROOF_V1.md)
-names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
-the actual call-path inventory and A1.1 service assertions.
+[Current Status](../../CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment)
+is the authoritative implemented gate/contract map: A0's pure model, A1's
+scripted host service proof, and bounded A2 controls through A2.9 are runnable.
+They establish named host behavior, finite authority projections and lifetime
+points. They do not establish full A2, continuous or whole authority inclusion,
+a real hidden-bank release, comparative advantage or target execution. Keep
+unknown host-client/deputy authority and uncertain cleanup in the report.
 
-The A0/A1 and numbered A2 recipes below are implemented. The full A2, Phase B,
-and Phase C commands are proposed interfaces and do not exist in `justfile` yet.
+The next control work can be split between an authority worker and an offline
+evaluator worker using the scopes in [Next Tasks](../../NEXT_TASKS.md#ready-work-front).
+They converge at all-arm deterministic conformance, not at an arbitrary end of
+an implementation wave. A coordinator owns shared protocol/backend changes and
+reruns affected consumers on the combined revision. An independent bank operator
+retains hidden partitions; tuning/implementation workers do not inspect final
+fixtures. Provider-accounting development uses synthetic responses until actual
+collection is explicitly funded and released.
 
-| Phase | Deliverable and command | Permitted conclusion |
-|-------|----------------------------------|----------------------|
-| A0: contract fixtures | Versioned schema, pure transaction reference model, synthetic deterministic fixtures; `just foundry-agent-task-contract-a0` | The modeled contract rejects the named bad transitions; no service/kernel enforcement or useful task claim |
-| A1.0: native control contract | IDL/generated control layouts and request preflight; `just foundry-agent-task-protocol-a1-0` | Bounded request syntax only; no handler or grant enabled |
-| A1: RamenOS scripted proof | Implemented opt-in host fixture: RT service, pinned validator worker/watchdog, durable receipts, grants, denials, audit and receipt replay; `just foundry-agent-task-proof-rt` | One useful task and its negative cases work through named host service enforcement paths |
-| A2.1: Linux foundation | Shared development fixture, scripted shell repair, pinned worker validation, actual Docker containment/probes and descriptor-lifetime inventory; `just foundry-agent-task-linux-control` | One Linux scripted task and named probes; no durable LS transaction or full A2 conformance |
-| A2.2: JSON/RT adapter | Shared eight-operation codec/descriptions/schemas and opt-in native IPC bridge with external scripted consumer; `just foundry-agent-task-adapter` | The useful task works through the JSON contract; LT, model trials and all-arm equivalence remain pending |
-| A2.3: LT transactions | Independent Linux grants, sealed worker validation, durable revision/receipts and named RT/LT cases; `just foundry-agent-task-lt` | Scripted LT task and named point comparisons; no complete protocol/authority equivalence |
-| A2.4: LS transactions | Contained command helper/launcher sharing Linux transactions, real peer/transport/cleanup checks and original receipts; `just foundry-agent-task-ls-transactions` | Scripted shell task and recovery; no all-arm conformance or model result |
-| A2.5: typed subscriptions | Shared v2 codec/descriptions, generated native pull/poll/cancel messages, independent LT lifecycle and 50-operation RT/LT comparison; `just foundry-agent-task-subscriptions` | Named bounded lifecycle behavior; no full authority/protocol equivalence or model result |
-| A2.6: finite authority inventory | Frozen logical tuples, separate observed/task/probe effects, 33 shared cases and actual LS configuration/negative probes; `just foundry-agent-task-authority` | Named finite authority observations; unknowns block full E_max/E(t), inclusion and narrower claims |
-| A2.7: scripted evaluator controls | Disjoint bank/release contract, external deadline/frame/context budgets, fresh sessions and 45 synthetic development attempts; `just foundry-agent-task-evaluator-controls` | Scripted control behavior and retained failures; no real hidden-bank, model/token comparison or certified forced daemon cleanup |
-| A2.8: named reconciliation | Durable lifecycle fencing, exact acknowledged-ID removal, explicit cleanup checkpoint repair and six all-arm interrupted commit cases; `just foundry-agent-task-reconciliation` | Named host recovery without commit retry; unresolved creates and broader host/daemon failure modes remain unknown |
-| A2.9: finite requestable/lifetime witnesses | All 31 grant subsets under two fixture policies, single-right actual effects and expiry/renewal/revocation points; `just foundry-agent-task-requestable-authority` | Equal declared-interface issued-right projections only; whole/continuous and host/deputy authority remain unknown |
-| A2: comparison controls | Complete remaining authority/conformance and real bank/study/provider controls over the landed adapters and evaluator fixtures; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
-| B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
-| C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |
+The following aggregate commands are **proposed interfaces**, not existing
+`justfile` recipes. Register the relevant gate before implementing each follow-up.
+
+| Phase | Remaining deliverable and proposed command | Permitted conclusion |
+|-------|---------------------------------------------|----------------------|
+| A2: comparison controls | Complete authority/conformance and real bank/study/provider controls over landed adapters and evaluator fixtures; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
+| B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost and audit results for these models/tasks only |
+| C: target enforcement | Exercise named task grants and forbidden operations through the kernel/QEMU path as their target contracts become available; `just foundry-agent-task-proof-qemu` | Only operations actually enforced by the target qualify; remaining host enforcement is named |
 
 Each A milestone has its own gate and runs without model credentials or network
 access in default CI. A0 schemas are evaluator/reference types, not a native
@@ -425,9 +408,11 @@ before implementation; neither the adapter nor a serialized A0 grant may mint
 service authority. A1 does not wait for LS/LT adapters or lab hardware. A2 must
 pass before any primary Phase B comparison.
 Phase B is opt-in and does not make CI depend on a model's stochastic behavior
-or a paid service. Phase C may be incremental; any remaining host enforcement
-must be named per operation. Full target-native execution remains a separate
-runtime milestone. None of these phases implies physical graduation.
+or a paid service. Phase C may be incremental and can proceed independently of
+Phase B once the operation's target contract, runtime and gate exist; any
+remaining host enforcement must be named per operation. Full target-native
+execution remains a separate runtime milestone. None of these phases implies
+physical graduation.
 
 Each run bundle should contain the source revision and dirty-diff hash; fixture,
 policy, tool-schema, and validator hashes; host/target/simulation inventory;
@@ -450,7 +435,7 @@ all outcomes are published in a reproducible local report, including failures,
 uncertainty, and each contrast's separate claims. A tie, inconclusive estimate,
 or regression is a valid finding and should drive the next integration fix.
 
-### Bounded study and S14 decision
+### Bounded study and follow-up decision
 
 Before the pilot, record numeric margins and the model/provider cost schedule in
 a study manifest. Initial design defaults are `delta = 0.05` completion risk
@@ -471,13 +456,15 @@ outcome to the next action: interface-only benefit → improve typed controls an
 name the absent substrate evidence; RT-specific benefit → advance the evidenced
 integration; regression → repair the demonstrated cause; tie/inconclusive or
 budget-limited result → cap further study and name the remaining uncertainty.
-No result requires a positive OS-advantage claim. S14 may proceed after that
-reviewed proceed/defer decision, H0/H1 readiness, and its own IDL/Oracle/gate
-prerequisites. An exploratory report can satisfy the review prerequisite when
-its limitations and the decision are explicit; it cannot satisfy a powered
-comparative claim. A1 can be published as a bounded host demo before Phase B.
+No result requires a positive OS-advantage claim. This decision directs further
+agent-facing investment; it does not gate S14/S15 software work. Their own
+design/IDL/Oracle/gates and target-runtime dependencies remain required, with
+H0/H1 additionally required for physical S14 integration. An exploratory report
+must keep its limitations explicit and cannot satisfy a powered comparative
+claim. The 2026-10-04 sequencing decision in [DECISIONS.md](../../DECISIONS.md)
+supersedes the earlier global S14 hold without changing this scientific protocol.
 
-The first public demo should show the actual typed exchanges, allowed state,
-requested/granted authority, a forced denial, the useful artifact, and a replay
-command. Until that executable artifact exists, the README must call this a
-planned proof and keep runnable component gates clearly identified as such.
+Maintain the independently runnable A1 host demo before and during Phase B.
+Show actual typed exchanges, allowed state, requested/granted authority, a
+forced denial, the useful artifact and a replay command. The README must name
+its scripted host scope and keep model-comparison and target claims separate.

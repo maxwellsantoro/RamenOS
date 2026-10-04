@@ -1,6 +1,6 @@
 # Platform Overview
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Architecture reference with explicit implementation boundaries
 
 RamenOS is a Rust-first, post-Unix OS being built for humans and AI agents,
@@ -10,8 +10,8 @@ The [Vision](VISION.md) sets that direction; this document distinguishes
 implemented components from the environment they are intended to form.
 
 [Current Status](CURRENT_STATUS.md) records landed state;
-[Next Tasks](NEXT_TASKS.md) owns execution order in the parallel hardware and
-software lanes. [Roadmap](ROADMAP.md) is directional. A design responsibility
+[Next Tasks](NEXT_TASKS.md) owns dependencies and ready work across the parallel
+lanes. [Roadmap](ROADMAP.md) is directional. A design responsibility
 below is not evidence that a complete target runtime or security property exists.
 
 ## 0. Purpose and status vocabulary
@@ -232,7 +232,7 @@ S14 supplies typed keyboard/pointer input on the reference hardware. S15 plans
 a native compositor, focus and input routing, application surfaces, and recovery
 gates. These are future integration steps, not a landed desktop. Human usability
 and responsiveness need separate validation from the Agent Task Proof. See
-[Roadmap](ROADMAP.md) for prerequisites and [Vision](VISION.md) for the product goals.
+[Next Tasks](NEXT_TASKS.md) for prerequisites and [Vision](VISION.md) for the product goals.
 
 ## 3. Compatibility Strategy — Partial
 
@@ -262,9 +262,12 @@ with negative cases. Implementations must meet kernel/service/Store boundaries
 and accurately name their evidence environment. See [Slices](SLICES.md) for
 the definition of done and [Agent Instructions](AGENTS.md) for contribution rules.
 
-[Next Tasks](NEXT_TASKS.md) owns physical/software lane sequencing and S14
-prerequisites. [Current Status](CURRENT_STATUS.md) owns their landed evidence;
-this architecture reference does not duplicate the queue.
+The [coordinator workflow](docs/AGENTIC_WORKFLOW.md) assigns independent consumers
+and implementations against agreed contracts, with one owner for shared files
+and integration. [Next Tasks](NEXT_TASKS.md) owns dependencies and completion
+criteria; [Current Status](CURRENT_STATUS.md) owns landed evidence. Host/replay
+and QEMU work can proceed while physical qualification is pending. Each integration
+must test its real consumers and retain the limits of its execution environment.
 
 ## 6. Release Channels — Target promotion policy
 

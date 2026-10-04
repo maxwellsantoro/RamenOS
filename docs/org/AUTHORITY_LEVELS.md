@@ -1,6 +1,6 @@
 # RamenOrg Authority Levels
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-04
 **Status:** G0 scaffold
 
 Authority levels stage autonomy. Each action requires an explicit grant within
@@ -18,6 +18,11 @@ gates, separated review, and a recorded decision.
 | A6 | Community/customer | Triage and draft responses from docs/evidence | Unsupported promises or technical truth claims |
 
 G0.8.1 permits **A2-local** implementation trials: code and gate work inside a
-single active work order, without merge, release, self-approval, HIL actuation,
-public support, credential, or identity-level role authority. A3+ still requires
+single active work order for that trial, without merge, release, self-approval,
+HIL actuation, public support, credential, or identity-level role authority. A3+ still requires
 separate tools, branch protection, credentials, and explicit decisions.
+
+The retained G0 packet tools validate one task set; they do not implement a
+concurrent work-order scheduler. Directly user-authorized teams coordinate bounded
+assignments through [Agentic Workflow](../AGENTIC_WORKFLOW.md). Parallelism changes
+task scheduling, not any agent's authority or the G0 protocol's validated scope.

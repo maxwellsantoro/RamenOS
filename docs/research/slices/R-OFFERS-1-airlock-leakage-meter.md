@@ -1,6 +1,6 @@
 # R-OFFERS-1: Re-Timing Airlock, Offer-Key Redemption, and the Leakage Meter
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-04
 **Status:** prototype-plan (research-bound slice; not yet implemented)
 **Research track:** `R-OFFERS`
 **Namespace:** research-bound (see `docs/research/SLICE_NAMESPACING.md`)
@@ -10,6 +10,11 @@
 `~/Desktop/offers paper.md` — "From APIs to Offers: Provider-Authored
 Capabilities, Re-Timing Airlocks, and Governed Leakage at the Service Boundary."
 Research question: `docs/research/questions/RQ-0001-offer-boundaries.md`.
+
+The paper is an external draft, not a versioned repository input. Obtain an
+authorized copy and pin its version before relying on the section numbers,
+M1–M11 definitions, or control law below. The summary does not supply those
+missing definitions or evidence of runtime behavior.
 
 > Note: the paper originally labeled this prototype `S12.0`. That collides with
 > the OS `S12.0` golden-machine contract, so it is renamed `R-OFFERS-1`.
@@ -60,5 +65,6 @@ artifact that makes the paper's central claim falsifiable.
 ## Landing path
 
 doc/gate-first: design pass → IDL sketch → narrow vault-operation prototype →
-M1–M11 measurement harness → Foundry gate. Does not displace the active S12.4/S13
-metal track.
+M1–M11 measurement harness → Foundry gate. Research preparation has no physical-HIL
+dependency. Runtime work waits for its named research, source and contract
+prerequisites; the coordinator schedules it against the maintained task queue.

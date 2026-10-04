@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Check that RamenOS planning docs agree on the active track.
+"""Check planning-owner routing, retained governance fixtures and slice names.
 
-This is the first G0 governance check: catch the exact class of drift where an
-agent-facing instruction file points at a stale "now" while NEXT_TASKS has moved
-on.
+Keep the changing queue in NEXT_TASKS rather than requiring a duplicate in the
+stable agent instructions. This is a documentation check, not task authority.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ REQUIRED_FILES = [
     "CURRENT_STATUS.md",
     "NEXT_TASKS.md",
     "ROADMAP.md",
+    "docs/AGENTIC_WORKFLOW.md",
     "docs/plans/2026-06-23-research-backed-ramenorg.md",
     "docs/plans/2026-06-23-g0-1-board-packet-validators.md",
     "docs/plans/2026-06-23-g0-2-active-task-cross-packet.md",
@@ -128,20 +128,31 @@ def main() -> int:
     roadmap = read(root, "ROADMAP.md")
 
     next_now = first_match(r"^\*\*Now:\*\*\s*(.+)$", next_tasks)
-    agents_now = first_match(r"^- \*\*Now:\*\*\s*(.+)$", agents)
 
     add_check(
         checks,
-        "next_tasks_now_mentions_hil_appliance",
-        "HIL appliance" in next_now and "serial observer" in next_tasks,
+        "next_tasks_declares_ready_work",
+        bool(next_now),
         next_now,
     )
     add_check(
         checks,
-        "agents_now_mentions_hil_appliance",
-        "HIL appliance" in agents_now and "S13.2 virtio-blk Oracle capture" not in agents_now,
-        agents_now,
+        "next_tasks_keeps_physical_lane",
+        "HIL appliance" in next_tasks and "serial observer" in next_tasks,
+        "NEXT_TASKS.md must retain the physical lane independently of ready software work",
     )
+    # Check actual navigation targets, not copies of changing status wording.
+    agent_links = {
+        target.removeprefix("./").split("#", 1)[0]
+        for target in re.findall(r"\[[^\]\n]+\]\(([^\s)]+)\)", agents)
+    }
+    for target in ("CURRENT_STATUS.md", "NEXT_TASKS.md", "docs/AGENTIC_WORKFLOW.md"):
+        add_check(
+            checks,
+            f"agents_routes_to:{target}",
+            target in agent_links,
+            f"AGENTS.md must link to {target} instead of duplicating its contents",
+        )
     add_check(
         checks,
         "current_status_mentions_active_hil_appliance",
@@ -175,12 +186,11 @@ def main() -> int:
         "docs/org/current_task.yaml should keep A2-local/no-authority-expansion boundary",
     )
 
-    stale_active = "Current active execution track (authoritative):\n- **Now:** S13.2 virtio-blk Oracle capture" in agents
     add_check(
         checks,
-        "agents_no_stale_active_s13_2",
-        not stale_active,
-        "AGENTS.md active track must not point at completed S13.2",
+        "agents_no_duplicate_now_queue",
+        not re.search(r"^\s*(?:-\s+)?\*\*Now:\*\*", agents, flags=re.MULTILINE),
+        "AGENTS.md must leave the changing Now queue to NEXT_TASKS.md",
     )
 
     # Slice namespacing (G0.9): research-bound slices must not reuse OS S-numbers.
@@ -214,7 +224,7 @@ def main() -> int:
     report = {
         "status": status,
         "active_next_tasks": next_now,
-        "active_agents": agents_now,
+        "agent_planning_sources": sorted(agent_links & {"CURRENT_STATUS.md", "NEXT_TASKS.md"}),
         "checks": checks,
     }
 

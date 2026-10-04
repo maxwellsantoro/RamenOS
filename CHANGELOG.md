@@ -44,6 +44,18 @@
   not depend on the S0 smoke gate's former shared output directory.
 
 ### Changed
+- Replanned the roadmap around a coordinator, bounded simultaneous agents, and
+  a thin integrated human task. Removed the global SW0-study/HIL prerequisite
+  from S14/S15 software preparation while preserving driver evidence, physical
+  ordering, complete study controls, and authority limits. Added a ready-work
+  queue, explicit integration dependencies, and completion criteria.
+- Consolidated project skills under `.agents/skills/`, linked the Claude copies,
+  and added a coordinator workflow for shared-file ownership, focused context,
+  independent review, and resource-aware validation. Pruned duplicated/stale
+  documentation and clarified retained governance fixtures and driver-capsule
+  evidence. The drift gate now checks planning-owner links and rejects duplicated
+  agent queues, with passing positive/negative CLI regressions. This adds no OS,
+  model, hardware, or release-readiness evidence.
 - Made the scripted RT host task the README entry point, with retained input,
   candidate, validation, denial, output and replayed receipt evidence. The full
   controlled model comparison and target-native task environment remain pending.

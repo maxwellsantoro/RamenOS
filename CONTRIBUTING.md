@@ -1,14 +1,14 @@
 # Contributing
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active
 
-RamenOS is being built as an everyday, post-Unix OS for humans and AI agents,
-through small, evidence-bearing vertical slices. Read [Vision](VISION.md) for
-the product direction. Before changing a subsystem, read [AGENTS.md](AGENTS.md),
-[CONSTITUTION.md](CONSTITUTION.md), and
-the active planning pair: [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
-[NEXT_TASKS.md](NEXT_TASKS.md).
+RamenOS is being built as an everyday, post-Unix OS for humans and AI agents
+through small, evidence-bearing vertical slices. Start with [AGENTS.md](AGENTS.md),
+[CURRENT_STATUS.md](CURRENT_STATUS.md), and [NEXT_TASKS.md](NEXT_TASKS.md), then
+read the subsystem contract from [the docs index](docs/INDEX.md).
+[VISION.md](VISION.md) owns the destination and [CONSTITUTION.md](CONSTITUTION.md)
+the architectural invariants.
 
 ## Toolchain
 
@@ -16,43 +16,49 @@ the active planning pair: [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
 - Keep formatting compatible with `rustfmt.toml`.
 - Add native interfaces under `idl/` and regenerate bindings.
 
-## Local Checks
+## Delivery and checks
 
-```bash
-cargo fmt --all --check
-just codegen
-just clippy
-just preflight
-```
+Choose a ready packet with one bounded behavior, a real consumer, and an observable
+completion signal. Write behavior, denial, and failure assertions before the
+implementation. Run its focused gate during development; test affected consumers
+and shared resources before handoff. For native contract changes, run
+`just codegen` and `just idl-lint`, then inspect the generated diff. Never edit
+generated outputs manually.
+
+Run `cargo fmt --all --check` and the relevant lint checks for Rust changes.
+The integrating owner runs the required combined checks once the reviewed packets
+are together; individual worker passes do not establish integration success.
 
 `just preflight` checks Linux evaluator prerequisites, then format/codegen/IDL,
 target builds, strict lint, host tests, and umbrella/extended Foundry suites.
 Missing Linux, JSON-schema support, Docker/seccomp, or the pinned image reports
-INCOMPLETE. Use the focused slice gate while iterating and follow
+INCOMPLETE. Follow
 [Getting Started](docs/GETTING_STARTED.md) for environment-specific checks.
+Report the exact commands, result, tested revision, retained evidence, and
+environment limitations. Resolve current recipes from [justfile](justfile).
 
-## Change Discipline
+## Working as a team
 
-- Preserve kernel, services, and Store ownership boundaries.
-- Keep capability validation for fast-path operations in the kernel.
-- Pair each new capability with a consumer and a Foundry gate.
-- Use typed control messages and shared memory for bulk data.
-- Do not design native APIs around POSIX or add ioctl-like escape hatches.
-- For driver work, begin with the Reference Vault and Oracle traces.
-- Connect each slice to a human, agent, hardware, or developer need. Independent
-  components still need conformance and recovery checks with affected consumers.
-- Keep core human interactions usable without an AI model; agent assistance
-  follows explicit policy and bounded grants.
+Use [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for concurrent agent work. The
+coordinator dispatches ready packets after contracts and assertions are in place,
+assigns non-overlapping write scopes and shared-file ownership, and integrates
+independently reviewed changes. Keep fixed gate outputs and lab devices under one
+owner. Replan when a dependency or contract changes instead of letting workers
+invent incompatible interfaces.
+
+PRs follow [the implementer-bot workflow](docs/org/RAMEN_IMPLEMENTER_BOT.md):
+the A2 bot authors; a distinct authorized A3 identity approves and merges.
+Local agent review does not supply that approval. The path classifier determines
+CI requirements; documentation scope is not a waiver for failing governance checks.
 
 ## Documentation
 
-- Preserve the shared framing in `VISION.md`: an everyday OS for humans and AI
-  agents. Describe speed, safety, adaptability, and ease of use as goals until
-  supported by matching evidence; distinguish pre-alpha status from the destination.
 - Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
 - Update `NEXT_TASKS.md` when tasks complete or execution order/dependencies change.
 - Record design choices in `DECISIONS.md`.
-- Move completed, non-gate-bound plans to `docs/archive/plans/` and repair links.
+- Keep each fact in its authoritative document and link to it from instructions,
+  skills, and subsystem guides. See [the docs index](docs/INDEX.md) for ownership
+  and archive rules; inspect code/gate references before moving historical files.
 - Use evidence labels from `EVIDENCE_LEVELS.md`; do not overstate QEMU or replay
   results as live hardware proof.
 

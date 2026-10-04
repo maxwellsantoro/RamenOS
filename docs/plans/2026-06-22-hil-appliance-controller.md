@@ -1,7 +1,7 @@
 # S12.4 / S13.9: HIL Appliance Controller
 
-**Last Updated:** 2026-10-03
-**Status:** Active; S12.4.1 serial observer first, then S12.4.2 Intel AMT power/reset
+**Last Updated:** 2026-10-04
+**Status:** Active; live S12.4.1 observation precedes S12.4.2 physical actuation
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 **Related:** `hardware/hil_appliance_v0.toml`, `hardware/golden_machine_v0.toml`, `EVIDENCE_LEVELS.md`, `docs/HIL_APPLIANCE_EVIDENCE_V0.md`, `docs/plans/2026-06-21-s12-golden-machine-design.md`, `docs/plans/2026-06-21-s13-persistent-storage-design.md`
 
@@ -14,6 +14,14 @@ RamenOS needs a stable physical test appliance between agents and the sacrificia
 The HIL appliance is an always-on Raspberry Pi-class controller that provides serial observation, Intel AMT power/reset control, evidence capture, and later KVM-grade video/HID/virtual-media control. It exists to remove human reboot/cable/manual-log work from bare-metal development so agents can iterate against physical hardware safely and repeatably.
 
 This is **not** part of the RamenOS target TCB. It is lab infrastructure. Its job is to make target evidence reproducible, timestamped, and machine-readable.
+
+Physical execution follows H0 → H1 → H2 → H3 in
+[Next Tasks](../../NEXT_TASKS.md). AMT software contracts/dry-run assertions,
+S13 recovery verification, and S14/S15 host/replay/QEMU preparation can proceed
+alongside lab setup when their own source, contract and gate prerequisites are
+met. A coordinator reserves one operator and exclusive appliance/target access
+for each authorized live run; parallel agents must not compete for serial,
+power/reset, boot media or provenance output paths.
 
 ---
 
@@ -331,13 +339,17 @@ In scope now:
 - Evidence packaging.
 - Integration with S12/S13 HIL gate discipline.
 
-Out of scope until after v0:
+Outside this appliance milestone:
 
 - Replacing Pi-KVM wholesale.
 - PCIe protocol analyzers.
 - Native USB/xHCI target stack.
 - General hardware fuzzing campaigns.
 - Treating controller observations as trusted kernel facts.
+
+These exclusions do not serialize independent OS contracts or simulated/replay
+work behind appliance graduation. Deeper physical tests still require the stable,
+observed and explicitly authorized v0 loop.
 
 ---
 

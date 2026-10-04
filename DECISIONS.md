@@ -1130,3 +1130,57 @@ sources, emulator version, and the pre-fix protocol trace. This is QEMU model
 and target-initialization evidence, not a Linux Oracle capture, a new driver
 Harness qualification, or physical UART evidence. First live Pi/ThinkCentre
 capture and metal graduation remain pending.
+
+## 2026-10-04 — Dependency-driven roadmap and coordinated parallel development
+
+**Context:** The founder requested the fastest practical path through a coordinator
+and simultaneous sub-agents. Requiring a paid SW0 comparison and a live HIL loop
+before any input/desktop development serialized work that can be designed and
+tested independently. Duplicated skill files and active-task wording also raised
+the cost of handing work between agents.
+
+**Chosen:** Prioritize a thin integrated human task and dispatch bounded work from
+`NEXT_TASKS.md` by actual dependencies. S14/S15 contracts, host consumers, replay,
+and QEMU work do not depend on the SW0 Phase B report or physical graduation.
+Target execution still requires the relevant loader/runtime and real service
+boundaries; device implementation still requires a Reference Vault, Oracle
+`protocol_trace`, typed IDL and Foundry assertions. Physical input integration
+requires the H0/H1 observation/actuation loop, controller-specific evidence, and
+explicit actuation authority. H2/H3 and the two-boot storage graduation protocol
+retain their requirements. Simulated input and host persistence cannot stand in
+for target input or native storage in an integrated claim.
+
+SW0 remaining authority and study-control work may proceed in parallel against
+agreed contracts. Named Phase C target enforcement can proceed independently of
+Phase B when its actual target contracts, runtime and gates are available.
+Complete A2 conformance, frozen study/provider controls, and a
+funded work order still precede model collection. The bounded report informs
+agent-specific decisions; a positive comparative result is not a desktop
+prerequisite. No scientific acceptance, funding limit, or evidence standard is
+weakened. Research blocks only work that consumes its unresolved design decision.
+
+One coordinator selects ready packets, owns shared interface allocation/codegen,
+build registration and planning integration, and reserves shared validation
+resources. Sub-agents receive bounded file scopes, prerequisite artifacts,
+consumer/gate acceptance and evidence limits. Independent review and affected
+consumer gates precede integration completion. Work-in-progress follows available
+agent/review capacity; the queue's initial three-worker allocation is a default,
+not a requirement to run every lane at once. Delegation adds no merge, release,
+self-approval, paid-service, physical-actuation or public-support authority.
+
+Keep stable rules in `AGENTS.md`, detailed coordination in `docs/AGENTIC_WORKFLOW.md`,
+the ready queue in `NEXT_TASKS.md`, and landed evidence in `CURRENT_STATUS.md`.
+Canonical project skills live under `.agents/skills/`; `.claude/skills/` links to
+them. Preserve gate-bound historical paths and packets, label their scope, and
+prune redundant active instructions. The drift gate checks agent routing to the
+planning owners instead of requiring a duplicate active-task label.
+
+**Supersedes:** Only the S14 sequencing clause in the 2026-09-30 “SW0 contract
+model before service integration” decision and the retained-order clause in the
+2026-10-03 “Shared product vision” decision. The Constitution, implementation
+contracts, historical results, and authority boundaries remain in force.
+
+**Consequences:** Software work can advance while lab access or study funding is
+pending. Early integration may expose missing runtime, driver, or storage work;
+record it as a dependency rather than weakening a gate. This is a scheduling and
+documentation change, not a speed measurement or new OS/hardware readiness claim.

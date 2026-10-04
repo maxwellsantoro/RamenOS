@@ -1,6 +1,6 @@
 # Getting Started with RamenOS
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active contributor guide
 
 RamenOS is an everyday OS being built for humans and AI agents. It is public
@@ -66,6 +66,12 @@ For SW0's implemented task controls, use the command/scope table in
 [Current Status](../CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment).
 The physical lane and software lane proceed independently. Default hardware
 gates do not establish a physical run or metal graduation.
+
+For a team of agents, the coordinator selects ready tasks from
+[Next Tasks](../NEXT_TASKS.md) and uses [Agentic Workflow](AGENTIC_WORKFLOW.md)
+to assign file ownership, contract dependencies and acceptance gates. Reserve
+shared output directories, QEMU images/sockets and physical equipment before
+parallel runs; separate source files alone do not isolate those resources.
 
 ## Build and regenerate
 

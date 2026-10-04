@@ -1,6 +1,6 @@
 # RISKS
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-04
 **Status:** Active
 
 These risks are evaluated against the [Vision](VISION.md) of an everyday,
@@ -69,7 +69,8 @@ Mitigation:
 - Keep human interaction, the desktop, hardware adaptability, and useful software
   compatibility visible in product descriptions and directional planning.
 - Treat SW0 as a bounded proof of the agent proposition, preserving S14/S15's
-  human-facing purpose and current prerequisites.
+  human-facing purpose. A paid model study is not a dependency of input/desktop
+  software work; retain the technical and evidence prerequisites in `NEXT_TASKS.md`.
 - Evaluate human usability, performance, component recovery, and hardware profiles
   separately before claiming everyday readiness.
 
@@ -80,6 +81,20 @@ Mitigation:
   or changing a component; isolated execution alone does not prove containment.
 - Qualify memory and DMA boundaries in the actual execution environment before
   making broad safety claims.
+
+## R11: Parallel work creates integration debt
+Mitigation:
+- Start with a bounded set of dependency-ready packets, sized to available agents
+  and validation capacity; prioritize the next integrated human task.
+- Give shared contracts, generated output, build registration, and planning files
+  one integration owner. Split consumer/implementation work only after the contract
+  and failure assertions are agreed.
+- Reserve shared gate outputs, ports, CAS state, and hardware; use isolated worktrees
+  when file ownership alone cannot prevent collisions.
+- Integrate and review small increments before dispatching more work. Measure
+  completed gates, blocked time, and integration failures instead of agent count.
+- Keep spending, physical actuation, approval, merge, and release authority separate
+  from local delegation. See [Agentic Workflow](docs/AGENTIC_WORKFLOW.md).
 
 ## Residual security and concurrency risk
 
