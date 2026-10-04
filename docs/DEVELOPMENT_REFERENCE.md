@@ -79,7 +79,17 @@ Store service:
 - `RAMEN_STORE_MAX_CONNECTIONS`: active connection ceiling, default 32,
   range 1–1024; excess connections are closed.
 - `RAMEN_STORE_REQUEST_TIMEOUT_MS`: absolute frame/descriptor handshake and idle
-  connection budget, default 5000 ms, range 1–60000 ms. Reconnect after idle expiry.
+  connection budget, default 5000 ms, range 1–60000 ms.
+
+The host `StoreClient` configures its timeout on both initial and replacement
+connections (default 30 seconds). It bounds the complete response frame with one
+absolute deadline, including partial header/body reads, and applies a timeout to
+each blocking write. This is not an invocation-wide connect/write/read deadline.
+Before dispatch, an already observable peer closure causes reconnection. A closure
+that races dispatch or any transport/framing failure returns an error and discards
+the stream; the next explicit operation reconnects. No request is automatically
+replayed after dispatch. An ingestion error can leave publication uncertain, so
+callers must reconcile artifact/ownership state before deciding to ingest again.
 
 Invalid settings fail startup. Host ingestion validates write authority before
 receiving the descriptor, stages privately, then revalidates authority and current

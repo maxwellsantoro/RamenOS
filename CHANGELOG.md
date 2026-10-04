@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Fixed
+- Applied StoreClient timeouts on initial and replacement sockets and bounded
+  complete response frames against stalled/trickled replies. Retained clients
+  reconnect after observable idle closure and discard failed transports without
+  replaying uncertain ingestion. Added real-server idle and fake-server failure
+  regressions; deadline reads also drain buffered replies after peer closure on
+  macOS without attempting to reconfigure the closed socket.
 - Aligned the x86_64 COM1 console with the HIL appliance's 115200 8N1
   contract by changing its UART divisor from 3 to 1. The S12 GOP gate checks
   QEMU's UART parameter trace as well as boot output, rejecting the former

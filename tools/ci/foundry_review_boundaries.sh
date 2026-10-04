@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Regression gate for the September project-review boundary fixes.
+# Regression gate for project-review boundary fixes, including StoreClient
+# idle recovery, response deadlines and uncertain-ingestion non-replay.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 python3 tools/ci/test_review_boundaries.py
