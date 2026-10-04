@@ -6,7 +6,7 @@
 // V-007 Phase 3: Added audit logging, signature validation (stub), and access control (stub).
 
 use anyhow::{Context, Result};
-use artifact_store_core::verify_blob_matches_manifest;
+use artifact_store_core::verify_blob_identity;
 mod ingest;
 use artifact_store_schema::{
     ContentId, Manifest,
@@ -41,7 +41,7 @@ const DEFAULT_AUDIT_LOG_PATH: &str = "out/store_service_audit.log";
 const MSG_GET_MANIFEST: u8 = 1;
 const MSG_GET_BLOB: u8 = 2;
 const MSG_VERIFY_ARTIFACT: u8 = 3;
-const MSG_INGEST_ARTIFACT: u8 = 4;
+const MSG_INGEST_ARTIFACT: u8 = 7;
 const MSG_QUERY_PROJECTION_BY_PATH: u8 = 5;
 const MSG_QUERY_PROJECTION_BY_TAG: u8 = 6;
 
@@ -605,6 +605,7 @@ fn handle_client(
                 (reply, Operation::VerifyArtifact, params, result)
             }
             MSG_INGEST_ARTIFACT => {
+                let source = store_service::source_fd::receive(&stream)?;
                 let mut registry = domain_registry
                     .lock()
                     .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
@@ -613,6 +614,7 @@ fn handle_client(
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
                 let (reply, params, result) = handle_ingest_artifact(
                     &msg[1..],
+                    Some(source),
                     store_root,
                     access_control,
                     &client_info,
@@ -655,7 +657,7 @@ fn handle_client(
             }
             _ => {
                 eprintln!("store_service: unknown message type: {}", msg_type);
-                continue; // Don't send reply for unknown messages
+                return Err(anyhow::anyhow!("unsupported host message type"));
             }
         };
 
@@ -776,6 +778,13 @@ fn handle_get_manifest(
             fs::read_to_string(&manifest_path).context("failed to read manifest")?;
         let manifest: Manifest =
             serde_json::from_str(&manifest_json).context("failed to parse manifest")?;
+        if manifest.content_id != id.as_str() || manifest.schema_version != 1 {
+            return Ok(GetManifestReply {
+                request_id,
+                status: STATUS_VALIDATION_FAILED,
+                ..Default::default()
+            });
+        }
 
         // S7 Security Hardening: Validate signatures with detailed logging
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
@@ -1043,6 +1052,13 @@ fn handle_get_blob(
             fs::read_to_string(&manifest_path).context("failed to read manifest")?;
         let manifest: Manifest =
             serde_json::from_str(&manifest_json).context("failed to parse manifest")?;
+        if manifest.content_id != id.as_str() || manifest.schema_version != 1 {
+            return Ok(GetBlobReply {
+                request_id,
+                status: STATUS_VALIDATION_FAILED,
+                ..Default::default()
+            });
+        }
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
@@ -1063,6 +1079,13 @@ fn handle_get_blob(
             });
         }
 
+        if verify_blob_identity(&blob_path, &manifest, &id).is_err() {
+            return Ok(GetBlobReply {
+                request_id,
+                status: STATUS_VALIDATION_FAILED,
+                ..Default::default()
+            });
+        }
         Ok(GetBlobReply {
             request_id,
             status: STATUS_OK,
@@ -1195,6 +1218,13 @@ fn handle_verify_artifact(
             fs::read_to_string(&manifest_path).context("failed to read manifest")?;
         let manifest: Manifest =
             serde_json::from_str(&manifest_json).context("failed to parse manifest")?;
+        if manifest.content_id != id.as_str() || manifest.schema_version != 1 {
+            return Ok(VerifyArtifactReply {
+                request_id,
+                status: STATUS_VALIDATION_FAILED,
+                ..Default::default()
+            });
+        }
 
         let sig_result = artifact_store_schema::signature::validate_manifest_signatures(
             &manifest.signatures,
@@ -1215,7 +1245,7 @@ fn handle_verify_artifact(
             });
         }
 
-        match verify_blob_matches_manifest(&blob_path, &manifest_path) {
+        match verify_blob_identity(&blob_path, &manifest, &id) {
             Ok(()) => Ok(VerifyArtifactReply {
                 request_id,
                 status: STATUS_OK,
@@ -1259,6 +1289,7 @@ fn handle_verify_artifact(
 
 fn handle_ingest_artifact(
     payload: &[u8],
+    source: Option<fs::File>,
     store_root: &Path,
     access_control: &AccessControl,
     client_info: &ClientInfo,
@@ -1329,20 +1360,18 @@ fn handle_ingest_artifact(
 
     let result = (|| -> Result<IngestArtifactReply> {
         let src = Path::new(&src_path);
-        if !src.exists() {
+        let Some(source) = source else {
             return Ok(IngestArtifactReply {
                 request_id,
-                status: STATUS_NOT_FOUND,
-                content_id: String::new(),
-                size_bytes: 0,
+                status: STATUS_PERMISSION_DENIED,
+                ..Default::default()
             });
-        }
-
-        let staged = ingest::StagedBlob::read(src, store_root).context("failed to stage blob")?;
+        };
+        let staged =
+            ingest::StagedBlob::read_file(source, store_root).context("failed to stage blob")?;
         let id = staged.content_id.clone();
         let content_id = id.as_str().to_string();
         let size_bytes = staged.size_bytes;
-        domain_registry.check_publication(store_root, &id, cap.domain_id, cap.domain_id == 0)?;
 
         // Create and write manifest
         let manifest = Manifest {
@@ -1354,18 +1383,15 @@ fn handle_ingest_artifact(
             signatures: vec![], // V-007 Phase 3: No signatures yet
         };
 
-        artifact_store_core::publish_cas_artifact(store_root, &manifest, |blob| {
-            staged.publish(blob)
-        })
-        .context("failed to publish artifact")?;
-
-        // V-007 Phase 5: Register artifact ownership
-        let is_global = cap.domain_id == 0; // Kernel artifacts are global
-        if domain_registry.get_owner(&id).is_none() {
-            domain_registry
-                .register_artifact(&id, cap.domain_id, is_global)
-                .context("failed to persist artifact ownership")?;
-        }
+        domain_registry
+            .publish_owned(
+                store_root,
+                &manifest,
+                cap.domain_id,
+                cap.domain_id == 0,
+                |blob| staged.publish(blob),
+            )
+            .context("failed to publish owned artifact")?;
 
         update_projection_index_after_ingest(
             projection_index,
@@ -1407,7 +1433,7 @@ fn handle_ingest_artifact(
             ))
         }
         Err(err) => {
-            eprintln!("store_service: ingest_artifact error: {}", err);
+            eprintln!("store_service: ingest_artifact error: {:#}", err);
             let error_reply = IngestArtifactReply {
                 request_id,
                 status: STATUS_IO_ERROR,
@@ -2114,6 +2140,7 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
+            fs::File::open(&request.src_path).ok(),
             store_root,
             &access_control,
             &client_info,
@@ -2167,6 +2194,7 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
+            fs::File::open(&request.src_path).ok(),
             store_root,
             &access_control,
             &client_info,
@@ -2204,6 +2232,7 @@ mod integration_tests {
         let before = fs::read(&manifest_path).unwrap();
         let (bytes, _, _) = handle_ingest_artifact(
             &payload,
+            fs::File::open(&request.src_path).ok(),
             store_root,
             &access_control,
             &client_info,
@@ -2265,6 +2294,7 @@ mod integration_tests {
         let mut registry = DomainArtifactRegistry::new(root).unwrap();
         let (bytes, _, status) = handle_ingest_artifact(
             &bincode::serialize(&request).unwrap(),
+            fs::File::open(&request.src_path).ok(),
             root,
             &AccessControl::new(),
             &client,
@@ -2321,6 +2351,7 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
+            fs::File::open(&request.src_path).ok(),
             store_root,
             &access_control,
             &client_info,
@@ -2402,6 +2433,7 @@ mod integration_tests {
 
         let result = handle_ingest_artifact(
             &payload,
+            fs::File::open(&request.src_path).ok(),
             store_root,
             &access_control,
             &client_info,
@@ -2783,5 +2815,244 @@ mod integration_tests {
                 expected
             );
         }
+    }
+    #[test]
+    fn review_get_blob_rejects_corrupt_bytes_under_a_signed_manifest() {
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        use artifact_store_schema::signature::*;
+        use base64::Engine;
+        use ed25519_dalek::{Signer, SigningKey};
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let key = SigningKey::from_bytes(&[42; 32]);
+        let id = ContentId::parse(&artifact_store_core::hash_bytes(b"approved bytes")).unwrap();
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: id.as_str().into(),
+            size_bytes: 14,
+            kind: "native_wasm_v0".into(),
+            channels: vec!["Stable".into()],
+            signatures: vec![],
+        };
+        let signature = ManifestSignature {
+            algorithm: SignatureAlgorithm::Ed25519,
+            signature_data: base64::engine::general_purpose::STANDARD.encode(
+                key.sign(&manifest_signing_bytes(&manifest).unwrap())
+                    .to_bytes(),
+            ),
+            key_id: "review".into(),
+            timestamp: None,
+            signer: None,
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&signature).unwrap());
+        artifact_store_core::write_manifest_atomic(
+            &root.join(format!("{}.manifest.json", id.hash_hex())),
+            &manifest,
+        )
+        .unwrap();
+        fs::write(
+            root.join(format!("{}.blob", id.hash_hex())),
+            b"tampered bytes",
+        )
+        .unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        registry.register_artifact(&id, 7, false).unwrap();
+        let mut keys = TrustedKeys::new();
+        keys.add_ed25519_key("review".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let cfg = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: keys,
+            ..Default::default()
+        };
+        let cap = signed_test_capability(7, STORE_RIGHT_READ, 99);
+        let request = GetBlobRequest {
+            request_id: 2,
+            content_id: id.as_str().into(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let (raw, _, _) = handle_get_blob(
+            &bincode::serialize(&request).unwrap(),
+            root,
+            &cfg,
+            &AccessControl::default(),
+            &ClientInfo {
+                pid: Some(123),
+                uid: Some(0),
+                gid: Some(0),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+        let reply: GetBlobReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_VALIDATION_FAILED);
+        assert!(reply.blob_path.is_empty());
+    }
+
+    #[test]
+    fn review_verify_artifact_binds_the_requested_id() {
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        use artifact_store_schema::signature::*;
+        use base64::Engine;
+        use ed25519_dalek::{Signer, SigningKey};
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let key = SigningKey::from_bytes(&[42; 32]);
+        let requested =
+            ContentId::parse(&artifact_store_core::hash_bytes(b"requested artifact")).unwrap();
+        let actual = artifact_store_core::hash_bytes(b"different signed artifact");
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: actual,
+            size_bytes: 25,
+            kind: "native_wasm_v0".into(),
+            channels: vec!["Stable".into()],
+            signatures: vec![],
+        };
+        let sig = ManifestSignature {
+            algorithm: SignatureAlgorithm::Ed25519,
+            signature_data: base64::engine::general_purpose::STANDARD.encode(
+                key.sign(&manifest_signing_bytes(&manifest).unwrap())
+                    .to_bytes(),
+            ),
+            key_id: "review".into(),
+            timestamp: None,
+            signer: None,
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&sig).unwrap());
+        artifact_store_core::write_manifest_atomic(
+            &root.join(format!("{}.manifest.json", requested.hash_hex())),
+            &manifest,
+        )
+        .unwrap();
+        fs::write(
+            root.join(format!("{}.blob", requested.hash_hex())),
+            b"different signed artifact",
+        )
+        .unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        registry.register_artifact(&requested, 7, false).unwrap();
+        let mut keys = TrustedKeys::new();
+        keys.add_ed25519_key("review".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let cfg = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: keys,
+            ..Default::default()
+        };
+        let cap = signed_test_capability(7, STORE_RIGHT_READ, 99);
+        let req = VerifyArtifactRequest {
+            request_id: 2,
+            content_id: requested.as_str().into(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let (raw, _, _) = handle_verify_artifact(
+            &bincode::serialize(&req).unwrap(),
+            root,
+            &cfg,
+            &AccessControl::default(),
+            &ClientInfo {
+                pid: Some(123),
+                uid: Some(0),
+                gid: Some(0),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+        let reply: VerifyArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!((reply.status, reply.valid), (STATUS_VALIDATION_FAILED, 0));
+        let request = GetManifestRequest {
+            request_id: 3,
+            content_id: requested.as_str().into(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let (raw, _, _) = handle_get_manifest(
+            &bincode::serialize(&request).unwrap(),
+            root,
+            &cfg,
+            &AccessControl::default(),
+            &ClientInfo {
+                pid: Some(123),
+                uid: Some(0),
+                gid: Some(0),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+        let reply: GetManifestReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_VALIDATION_FAILED);
+        assert!(reply.content_id.is_empty());
+    }
+
+    #[test]
+    fn review_ingest_source_label_grants_no_service_read_authority() {
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        let temp = TempDir::new().unwrap();
+        let root = temp.path().join("store");
+        fs::create_dir(&root).unwrap();
+        let secret = temp.path().join("private-sentinel");
+        fs::write(&secret, b"private service bytes").unwrap();
+        let request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "config".into(),
+            channel: "test".into(),
+            src_path: secret.display().to_string(),
+            capability_bytes: bincode::serialize(&signed_test_capability(7, STORE_RIGHT_WRITE, 99))
+                .unwrap(),
+        };
+        let payload = bincode::serialize(&request).unwrap();
+        let mut registry = DomainArtifactRegistry::new(&root).unwrap();
+        let mut index = writable_projection_index(&root);
+        let client = ClientInfo {
+            pid: Some(123),
+            uid: Some(0),
+            gid: Some(0),
+            ..Default::default()
+        };
+        let (raw, _, _) = handle_ingest_artifact(
+            &payload,
+            None,
+            &root,
+            &AccessControl::default(),
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_PERMISSION_DENIED);
+        assert!(reply.content_id.is_empty());
+        let caller_source = temp.path().join("caller-readable");
+        fs::write(&caller_source, b"explicit caller snapshot").unwrap();
+        let (raw, _, _) = handle_ingest_artifact(
+            &payload,
+            Some(fs::File::open(&caller_source).unwrap()),
+            &root,
+            &AccessControl::default(),
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_OK);
+        assert_eq!(
+            reply.content_id,
+            artifact_store_core::hash_bytes(b"explicit caller snapshot")
+        );
+        assert_ne!(
+            reply.content_id,
+            artifact_store_core::hash_bytes(b"private service bytes")
+        );
     }
 }

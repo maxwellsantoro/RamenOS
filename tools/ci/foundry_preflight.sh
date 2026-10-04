@@ -7,6 +7,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "FOUNDRY_PREFLIGHT: START"
+# Fail before expensive checks when the complete CI proof cannot run here.
+bash tools/ci/foundry_agent_task_suite.sh --check
 echo "FOUNDRY_PREFLIGHT: INFO step=fmt-check"
 cargo fmt --all --check
 

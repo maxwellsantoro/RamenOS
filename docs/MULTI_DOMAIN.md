@@ -1,12 +1,17 @@
 # Multi-Domain Architecture
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Reference architecture; S8 foundation landed, later isolation work deferred
 **Dependencies:** S6 (Domain Manager), S8 Phase 4 (MMU Integration)
 
 ## Overview
 
-RamenOS provides hardware-enforced domain isolation through per-domain page tables. Each domain has its own virtual address space, preventing unauthorized memory access between domains. Shared memory regions enable controlled, capability-based communication.
+Domains support the [Vision](../VISION.md) of independently developed software
+and drivers in an everyday OS for humans and AI agents. The intended model uses
+per-domain page tables and explicit shared-memory grants to contain memory access
+and communication. S8 foundations exercise selected mappings; complete service,
+driver, and DMA isolation requires separate integration and hardware evidence.
+Containment does not remove dependencies or latency/availability effects on consumers.
 
 ## Domain Model
 

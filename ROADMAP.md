@@ -1,16 +1,31 @@
 # Roadmap
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-03
 **Status:** Directional
 
 This document describes medium- and long-range sequencing. The authoritative
 operational pair is [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
 [NEXT_TASKS.md](NEXT_TASKS.md).
 
+## Destination: Everyday Use for Humans and AI Agents
+
+The [Vision](VISION.md) is a modern, post-Unix OS that aims to combine fast
+execution, hardware adaptability, safety, and ease of use. Humans get an
+approachable desktop and explicit control over policy; agents get structured
+state and scoped, revocable authority. Drivers and software evolve behind typed
+contracts, with bounded failures and evidence about their effects on consumers.
+Compatibility supports existing software while native interfaces remain free
+to evolve.
+
+The lanes below build toward that product. SW0 tests the agent interaction
+model; H0–H3 establish physical evidence; S14/S15 develop human interactivity
+and the desktop. Agent results alone do not qualify everyday readiness. This
+direction preserves the current prerequisites and execution order.
+
 ## Now: Parallel Hardware and Software Lanes
 
 These queue labels are independent lanes, not a single global priority list or
-new slice numbers. SW0 can start now; it does not wait for H3 or lab access.
+new slice numbers. SW0 continues independently; it does not wait for H3 or lab access.
 
 ### Physical lane: H0–H3
 
@@ -28,13 +43,13 @@ Physical runs await test-hardware setup. Software contracts/gates can proceed.
 
 - Before S14 expansion, integrate one useful task across intent, observation,
   scoped grants, artifact modification, validation execution, and evidence.
-- A0's schema/reference-model fixtures and contract gate are implemented. Next,
-  A1 integrates one RT task across actual S10 host services and the smallest
-  missing IDL contracts, with durable receipts and worker/IPC deadlines.
-  Test denied operations by forcing calls
-  against the enforcement backend, independently of model behavior.
-- A2 adds Linux scoped shell and Linux typed controls to the A1 RamenOS path, with a shared
-  protocol for the typed arms and a canonical cross-platform authority manifest.
+- A0/A1 foundations and bounded A2 controls are implemented; see
+  [Current Status](CURRENT_STATUS.md) for their exact scope. Continue remaining
+  host/deputy/unexercised and continuous authority coverage, with denied operations
+  forced against the enforcement backend independently of model behavior.
+- Complete Linux scoped shell and Linux typed controls against the RamenOS path,
+  using the shared typed protocol and canonical authority manifest. Freeze real
+  bank/study releases and provider/token accounting before comparative collection.
 - Pilot the three-arm experiment within a predeclared funded ceiling, then
   freeze an affordable powered final comparison or report exploratory evidence.
   Separate interface effects, substrate effects, and the total proposition;
@@ -45,8 +60,9 @@ Physical runs await test-hardware setup. Software contracts/gates can proceed.
 The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines
 the fixture, gate assertions, comparison protocol, and landing sequence. This
 software lane proceeds independently of the physical track.
-Only the A0 contract model is executable; no useful task proof or comparative
-advantage is claimed yet.
+Scripted host tasks and bounded control gates are executable; full A2 conformance,
+model comparison, and target integration remain pending. No comparative advantage
+is claimed. This proof evaluates one part of the broader product vision.
 
 The G0 Org Kernel and Research Office continue in parallel as a bounded
 project-control track. They may not displace either execution lane or widen their
@@ -55,6 +71,9 @@ own authority.
 ## Next: Expansion After Lane Prerequisites
 
 ### S14: Interactivity
+
+**Product purpose:** establish reliable human input on the reference hardware
+through the same explicit contracts used by native software.
 
 - Require a stable H0/H1 appliance loop, SW0 A1/A2 evidence, and a recorded
   proceed/defer decision on the bounded Phase B report before implementation.
@@ -68,10 +87,15 @@ own authority.
 
 ### S15: Sane Desktop
 
+**Product purpose:** make the OS approachable for everyday human use, with
+predictable interaction and visible control over applications and agent authority.
+
 - Native compositor consumes shared-memory surfaces.
 - Input routes through typed HID and window-focus contracts.
 - Compatibility domains export surfaces without becoming the native API model.
 - Foundry gates cover frame delivery, focus, input routing, and recovery.
+- Define human permission, application-launch, and recovery flows without
+  requiring an AI model; agent assistance uses explicit policy and grants.
 
 ### Platform Follow-Ups
 
@@ -79,6 +103,17 @@ own authority.
 - Real execution-fabric transport and broader kernel broker integration.
 - Compat guest VFS read gate and scratch-to-commit flow.
 - Store wizard orchestration over the landed semantic and projection layers.
+
+### Product Validation Across Future Slices
+
+- Measure latency, throughput, and resource use on representative human and
+  agent workflows before making speed claims.
+- Exercise driver/service replacement and recovery with affected consumers;
+  qualify hardware profiles individually before expanding support claims.
+- Validate human interaction, permission comprehension, and recovery alongside
+  bounded agent tasks. Define concrete consumers and gates before implementation.
+- Demonstrate useful compatibility and a gated native migration path through
+  the Store. Everyday readiness needs integrated evidence across these areas.
 
 ## Research and Governance
 
@@ -98,9 +133,9 @@ own authority.
 | S0-S6 | Boot, IPC, Store, compatibility, portals, queues, and domain management |
 | S7-S9 | GPU quarantine scaffold, shared memory, and phased security hardening |
 | S10 | Native runner, Semantic State, projections, execution fabric, and QEMU IPC bridge |
-| S11 | Complete virtio-net Driver Factory loop through runtime packet I/O |
+| S11 | virtio-net Oracle/replay and embedded-vector harness validation; native device I/O remains |
 | S12 | Golden-machine contract, GOP, HIL boot, IOMMU, and appliance scaffold |
-| S13 | Persistent-storage contract, Oracle/replay loop, runtime block I/O, and metal gate scaffolds |
+| S13 | Storage contract, Oracle/replay, embedded-vector harness validation, and metal gate scaffolds |
 
 See [SLICES.md](SLICES.md) for definitions and [CHANGELOG.md](CHANGELOG.md) for
 chronology.

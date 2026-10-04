@@ -1,9 +1,14 @@
 # Current Status
 
-**Last Updated:** 2026-10-01
+**Last Updated:** 2026-10-03
 **Status:** Active and authoritative for landed state
 **Current Slice:** S12.4 HIL appliance v0 physical loop
 **Software Lane:** SW0 A2.9 finite requestable rights and lifetime points implemented; remaining host/deputy and continuous authority coverage is next
+
+The [product vision](VISION.md) is an everyday, post-Unix OS for humans and AI
+agents. This document records the pre-alpha foundations and their evidence;
+desktop usability, broad hardware adaptability, and production readiness remain
+goals. SW0 and the physical lane are complementary steps toward that product.
 
 ## Active Execution Track
 
@@ -39,9 +44,9 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 
 | Area | Current evidence | What remains |
 |------|------------------|--------------|
-| S11 Driver Factory | Complete; `just s11` | Broader device coverage is future work |
+| S11 Driver Factory | Oracle capture/replay and embedded-vector harness transfers; `just s11` | Device-backed native virtio-net I/O, then broader device coverage |
 | S12 golden machine | QEMU probes and HIL gate scaffolds landed | Appliance-mediated live capture and physical graduation |
-| S13 storage | QEMU Oracle, replay, and runtime block I/O landed | Live NVMe boot plus two-boot atomic rollback evidence |
+| S13 storage | QEMU Oracle capture/replay and harness transfers against embedded vectors landed | Device-backed native block I/O plus live NVMe boot and two-boot atomic rollback evidence |
 | S12.4 appliance | Manifest, evidence schema, gate, serial-observer scaffold, and physical wiring landed | First live serial capture, then provisioned and validated AMT control |
 | Agent Task Proof (SW0) | A0/A1.0, A1.1/A2.1 foundations, A2.2 JSON/RT and A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points | Remaining host/deputy/unexercised and continuous authority coverage, real hidden-bank/study/provider controls, bounded Phase B comparison, production/target integration |
 | G0 RamenOrg | Governance schemas, packets, validators, trials, and gate landed | Research packets and stronger identity-level role separation |
@@ -51,6 +56,43 @@ Medium-range sequencing and deferred decisions live in [ROADMAP.md](ROADMAP.md).
 see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 
 ## Landed Milestones
+
+### Project review boundary fixes (2026-10-03)
+
+- Store checks requested ID against authenticated metadata and blob bytes;
+  native execution hashes the byte snapshot it actually consumes.
+- Host ingestion transfers a caller-opened regular-file descriptor and treats
+  source paths as projection labels. Legacy pathname-only requests fail closed.
+  This host transport does not replace the native IDL shared-memory source contract.
+- Owned CAS publication persists an owner/manifest intent before publishing,
+  recovers partial publication at startup and retry, and denies unrelated orphans.
+- Native Unix/chardev IPC observes the invocation's absolute deadline through
+  connect and partial transfers; uncertain dispatch is never automatically replayed.
+- LT repeated staging preserves candidate capability/validation and counts unique
+  IDs, matching RT. Portable and executable conformance regressions cover the limit.
+- Full preflight and CI consume one complete SW0 sequence and require the Linux
+  proof substrate. Host/QEMU checks do not substitute for Linux containment evidence.
+- S11.8/S13.6 explicitly validate embedded Oracle vectors, with isolated QEMU
+  staging; device-backed native net/block evidence remains outstanding.
+- Local macOS validation: 797 host workspace tests passed (11 ignored), strict
+  workspace Clippy and all six lint tranches passed, bare-metal targets built,
+  and the S0–S8 umbrella, S7 security, S11/S12/S13, governance G0, RT proof, JSON
+  adapter, and review-boundary gates passed. S11.8/S13.6 also passed concurrently.
+  An isolated working-tree copy on the configured Linux host passed the complete
+  shared A0–A2.9 SW0 suite, Store/native runner tests, and real descriptor/deadline
+  regressions. macOS full preflight correctly reports
+  `INCOMPLETE reason=Linux-required` before performing a partial run; Linux proof
+  prerequisites pass. These component runs do not claim a full single-host
+  preflight or physical graduation.
+
+### Product vision alignment (2026-10-03)
+
+- Added `VISION.md` and aligned project, architecture, roadmap, contributor,
+  agent, governance, and research guidance around an everyday OS for humans and
+  AI agents, with modular components and useful compatibility.
+- Preserved hardware/software execution order and evidence boundaries. This is
+  a documentation milestone; it adds no runtime, performance, isolation,
+  comparative, desktop, or physical-readiness evidence.
 
 ### SW0 A2.9 finite requestable rights and lifetime points (2026-10-01)
 
@@ -346,7 +388,7 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
   graduation.
 - S13.0 persistent-storage contract and `harness.block` IDL.
 - S13.2-S13.5 virtio-blk Oracle capture and replay scoreboards.
-- S13.6 runtime `harness.block` sector I/O in QEMU.
+- S13.6 typed `harness.block` transfers against embedded Oracle sector vectors in QEMU; device-backed native block I/O remains unproven.
 - S13.7 NVMe boot and S13.8 atomic-update gate scaffolds at `PASS/QEMU`.
 
 ### S10 and S11
@@ -356,7 +398,7 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
 - Projection storage through copy-on-write commits.
 - Execution-fabric contract and canonical launch plans.
 - Host-to-target semantic snapshot, broker bridge, and QEMU IPC bridge.
-- S11 virtio-net Driver Factory loop through runtime packet I/O in QEMU.
+- S11 virtio-net Oracle capture/replay and typed `harness.net` transfers against embedded packet vectors in QEMU; device-backed native packet I/O remains unproven.
 
 ### Foundations
 

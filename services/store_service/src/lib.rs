@@ -9,6 +9,7 @@
 
 pub mod client;
 pub mod frame;
+pub mod source_fd;
 pub mod status;
 
 // Export modules so bin and other crates share one implementation.

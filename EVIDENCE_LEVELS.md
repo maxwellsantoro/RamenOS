@@ -1,9 +1,14 @@
 # Evidence Levels
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Authoritative for HIL gate reporting
 
 Foundry gates may print `PASS`, but **PASS is not one thing**. Use these levels in gates, docs, and evidence JSON.
+
+The [Vision](VISION.md) sets goals for an everyday OS for humans and AI agents.
+Evidence qualifies implemented behavior, not the aspiration alone. Hardware
+levels below do not establish performance, human usability, agent advantage,
+or whole-product readiness; those need separately scoped evaluation.
 
 ## Levels
 

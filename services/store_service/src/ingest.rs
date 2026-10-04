@@ -14,13 +14,18 @@ pub struct StagedBlob {
 }
 
 impl StagedBlob {
+    #[cfg(test)]
     pub fn read(source: &Path, store_root: &Path) -> io::Result<Self> {
         // O_NONBLOCK prevents a replacement FIFO from blocking the open. Validate
         // the opened descriptor, not a prior path lookup; never follow symlinks.
-        let mut input = OpenOptions::new()
+        let input = OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
             .open(source)?;
+        Self::read_file(input, store_root)
+    }
+
+    pub fn read_file(mut input: File, store_root: &Path) -> io::Result<Self> {
         if !input.metadata()?.is_file() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,

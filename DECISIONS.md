@@ -980,3 +980,72 @@ expiry/revocation; do not erase them from its authority inventory. These are nam
 points, not continuous scheduling or isolation proof. Continue with remaining
 host-client/deputy/unexercised and continuous coverage plus real bank/study/provider
 controls. Keep physical testing deferred.
+
+## 2026-10-03 — Shared product vision for humans and AI agents
+
+**Context:** Agent-task work and public introductions had narrowed the description
+of RamenOS to an experimental OS for agents. The founder reaffirmed the broader
+destination: an everyday, post-Unix OS for humans and AI agents, aiming for fast
+execution, hardware adaptability, safety, and ease of use.
+
+**Chosen:** Use `VISION.md` as the shared product direction and align maintained
+project, architecture, roadmap, contributor, governance, and research guidance.
+Human interfaces and agent interfaces are first-class parts of one product.
+Drivers and software should evolve behind typed contracts with isolated execution,
+bounded failures, and Foundry checks for effects on consumers. Compatibility is
+a useful path while native design remains free to evolve beyond Unix constraints.
+
+Clarify `CONSTITUTION.md` with human usability and policy authority alongside
+agent interfaces, and with modularity that acknowledges dependencies and recovery
+requirements. Core human interaction remains usable without an AI model. Existing
+capability, IDL, kernel/service/Store, and evidence invariants remain in force.
+
+**Consequences:** SW0 is a bounded proof of the agent proposition within the
+broader product. S14/S15 retain their human-input and desktop purpose. Current
+hardware/software ordering and prerequisites remain intact. Public pre-alpha is
+the current stage; performance, full isolation, hardware breadth, and everyday
+readiness require matching evidence. Historical decisions, plans, and trial reports
+retain their original chronology. This decision adds no implementation evidence.
+
+## 2026-10-03 — Review fixes for source authority, durable publication, and IPC bounds
+
+**Context:** Review reproduced signed-artifact identity substitution, corrupt
+GetBlob success, ambient host pathname ingestion, CAS/ownership crash orphans,
+IPC calls exceeding native deadlines, uncertain request replay, and LT duplicate
+staging drift. Local preflight omitted Linux SW0 gates run by CI, and S11.8/S13.6
+claims exceeded their embedded-vector providers' actual evidence.
+
+**Chosen:** Store compares the canonical requested ID with the already
+signature-checked manifest and the blob's opened byte stream. The WASM consumer
+independently hashes its exact compilation/execution snapshot. Keep the host
+client's path API, but open regular sources in the caller and transfer one
+SCM_RIGHTS descriptor under a new host message type (7). The service never opens
+the label; legacy message 4 closes fail-closed. Native `src_shm_cap`/`src_len` IDL
+is unchanged. This preserves large-file workflows without issuing ambient source
+read authority to Store write-capability holders.
+
+A Store-owned publication helper durably records canonical identity, exact
+manifest, domain and global flag before publishing CAS names. Startup and retries
+complete matching valid content or abort an empty intent; corrupt/conflicting
+state fails closed. Unattributed content without an intent cannot be adopted.
+Existing same-owner artifacts retain their prior manifest/signatures; internal
+aggregate projection snapshots remain unattributed.
+
+Both native IPC transports use nonblocking connect and absolute invocation
+read/write deadlines, including partial progress. A lost/failed dispatch has an
+uncertain effect and is never replayed; the reusable Unix session is poisoned.
+Standalone bridges retain bounded per-transaction budgets. No kernel deduplication
+or successful rollback of uncertain effects is claimed.
+
+LT staging counts distinct content IDs and preserves duplicate caps/validation.
+CI and full preflight share the complete SW0 sequence; missing Linux/Docker/image
+or Python requirements mean incomplete proof, not a passing platform skip.
+S11.8/S13.6 are contract/shared-memory checks against embedded Oracle vectors.
+Device-backed native execution remains work requiring Oracle-grounded gates.
+QEMU staging, mutable firmware variables and serial logs are unique per run.
+
+**Consequences:** Updated host clients and services must be deployed together;
+there is no unsafe legacy pathname fallback. Recovery trusts the private Store
+root's durable intent, not requester assertions, and does not automatically repair
+preexisting orphan/corrupt artifacts. These changes add bounded host/QEMU evidence
+and no physical, native device-I/O, whole-system isolation, or readiness claim.

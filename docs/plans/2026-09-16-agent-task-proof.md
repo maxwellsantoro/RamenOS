@@ -1,10 +1,16 @@
 # Agent Task Proof: repair one workspace under bounded authority
 
-**Last Updated:** 2026-09-30
-**Status:** A1.1/A2.1 foundations and A2.2 JSON/RT adapter implemented; LT/full A2/comparison pending
+**Last Updated:** 2026-10-03
+**Status:** A0/A1 foundations and bounded A2 controls through A2.9 implemented; full A2/comparison pending
 **Landing path:** Bounded integration of the S10 runtime, Semantic State, and Store contracts
 
 ## Question and product decision
+
+This proof evaluates the agent-facing part of the [RamenOS Vision](../../VISION.md):
+an everyday, post-Unix OS for humans and AI agents. It supplies a bounded design
+input alongside hardware qualification and future human interaction/desktop
+validation. Its proceed/defer decision informs sequencing without replacing the
+broader product destination.
 
 Does structured interaction help an agent, and does the RamenOS substrate add
 anything beyond typed tools on Linux? Test Linux scoped shell, Linux typed,

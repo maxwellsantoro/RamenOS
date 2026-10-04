@@ -395,26 +395,28 @@ impl NativeRunner {
     /// 4. Calls the _start function
     /// 5. Returns the exit code and captured output
     pub fn run(&self, module: LoadedModule, config: RunConfig) -> Result<RunResult, RunnerError> {
+        let timeout_ms = self.config.timeout_ms;
+        let deadline = Instant::now()
+            .checked_add(Duration::from_millis(timeout_ms))
+            .ok_or_else(|| RunnerError::InvalidArgument("execution deadline overflow".into()))?;
         // Create appropriate kernel bridge (real or mock)
         let bridge: Box<dyn crate::KernelBridgeOps> =
             if self.config.kernel_ipc.to_string_lossy() == "/dev/null" {
                 Box::new(crate::kernel_bridge::MockKernelBridge::new())
             } else if self.config.kernel_ipc_transport == KernelIpcTransport::ChardevSerial {
-                Box::new(crate::kernel_bridge::ChardevKernelBridge::new(
+                Box::new(crate::kernel_bridge::ChardevKernelBridge::with_deadline(
                     self.config.kernel_ipc.clone(),
+                    deadline,
                 ))
             } else {
-                Box::new(crate::kernel_bridge::KernelBridge::new(
+                Box::new(crate::kernel_bridge::KernelBridge::with_deadline(
                     self.config.kernel_ipc.clone(),
+                    deadline,
                 ))
             };
 
         let context = InstanceContext::new(bridge);
         let mut store = Store::new(&self.engine, context);
-        let timeout_ms = self.config.timeout_ms;
-        let deadline = Instant::now()
-            .checked_add(Duration::from_millis(timeout_ms))
-            .ok_or_else(|| RunnerError::InvalidArgument("execution deadline overflow".into()))?;
         store.set_epoch_deadline(1);
         // Engine epochs are shared, but expiration is invocation-local. Another
         // run's timer must never shorten this store's wall-clock budget.

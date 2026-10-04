@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-S13 delivers **native block storage** on Tier-1 hardware: distill a block driver via the Driver Factory, exercise it through `harness.block` in QEMU, then graduate to **NVMe boot + atomic update/rollback** on metal. S11 proved the Oracle→replay→harness loop for virtio-net; S13 repeats it for virtio-blk before touching real NVMe silicon.
+S13 delivers **native block storage** on Tier-1 hardware: distill a block driver via the Driver Factory, exercise it through `harness.block` in QEMU, then graduate to **NVMe boot + atomic update/rollback** on metal. S11 validated Oracle capture/replay and embedded-vector harness transfers for virtio-net; S13 repeats it for virtio-blk before touching real NVMe silicon.
 
 **S13.0 (this milestone):** Pin the storage contract, land `harness.block` IDL, scaffold the virtio-blk Reference Vault, and add a Foundry smoke gate (inventory + negative assertions). No physical NVMe required in default CI.
 
@@ -46,7 +46,7 @@ Aligned with `hardware/golden_machine_v0.toml` and `docs/HARDWARE_STRATEGY.md`.
 | Block harness | Required | `idl/harness/block_v1.toml`; typed `harness.block` IPC |
 | Oracle trace | Required (QEMU) | `driver_protocol_trace_v0` from Linux capsule + virtio-blk |
 | Replay scoreboard | Required | `MockPciDevice` / block mock parity with Oracle |
-| Runtime harness I/O | Required (QEMU) | Serial `persistent_storage: harness.block ok` |
+| Harness vector transfers | Landed (QEMU fixture) | Serial `persistent_storage: harness.block ok`; native device I/O unproven |
 | NVMe boot partition | Required (metal) | UEFI boots RamenOS; reads GPT slot A |
 | Atomic update/rollback | Required (metal) | Store A/B slot flip + serial `persistent_storage: atomic_update ok` |
 | IOMMU | Required (Tier-1) | Inherited from S12; block DMA must respect VT-d path |
@@ -85,7 +85,12 @@ Aligned with `hardware/golden_machine_v0.toml` and `docs/HARDWARE_STRATEGY.md`.
 - Read/write sector Oracle traces; `MockBlockHarness` scoreboard
 - `oracle_block_trace.json` fixture with live provenance option
 
-### Phase 5 — Runtime harness.block in QEMU (S13.6)
+### Phase 5 — Harness vector transfers in QEMU (S13.6)
+
+The current gate transfers embedded Oracle sectors through typed IPC and shared
+memory. It attaches no virtio-blk target device and proves no native read/write
+persistence. Device-backed native harness execution remains work before storage
+graduation.
 
 - `kernel/src/block_harness.rs` NET_V1 analogue for block IPC
 - Init profile `block_io` + serial markers:
@@ -152,7 +157,7 @@ selection nor the virtio-blk QEMU loop establishes native NVMe I/O on metal.
 S13 is complete when:
 
 1. **Contract pinned** — manifest + design doc + S13.0 smoke gate PASS.
-2. **QEMU Driver Factory loop** — virtio-blk Oracle capture, replay, and `harness.block` runtime I/O PASS (`just s13` fast-path).
+2. **QEMU Driver Factory loop** — virtio-blk Oracle capture, replay, and `harness.block` embedded-vector transfers PASS (`just s13` fast-path).
 3. **Metal NVMe boot** — S13.7 HIL gate PASS on Tier-1 class hardware.
 4. **Atomic update** — completed protocol verifier PASS over publication/readback,
    new-slot boot and separate rollback/recovery boot with matching artifact/slot
@@ -191,7 +196,7 @@ Fast-path (target): `just s13` = S13.0 + S13.6 QEMU legs; metal legs opt-in via 
 | Block sector Oracle trace | ✅ S13.4 | `oracle_block_trace.json` |
 | MockBlockHarness replay | ✅ S13.5 | `foundry_s13_replay.sh` sector leg |
 | Replay gate | ✅ S13.3 | `foundry_s13_replay.sh` |
-| Runtime harness.block | ✅ S13.6 | `foundry_s13_runtime_block_s13_6.sh` |
+| Embedded-vector harness.block transfers (device I/O unproven) | ✅ S13.6 | `foundry_s13_runtime_block_s13_6.sh` |
 | Metal NVMe boot | ✅ S13.7 scaffold | HIL opt-in (`just s13-hil`); QEMU negative smoke in gate |
 | Atomic update/rollback | ✅ S13.8 scaffold | HIL opt-in (`just s13-hil`); QEMU negative smoke in gate |
 

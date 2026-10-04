@@ -24,4 +24,4 @@ S11.4 extends `virtio-net-pci` initialization replay through feature negotiation
 - Re-capture init with `tools/trace/capture_virtio_net_oracle.sh` when QEMU/device parameters change.
 - Re-capture packet I/O with `tools/trace/capture_virtio_net_packet_oracle.sh` when harness parameters change; `fetch_virtio_net_modules.sh` refreshes bundled kernel modules.
 - Run `REQUIRE_LIVE_ORACLE_TRACE=1 bash tools/ci/foundry_s11_reference_vault_s11_3.sh` before calling the vault live (init provenance + packet provenance + hardware RX assertion).
-- S11.8 complete: runtime packet I/O under native `harness.net` control in QEMU (`foundry_s11_runtime_net_s11_8.sh`); S11 closed via `just s11`.
+- S11.8 validates typed `harness.net` transfers against embedded Oracle packet vectors in QEMU (`foundry_s11_runtime_net_s11_8.sh`). `just s11` passes this bounded contract/replay lane; device-backed native virtio-net send/receive remains unproven.

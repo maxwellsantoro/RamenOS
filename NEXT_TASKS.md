@@ -1,10 +1,15 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-01
+**Last Updated:** 2026-10-03
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
 > what to execute next. [ROADMAP.md](ROADMAP.md) is directional, not operational.
+
+This queue serves the [Vision](VISION.md): an everyday, post-Unix OS for humans
+and AI agents. Current hardware and agent-task foundations lead toward human
+interactivity, the desktop, and wider software/hardware support; vision alignment
+does not change the lane prerequisites below.
 
 ## Parallel Execution Lanes
 
@@ -200,8 +205,9 @@ before pushing when practical.
 - S14 implementation until the H0/H1 loop is stable, SW0 Phase A/B results are
   reviewed, and the S14 design/IDL/Oracle/gate prerequisites above are met.
 - After this branch merges, update the GitHub repository description to:
-  "An experimental Rust OS for agents: typed capabilities, machine-readable
-  system state, and evidence-gated hardware support."
+  "A Rust-first, post-Unix OS for humans and AI agents, designed for everyday
+  use through typed contracts, modular components, and evidence-backed
+  development. Public pre-alpha."
 - Smart plug/PDU and front-panel relay purchases until AMT validation establishes
   a concrete recovery gap.
 - Full execution-fabric transport and broad real-kernel broker migration.
@@ -211,3 +217,11 @@ before pushing when practical.
 
 Resolved decisions and their evidence live in [DECISIONS.md](DECISIONS.md), not
 in this queue.
+
+## Native Device Evidence Boundary
+
+S11.8 and S13.6 currently validate typed IPC/shared-memory transfers against
+embedded Oracle vectors. Device-backed native virtio-net packet I/O and
+virtio-blk sector read/write/flush remain separate work. Define the device
+attachment, recorded Oracle comparison, and persistence assertions before
+implementing either path; successful vector gates do not close this evidence gap.

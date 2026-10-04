@@ -2,9 +2,12 @@
 set -euxo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OUT_DIR="$ROOT_DIR/out/store"
-ARTIFACT_ROOT="$ROOT_DIR/out/artifacts"
-INSTALLED_ROOT="$ROOT_DIR/out/installed"
+mkdir -p "$ROOT_DIR/out"
+# Each smoke run owns its fixtures. Security gates deliberately corrupt CAS
+# metadata; operator/past-run artifacts must never be repaired or adopted here.
+OUT_DIR="$(mktemp -d "$ROOT_DIR/out/store-s0.XXXXXX")"
+ARTIFACT_ROOT="$OUT_DIR/artifacts"
+INSTALLED_ROOT="$OUT_DIR/installed"
 INSTALLED_ARTIFACTS="$INSTALLED_ROOT/artifacts"
 STORE_SOCKET="$OUT_DIR/store.sock"
 STORE_LOG="$OUT_DIR/store_service.log"
@@ -43,7 +46,7 @@ store_output=$(cargo run -p store_cli -- emit-plan \
   --program-id "ramen.demo.hello" \
   --out "$OUT_DIR/launch_plan.json" \
   --artifact-root "$ARTIFACT_ROOT" \
-  --tmp-root "$ROOT_DIR/out/tmp" \
+  --tmp-root "$OUT_DIR/tmp" \
   --store-socket "$STORE_SOCKET")
 
 echo "$store_output" | grep -q "store: emitted execution launch plan:"
@@ -68,3 +71,4 @@ super_output=$(cargo run -p runtime_supervisor -- \
 echo "$super_output" | grep -q "supervisor: plan ok program_id="
 
 echo "FOUNDRY_STORE_S0: ok"
+echo "FOUNDRY_STORE_S0: evidence_dir=$OUT_DIR"

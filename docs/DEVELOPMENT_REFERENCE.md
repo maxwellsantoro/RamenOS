@@ -1,11 +1,15 @@
 # Development Reference
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Host tooling and operator reference
 
 Start with [Getting Started](GETTING_STARTED.md) for setup and focused gates.
 Use [Current Status](../CURRENT_STATUS.md) and [Next Tasks](../NEXT_TASKS.md)
 for landed state and execution order. Store commands below run on the host.
+
+These tools support the [Vision](../VISION.md) of an everyday OS for humans and
+AI agents. Host commands exercise components of that product; they do not imply
+a complete target desktop or hardware-qualified runtime.
 
 ## Hardware and evidence
 

@@ -1,9 +1,14 @@
 # Security Status
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Pre-alpha; foundational remediation landed, architectural risk remains
 
 ## Summary
+
+Safety for humans and AI agents is a product goal in [VISION.md](VISION.md).
+Explicit authority, modular boundaries, and recoverable failures are design
+requirements; this document describes the current evidence and residual risks
+rather than treating the everyday-OS destination as a security assurance.
 
 The tracked S7 and S9 remediation milestones are complete. RamenOS now has
 fail-closed defaults across its early Store, runner, wire-format, capability,
@@ -17,9 +22,9 @@ implementations.
 
 | Area | Current control |
 |------|-----------------|
-| Artifact identity | Strict content IDs and signature-aware Store paths |
-| Store access | Credential/capability checks and domain-scoped visibility |
-| Native execution | Typed manifests and capability-broker grants |
+| Artifact identity | Requested ID bound to authenticated manifest/blob; consumed WASM snapshot hashed |
+| Store access | Credential/capability checks, domain ownership, descriptor-scoped host ingestion, durable publication recovery |
+| Native execution | Typed manifests/broker grants, absolute host IPC deadlines, no uncertain automatic replay |
 | POSIX compatibility | Explicit opt-in plus a host-portable rlimits-only default profile; seccomp/chroot/namespace helpers are tested but not default-wired |
 | Kernel fast paths | Capability kind, generation, and rights validation |
 | Wire formats | Versioned IDL and fail-closed length/encoding checks |

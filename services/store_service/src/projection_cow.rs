@@ -4,7 +4,7 @@
 //! The S10.3.3 read-only 9p export is unchanged; compat writes reach this path later.
 
 use crate::projection_index::ProjectionIndexStore;
-use artifact_store_core::{hash_bytes, publish_cas_artifact, write_blob_bytes_atomic};
+use artifact_store_core::{hash_bytes, write_blob_bytes_atomic};
 use artifact_store_schema::projection_storage::{PathProjectionV0, SemanticIndexEntryV0};
 use artifact_store_schema::{ContentId, Manifest};
 use std::path::Path;
@@ -64,10 +64,8 @@ pub fn commit_projection_write(
         .map_err(|_| ProjectionCowError::PathNotProjected(commit.virtual_path.to_string()))?;
 
     let new_content_id = hash_bytes(commit.replacement_bytes);
-    let id = ContentId::parse(&new_content_id)
+    ContentId::parse(&new_content_id)
         .map_err(|_| ProjectionCowError::InvalidContentId(new_content_id.clone()))?;
-
-    domain_registry.check_publication(store_root, &id, commit.domain_id, commit.domain_id == 0)?;
 
     let manifest = Manifest {
         schema_version: 1,
@@ -77,12 +75,13 @@ pub fn commit_projection_write(
         channels: vec![commit.channel.to_string()],
         signatures: vec![],
     };
-    publish_cas_artifact(store_root, &manifest, |blob| {
-        write_blob_bytes_atomic(blob, commit.replacement_bytes)
-    })?;
-    if domain_registry.get_owner(&id).is_none() {
-        domain_registry.register_artifact(&id, commit.domain_id, commit.domain_id == 0)?;
-    }
+    domain_registry.publish_owned(
+        store_root,
+        &manifest,
+        commit.domain_id,
+        commit.domain_id == 0,
+        |blob| write_blob_bytes_atomic(blob, commit.replacement_bytes),
+    )?;
 
     let mut entry = SemanticIndexEntryV0::new(&new_content_id);
     entry.tags = dedupe_tags([commit.kind, commit.channel]);

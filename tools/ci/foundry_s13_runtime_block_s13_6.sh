@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 export CARGO_TARGET_DIR="$ROOT_DIR/target"
 
-echo "=== S13.6 Runtime harness.block Sector I/O Foundry Gate ==="
+echo "=== S13.6 Oracle-vector harness.block Transfer Foundry Gate ==="
 
 fail() {
   echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: FAIL code=$1 detail=$2" >&2
@@ -36,9 +36,18 @@ cargo test -p kernel block_harness --features test_protocols --quiet \
 
 echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: INFO step=host_unit_tests ok"
 
-OUT_DIR="$ROOT_DIR/out"
+mkdir -p "$ROOT_DIR/out/logs"
+OUT_DIR="$(mktemp -d "$ROOT_DIR/out/s13-runtime-block.XXXXXX")"
+cleanup() {
+  if [[ -n "${QEMU_PID:-}" ]]; then
+    kill "$QEMU_PID" >/dev/null 2>&1 || true
+    wait "$QEMU_PID" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$OUT_DIR"
+}
+trap cleanup EXIT
 UEFI_DIR="$OUT_DIR/uefi"
-LOG_DIR="$OUT_DIR/logs"
+LOG_DIR="$ROOT_DIR/out/logs"
 INIT_DIR="$OUT_DIR/init"
 mkdir -p "$UEFI_DIR" "$LOG_DIR" "$INIT_DIR"
 
@@ -141,7 +150,7 @@ OVMF_VARS_TEMPLATE="$(find_firmware OVMF_VARS \
 )" || true
 OVMF_VARS="$(prepare_vars "$OVMF_VARS_TEMPLATE" "$UEFI_DIR/x86_64_vars.fd")"
 
-LOG="$LOG_DIR/qemu_x86_64_block_io.log"
+LOG="$LOG_DIR/$(basename "$OUT_DIR").log"
 rm -f "$LOG"
 
 echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: INFO qemu boot x86_64"
@@ -164,6 +173,7 @@ QEMU_PID=$!
 if ! wait_for_log "$LOG" "persistent_storage: harness.block ok" 30; then
   kill "$QEMU_PID" >/dev/null 2>&1 || true
   wait "$QEMU_PID" >/dev/null 2>&1 || true
+  unset QEMU_PID
   echo "--- qemu serial log (tail) ---" >&2
   tail -n 40 "$LOG" >&2 || true
   fail "BLOCK_IO_MISSING" \
@@ -172,14 +182,15 @@ fi
 
 kill "$QEMU_PID" >/dev/null 2>&1 || true
 wait "$QEMU_PID" >/dev/null 2>&1 || true
+unset QEMU_PID
 
 grep -q "persistent_storage: block_read ok" "$LOG" \
   || fail "BLOCK_READ_MISSING" "block_read marker not in serial log"
 grep -q "persistent_storage: block_write ok" "$LOG" \
   || fail "BLOCK_WRITE_MISSING" "block_write marker not in serial log"
 grep -qE 'persistent_storage: trace_sha256_prefix=eb816f3657bb5807' "$LOG" \
-  || fail "TRACE_PREFIX_MISSING" "live Oracle init trace prefix not in serial log"
+  || fail "TRACE_PREFIX_MISSING" "embedded Oracle trace prefix not in serial log"
 
 echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: METRIC trace_sha256_prefix=eb816f3657bb5807"
-echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: PASS"
+echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: PASS scope=oracle-vector-harness device_io=false log=$LOG"
 echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: ok"

@@ -1,7 +1,11 @@
 # RISKS
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Active
+
+These risks are evaluated against the [Vision](VISION.md) of an everyday,
+post-Unix OS for humans and AI agents. Mitigations are plans or bounded controls;
+landed behavior and evidence remain in [Current Status](CURRENT_STATUS.md).
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:
@@ -59,6 +63,23 @@ Mitigation:
 - Require target provenance markers for graduation mode.
 - Treat appliance observations as controller evidence, not target truth.
 - Keep physical gates opt-in and fail closed on stale logs.
+
+## R9: Product scope narrows to the current agent experiment
+Mitigation:
+- Keep human interaction, the desktop, hardware adaptability, and useful software
+  compatibility visible in product descriptions and directional planning.
+- Treat SW0 as a bounded proof of the agent proposition, preserving S14/S15's
+  human-facing purpose and current prerequisites.
+- Evaluate human usability, performance, component recovery, and hardware profiles
+  separately before claiming everyday readiness.
+
+## R10: Modularity is mistaken for absence of dependencies
+Mitigation:
+- Define versioned driver/service contracts and explicit shared-resource limits.
+- Check affected consumers, recovery, latency, and availability when replacing
+  or changing a component; isolated execution alone does not prove containment.
+- Qualify memory and DMA boundaries in the actual execution environment before
+  making broad safety claims.
 
 ## Security vulnerability findings (V-XX)
 

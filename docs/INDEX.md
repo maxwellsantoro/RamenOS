@@ -1,20 +1,25 @@
 # Documentation Index
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-03
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
 investigations are preserved under [archive](archive/README.md), where they are
 historical and non-authoritative.
 
+The [Vision](../VISION.md) is an everyday, post-Unix OS for humans and AI agents.
+Architecture, hardware, agent-task, desktop, Foundry, and Store documents describe
+parts of that product, with implementation status and evidence recorded separately.
+
 ## Start Here
 
 | Need | Document |
 |------|----------|
+| Product vision and description guidance | [Vision](../VISION.md) |
 | Project overview and first commands | [README](../README.md) |
 | Landed state | [Current Status](../CURRENT_STATUS.md) |
 | Next executable work | [Next Tasks](../NEXT_TASKS.md) |
-| Medium-range direction | [Roadmap](../ROADMAP.md) |
+| Product destination and medium-range direction | [Roadmap](../ROADMAP.md) |
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
@@ -29,7 +34,7 @@ The operational source of truth is
 ## Architecture and Policy
 
 - [Constitution](../CONSTITUTION.md): non-negotiable platform invariants.
-- [Platform Overview](../PLATFORM_OVERVIEW.md): OS, Foundry, and Store with Landed / Partial / Target architecture markers.
+- [Platform Overview](../PLATFORM_OVERVIEW.md): human and agent interfaces, modular OS, Foundry, and Store with Landed / Partial / Target architecture markers.
 - [Store Spec](../STORE_SPEC.md): package intelligence and launch-plan model.
 - [Driver Capsule Spec](../DRIVER_CAPSULE_SPEC.md): quarantined legacy-driver boundary.
 - [Hardware Strategy](HARDWARE_STRATEGY.md): Tier-1 and Golden Machine policy.
@@ -114,6 +119,8 @@ gate validates their exact paths.
 
 ## Maintenance
 
+- Keep product framing aligned with `VISION.md`; specialized contracts and
+  historical reports retain their bounded scope rather than implying whole-OS readiness.
 - Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
 - Update `NEXT_TASKS.md` when execution order changes.
 - Move completed, non-gate-bound plans to `docs/archive/plans/`.

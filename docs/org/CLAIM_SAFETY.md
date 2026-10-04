@@ -1,10 +1,15 @@
 # RamenOrg Claim Safety
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** G0 scaffold
 
 Claim safety prevents the organization from saying more than the evidence
 supports.
+
+The [Vision](../../VISION.md) describes an everyday, post-Unix OS for humans
+and AI agents. Preserve that destination while distinguishing goals from achieved
+behavior. Public pre-alpha is a stage of development; agent-task evidence covers
+one part of the product and cannot qualify human usability or whole-OS readiness.
 
 ## General Rule
 
@@ -20,6 +25,9 @@ Every claim must have:
 
 | Unsafe wording | Safer wording |
 |----------------|---------------|
+| "RamenOS is fast, safe, and ready for everyday use" | "RamenOS aims for speed, safety, and everyday usability; current evidence is scoped to the implemented pre-alpha paths" |
+| "Driver isolation means changes cannot affect the rest of the OS" | "The design aims to contain faults behind typed contracts; affected consumers and shared-resource behavior still require tests" |
+| "Agent-task success validates the whole product" | "Agent-task evidence informs the agent interface; human usability, desktop recovery, performance, and hardware support need separate validation" |
 | "S13 is complete" | "S13 QEMU loop is mature; S13.7/S13.8 metal graduation pending PASS/METAL" |
 | "Appliance proved target truth" | "Appliance captured target-emitted evidence markers" |
 | "Research proves the design" | "Research defines claim boundaries and an evaluation plan" |

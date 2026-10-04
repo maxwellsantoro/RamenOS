@@ -7,10 +7,7 @@ set -euxo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 bash "$ROOT_DIR/tools/ci/foundry_review_boundaries.sh"
-bash "$ROOT_DIR/tools/ci/foundry_agent_task_contract_a0.sh"
-bash "$ROOT_DIR/tools/ci/foundry_agent_task_protocol_a1_0.sh"
-bash "$ROOT_DIR/tools/ci/foundry_agent_task_proof_rt.sh"
-bash "$ROOT_DIR/tools/ci/foundry_agent_task_adapter.sh"
+bash "$ROOT_DIR/tools/ci/foundry_agent_task_suite.sh"
 
 echo "=== Running S7 security umbrella gate ==="
 "$ROOT_DIR/tools/ci/foundry_s7_all_security.sh"

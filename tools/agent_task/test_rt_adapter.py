@@ -95,8 +95,15 @@ with tempfile.TemporaryDirectory(prefix='ramenos-adapter-') as tmp:
         candidate=json.dumps(config,separators=(',',':'),sort_keys=True).encode()
         staged=send(p,6,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(candidate)})
         candidate_cap=staged['result']['candidate_cap']
+        # RT and LT must reuse an existing candidate capability and preserve its
+        # successful validation, including when the unique-candidate table is full.
+        for repeat in range(70):
+            again=send(p,1000+repeat,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(candidate)})
+            assert again['status']=='ok' and again['result']==staged['result']
         validation=send(p,7,{'operation':'validate_candidate','task_cap':cap,'candidate_cap':candidate_cap,'validator_id':state['validator_id']})
         assert validation['result']['outcome']=='valid' and not validation['result']['truncated']
+        preserved=send(p,1100,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(candidate)})
+        assert preserved['status']=='ok' and preserved['result']==staged['result']
         commit={'operation':'commit_candidate','task_cap':cap,'candidate_cap':candidate_cap,
           'expected_revision':state['revision'],'expected_content_id':state['content_id']}
         receipt=send(p,8,commit)
@@ -104,6 +111,13 @@ with tempfile.TemporaryDirectory(prefix='ramenos-adapter-') as tmp:
         assert send(p,8,commit)==receipt
         lookup=send(p,9,{'operation':'get_receipt','task_cap':cap,'commit_request_id':'8'})
         assert lookup['result']['content_id']==receipt['result']['content_id'] and lookup['result']['revision']=='1'
+        for unique in range(63):
+            extra=send(p,2000+unique,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(('unique '+str(unique)).encode())})
+            assert extra['status']=='ok'
+        again=send(p,2100,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(candidate)})
+        assert again['status']=='ok' and again['result']==staged['result']
+        full=send(p,2101,{'operation':'stage_candidate','task_cap':cap,'bytes_base64':b64(b'65th unique candidate')})
+        assert full['status']=='capacity' and full['result'] is None
         maximum=send(p,18446744073709551615,{'operation':'get_task_state','task_cap':cap})
         assert maximum['request_id']=='18446744073709551615'
         bad_read=send(p,10,{'operation':'read_input','task_cap':cap,'resource':'resource:00000000000003e7'})

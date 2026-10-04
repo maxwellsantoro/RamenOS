@@ -3,6 +3,53 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 #[test]
+fn review_execution_deadline_bounds_stalled_host_ipc() {
+    use std::io::Read;
+    use std::os::unix::net::UnixListener;
+    for transport in [
+        native_runner::KernelIpcTransport::default(),
+        native_runner::KernelIpcTransport::ChardevSerial,
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("ipc");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let peer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut frame = [0u8; 88];
+            if transport == native_runner::KernelIpcTransport::ChardevSerial {
+                stream.read_exact(&mut [0; 4]).unwrap();
+            }
+            stream.read_exact(&mut frame).unwrap();
+            std::thread::sleep(Duration::from_millis(400));
+        });
+        let runner = native_runner::NativeRunner::new(native_runner::RunnerConfig {
+            kernel_ipc: socket,
+            kernel_ipc_transport: transport,
+            trace_output: None,
+            timeout_ms: 60,
+        })
+        .unwrap();
+        let wasm = wat::parse_str(r#"(module (import "ramen::harness.echo" "echo_request::call" (func $call (param i64 i64 i32 i32 i32 i32) (result i32))) (memory (export "memory") 1) (data (i32.const 0) "\40\00\00\00") (func (export "_start") (result i32) i64.const 1 i64.const 1 i32.const 0 i32.const 0 i32.const 16 i32.const 0 call $call))"#).unwrap();
+        let module = runner.load(&wasm).unwrap();
+        let started = Instant::now();
+        let result = runner.run(module, native_runner::RunConfig::default());
+        let elapsed = started.elapsed();
+        peer.join().unwrap();
+        assert!(
+            elapsed < Duration::from_millis(250),
+            "host IPC exceeded invocation deadline: {elapsed:?}"
+        );
+        assert!(
+            matches!(
+                result,
+                Err(native_runner::RunnerError::ExecutionTimeout { timeout_ms: 60 })
+            ),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
 fn review_execution_deadline_interrupts_guest_and_start_section() {
     for start_section in [false, true] {
         let dir = tempfile::tempdir().unwrap();

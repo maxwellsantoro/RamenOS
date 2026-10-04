@@ -2,7 +2,7 @@
 //! domains; no public listener or production broker registration is installed.
 //! Service objects and host mappings enforce this named boundary, not the target kernel.
 mod worker;
-use artifact_store_core::{blob_path, hash_bytes, publish_cas_artifact, write_blob_bytes_atomic};
+use artifact_store_core::{blob_path, hash_bytes, write_blob_bytes_atomic};
 use artifact_store_schema::agent_task::*;
 pub use artifact_store_schema::agent_task::{TaskPolicyV1, TaskSnapshotV1};
 use artifact_store_schema::{ContentId, Manifest};
@@ -365,12 +365,8 @@ impl TaskService {
     }
     fn publish(&self, b: &[u8]) -> io::Result<String> {
         let id = hash_bytes(b);
-        let parsed = ContentId::parse(&id).map_err(|_| invalid("content id"))?;
         let mut registry =
             crate::DomainArtifactRegistry::new(&self.cas).map_err(io::Error::other)?;
-        registry
-            .check_publication(&self.cas, &parsed, self.fixture.contract.domain_id, false)
-            .map_err(io::Error::other)?;
         let manifest = Manifest {
             schema_version: 1,
             content_id: id.clone(),
@@ -379,14 +375,15 @@ impl TaskService {
             channels: vec![],
             signatures: vec![],
         };
-        publish_cas_artifact(&self.cas, &manifest, |path| {
-            write_blob_bytes_atomic(path, b)
-        })?;
-        if registry.get_owner(&parsed).is_none() {
-            registry
-                .register_artifact(&parsed, self.fixture.contract.domain_id, false)
-                .map_err(io::Error::other)?;
-        }
+        registry
+            .publish_owned(
+                &self.cas,
+                &manifest,
+                self.fixture.contract.domain_id,
+                false,
+                |path| write_blob_bytes_atomic(path, b),
+            )
+            .map_err(io::Error::other)?;
         Ok(id)
     }
     fn blob(&self, id: &str) -> io::Result<Vec<u8>> {

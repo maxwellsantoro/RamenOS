@@ -764,6 +764,11 @@ class LinuxTask:
                 raise TaskError("invalid") from None
             if not data or len(data) > LIMIT or encoded(data) != b64:
                 raise TaskError("invalid")
+            content = digest(data)
+            for cap, candidate in self.state["candidates"].items():
+                if candidate["content_id"] == content:
+                    self.put(data)  # Verify immutable CAS before reusing the grant.
+                    return dict(operation=op, candidate_cap=cap, content_id=content)
             if len(self.state["candidates"]) >= 64:
                 raise TaskError("capacity")
             content = self.put(data)

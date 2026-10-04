@@ -114,6 +114,8 @@ pub fn run(
     let wasm_bytes =
         std::fs::read(blob_path).map_err(|e| format!("failed to read artifact bytes: {}", e))?;
 
+    verify_execution_bytes(artifact_ref, &wasm_bytes)?;
+
     // Step 4: Request capability grants from broker
     // For S10.1, we stub this with empty grants since full broker integration
     // is complex. The real implementation would call DomainManager IPC to
@@ -122,6 +124,19 @@ pub fn run(
 
     // Step 5: Execute the WASM module
     execute_wasm(&wasm_bytes, granted_handles, config)
+}
+
+/// Verify the same byte snapshot that will be compiled and executed.
+fn verify_execution_bytes(artifact_ref: &str, bytes: &[u8]) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let expected = parse_content_id_hash(artifact_ref)?;
+    let actual: [u8; 32] = Sha256::digest(bytes).into();
+    if actual != expected {
+        return Err(
+            "native_wasm_v0: consumed artifact bytes do not match requested content ID".into(),
+        );
+    }
+    Ok(())
 }
 
 /// Request capability grants from the broker.
@@ -214,6 +229,8 @@ fn grant_handles_from_reply(
 }
 
 fn parse_content_id_hash(artifact_ref: &str) -> Result<[u8; 32], String> {
+    artifact_store_schema::ContentId::parse(artifact_ref)
+        .map_err(|e| format!("invalid artifact content ID: {e}"))?;
     let Some(hex) = artifact_ref.strip_prefix("sha256:") else {
         return Err(format!(
             "artifact_ref must be sha256 content id: {artifact_ref}"
@@ -806,5 +823,15 @@ mod tests {
             thread::sleep(Duration::from_millis(10));
         }
         panic!("socket did not appear: {socket_path}");
+    }
+    #[test]
+    fn review_native_execution_hashes_consumed_snapshot() {
+        let bytes = b"approved WASM snapshot";
+        use sha2::{Digest, Sha256};
+        let id = format!("sha256:{:x}", Sha256::digest(bytes));
+        assert!(verify_execution_bytes(&id, bytes).is_ok());
+        assert!(verify_execution_bytes(&id, b"replaced after Store verification").is_err());
+        assert!(verify_execution_bytes("sha256:invalid", bytes).is_err());
+        assert!(verify_execution_bytes(&format!("sha256:{}", "é".repeat(32)), bytes).is_err());
     }
 }

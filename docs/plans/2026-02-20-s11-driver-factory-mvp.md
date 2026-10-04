@@ -24,7 +24,7 @@
 - `tools/ci/foundry_s11_driver_factory_s11_0.sh` (inventory + S11.1 capture scaffold) — PASS.
 - `tools/ci/foundry_s11_replay.sh` (S11.2 replay scoreboard) — PASS.
 - `REQUIRE_LIVE_ORACLE_TRACE=1 tools/ci/foundry_s11_reference_vault_s11_3.sh` — PASS.
-- `tools/ci/foundry_s11_runtime_net_s11_8.sh` (S11.8 runtime harness I/O) — PASS.
+- `tools/ci/foundry_s11_runtime_net_s11_8.sh` (S11.8 embedded-vector harness transfers) — PASS/QEMU; native device I/O unproven.
 - Fast-path umbrella: `just s11`.
 
 ---
@@ -161,12 +161,14 @@ reply = ["data:bytes", "status:u32"]
 
 ## 4b. S11 Definition of Done
 
-S11 is complete when all four gates pass via `just s11`:
+The current contract/replay lane passes when these four gates pass via `just s11`.
+This establishes vector-backed harness behavior; completing the original native
+driver goal also requires device-backed virtio-net send/receive evidence:
 
 1. **Init replay** — `foundry_s11_replay.sh` replays live `oracle_init_trace.json` through `MockPciDevice`.
 2. **Packet replay** — `foundry_s11_replay.sh` replays live `oracle_packet_trace.json` through `MockPacketHarness`.
 3. **Live Oracle provenance** — `REQUIRE_LIVE_ORACLE_TRACE=1 foundry_s11_reference_vault_s11_3.sh` (init + packet + hardware RX).
-4. **Runtime harness I/O** — `foundry_s11_runtime_net_s11_8.sh` boots QEMU and asserts typed `harness.net` send/receive over shared memory.
+4. **Runtime harness I/O** — `foundry_s11_runtime_net_s11_8.sh` boots QEMU and asserts typed `harness.net` send/receive over shared memory against embedded Oracle vectors, without a native device driver.
 
 ---
 

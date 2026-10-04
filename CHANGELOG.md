@@ -2,7 +2,32 @@
 
 ## [Unreleased]
 
+### Fixed
+- Bound Store reads/verification to the requested content ID, authenticated
+  manifest, and blob bytes. Native WASM execution verifies its consumed snapshot.
+- Replaced host ingestion's service-side pathname reads with caller-opened source
+  descriptors. Legacy pathname-only messages fail closed; native ingestion retains
+  its typed shared-memory contract.
+- Added durable owner-bound CAS publication intents and restart/in-process
+  recovery for ingestion, projection commits, and private task artifacts.
+- Bound Unix/chardev host IPC to each native invocation's absolute deadline and
+  removed automatic replay after uncertain dispatch.
+- Made LT duplicate staging reuse candidate capabilities and validation, matching
+  RT's 64-unique-candidate limit; added direct and executable regressions.
+- Shared the complete SW0 gate sequence between CI and preflight. Full preflight
+  requires Linux, jsonschema, Docker/seccomp, and the installed pinned image.
+- Scoped S11.8/S13.6 claims to embedded Oracle-vector harness transfers; native
+  device I/O remains unproven. Isolated their QEMU staging and firmware variables.
+- Isolated Store smoke fixtures from persistent test/operator CAS state and
+  updated the artifact gate for earlier explicit schema-validation rejection.
+
 ### Changed
+- Aligned maintained project documentation and agent guidance with the everyday,
+  post-Unix OS vision for humans and AI agents. Added `VISION.md`, connected
+  hardware, agent-task, desktop, Foundry, and Store work to that destination,
+  and recorded the Constitution clarification in `DECISIONS.md`. Execution order
+  and existing evidence boundaries are preserved; no runtime or readiness claim
+  is added.
 - Added SW0 A2.9's finite requestable rights and named lifetime gate. All three
   arms enumerate 31 grant subsets under full and read/observe-only policies,
   demonstrate actual single-right effects and reject old grants across expiry,
