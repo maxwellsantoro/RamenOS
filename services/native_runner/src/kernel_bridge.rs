@@ -4,9 +4,12 @@
 //! with the kernel. Each method makes a single IPC call that includes
 //! capability validation.
 
+use crate::socket_deadline;
+#[cfg(test)]
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use kernel_api::cap::Handle;
 use kernel_api::generated::echo_harness_v1::{
@@ -100,6 +103,8 @@ pub trait KernelBridgeOps {
 pub struct KernelBridge {
     socket_path: PathBuf,
     stream: Option<UnixStream>,
+    deadline: Option<Instant>,
+    poisoned: bool,
 }
 
 impl KernelBridge {
@@ -108,13 +113,29 @@ impl KernelBridge {
         Self {
             socket_path,
             stream: None,
+            deadline: None,
+            poisoned: false,
+        }
+    }
+
+    pub fn with_deadline(socket_path: PathBuf, deadline: Instant) -> Self {
+        Self {
+            socket_path,
+            stream: None,
+            deadline: Some(deadline),
+            poisoned: false,
         }
     }
 
     /// Ensure that a connection to the kernel is established.
-    fn ensure_connection(&mut self) -> Result<&mut UnixStream, RunnerError> {
+    fn ensure_connection(&mut self, deadline: Instant) -> Result<&mut UnixStream, RunnerError> {
+        if self.poisoned {
+            return Err(RunnerError::KernelIpc(
+                "session has an uncertain dispatch outcome".into(),
+            ));
+        }
         if self.stream.is_none() {
-            let stream = UnixStream::connect(&self.socket_path).map_err(|e| {
+            let stream = socket_deadline::connect(&self.socket_path, deadline).map_err(|e| {
                 RunnerError::KernelIpc(format!("connect to {}: {}", self.socket_path.display(), e))
             })?;
             self.stream = Some(stream);
@@ -127,37 +148,25 @@ impl KernelBridge {
         // Serialize envelope to wire format
         let request_bytes = envelope_to_bytes(&request);
 
-        // Attempt to send and receive, with one retry on connection failure
-        let mut retry = true;
-        loop {
-            let stream = self.ensure_connection()?;
-
-            // Send request
-            if let Err(e) = stream.write_all(&request_bytes) {
-                if retry {
-                    eprintln!("KernelBridge: write error, attempting reconnect: {}", e);
-                    self.stream = None;
-                    retry = false;
-                    continue;
-                }
-                return Err(RunnerError::KernelIpc(format!("write: {}", e)));
-            }
-
-            // Read reply
+        let deadline = self
+            .deadline
+            .unwrap_or_else(|| Instant::now() + Duration::from_secs(5));
+        let result = (|| {
+            let stream = self.ensure_connection(deadline)?;
+            // Once transmission is attempted, an error has an uncertain outcome.
+            // Replaying a capability operation can duplicate irreversible effects.
+            socket_deadline::write_all(stream, &request_bytes, deadline)
+                .map_err(|e| RunnerError::KernelIpc(format!("uncertain dispatch: write: {e}")))?;
             let mut reply_bytes = [0u8; ENVELOPE_WIRE_SIZE];
-            if let Err(e) = stream.read_exact(&mut reply_bytes) {
-                if retry {
-                    eprintln!("KernelBridge: read error, attempting reconnect: {}", e);
-                    self.stream = None;
-                    retry = false;
-                    continue;
-                }
-                return Err(RunnerError::KernelIpc(format!("read: {}", e)));
-            }
-
-            // Deserialize reply
-            return Ok(bytes_to_envelope(&reply_bytes));
+            socket_deadline::read_exact(stream, &mut reply_bytes, deadline)
+                .map_err(|e| RunnerError::KernelIpc(format!("uncertain dispatch: read: {e}")))?;
+            Ok(bytes_to_envelope(&reply_bytes))
+        })();
+        if result.is_err() {
+            self.stream = None;
+            self.poisoned = true;
         }
+        result
     }
 }
 
@@ -310,55 +319,50 @@ impl KernelBridgeOps for KernelBridge {
 /// Opens a fresh connection per transaction (QEMU semantic relay handles one roundtrip).
 pub struct ChardevKernelBridge {
     socket_path: PathBuf,
+    deadline: Option<Instant>,
 }
 
 impl ChardevKernelBridge {
     pub fn new(socket_path: PathBuf) -> Self {
-        Self { socket_path }
+        Self {
+            socket_path,
+            deadline: None,
+        }
+    }
+
+    pub fn with_deadline(socket_path: PathBuf, deadline: Instant) -> Self {
+        Self {
+            socket_path,
+            deadline: Some(deadline),
+        }
     }
 
     fn transact_once(&self, request: &Envelope) -> Result<Envelope, RunnerError> {
-        use std::io::{Read, Write};
-        use std::time::Duration;
-
-        let mut stream = UnixStream::connect(&self.socket_path).map_err(|e| {
-            RunnerError::KernelIpc(format!("connect to {}: {}", self.socket_path.display(), e))
-        })?;
-        stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| RunnerError::KernelIpc(format!("set read timeout: {}", e)))?;
-        stream
-            .set_write_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| RunnerError::KernelIpc(format!("set write timeout: {}", e)))?;
-
-        let wire = envelope_to_wire(request);
-        let frame_len = (FRAME_ENVELOPE_SIZE as u32).to_le_bytes();
-        stream
-            .write_all(&frame_len)
-            .map_err(|e| RunnerError::KernelIpc(format!("write frame length: {}", e)))?;
-        stream
-            .write_all(&wire)
-            .map_err(|e| RunnerError::KernelIpc(format!("write envelope: {}", e)))?;
-        stream
-            .flush()
-            .map_err(|e| RunnerError::KernelIpc(format!("flush: {}", e)))?;
-
+        let deadline = self
+            .deadline
+            .unwrap_or_else(|| Instant::now() + Duration::from_secs(5));
+        let mut stream = socket_deadline::connect(&self.socket_path, deadline)
+            .map_err(|e| RunnerError::KernelIpc(format!("connect: {e}")))?;
+        let mut frame = Vec::with_capacity(4 + FRAME_ENVELOPE_SIZE);
+        frame.extend_from_slice(&(FRAME_ENVELOPE_SIZE as u32).to_le_bytes());
+        frame.extend_from_slice(&envelope_to_wire(request));
+        socket_deadline::write_all(&mut stream, &frame, deadline)
+            .map_err(|e| RunnerError::KernelIpc(format!("uncertain dispatch: write: {e}")))?;
         let mut len_buf = [0u8; 4];
-        stream
-            .read_exact(&mut len_buf)
-            .map_err(|e| RunnerError::KernelIpc(format!("read reply length: {}", e)))?;
+        socket_deadline::read_exact(&mut stream, &mut len_buf, deadline).map_err(|e| {
+            RunnerError::KernelIpc(format!("uncertain dispatch: reply length: {e}"))
+        })?;
         let reply_len = u32::from_le_bytes(len_buf);
         validate_frame_length(reply_len)
-            .map_err(|_| RunnerError::KernelIpc("invalid reply frame length".to_string()))?;
+            .map_err(|_| RunnerError::KernelIpc("invalid reply frame length".into()))?;
         if reply_len as usize != FRAME_ENVELOPE_SIZE {
             return Err(RunnerError::KernelIpc(
-                "unexpected reply envelope size".to_string(),
+                "unexpected reply envelope size".into(),
             ));
         }
         let mut reply_wire = [0u8; FRAME_ENVELOPE_SIZE];
-        stream
-            .read_exact(&mut reply_wire)
-            .map_err(|e| RunnerError::KernelIpc(format!("read reply envelope: {}", e)))?;
+        socket_deadline::read_exact(&mut stream, &mut reply_wire, deadline)
+            .map_err(|e| RunnerError::KernelIpc(format!("uncertain dispatch: reply: {e}")))?;
         Ok(envelope_from_wire(&reply_wire))
     }
 }
@@ -727,6 +731,63 @@ impl Default for MockKernelBridge {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_partial_reply_cannot_extend_absolute_deadline() {
+        use std::os::unix::net::UnixListener;
+        let root = tempfile::tempdir().unwrap();
+        let socket = root.path().join("ipc");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let peer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.read_exact(&mut [0u8; 88]).unwrap();
+            for byte in envelope_to_bytes(&Envelope::empty(8, 2)) {
+                if stream.write_all(&[byte]).is_err() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        });
+        let started = Instant::now();
+        let mut bridge = KernelBridge::with_deadline(socket, started + Duration::from_millis(70));
+        assert!(bridge.transact(Envelope::empty(8, 1)).is_err());
+        assert!(started.elapsed() < Duration::from_millis(180));
+        peer.join().unwrap();
+    }
+
+    #[test]
+    fn review_lost_reply_is_uncertain_and_never_replayed() {
+        use std::os::unix::net::UnixListener;
+        use std::time::{Duration, Instant};
+        let root = tempfile::tempdir().unwrap();
+        let socket = root.path().join("ipc");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let peer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.read_exact(&mut [0u8; 88]).unwrap();
+            drop(stream); // The mutation ran; its reply was lost.
+            listener.set_nonblocking(true).unwrap();
+            let until = Instant::now() + Duration::from_millis(200);
+            while Instant::now() < until {
+                if let Ok((mut duplicate, _)) = listener.accept() {
+                    duplicate.read_exact(&mut [0u8; 88]).unwrap();
+                    duplicate
+                        .write_all(&envelope_to_bytes(&Envelope::empty(8, 2)))
+                        .unwrap();
+                    return 2;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            1
+        });
+        let mut bridge = KernelBridge::new(socket);
+        assert!(bridge.transact(Envelope::empty(8, 1)).is_err());
+        assert!(
+            bridge.transact(Envelope::empty(8, 1)).is_err(),
+            "uncertain session must stay poisoned"
+        );
+        assert_eq!(peer.join().unwrap(), 1);
+    }
 
     #[test]
     fn chardev_kernel_bridge_framed_roundtrip() {

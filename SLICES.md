@@ -1,11 +1,16 @@
 # Vertical Slices
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
 contract, a real consumer, and a Foundry gate. Detailed chronology belongs in
 [CHANGELOG.md](CHANGELOG.md).
+
+Slices build toward the [Vision](VISION.md) of an everyday, post-Unix OS for
+humans and AI agents. Hardware, human interaction, agent authority, Foundry,
+and Store outcomes all contribute; a completed foundation slice does not imply
+whole-product readiness.
 
 ## Slice Index
 
@@ -22,7 +27,7 @@ contract, a real consumer, and a Foundry gate. Detailed chronology belongs in
 | S8 | Shared-memory control/data planes and ring-buffer foundation | Complete |
 | S9 | Store, runner, trace-isolation, and access-control remediation | Complete |
 | S10 | Native runner, Semantic State, projection storage, execution fabric, and QEMU bridge | Core phases complete |
-| S11 | virtio-net Driver Factory MVP | Complete |
+| S11 | virtio-net Driver Factory MVP | Oracle/replay and harness vectors landed; native device I/O pending |
 | S12 | First-metal golden machine and HIL appliance | Active at S12.4 |
 | S13 | Persistent storage from Oracle capture to metal graduation | QEMU loop complete; metal pending |
 | S14 | USB xHCI and HID interactivity | Deferred design pass |
@@ -51,12 +56,15 @@ Remaining:
 
 ## S13 Graduation Boundary
 
-The QEMU Driver Factory path is landed:
+The QEMU Oracle/replay and harness-vector validation path is landed:
 
 - `harness.block` IDL and storage contract.
 - virtio-blk initialization and sector Oracle traces.
-- Replay scoreboards and runtime block I/O.
+- Replay scoreboards and typed harness transfers against embedded Oracle sector vectors.
 - NVMe boot and atomic-update gate scaffolds.
+
+Native device-backed virtio-net/virtio-blk harness execution remains a separate
+evidence requirement; these vector gates do not prove native device I/O.
 
 S13 is not complete until Tier-1 hardware produces the required live NVMe and
 two-boot rollback evidence. Default `just s13` success is `PASS/QEMU`, not
@@ -64,13 +72,15 @@ two-boot rollback evidence. Default `just s13` success is `PASS/QEMU`, not
 
 ## Planned Software Integration
 
-The independent SW0 software lane starts with Phase A of the
-[Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md), before S14
-expansion. It combines S10 components around one task, three comparison adapters,
-protocol/authority conformance checks, and a denial/replay gate. SW0 does not wait
+The independent SW0 software lane has implemented A0's pure contract model,
+A1's scripted host service task, and bounded A2 Linux adapters and controls for
+the [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md). Remaining
+authority coverage and study controls live in [Next Tasks](NEXT_TASKS.md), with
+exact landed scope in [Current Status](CURRENT_STATUS.md). SW0 does not wait
 for hardware graduation and is not a new S-number, completed slice, or agent
 performance result. S12.4 remains the active physical slice. S14 requires a stable
-H0/H1 loop, reviewed SW0 Phase A/B results, and its own design/IDL/Oracle/gate plan.
+H0/H1 loop, reviewed A1/A2 evidence, a recorded decision on the bounded Phase B
+report, and its own design/IDL/Oracle/gate plan. Physical runs await hardware setup.
 
 ## Definition of Done
 

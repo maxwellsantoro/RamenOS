@@ -61,9 +61,7 @@ pub struct NativeWasmConfig {
     pub domain_id: u64,
 
     /// Timeout in milliseconds for WASM execution.
-    /// NOTE: Enforcement deferred to S10.2+ (currently parsed but not enforced).
     #[serde(default = "default_timeout_ms")]
-    #[allow(dead_code)]
     pub timeout_ms: u64,
 }
 
@@ -116,6 +114,8 @@ pub fn run(
     let wasm_bytes =
         std::fs::read(blob_path).map_err(|e| format!("failed to read artifact bytes: {}", e))?;
 
+    verify_execution_bytes(artifact_ref, &wasm_bytes)?;
+
     // Step 4: Request capability grants from broker
     // For S10.1, we stub this with empty grants since full broker integration
     // is complex. The real implementation would call DomainManager IPC to
@@ -124,6 +124,19 @@ pub fn run(
 
     // Step 5: Execute the WASM module
     execute_wasm(&wasm_bytes, granted_handles, config)
+}
+
+/// Verify the same byte snapshot that will be compiled and executed.
+fn verify_execution_bytes(artifact_ref: &str, bytes: &[u8]) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let expected = parse_content_id_hash(artifact_ref)?;
+    let actual: [u8; 32] = Sha256::digest(bytes).into();
+    if actual != expected {
+        return Err(
+            "native_wasm_v0: consumed artifact bytes do not match requested content ID".into(),
+        );
+    }
+    Ok(())
 }
 
 /// Request capability grants from the broker.
@@ -216,6 +229,8 @@ fn grant_handles_from_reply(
 }
 
 fn parse_content_id_hash(artifact_ref: &str) -> Result<[u8; 32], String> {
+    artifact_store_schema::ContentId::parse(artifact_ref)
+        .map_err(|e| format!("invalid artifact content ID: {e}"))?;
     let Some(hex) = artifact_ref.strip_prefix("sha256:") else {
         return Err(format!(
             "artifact_ref must be sha256 content id: {artifact_ref}"
@@ -309,6 +324,7 @@ fn execute_wasm(
         kernel_ipc: config.kernel_ipc.clone().into(),
         kernel_ipc_transport: to_native_runner_transport(transport),
         trace_output: None,
+        timeout_ms: config.timeout_ms,
     };
 
     // Create the runner
@@ -335,6 +351,54 @@ mod tests {
     use std::os::unix::net::UnixListener;
     use std::thread;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn review_native_deadline_is_forwarded_to_runner() {
+        const CHILD: &str = "RAMEN_REVIEW_DEADLINE_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let wasm = wat::parse_str("(module (func (export \"_start\") (result i32) (loop $forever (br $forever)) i32.const 0))").unwrap();
+            let config = NativeWasmConfig {
+                kernel_ipc: "/dev/null".into(),
+                kernel_ipc_transport: KernelIpcTransport::UnixSocket,
+                domain_manager_ipc: None,
+                domain_id: 7,
+                timeout_ms: 20,
+            };
+            let error = execute_wasm(&wasm, HashMap::new(), &config).unwrap_err();
+            assert!(error.contains("execution timed out after 20 ms"), "{error}");
+            return;
+        }
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "native_wasm_runner::tests::review_native_deadline_is_forwarded_to_runner",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let watchdog = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().unwrap().is_some() {
+                break;
+            }
+            if std::time::Instant::now() >= watchdog {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("supervisor ignored native execution deadline");
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     const SEMANTIC_SHMEM_HANDLE: u64 = 0x5308_0000_002a_0001;
     const SEMANTIC_STATE_HANDLE: u64 = 0x5310_0000_002a_0002;
@@ -759,5 +823,15 @@ mod tests {
             thread::sleep(Duration::from_millis(10));
         }
         panic!("socket did not appear: {socket_path}");
+    }
+    #[test]
+    fn review_native_execution_hashes_consumed_snapshot() {
+        let bytes = b"approved WASM snapshot";
+        use sha2::{Digest, Sha256};
+        let id = format!("sha256:{:x}", Sha256::digest(bytes));
+        assert!(verify_execution_bytes(&id, bytes).is_ok());
+        assert!(verify_execution_bytes(&id, b"replaced after Store verification").is_err());
+        assert!(verify_execution_bytes("sha256:invalid", bytes).is_err());
+        assert!(verify_execution_bytes(&format!("sha256:{}", "é".repeat(32)), bytes).is_err());
     }
 }

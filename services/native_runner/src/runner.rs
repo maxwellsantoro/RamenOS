@@ -25,6 +25,7 @@ mod tests {
             kernel_ipc: "/run/ramen/kernel.sock".into(),
             kernel_ipc_transport: KernelIpcTransport::default(),
             trace_output: None,
+            timeout_ms: DEFAULT_EXECUTION_TIMEOUT_MS,
         };
         assert_eq!(config.kernel_ipc.to_str(), Some("/run/ramen/kernel.sock"));
     }
@@ -218,7 +219,58 @@ use crate::RunnerError;
 use crate::context::InstanceContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 use wasmtime::*;
+
+pub const DEFAULT_EXECUTION_TIMEOUT_MS: u64 = 30_000;
+
+/// Wake the engine once at this invocation's deadline; cancel promptly on exit.
+struct DeadlineTimer {
+    cancel: mpsc::Sender<()>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl DeadlineTimer {
+    fn start(engine: Engine, deadline: Instant) -> Result<Self, RunnerError> {
+        let (cancel, receiver) = mpsc::channel();
+        let thread = std::thread::Builder::new()
+            .name("wasm-deadline".into())
+            .spawn(move || {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if receiver.recv_timeout(remaining) == Err(mpsc::RecvTimeoutError::Timeout) {
+                    engine.increment_epoch();
+                }
+            })
+            .map_err(|error| RunnerError::HarnessCall(format!("start execution timer: {error}")))?;
+        Ok(Self {
+            cancel,
+            thread: Some(thread),
+        })
+    }
+}
+
+impl Drop for DeadlineTimer {
+    fn drop(&mut self) {
+        let _ = self.cancel.send(());
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+fn execution_error(error: anyhow::Error, timeout_ms: u64, instantiating: bool) -> RunnerError {
+    if matches!(
+        error.downcast_ref::<RunnerError>(),
+        Some(RunnerError::ExecutionTimeout { .. })
+    ) {
+        RunnerError::ExecutionTimeout { timeout_ms }
+    } else if instantiating {
+        RunnerError::WasmInstantiate(error.to_string())
+    } else {
+        RunnerError::HarnessCall(error.to_string())
+    }
+}
 
 /// Host↔kernel IPC transport (S10.5.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -241,6 +293,10 @@ pub struct RunnerConfig {
 
     /// Optional path for trace output.
     pub trace_output: Option<PathBuf>,
+
+    /// Nonzero guest execution budget, including the WASM start section.
+    /// Epoch interruption does not preempt compilation or blocking host calls.
+    pub timeout_ms: u64,
 }
 
 /// Configuration for a specific run invocation.
@@ -289,9 +345,21 @@ pub struct NativeRunner {
 impl NativeRunner {
     /// Create a new runner with the given configuration.
     pub fn new(config: RunnerConfig) -> Result<Self, RunnerError> {
+        if config.timeout_ms == 0
+            || Instant::now()
+                .checked_add(Duration::from_millis(config.timeout_ms))
+                .is_none()
+        {
+            return Err(RunnerError::InvalidArgument(
+                "execution timeout must be nonzero and representable".into(),
+            ));
+        }
+        let mut engine_config = Config::new();
+        engine_config.epoch_interruption(true);
         Ok(Self {
             config,
-            engine: Engine::default(),
+            engine: Engine::new(&engine_config)
+                .map_err(|error| RunnerError::WasmInstantiate(error.to_string()))?,
         })
     }
 
@@ -299,14 +367,13 @@ impl NativeRunner {
     ///
     /// Uses /dev/null for kernel IPC path since tests don't need real IPC.
     pub fn for_testing() -> Self {
-        Self {
-            config: RunnerConfig {
-                kernel_ipc: "/dev/null".into(),
-                kernel_ipc_transport: KernelIpcTransport::default(),
-                trace_output: None,
-            },
-            engine: Engine::default(),
-        }
+        Self::new(RunnerConfig {
+            kernel_ipc: "/dev/null".into(),
+            kernel_ipc_transport: KernelIpcTransport::default(),
+            trace_output: None,
+            timeout_ms: DEFAULT_EXECUTION_TIMEOUT_MS,
+        })
+        .expect("valid test runner configuration")
     }
 
     /// Load a WASM module from bytes.
@@ -328,22 +395,41 @@ impl NativeRunner {
     /// 4. Calls the _start function
     /// 5. Returns the exit code and captured output
     pub fn run(&self, module: LoadedModule, config: RunConfig) -> Result<RunResult, RunnerError> {
+        let timeout_ms = self.config.timeout_ms;
+        let deadline = Instant::now()
+            .checked_add(Duration::from_millis(timeout_ms))
+            .ok_or_else(|| RunnerError::InvalidArgument("execution deadline overflow".into()))?;
         // Create appropriate kernel bridge (real or mock)
         let bridge: Box<dyn crate::KernelBridgeOps> =
             if self.config.kernel_ipc.to_string_lossy() == "/dev/null" {
                 Box::new(crate::kernel_bridge::MockKernelBridge::new())
             } else if self.config.kernel_ipc_transport == KernelIpcTransport::ChardevSerial {
-                Box::new(crate::kernel_bridge::ChardevKernelBridge::new(
+                Box::new(crate::kernel_bridge::ChardevKernelBridge::with_deadline(
                     self.config.kernel_ipc.clone(),
+                    deadline,
                 ))
             } else {
-                Box::new(crate::kernel_bridge::KernelBridge::new(
+                Box::new(crate::kernel_bridge::KernelBridge::with_deadline(
                     self.config.kernel_ipc.clone(),
+                    deadline,
                 ))
             };
 
         let context = InstanceContext::new(bridge);
         let mut store = Store::new(&self.engine, context);
+        store.set_epoch_deadline(1);
+        // Engine epochs are shared, but expiration is invocation-local. Another
+        // run's timer must never shorten this store's wall-clock budget.
+        store.epoch_deadline_callback(move |_| {
+            if Instant::now() >= deadline {
+                Err(anyhow::Error::new(RunnerError::ExecutionTimeout {
+                    timeout_ms,
+                }))
+            } else {
+                Ok(UpdateDeadline::Continue(1))
+            }
+        });
+        let _timer = DeadlineTimer::start(self.engine.clone(), deadline)?;
         let mut linker = Linker::new(&self.engine);
 
         // Register generated host functions (bridged to kernel)
@@ -363,7 +449,7 @@ impl NativeRunner {
         // Instantiate the module
         let instance = linker
             .instantiate(&mut store, &module.module)
-            .map_err(|e| RunnerError::WasmInstantiate(e.to_string()))?;
+            .map_err(|error| execution_error(error, timeout_ms, true))?;
 
         // Inject capabilities into exported globals
         inject_capabilities(&mut store, &instance, &config.granted_handles)?;
@@ -381,7 +467,10 @@ impl NativeRunner {
 
         let exit_code = start_typed
             .call(&mut store, ())
-            .map_err(|e| RunnerError::HarnessCall(e.to_string()))?;
+            .map_err(|error| execution_error(error, timeout_ms, false))?;
+        if Instant::now() >= deadline {
+            return Err(RunnerError::ExecutionTimeout { timeout_ms });
+        }
 
         // Extract captured output from context
         let context = store.into_data();
@@ -481,6 +570,7 @@ mod review_regressions {
             kernel_ipc: socket,
             kernel_ipc_transport: KernelIpcTransport::default(),
             trace_output: None,
+            timeout_ms: DEFAULT_EXECUTION_TIMEOUT_MS,
         })
         .unwrap();
         let wasm=wat::parse_str(r#"(module

@@ -1,6 +1,6 @@
 # Research-Backed RamenOrg Plan
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** G0 scaffold / planning track
 
 ## Context
@@ -18,10 +18,14 @@ only in chat:
 The combined project doctrine is:
 
 ```text
-RamenOS is a research-backed, agent-native OS.
+RamenOS is a research-backed, post-Unix OS for humans and AI agents.
 RamenOrg is the capability-governed organization building it.
 Research is a production lane when novelty or risk makes guessing unsafe.
 ```
+
+The [Vision](../../VISION.md) defines everyday use as the destination. RamenOrg
+coordinates evidence-bearing progress toward human interaction, agent control,
+modular drivers/services, hardware adaptability, and useful compatibility.
 
 ## Scope Now
 

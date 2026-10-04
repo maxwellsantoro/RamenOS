@@ -2,7 +2,7 @@
 //!
 //! Path/tag lookups and durable CAS-backed persistence for `ProjectionIndexV0`.
 
-use artifact_store_core::{hash_bytes, write_blob_bytes_atomic, write_manifest_atomic};
+use artifact_store_core::{hash_bytes, publish_cas_artifact, write_blob_bytes_atomic};
 use artifact_store_schema::projection_storage::{
     PathProjectionV0, ProjectionIndexV0, SemanticIndexEntryV0, validate_path_projection,
     validate_projection_index, validate_semantic_index_entry,
@@ -155,14 +155,8 @@ impl ProjectionIndexStore {
         }
 
         let json = serde_json::to_vec_pretty(&self.index)?;
-        write_json_atomic(path, &json)?;
 
         let content_id = hash_bytes(&json);
-        let id = ContentId::parse(&content_id)
-            .map_err(|_| ProjectionIndexError::Validation("invalid content_id".into()))?;
-
-        let blob_dst = store_root.join(format!("{}.blob", id.hash_hex()));
-        write_blob_bytes_atomic(&blob_dst, &json)?;
 
         let manifest = Manifest {
             schema_version: 1,
@@ -172,8 +166,12 @@ impl ProjectionIndexStore {
             channels: vec!["stable".to_string()],
             signatures: vec![],
         };
-        let manifest_dst = store_root.join(format!("{}.manifest.json", id.hash_hex()));
-        write_manifest_atomic(&manifest_dst, &manifest)?;
+        // Internal aggregate snapshots remain unattributed and inaccessible to
+        // remote domains. Reusing a CAS identity must preserve existing metadata.
+        publish_cas_artifact(store_root, &manifest, |blob| {
+            write_blob_bytes_atomic(blob, &json)
+        })?;
+        write_json_atomic(path, &json)?;
 
         Ok(content_id)
     }
@@ -336,12 +334,73 @@ fn write_json_atomic(path: &Path, json: &[u8]) -> Result<(), ProjectionIndexErro
         tmp.sync_all()?;
     }
     fs::rename(&tmp_path, path)?;
+    if let Some(parent) = path.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_projection_snapshot_preserves_existing_metadata_and_stays_private() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let mut store =
+            ProjectionIndexStore::load_or_empty(ProjectionIndexStore::default_path(root)).unwrap();
+        let json = serde_json::to_vec_pretty(store.index()).unwrap();
+        let content_id = hash_bytes(&json);
+        let id = ContentId::parse(&content_id).unwrap();
+        let manifest_path = root.join(format!("{}.manifest.json", id.hash_hex()));
+        write_blob_bytes_atomic(&root.join(format!("{}.blob", id.hash_hex())), &json).unwrap();
+        artifact_store_core::write_manifest_atomic(
+            &manifest_path,
+            &Manifest {
+                schema_version: 1,
+                content_id: content_id.clone(),
+                size_bytes: json.len() as u64,
+                kind: "signed_snapshot".into(),
+                channels: vec!["trusted".into()],
+                signatures: vec!["signature-sentinel".into()],
+            },
+        )
+        .unwrap();
+        let before = fs::read(&manifest_path).unwrap();
+        assert_eq!(store.persist_atomic(root).unwrap(), content_id);
+        assert_eq!(fs::read(&manifest_path).unwrap(), before);
+        let registry = crate::DomainArtifactRegistry::new(root).unwrap();
+        assert!(
+            !registry.can_access(&id, 7),
+            "aggregate snapshots must not become globally readable"
+        );
+    }
+
+    #[test]
+    fn review_projection_snapshot_failure_keeps_durable_working_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let mut store =
+            ProjectionIndexStore::load_or_empty(ProjectionIndexStore::default_path(root)).unwrap();
+        store.persist_atomic(root).unwrap();
+        let before = fs::read(ProjectionIndexStore::default_path(root)).unwrap();
+        let id = hash_bytes(b"payload");
+        store.upsert_entry(SemanticIndexEntryV0::new(&id)).unwrap();
+        let json = serde_json::to_vec_pretty(store.index()).unwrap();
+        let new = ContentId::parse(&hash_bytes(&json)).unwrap();
+        let blob_path = root.join(format!("{}.blob", new.hash_hex()));
+        fs::write(&blob_path, b"incomplete existing artifact").unwrap();
+        assert!(store.persist_atomic(root).is_err());
+        assert_eq!(
+            fs::read(ProjectionIndexStore::default_path(root)).unwrap(),
+            before
+        );
+        assert_eq!(
+            fs::read(blob_path).unwrap(),
+            b"incomplete existing artifact"
+        );
+    }
     use std::io::Write;
     use tempfile::{NamedTempFile, TempDir};
 

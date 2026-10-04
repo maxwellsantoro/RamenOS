@@ -21,6 +21,7 @@ members = [
   "services/kernel_harness_proxy",  # S10.5.1: Host kernel harness proxy
   "services/execution_fabric",  # S10.4: Execution fabric simulation service
   "driver_foundry",  # S11: Driver Factory host replay tooling
+  "tools/agent_task_adapter", # SW0 shared JSON protocol + opt-in host RT adapter
   "sdk",  # V-006 Phase 4: Native WASM SDK
   "examples/hello_wasm",  # V-006 Phase 4: Hello World WASM example
 ]

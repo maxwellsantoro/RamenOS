@@ -29,6 +29,7 @@ run_codegen --in idl/harness/echo_harness_v1.toml --out kernel_api/src/generated
 run_codegen --in idl/harness/trace_service_v2.toml --out kernel_api/src/generated/trace_service_v2.generated.rs
 run_codegen --in idl/services/semantic_state_v1.toml --out kernel_api/src/generated/semantic_state_v1.generated.rs
 run_codegen --in idl/harness/semantic_store_v1.toml --out kernel_api/src/generated/semantic_store_v1.generated.rs
+run_codegen --in idl/harness/agent_task_v1.toml --out kernel_api/src/generated/agent_task_v1.generated.rs
 run_codegen --in idl/services/execution_fabric_v1.toml --out kernel_api/src/generated/execution_fabric_v1.generated.rs
 run_codegen --in idl/harness/echo_harness_v0.toml --out sdk/src/generated/harness_echo_v0.rs --lang wasm-imports
 run_codegen --in idl/services/semantic_state_v1.toml --out sdk/src/generated/services_semantic_state_v1.rs --lang wasm-imports

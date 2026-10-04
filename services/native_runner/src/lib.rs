@@ -14,6 +14,7 @@ mod guest_memory;
 pub mod harness;
 pub mod kernel_bridge;
 pub mod runner;
+mod socket_deadline;
 
 pub use context::InstanceContext;
 pub use error::{RunnerError, Status};

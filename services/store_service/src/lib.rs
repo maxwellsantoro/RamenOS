@@ -9,10 +9,13 @@
 
 pub mod client;
 pub mod frame;
+pub mod source_fd;
 pub mod status;
 
 // Export modules so bin and other crates share one implementation.
 pub mod access_control;
+#[cfg(feature = "agent_task_v1_dev")]
+pub mod agent_task;
 pub mod audit;
 pub mod capability;
 pub mod dev_mode;

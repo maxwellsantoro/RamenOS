@@ -1,6 +1,6 @@
 # Agentic Workflow & Guardrails
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Contributor workflow; tooling checks are not OS security boundaries
 
 RamenOS uses AI coding agents within the same vertical-slice and evidence
@@ -8,7 +8,10 @@ requirements as other contributors. [AGENTS.md](../AGENTS.md) is the stable
 agent contract; [Current Status](../CURRENT_STATUS.md) and
 [Next Tasks](../NEXT_TASKS.md) own landed state and execution order. The
 [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) is a separate, planned
-experiment about agents using the OS. Development with agents does not by
+experiment about agents using the OS. The [Vision](../VISION.md) is broader:
+an everyday, post-Unix OS for humans and AI agents, including approachable human
+interaction and independently developed drivers/services behind explicit contracts.
+Development with agents does not by
 itself demonstrate the OS thesis or a measured development-speed advantage.
 
 ## Local hooks
@@ -28,6 +31,11 @@ Generate bindings with `just codegen`, update lockfiles through Cargo, and follo
 [AGENTS.md](../AGENTS.md) for Constitution changes regardless of hook availability.
 
 ## Review and validation
+
+Descriptions and design reviews must keep that human-and-agent destination
+visible. Current agent experiments provide bounded evidence about one part of
+the product; performance, human usability, and hardware adaptability require
+their own evaluation.
 
 Review must check kernel/service/Store boundaries, native IDL contracts,
 capability validation, negative behavior, and the evidence needed for the claim.

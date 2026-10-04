@@ -1,22 +1,30 @@
 # Next Tasks
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
 > what to execute next. [ROADMAP.md](ROADMAP.md) is directional, not operational.
 
+This queue serves the [Vision](VISION.md): an everyday, post-Unix OS for humans
+and AI agents. Current hardware and agent-task foundations lead toward human
+interactivity, the desktop, and wider software/hardware support; vision alignment
+does not change the lane prerequisites below.
+
 ## Parallel Execution Lanes
 
-**Now:** H0 HIL appliance serial observer — first live capture — and SW0 Agent Task Proof Phase A can proceed independently.
+**Now:** SW0 A2 remaining host/deputy/unexercised and continuous authority coverage; HIL appliance hardware runs await setup.
+A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented.
+Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
-not the next item after H3. Start SW0 now without waiting for lab access or NVMe
+not the next item after H3. Continue SW0 without waiting for lab access or NVMe
 graduation. Lane labels are queue positions, not new slice identifiers.
 
 ## Physical Lane: H0–H3
 
-Run the first live capture on the physically ready Pi↔M900 chain, then provision
+When test hardware is available, run the first live capture on the Pi↔M900 chain,
+then provision
 and validate the M900's Intel AMT 11 power/reset path.
 S12 runs on the installed 240 GB SanDisk SATA SSD. Add a compatible M.2 2280
 PCIe NVMe drive before S13 metal graduation. Front-panel relays and a
@@ -27,7 +35,15 @@ smart plug/PDU remain deferred until AMT testing shows they are necessary.
 | H0 | S12.4.1 HIL appliance serial observer — first live capture | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_SERIAL_DEV=/dev/ttyUSB0 just hil-appliance` captures live serial and emits valid controller evidence |
 | H1 | S12.4.2 Intel AMT power/reset actuator | AMT status, power-on, power-off, reset, and power-cycle are validated from the Pi and represented in controller evidence JSON |
 | H2 | S12 physical graduation on the installed SanDisk SATA SSD | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 just s12-hil` produces valid live provenance |
-| H3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation | `RAMEN_HIL_APPLIANCE=1 RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_GRADUATION=1 just s13-hil` produces valid live provenance with `claim_path: appliance-mediated` |
+| H3 | Add M.2 2280 PCIe NVMe and run S13 metal graduation using the completed reboot/rollback protocol | Provenance-bound boot and rollback captures verify slot/artifact transitions and recovery; existing `just s13-hil` metadata scaffold alone is insufficient |
+
+Before H3 graduation, implement a gate for inactive-slot publication and readback,
+revisioned boot selection, a new-slot boot and a rollback/recovery boot with fresh
+nonces, and recovered artifact identity. Define interrupted-write/selection cases
+and the storage flush/ordering contract first. Hardware runs remain deferred.
+S13.7 proves firmware boot from an NVMe ESP; native NVMe `harness.block` I/O needs
+its own controller Reference Vault, Oracle, implementation and target evidence.
+Neither firmware detection nor a manually set `rollback_ready` variable proves it.
 
 ### H0 Acceptance Criteria
 
@@ -63,36 +79,95 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** write Phase A's deterministic task, control-protocol,
-authority-mapping, denial, and replay assertions, then implement the adapters.
+**Next software action:** A2 — bound remaining host-client/deputy differences and
+unexercised authority outside the declared interface; extend continuous lifetime
+coverage beyond named points and fixture policies. Freeze real bank/study releases
+and provider/token accounting before
+full A2 or comparative model collection.
+[A2.9 requestable authority](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) checks
+31 grant subsets under two policies, single-right effects and named expiry/renewal/
+revocation points. Equality is limited to the issued-right interface projection;
+whole envelopes and broader host/deputy reach remain unknown.
+[A2.8 reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md) checks named
+acknowledged lifecycle cleanup and explicit all-arm interrupted-commit recovery.
+Unresolved create intents remain quarantined until explicit evidence resolves them.
+[A2.7 evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md) supply the
+bank/release contract and external session bounds across 45 synthetic development
+attempts. Validator timeouts remain in the denominator; a separate forced LS
+timeout remains a failed task; its cleanup is certified only with complete
+acknowledged-ID evidence.
+[A2.6 finite authority inventory](docs/AGENT_TASK_AUTHORITY_V1.md) freezes logical
+tuples and compares 33 common cases in all arms, preserving unknown mappings.
+[A2.5 typed subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) supply a bounded
+version 2 poll/cancel lifecycle with named RT/LT comparisons and explicit LS scope.
+[A2.4 LS commands](docs/AGENT_TASK_LS_TRANSACTIONS_V1.md) provide contained shell
+transactions, a bounded launcher and receipt recovery. A2.3's
+[independent LT backend](docs/AGENT_TASK_LT_BACKEND_V1.md) runs the shared
+[JSON contract](docs/AGENT_TASK_ADAPTER_V1.md) and named RT/LT point cases.
+A2.1's
+[Linux scoped-shell foundation](docs/AGENT_TASK_LINUX_CONTROL_V1.md) is runnable
+with real containment probes. Preserve A1.1's independently runnable host gate
+and its explicit
+[fixture boundary](docs/AGENT_TASK_SERVICE_PROOF_V1.md).
 SW0 has no H0–H3 prerequisite. The
 [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
 consumer task: repair a scoped configuration, execute its pinned validator, and
 report the resulting artifact while access to another workspace is denied.
 
-1. Inventory the actual Semantic State, Store, broker, and native runner paths.
-   Write the task-success, forced-denial, revocation, conflict, audit, and replay
-   assertions first; define missing native operations through IDL/codegen.
-2. Implement the fixture and scripted consumer across the host service boundary.
-   Ship a deterministic Foundry gate and inspectable evidence bundle. Report
-   host enforcement explicitly; no target-native or comparative claim yet.
+0. A0 is implemented: `just foundry-agent-task-contract-a0` checks the pure
+   contract model and synthetic fixtures. It is not a useful task or an
+   enforcement boundary. See [Agent Task Contract V0](docs/AGENT_TASK_CONTRACT_V0.md).
+1. A1.0 is implemented: `just foundry-agent-task-protocol-a1-0` checks generated
+   fixed control layouts and fail-closed request preflight. The documented
+   call-path inventory and A1.1 matrix do not supply service enforcement.
+   A1.1 is implemented: `just foundry-agent-task-proof-rt` checks the useful
+   scripted host task, forced denials, worker bounds, durable receipt recovery,
+   scoped events and audit/receipt replay. Production registration, separately
+   isolated clients and target-kernel task enforcement remain outside its scope.
+2. A2.1 implements a scripted Linux scoped-shell repair, shared development
+   fixture, pinned validation, measured Docker containment and named probes. It
+   does not supply LS durable commits or all-arm conformance.
+   A2.2 implements the shared JSON codec/descriptions and opt-in RT bridge with
+   independent executable/schema assertions. A2.3 adds independent LT transactions,
+   direct broker denials/recovery and shared named point-case checks. A2.4 adds
+   contained LS commands/launcher
+   using the same Linux transaction engine, with real peer and cleanup checks.
+   A2.5 adds shared typed subscriptions, coalescing, cancellation and lifecycle
+   comparisons while preserving version 1. A2.6 adds a fixed canonical vocabulary,
+   33 shared cases, explicit LS file/process/raw-session probes and separate
+   available/task/probe effects. Full E_max/E(t), unexercised/deputy/isolation
+   authority remain incomplete. A2.7 adds bank/release contracts and bounded
+   scripted sessions with private failure evidence; real hidden-bank qualification,
+   provider/token accounting remain pending. A2.8 adds durable lifecycle fencing and
+   explicit receipt recovery; unacknowledged daemon work stays unknown. A2.9 adds
+   finite requestable grant subsets and lifetime witnesses, not complete envelopes.
+   Keep A1 runnable
+   independently; comparative data collection requires all A2 controls to pass.
 3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
    and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
    authority mappings. Use the predeclared power rule to size and freeze the
-   final comparison, then run it opt-in. Report the three contrasts and separate
+   final comparison within a funded, predeclared ceiling, then run it opt-in.
+   If power is unaffordable, publish a bounded exploratory report and record the
+   proceed/defer decision with its limitations. Report the three contrasts and
+   separate
    completion, authority, cost, and audit/replay outcomes, including uncertainty.
 4. Add target-side enforcement evidence for named task operations. The existing
    QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
 
-The proof and its proposed commands are **not implemented**. Completion of the
-plan is not completion of the experiment; an unfavorable comparison is a valid
+A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented;
+full A2 conformance and model comparison are **not implemented**. Completion of
+the contract is not completion
+of the experiment; an unfavorable comparison is a valid
 result and should inform the next software slice.
 
 ## S14 Expansion Prerequisites
 
 S14 USB xHCI/HID implementation depends on both lanes: a demonstrated stable
-H0/H1 observation-and-actuation loop, and review of SW0 Phase A evidence and
-Phase B comparison results. It also needs its own short design, Reference Vault
+H0/H1 observation-and-actuation loop, review of SW0 A1/A2 evidence, and a recorded
+proceed/defer decision on the bounded Phase B report. A budget-limited exploratory
+report may satisfy that review with explicit uncertainty, without a powered
+claim; a positive RamenOS advantage is not required. It also needs its own short
+design, Reference Vault
 and Oracle trace, IDL boundary, and Foundry gate definition before implementation.
 H2/H3 remain the physical graduation sequence; they do not block SW0. SW0 Phase C
 is a separate target-enforcement follow-up, not a prerequisite for the host study.
@@ -130,8 +205,9 @@ before pushing when practical.
 - S14 implementation until the H0/H1 loop is stable, SW0 Phase A/B results are
   reviewed, and the S14 design/IDL/Oracle/gate prerequisites above are met.
 - After this branch merges, update the GitHub repository description to:
-  "An experimental Rust OS for agents: typed capabilities, machine-readable
-  system state, and evidence-gated hardware support."
+  "A Rust-first, post-Unix OS for humans and AI agents, designed for everyday
+  use through typed contracts, modular components, and evidence-backed
+  development. Public pre-alpha."
 - Smart plug/PDU and front-panel relay purchases until AMT validation establishes
   a concrete recovery gap.
 - Full execution-fabric transport and broad real-kernel broker migration.
@@ -141,3 +217,11 @@ before pushing when practical.
 
 Resolved decisions and their evidence live in [DECISIONS.md](DECISIONS.md), not
 in this queue.
+
+## Native Device Evidence Boundary
+
+S11.8 and S13.6 currently validate typed IPC/shared-memory transfers against
+embedded Oracle vectors. Device-backed native virtio-net packet I/O and
+virtio-blk sector read/write/flush remain separate work. Define the device
+attachment, recorded Oracle comparison, and persistence assertions before
+implementing either path; successful vector gates do not close this evidence gap.

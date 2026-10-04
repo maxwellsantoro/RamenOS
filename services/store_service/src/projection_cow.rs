@@ -4,7 +4,7 @@
 //! The S10.3.3 read-only 9p export is unchanged; compat writes reach this path later.
 
 use crate::projection_index::ProjectionIndexStore;
-use artifact_store_core::{hash_bytes, write_blob_bytes_atomic, write_manifest_atomic};
+use artifact_store_core::{hash_bytes, write_blob_bytes_atomic};
 use artifact_store_schema::projection_storage::{PathProjectionV0, SemanticIndexEntryV0};
 use artifact_store_schema::{ContentId, Manifest};
 use std::path::Path;
@@ -22,6 +22,9 @@ pub enum ProjectionCowError {
 
     #[error("invalid content id: {0}")]
     InvalidContentId(String),
+
+    #[error("artifact ownership error: {0}")]
+    Ownership(#[from] anyhow::Error),
 }
 
 /// Replacement payload for a single CoW commit (v0 scratch buffer).
@@ -44,9 +47,12 @@ pub struct ProjectionWriteCommitResult {
 /// Commit replacement bytes for a projected virtual path.
 ///
 /// Ingests a fresh CAS blob, repoints the path projection, and leaves the prior blob intact.
+/// Callers serialize all writers to this store and share the live ownership registry.
+/// A domain may overlay its own or a globally readable source with owned content.
 pub fn commit_projection_write(
     store_root: &Path,
     projection_index: &mut ProjectionIndexStore,
+    domain_registry: &mut crate::DomainArtifactRegistry,
     commit: &ProjectionWriteCommit<'_>,
 ) -> Result<ProjectionWriteCommitResult, ProjectionCowError> {
     if !projection_index.allows_mutation(store_root) {
@@ -54,15 +60,12 @@ pub fn commit_projection_write(
     }
 
     let prior_content_id = projection_index
-        .query_by_path(commit.virtual_path)
+        .query_by_path_for_domain(commit.virtual_path, commit.domain_id, domain_registry)
         .map_err(|_| ProjectionCowError::PathNotProjected(commit.virtual_path.to_string()))?;
 
     let new_content_id = hash_bytes(commit.replacement_bytes);
-    let id = ContentId::parse(&new_content_id)
+    ContentId::parse(&new_content_id)
         .map_err(|_| ProjectionCowError::InvalidContentId(new_content_id.clone()))?;
-
-    let blob_path = store_root.join(format!("{}.blob", id.hash_hex()));
-    write_blob_bytes_atomic(&blob_path, commit.replacement_bytes)?;
 
     let manifest = Manifest {
         schema_version: 1,
@@ -72,19 +75,26 @@ pub fn commit_projection_write(
         channels: vec![commit.channel.to_string()],
         signatures: vec![],
     };
-    let manifest_path = store_root.join(format!("{}.manifest.json", id.hash_hex()));
-    write_manifest_atomic(&manifest_path, &manifest)?;
+    domain_registry.publish_owned(
+        store_root,
+        &manifest,
+        commit.domain_id,
+        commit.domain_id == 0,
+        |blob| write_blob_bytes_atomic(blob, commit.replacement_bytes),
+    )?;
 
     let mut entry = SemanticIndexEntryV0::new(&new_content_id);
     entry.tags = dedupe_tags([commit.kind, commit.channel]);
     entry.path_alias = Some(commit.virtual_path.to_string());
     entry.domain_id = commit.domain_id;
-    projection_index.upsert_entry(entry)?;
+    let mut candidate = projection_index.clone();
+    candidate.upsert_entry(entry)?;
 
     let mut projection = PathProjectionV0::new(commit.virtual_path, &new_content_id);
     projection.domain_id = commit.domain_id;
-    projection_index.upsert_path_projection(projection)?;
-    projection_index.persist_atomic(store_root)?;
+    candidate.upsert_path_projection(projection)?;
+    candidate.persist_atomic(store_root)?;
+    *projection_index = candidate;
 
     Ok(ProjectionWriteCommitResult {
         virtual_path: commit.virtual_path.to_string(),
@@ -138,6 +148,10 @@ mod tests {
             &manifest,
         )
         .expect("write manifest");
+        crate::DomainArtifactRegistry::new(store_root)
+            .unwrap()
+            .register_artifact(&ContentId::parse(&content_id).unwrap(), 0, true)
+            .unwrap();
 
         let src = store_root.join("source.txt");
         fs::File::create(&src)
@@ -195,8 +209,13 @@ mod tests {
             channel: "beta",
             domain_id: 0,
         };
-        let result = commit_projection_write(&store_root, &mut index, &commit)
-            .expect("commit projection write");
+        let result = commit_projection_write(
+            &store_root,
+            &mut index,
+            &mut crate::DomainArtifactRegistry::new(&store_root).unwrap(),
+            &commit,
+        )
+        .expect("commit projection write");
 
         assert_eq!(result.virtual_path, virtual_path);
         assert_eq!(result.prior_content_id, prior_content_id);
@@ -222,6 +241,206 @@ mod tests {
             read_blob(&store_root, &result.new_content_id),
             NEW_BYTES,
             "new CAS blob must contain committed bytes"
+        );
+    }
+
+    #[test]
+    fn review_projection_cow_owner_can_retrieve_after_restart() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let (path, _) = seed_projected_artifact(root);
+        let mut index =
+            ProjectionIndexStore::load_from_path(ProjectionIndexStore::default_path(root)).unwrap();
+        let mut live_registry = crate::DomainArtifactRegistry::new(root).unwrap();
+        let result = commit_projection_write(
+            root,
+            &mut index,
+            &mut live_registry,
+            &ProjectionWriteCommit {
+                virtual_path: &path,
+                replacement_bytes: NEW_BYTES,
+                kind: "config",
+                channel: "stable",
+                domain_id: 7,
+            },
+        )
+        .unwrap();
+        let registry = crate::DomainArtifactRegistry::new(root).unwrap();
+        let id = ContentId::parse(&result.new_content_id).unwrap();
+        assert!(live_registry.can_access(&id, 7));
+        assert_eq!(
+            index
+                .query_by_path_for_domain(&path, 7, &live_registry)
+                .unwrap(),
+            result.new_content_id
+        );
+        assert!(registry.can_access(&id, 7));
+        assert!(!registry.can_access(&id, 99));
+        let index =
+            ProjectionIndexStore::load_from_path(ProjectionIndexStore::default_path(root)).unwrap();
+        assert_eq!(
+            index.query_by_path_for_domain(&path, 7, &registry).unwrap(),
+            result.new_content_id
+        );
+        assert!(
+            index.query_by_path_for_domain(&path, 99, &registry).is_ok(),
+            "global source stays readable"
+        );
+    }
+
+    fn assert_existing_manifest_preserved(owner: u64, succeeds: bool) {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let (path, _) = seed_projected_artifact(root);
+        let id = ContentId::parse(&hash_bytes(NEW_BYTES)).unwrap();
+        write_blob_bytes_atomic(&root.join(format!("{}.blob", id.hash_hex())), NEW_BYTES).unwrap();
+        let manifest_path = root.join(format!("{}.manifest.json", id.hash_hex()));
+        write_manifest_atomic(
+            &manifest_path,
+            &Manifest {
+                schema_version: 1,
+                content_id: id.as_str().to_owned(),
+                size_bytes: NEW_BYTES.len() as u64,
+                kind: "signed_validator".into(),
+                channels: vec!["trusted".into()],
+                signatures: vec!["signature-sentinel".into()],
+            },
+        )
+        .unwrap();
+        crate::DomainArtifactRegistry::new(root)
+            .unwrap()
+            .register_artifact(&id, owner, false)
+            .unwrap();
+        let before = fs::read(&manifest_path).unwrap();
+        let index_path = ProjectionIndexStore::default_path(root);
+        let prior_index = fs::read(&index_path).unwrap();
+        let mut index = ProjectionIndexStore::load_from_path(&index_path).unwrap();
+        let result = commit_projection_write(
+            root,
+            &mut index,
+            &mut crate::DomainArtifactRegistry::new(root).unwrap(),
+            &ProjectionWriteCommit {
+                virtual_path: &path,
+                replacement_bytes: NEW_BYTES,
+                kind: "config",
+                channel: "stable",
+                domain_id: 7,
+            },
+        );
+        assert_eq!(result.is_ok(), succeeds);
+        assert_eq!(fs::read(&manifest_path).unwrap(), before);
+        assert_eq!(
+            fs::read(root.join(format!("{}.blob", id.hash_hex()))).unwrap(),
+            NEW_BYTES
+        );
+        assert_eq!(
+            crate::DomainArtifactRegistry::new(root)
+                .unwrap()
+                .get_owner(&id)
+                .unwrap()
+                .domain_id,
+            owner
+        );
+        if !succeeds {
+            assert_eq!(fs::read(index_path).unwrap(), prior_index);
+            assert!(
+                !index
+                    .index()
+                    .path_projections
+                    .iter()
+                    .any(|p| p.domain_id == 7)
+            );
+        }
+    }
+
+    #[test]
+    fn review_projection_cow_denies_foreign_content_collision() {
+        assert_existing_manifest_preserved(99, false);
+    }
+
+    #[test]
+    fn review_projection_cow_reuses_own_signed_manifest() {
+        assert_existing_manifest_preserved(7, true);
+    }
+
+    #[test]
+    fn review_projection_cow_denies_corrupt_ownership() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let (path, _) = seed_projected_artifact(root);
+        let id = ContentId::parse(&hash_bytes(NEW_BYTES)).unwrap();
+        fs::write(
+            root.join(format!("{}.ownership.json", id.hash_hex())),
+            b"invalid",
+        )
+        .unwrap();
+        let mut index =
+            ProjectionIndexStore::load_from_path(ProjectionIndexStore::default_path(root)).unwrap();
+        let before = fs::read(ProjectionIndexStore::default_path(root)).unwrap();
+        assert!(
+            commit_projection_write(
+                root,
+                &mut index,
+                &mut crate::DomainArtifactRegistry::new(root).unwrap(),
+                &ProjectionWriteCommit {
+                    virtual_path: &path,
+                    replacement_bytes: NEW_BYTES,
+                    kind: "config",
+                    channel: "stable",
+                    domain_id: 7,
+                }
+            )
+            .is_err()
+        );
+        assert!(!root.join(format!("{}.blob", id.hash_hex())).exists());
+        assert_eq!(
+            fs::read(ProjectionIndexStore::default_path(root)).unwrap(),
+            before
+        );
+    }
+
+    #[test]
+    fn review_projection_cow_denies_private_source_and_unattributed_destination() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let (path, old) = seed_projected_artifact(root);
+        let mut registry = crate::DomainArtifactRegistry::new(root).unwrap();
+        let mut index =
+            ProjectionIndexStore::load_from_path(ProjectionIndexStore::default_path(root)).unwrap();
+        let private_path = "/private/config";
+        let mut projection = PathProjectionV0::new(private_path, &old);
+        projection.domain_id = 99;
+        index.upsert_path_projection(projection).unwrap();
+        index.persist_atomic(root).unwrap();
+        let before = fs::read(ProjectionIndexStore::default_path(root)).unwrap();
+        let commit = ProjectionWriteCommit {
+            virtual_path: private_path,
+            replacement_bytes: NEW_BYTES,
+            kind: "config",
+            channel: "stable",
+            domain_id: 7,
+        };
+        assert!(matches!(
+            commit_projection_write(root, &mut index, &mut registry, &commit),
+            Err(ProjectionCowError::PathNotProjected(_))
+        ));
+        let id = ContentId::parse(&hash_bytes(NEW_BYTES)).unwrap();
+        assert!(!root.join(format!("{}.blob", id.hash_hex())).exists());
+        // Presence alone grants no right to repair or claim legacy content.
+        fs::write(root.join(format!("{}.blob", id.hash_hex())), NEW_BYTES).unwrap();
+        let commit = ProjectionWriteCommit {
+            virtual_path: &path,
+            ..commit
+        };
+        assert!(commit_projection_write(root, &mut index, &mut registry, &commit).is_err());
+        assert_eq!(
+            fs::read(ProjectionIndexStore::default_path(root)).unwrap(),
+            before
+        );
+        assert!(
+            !root
+                .join(format!("{}.ownership.json", id.hash_hex()))
+                .exists()
         );
     }
 }

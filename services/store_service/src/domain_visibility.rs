@@ -13,6 +13,13 @@ use std::path::{Path, PathBuf};
 
 use artifact_store_schema::ContentId;
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PublicationIntent {
+    owner: ArtifactOwner,
+    manifest: artifact_store_schema::Manifest,
+}
+
 /// Artifact ownership record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -64,6 +71,9 @@ impl DomainArtifactRegistry {
             store_root: store_root.to_path_buf(),
         };
 
+        // A durable, owner-bound intent is the only authority for completing
+        // partial publication. Arbitrary unattributed CAS content stays denied.
+        registry.recover_publications()?;
         // Scan existing artifacts to populate registry
         registry.scan_existing_artifacts()?;
 
@@ -268,6 +278,151 @@ impl DomainArtifactRegistry {
             .join(format!("{}.ownership.json", content_id.hash_hex()))
     }
 
+    fn intent_path(&self, id: &ContentId) -> PathBuf {
+        self.store_root
+            .join(format!("{}.publication.json", id.hash_hex()))
+    }
+
+    fn begin_publication(
+        &mut self,
+        manifest: &artifact_store_schema::Manifest,
+        domain_id: u64,
+        is_global: bool,
+    ) -> Result<()> {
+        let id =
+            ContentId::parse(&manifest.content_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.check_publication(&self.store_root, &id, domain_id, is_global)?;
+        anyhow::ensure!(
+            manifest.schema_version == 1,
+            "unsupported publication schema"
+        );
+        if self.get_owner(&id).is_some() {
+            return Ok(());
+        }
+        let intent = PublicationIntent {
+            owner: ArtifactOwner {
+                content_id: id.clone(),
+                domain_id,
+                is_global,
+                ingested_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs(),
+            },
+            manifest: manifest.clone(),
+        };
+        std::fs::create_dir_all(&self.store_root)?;
+        let path = self.intent_path(&id);
+        let tmp = path.with_extension("tmp");
+        let mut file = std::fs::File::create(&tmp)?;
+        file.write_all(&serde_json::to_vec(&intent)?)?;
+        file.sync_all()?;
+        std::fs::rename(tmp, path)?;
+        std::fs::File::open(&self.store_root)?.sync_all()?;
+        Ok(())
+    }
+
+    /// Caller serializes writers. Persist source identity and owner before CAS
+    /// publication, then finish ownership and remove the intent durably.
+    pub fn publish_owned<F>(
+        &mut self,
+        store_root: &Path,
+        manifest: &artifact_store_schema::Manifest,
+        domain_id: u64,
+        is_global: bool,
+        publish_blob: F,
+    ) -> Result<()>
+    where
+        F: FnOnce(&Path) -> std::io::Result<()>,
+    {
+        anyhow::ensure!(
+            store_root == self.store_root,
+            "ownership registry/store root mismatch"
+        );
+        // An earlier I/O error can leave a recoverable intent in this process.
+        self.recover_publications()?;
+        self.begin_publication(manifest, domain_id, is_global)?;
+        artifact_store_core::publish_cas_artifact(&self.store_root, manifest, publish_blob)?;
+        let id =
+            ContentId::parse(&manifest.content_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        if self.intent_path(&id).try_exists()? {
+            self.recover_publications()?;
+        }
+        Ok(())
+    }
+
+    fn recover_publications(&mut self) -> Result<()> {
+        if !self.store_root.try_exists()? {
+            return Ok(());
+        }
+        for entry in std::fs::read_dir(&self.store_root)? {
+            let entry = entry?;
+            let filename = entry.file_name();
+            let filename = filename.to_string_lossy();
+            let Some(hash) = filename.strip_suffix(".publication.json") else {
+                continue;
+            };
+            let id = ContentId::parse(&format!("sha256:{hash}"))
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let intent: PublicationIntent = serde_json::from_slice(&std::fs::read(entry.path())?)
+                .context("invalid publication intent")?;
+            // Deserialize of ContentId is transparent; validate before deriving paths.
+            anyhow::ensure!(
+                ContentId::parse(intent.owner.content_id.as_str()).is_ok()
+                    && intent.owner.content_id == id
+                    && intent.manifest.content_id == id.as_str()
+                    && intent.manifest.schema_version == 1
+                    && (!intent.owner.is_global || intent.owner.domain_id == 0),
+                "publication intent identity/owner mismatch"
+            );
+            let blob = self.store_root.join(format!("{}.blob", id.hash_hex()));
+            let metadata = self
+                .store_root
+                .join(format!("{}.manifest.json", id.hash_hex()));
+            let owner_path = self.ownership_path(&id);
+            if owner_path.try_exists()? {
+                let owner: ArtifactOwner = serde_json::from_slice(&std::fs::read(&owner_path)?)?;
+                anyhow::ensure!(
+                    owner.content_id == id
+                        && owner.domain_id == intent.owner.domain_id
+                        && owner.is_global == intent.owner.is_global,
+                    "publication owner conflict"
+                );
+                anyhow::ensure!(blob.try_exists()?, "published ownership has no blob");
+                self.artifacts.insert(id.hash_hex().to_string(), owner);
+            }
+            if !blob.try_exists()? {
+                if metadata.try_exists()? {
+                    let existing: artifact_store_schema::Manifest =
+                        serde_json::from_slice(&std::fs::read(&metadata)?)?;
+                    anyhow::ensure!(
+                        serde_json::to_value(existing)? == serde_json::to_value(&intent.manifest)?,
+                        "publication manifest conflict"
+                    );
+                    std::fs::remove_file(&metadata)?;
+                }
+            } else {
+                artifact_store_core::verify_blob_identity(&blob, &intent.manifest, &id)?;
+                if metadata.try_exists()? {
+                    let existing: artifact_store_schema::Manifest =
+                        serde_json::from_slice(&std::fs::read(&metadata)?)?;
+                    anyhow::ensure!(
+                        serde_json::to_value(existing)? == serde_json::to_value(&intent.manifest)?,
+                        "publication manifest conflict"
+                    );
+                } else {
+                    artifact_store_core::write_manifest_atomic(&metadata, &intent.manifest)?;
+                    std::fs::File::open(&self.store_root)?.sync_all()?;
+                }
+                if !owner_path.try_exists()? {
+                    self.register_artifact(&id, intent.owner.domain_id, intent.owner.is_global)?;
+                }
+            }
+            std::fs::remove_file(entry.path())?;
+            std::fs::File::open(&self.store_root)?.sync_all()?;
+        }
+        Ok(())
+    }
+
     /// Reject ownership changes before any existing CAS metadata is overwritten.
     pub fn check_registration(
         &self,
@@ -294,10 +449,37 @@ impl DomainArtifactRegistry {
         Ok(())
     }
 
-    /// Check if a domain can access an artifact
-    ///
-    /// S7 Security Hardening: Logs all access denials for forensic analysis.
-    /// Returns true if the domain can access the artifact, false otherwise.
+    /// Validate an owned publication before any CAS bytes or metadata change.
+    /// The registry must describe this exact store; unattributed content is denied.
+    pub fn check_publication(
+        &self,
+        store_root: &Path,
+        id: &ContentId,
+        domain_id: u64,
+        is_global: bool,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            store_root == self.store_root,
+            "ownership registry/store root mismatch"
+        );
+        self.check_registration(id, domain_id, is_global)?;
+        if self.get_owner(id).is_none() {
+            anyhow::ensure!(
+                !self
+                    .store_root
+                    .join(format!("{}.blob", id.hash_hex()))
+                    .try_exists()?
+                    && !self
+                        .store_root
+                        .join(format!("{}.manifest.json", id.hash_hex()))
+                        .try_exists()?,
+                "existing artifact has no valid ownership"
+            );
+        }
+        Ok(())
+    }
+
+    /// Check if a domain can access an artifact; unknown ownership fails closed.
     pub fn can_access(&self, content_id: &ContentId, domain_id: u64) -> bool {
         let hash = content_id.hash_hex();
 
@@ -350,6 +532,126 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn review_publication_recovers_every_durable_boundary() {
+        use artifact_store_core::{hash_bytes, write_blob_bytes_atomic, write_manifest_atomic};
+        let bytes = b"durable owned bytes";
+        let id = ContentId::parse(&hash_bytes(bytes)).unwrap();
+        let manifest = artifact_store_schema::Manifest {
+            schema_version: 1,
+            content_id: id.as_str().into(),
+            size_bytes: bytes.len() as u64,
+            kind: "config".into(),
+            channels: vec![],
+            signatures: vec![],
+        };
+        for phase in 0..4 {
+            let root = TempDir::new().unwrap();
+            let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+            registry.begin_publication(&manifest, 7, false).unwrap();
+            if phase >= 1 {
+                write_blob_bytes_atomic(
+                    &root.path().join(format!("{}.blob", id.hash_hex())),
+                    bytes,
+                )
+                .unwrap();
+            }
+            if phase >= 2 {
+                write_manifest_atomic(
+                    &root.path().join(format!("{}.manifest.json", id.hash_hex())),
+                    &manifest,
+                )
+                .unwrap();
+            }
+            if phase >= 3 {
+                registry.register_artifact(&id, 7, false).unwrap();
+            }
+            let mut restarted = DomainArtifactRegistry::new(root.path()).unwrap();
+            restarted
+                .publish_owned(root.path(), &manifest, 7, false, |blob| {
+                    write_blob_bytes_atomic(blob, bytes)
+                })
+                .unwrap();
+            assert!(restarted.can_access(&id, 7));
+            assert!(!restarted.can_access(&id, 8));
+            assert!(!restarted.intent_path(&id).exists());
+            assert!(
+                restarted
+                    .publish_owned(root.path(), &manifest, 8, false, |_| panic!(
+                        "foreign owner must fail before writing"
+                    ))
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn review_publication_io_failure_can_retry_without_adopting_orphans() {
+        let root = TempDir::new().unwrap();
+        let bytes = b"recoverable bytes";
+        let id = ContentId::parse(&artifact_store_core::hash_bytes(bytes)).unwrap();
+        let manifest = artifact_store_schema::Manifest {
+            schema_version: 1,
+            content_id: id.as_str().into(),
+            size_bytes: bytes.len() as u64,
+            kind: "test".into(),
+            channels: vec![],
+            signatures: vec![],
+        };
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        assert!(
+            registry
+                .publish_owned(root.path(), &manifest, 7, false, |blob| {
+                    artifact_store_core::write_blob_bytes_atomic(blob, bytes)?;
+                    Err(std::io::Error::other("crash after blob"))
+                })
+                .is_err()
+        );
+        registry
+            .publish_owned(root.path(), &manifest, 7, false, |_| {
+                panic!("recovered bytes must be reused")
+            })
+            .unwrap();
+        assert!(registry.can_access(&id, 7));
+        let orphan = ContentId::parse(&artifact_store_core::hash_bytes(b"unattributed")).unwrap();
+        fs::write(
+            root.path().join(format!("{}.blob", orphan.hash_hex())),
+            b"unattributed",
+        )
+        .unwrap();
+        assert!(
+            registry
+                .check_publication(root.path(), &orphan, 7, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn review_publication_recovery_rejects_corrupt_or_conflicting_intent() {
+        let root = TempDir::new().unwrap();
+        let bytes = b"valid";
+        let id = ContentId::parse(&artifact_store_core::hash_bytes(bytes)).unwrap();
+        let manifest = artifact_store_schema::Manifest {
+            schema_version: 1,
+            content_id: id.as_str().into(),
+            size_bytes: bytes.len() as u64,
+            kind: "test".into(),
+            channels: vec![],
+            signatures: vec![],
+        };
+        let mut registry = DomainArtifactRegistry::new(root.path()).unwrap();
+        registry.begin_publication(&manifest, 7, false).unwrap();
+        fs::write(
+            root.path().join(format!("{}.blob", id.hash_hex())),
+            b"wrong",
+        )
+        .unwrap();
+        assert!(DomainArtifactRegistry::new(root.path()).is_err());
+        fs::remove_file(root.path().join(format!("{}.blob", id.hash_hex()))).unwrap();
+        fs::write(registry.intent_path(&id), b"{broken").unwrap();
+        assert!(DomainArtifactRegistry::new(root.path()).is_err());
+    }
 
     #[test]
     fn missing_or_corrupt_ownership_never_becomes_global() {

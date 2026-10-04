@@ -322,3 +322,49 @@ foundry-ci-extended:
 # Host-only regressions for ownership, allocation, CI and HIL provenance.
 foundry-review-boundaries:
 	bash ./tools/ci/foundry_review_boundaries.sh
+
+foundry-agent-task-contract-a0:
+	bash ./tools/ci/foundry_agent_task_contract_a0.sh
+
+foundry-agent-task-protocol-a1-0:
+	bash ./tools/ci/foundry_agent_task_protocol_a1_0.sh
+
+# Opt-in host service proof; the gate enables its development features explicitly.
+foundry-agent-task-proof-rt:
+	bash ./tools/ci/foundry_agent_task_proof_rt.sh
+
+# Requires Linux + Docker and the locally installed pinned image; never skips.
+foundry-agent-task-linux-control:
+	bash ./tools/ci/foundry_agent_task_linux_control.sh
+
+# Requires Python jsonschema for independent request/response schema checks.
+foundry-agent-task-adapter:
+	bash ./tools/ci/foundry_agent_task_adapter.sh
+
+# Independent LT transactions; requires Linux + Docker and pinned local image.
+foundry-agent-task-lt:
+	bash ./tools/ci/foundry_agent_task_lt.sh
+
+# Opt-in contained shell commands sharing the Linux durable transaction broker.
+foundry-agent-task-ls-transactions:
+	bash ./tools/ci/foundry_agent_task_ls_transactions.sh
+
+# Shared RT/LT v2 pull subscription lifecycle; requires Linux containment.
+foundry-agent-task-subscriptions:
+	bash ./tools/ci/foundry_agent_task_subscriptions.sh
+
+# Finite canonical authority inventory and shared all-arm negative cases.
+foundry-agent-task-authority:
+	bash ./tools/ci/foundry_agent_task_authority.sh
+
+# Synthetic fixture bank and bounded external sessions; no model trials.
+foundry-agent-task-evaluator-controls:
+	bash ./tools/ci/foundry_agent_task_evaluator_controls.sh
+
+# Named forced lifecycle and explicit interrupted-commit receipt recovery.
+foundry-agent-task-reconciliation:
+	bash ./tools/ci/foundry_agent_task_reconciliation.sh
+
+# Finite issued-right projections and named authority lifetime witnesses.
+foundry-agent-task-requestable-authority:
+	bash ./tools/ci/foundry_agent_task_requestable_authority.sh

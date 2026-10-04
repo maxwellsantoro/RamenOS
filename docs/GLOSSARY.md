@@ -15,6 +15,24 @@ This document defines key terms used throughout the RamenOS project documentatio
 
 ## Architecture Terms
 
+### Post-Unix
+
+Native OS interfaces follow RamenOS's product needs through typed Harnesses,
+Portals, and explicit capabilities. POSIX and legacy stacks are compatibility
+paths rather than the native API blueprint. Existing techniques remain useful
+when they serve the design.
+
+**See Also:** [Vision](../VISION.md), [Constitution](../CONSTITUTION.md)
+
+### Everyday OS for Humans and AI Agents
+
+The product destination: approachable human interaction and structured agent
+interaction on one modular OS, with explicit policy, useful compatibility, and
+recoverable failures. RamenOS is currently public pre-alpha; this term describes
+the goal rather than current desktop or release readiness.
+
+**See Also:** [Vision](../VISION.md), [Current Status](../CURRENT_STATUS.md)
+
 ### Kernel
 
 The core of RamenOS providing IPC, capabilities, memory management, and domain isolation. The kernel implements capability validation for fast-path operations and maintains strict separation between control plane (typed messages) and data plane (zero-copy shared memory).

@@ -3,7 +3,15 @@
 This document captures system invariants. If a change violates any item here,
 it must be revised or explicitly superseded in DECISIONS.md.
 
+The product direction is an everyday, post-Unix OS for humans and AI agents,
+as described in [VISION.md](VISION.md). These invariants guide that architecture;
+current implementation evidence belongs in [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 ## Non-Negotiables
+- **Humans and Agents Are First-Class Users:** Human interfaces must make intent,
+  permissions, and recovery understandable and remain usable without an AI model.
+  Agent interfaces must expose structured state and explicit operations. Human
+  intent and policy remain authoritative; a model cannot mint or widen authority.
 - **Agents are First-Class Citizens:** The OS must expose state and affordances as structured, typed data (Semantic State API) designed for LLM ingestion. No screen-scraping or brittle CLI text parsing should be required for core system control.
 - **Quantized AI Authority:** AI agents operate under strict, revocable Capability Budgets. They do not receive "ambient authority" or pseudo-root access. An agent can only affect the resources for which it holds explicit, unforgeable handles.
 - **RamenOrg Uses the Same Doctrine:** Project agents operate through bounded work orders, handoffs, votes, evidence refs, and role capabilities. They do not receive ambient repo, merge, release, hardware, or public-claim authority.
@@ -14,6 +22,10 @@ it must be revised or explicitly superseded in DECISIONS.md.
 - Capability validation for fast-path operations is kernel-side; brokers decide grants.
 - Control plane uses typed messages; data plane is zero-copy shared memory.
 - Preserve boundaries: kernel ≠ services ≠ store.
+- **Modularity with Explicit Dependencies:** Drivers and high-risk stacks are
+  intended to run in isolated domains behind versioned, typed contracts. Fault
+  containment and independent development require conformance and recovery
+  gates; isolation does not remove effects on consumers or shared resources.
 - Local execution is an optimization, not an ontology. Native execution is modeled as a capability-bounded request over artifacts, resources, domains, and replayable outputs.
 
 ## Development Model

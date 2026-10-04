@@ -1,11 +1,13 @@
 # Platform Overview
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Architecture reference with explicit implementation boundaries
 
-RamenOS is an experimental Rust OS for agents, organized around OS Core,
-Foundry, and the Store Platform. This document distinguishes implemented
-components from the environment they are intended to form.
+RamenOS is a Rust-first, post-Unix OS being built for humans and AI agents,
+organized around OS Core, Foundry, and the Store Platform. The destination is
+everyday use with fast execution, hardware adaptability, safety, and ease of use.
+The [Vision](VISION.md) sets that direction; this document distinguishes
+implemented components from the environment they are intended to form.
 
 [Current Status](CURRENT_STATUS.md) records landed state;
 [Next Tasks](NEXT_TASKS.md) owns execution order in the parallel hardware and
@@ -14,10 +16,18 @@ below is not evidence that a complete target runtime or security property exists
 
 ## 0. Purpose and status vocabulary
 
-The thesis is that agents should discover permitted state and act through typed,
-capability-bounded interfaces. Foundry supplies evidence for individual behavior
-and claim boundaries. Whether the composition helps an agent remains the
-question for the planned [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md).
+The architecture is intended to give humans approachable interactions and
+explicit control, agents structured state and bounded operations, and developers
+replaceable drivers and services behind typed contracts. Fault containment,
+conformance checks, and recovery should make independent development practical;
+dependencies and effects on shared resources still require testing. Compatibility
+supports existing software while POSIX does not define native APIs.
+
+Foundry supplies evidence for individual behavior and claim boundaries. Whether
+structured interaction and the implemented substrate help an agent remains the
+question for the [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md).
+That experiment tests one part of the product; human usability, performance,
+hardware qualification, and desktop readiness need their own evidence.
 
 Use these markers throughout this overview:
 
@@ -46,6 +56,8 @@ claims that every path already satisfies the complete architecture:
   specified separately. A restricted request API alone does not establish
   noninterference or limit every observation channel.
 - Kernel and core services are Rust-first; host tooling also uses Python.
+- Human interfaces remain usable without an AI model. Models may translate
+  user intent, while explicit policy and enforcement decide authority.
 
 The intended control/data separation is:
 
@@ -202,8 +214,24 @@ The [Agent Task Proof](docs/plans/2026-09-16-agent-task-proof.md) is the bounded
 next step: repair one workspace, run a pinned validator, deny access to another
 workspace, and produce a checked audit/replay bundle. Linux scoped shell, Linux
 typed, and RamenOS typed arms distinguish structured-interface effects from
-backend effects. No comparative result has landed, and the initial host proof
-will not establish a target-native environment or universal noninterference.
+backend effects. A0/A1 foundations and bounded A2 controls are implemented;
+[Current Status](CURRENT_STATUS.md) records their precise evidence scope. Full
+A2 conformance, model comparison, and target integration remain pending. Host
+proofs do not establish a target-native environment or universal noninterference.
+
+### 2.7 Human interaction and desktop — Target architecture
+
+Humans should be able to launch applications, manage permissions, inspect
+system state, and recover from failures through an approachable desktop. Core
+human interaction remains usable without an AI model. Optional agent assistance
+operates under explicit policy and grants, with understandable authority and
+results; model interpretation never replaces enforcement.
+
+S14 supplies typed keyboard/pointer input on the reference hardware. S15 plans
+a native compositor, focus and input routing, application surfaces, and recovery
+gates. These are future integration steps, not a landed desktop. Human usability
+and responsiveness need separate validation from the Agent Task Proof. See
+[Roadmap](ROADMAP.md) for prerequisites and [Vision](VISION.md) for the product goals.
 
 ## 3. Compatibility Strategy — Partial
 
@@ -233,9 +261,10 @@ with negative cases. Implementations must meet kernel/service/Store boundaries
 and accurately name their evidence environment. See [Slices](SLICES.md) for
 the definition of done and [Agent Instructions](AGENTS.md) for contribution rules.
 
-H0–H3 cover the physical loop; SW0 starts Agent Task Proof Phase A independently.
-S14 expansion waits for a stable appliance loop, review of SW0's comparison
-results, and its own IDL/Oracle/gate design pass. See [Next Tasks](NEXT_TASKS.md)
+H0–H3 cover the physical loop, awaiting hardware setup. SW0 continues remaining
+A2 authority coverage and evaluation controls after its implemented foundations.
+S14 expansion waits for a stable appliance loop, A1/A2 evidence, a recorded proceed/defer
+decision on the bounded comparison report, and its own IDL/Oracle/gate design pass. See [Next Tasks](NEXT_TASKS.md)
 for the authoritative prerequisites; SW0 does not wait for NVMe graduation.
 
 ## 6. Release Channels — Target promotion policy

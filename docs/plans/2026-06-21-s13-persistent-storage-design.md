@@ -1,6 +1,6 @@
 # S13: Persistent Storage
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-09-30
 **Status:** Active reference; QEMU loop landed, metal graduation pending
 **Gate:** `tools/ci/foundry_s13_persistent_storage_s13_0.sh`
 **Related:** `docs/plans/2026-02-20-s11-driver-factory-mvp.md`, `hardware/storage_contract_v0.toml`, `ROADMAP.md` §12
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-S13 delivers **native block storage** on Tier-1 hardware: distill a block driver via the Driver Factory, exercise it through `harness.block` in QEMU, then graduate to **NVMe boot + atomic update/rollback** on metal. S11 proved the Oracle→replay→harness loop for virtio-net; S13 repeats it for virtio-blk before touching real NVMe silicon.
+S13 delivers **native block storage** on Tier-1 hardware: distill a block driver via the Driver Factory, exercise it through `harness.block` in QEMU, then graduate to **NVMe boot + atomic update/rollback** on metal. S11 validated Oracle capture/replay and embedded-vector harness transfers for virtio-net; S13 repeats it for virtio-blk before touching real NVMe silicon.
 
 **S13.0 (this milestone):** Pin the storage contract, land `harness.block` IDL, scaffold the virtio-blk Reference Vault, and add a Foundry smoke gate (inventory + negative assertions). No physical NVMe required in default CI.
 
@@ -46,7 +46,7 @@ Aligned with `hardware/golden_machine_v0.toml` and `docs/HARDWARE_STRATEGY.md`.
 | Block harness | Required | `idl/harness/block_v1.toml`; typed `harness.block` IPC |
 | Oracle trace | Required (QEMU) | `driver_protocol_trace_v0` from Linux capsule + virtio-blk |
 | Replay scoreboard | Required | `MockPciDevice` / block mock parity with Oracle |
-| Runtime harness I/O | Required (QEMU) | Serial `persistent_storage: harness.block ok` |
+| Harness vector transfers | Landed (QEMU fixture) | Serial `persistent_storage: harness.block ok`; native device I/O unproven |
 | NVMe boot partition | Required (metal) | UEFI boots RamenOS; reads GPT slot A |
 | Atomic update/rollback | Required (metal) | Store A/B slot flip + serial `persistent_storage: atomic_update ok` |
 | IOMMU | Required (Tier-1) | Inherited from S12; block DMA must respect VT-d path |
@@ -85,7 +85,12 @@ Aligned with `hardware/golden_machine_v0.toml` and `docs/HARDWARE_STRATEGY.md`.
 - Read/write sector Oracle traces; `MockBlockHarness` scoreboard
 - `oracle_block_trace.json` fixture with live provenance option
 
-### Phase 5 — Runtime harness.block in QEMU (S13.6)
+### Phase 5 — Harness vector transfers in QEMU (S13.6)
+
+The current gate transfers embedded Oracle sectors through typed IPC and shared
+memory. It attaches no virtio-blk target device and proves no native read/write
+persistence. Device-backed native harness execution remains work before storage
+graduation.
 
 - `kernel/src/block_harness.rs` NET_V1 analogue for block IPC
 - Init profile `block_io` + serial markers:
@@ -108,6 +113,43 @@ persistent_storage: block_write ok
 - Reuse S1 artifact rollback discipline on metal
 - Serial marker `persistent_storage: atomic_update ok`
 
+#### Required software milestone before physical graduation
+
+The present S13.8 marker is an A/B metadata probe, not proof of a transaction.
+`RamenAbSlot.rollback_ready` is operator-supplied metadata; host S1 rehearsal
+does not establish target slot publication or recovery. Implement the protocol
+and verifier below before H3 graduation. Live test hardware is not available
+for execution yet; begin with gate-first host/QEMU fault/recovery assertions.
+
+1. Pin source/target artifacts, GPT slot identities and the storage backend.
+   Publish the new artifact to the inactive slot, flush according to an explicit
+   backend durability contract, and verify bytes by readback/content hash.
+2. Durably record the old/new artifact identities, transaction revision and
+   pending boot selection. Preserve the last known-good slot until the new
+   artifact is verified. Define interrupted-write, interrupted-selection and
+   failed-new-boot recovery before implementation.
+3. Boot the new slot and capture its actual selected partition/artifact identity,
+   transaction revision and fresh boot nonce. A variable naming slot B is not
+   evidence that B's bytes executed. Verify the target's successful health result
+   against that transaction before accepting it.
+4. Exercise rollback/recovery in a separate boot, with a different fresh nonce,
+   and verify the old slot/artifact identity and recovered state. Link both boot
+   bundles and publication/readback evidence into one protocol result.
+5. Reject missing, repeated, out-of-order, mismatched or failed phases. Inject
+   failures at each durability boundary in the host/QEMU protocol model; physical
+   reset/power-loss evidence is an explicit later hardware test, not inferred
+   from those simulations.
+
+At least the new-slot boot and rollback boot must have separate provenance-bound
+captures. A single metadata-marker transcript cannot satisfy this protocol.
+The verifier needs a versioned protocol evidence schema and fixtures before
+implementation; today's `just s13-hil` remains a probe/evidence scaffold.
+
+S13.7 separately establishes UEFI boot from an NVMe ESP device path. Native NVMe
+`harness.block` operation requires a pinned controller Reference Vault and Oracle,
+a distilled driver and target read/write/flush evidence. Neither firmware
+selection nor the virtio-blk QEMU loop establishes native NVMe I/O on metal.
+
 ---
 
 ## 3. S13 Definition of Done (full slice)
@@ -115,9 +157,12 @@ persistent_storage: block_write ok
 S13 is complete when:
 
 1. **Contract pinned** — manifest + design doc + S13.0 smoke gate PASS.
-2. **QEMU Driver Factory loop** — virtio-blk Oracle capture, replay, and `harness.block` runtime I/O PASS (`just s13` fast-path).
+2. **QEMU Driver Factory loop** — virtio-blk Oracle capture, replay, and `harness.block` embedded-vector transfers PASS (`just s13` fast-path).
 3. **Metal NVMe boot** — S13.7 HIL gate PASS on Tier-1 class hardware.
-4. **Atomic update** — S13.8 HIL gate PASS: publish, reboot, rollback.
+4. **Atomic update** — completed protocol verifier PASS over publication/readback,
+   new-slot boot and separate rollback/recovery boot with matching artifact/slot
+   identities and fresh per-boot provenance. An S13.8 metadata scaffold pass alone
+   is insufficient; name the actual storage enforcement backend separately.
 
 Fast-path (target): `just s13` = S13.0 + S13.6 QEMU legs; metal legs opt-in via `RAMEN_HIL_GOLDEN_MACHINE=1`.
 
@@ -151,7 +196,7 @@ Fast-path (target): `just s13` = S13.0 + S13.6 QEMU legs; metal legs opt-in via 
 | Block sector Oracle trace | ✅ S13.4 | `oracle_block_trace.json` |
 | MockBlockHarness replay | ✅ S13.5 | `foundry_s13_replay.sh` sector leg |
 | Replay gate | ✅ S13.3 | `foundry_s13_replay.sh` |
-| Runtime harness.block | ✅ S13.6 | `foundry_s13_runtime_block_s13_6.sh` |
+| Embedded-vector harness.block transfers (device I/O unproven) | ✅ S13.6 | `foundry_s13_runtime_block_s13_6.sh` |
 | Metal NVMe boot | ✅ S13.7 scaffold | HIL opt-in (`just s13-hil`); QEMU negative smoke in gate |
 | Atomic update/rollback | ✅ S13.8 scaffold | HIL opt-in (`just s13-hil`); QEMU negative smoke in gate |
 

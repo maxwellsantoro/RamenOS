@@ -62,6 +62,7 @@ cargo test -p store_service materialize_rejects_parent_dir_escape --quiet
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=projection_cow_commit"
 cargo test -p store_service projection_cow_commit_repoints_path_preserves_prior_blob --quiet
+cargo test -p store_service review_projection_cow --quiet
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: PASS"
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: ok"

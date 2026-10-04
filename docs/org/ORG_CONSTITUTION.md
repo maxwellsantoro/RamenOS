@@ -1,6 +1,6 @@
 # RamenOrg Constitution
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** G0 scaffold
 
 RamenOrg is the project-control plane for RamenOS. Its job is to let agents
@@ -11,6 +11,11 @@ RamenOrg is not a separate product and not a substitute for RamenOS engineering
 discipline. It applies the same doctrine to the organization that RamenOS
 applies to computation: typed boundaries, explicit capabilities, evidence
 before claims, and replayable work.
+
+Its product mandate is the [RamenOS Vision](../../VISION.md): an everyday,
+post-Unix OS for humans and AI agents. Planning and review must connect bounded
+agent, hardware, desktop, Foundry, and Store work to that destination. Current
+experiments inform the product without replacing its broader purpose.
 
 ## Mission
 

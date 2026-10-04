@@ -1,8 +1,14 @@
 # Store Specification
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Architecture reference
 **Version:** Package Intelligence Store v1
+
+The Store serves the [Vision](VISION.md) of an everyday OS for humans and AI
+agents: approachable software discovery and launch, understandable permission
+previews, structured evidence for agent decisions, and a gated path from useful
+compatibility to native software. These are product responsibilities; the complete
+user flow remains work as recorded in [Current Status](CURRENT_STATUS.md).
 
 ## 0) Goals
 The Store must:

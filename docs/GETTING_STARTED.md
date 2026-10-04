@@ -1,6 +1,6 @@
 # Getting Started with RamenOS
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Active contributor guide
 
 Set up a development environment, build the host and target components, boot in
@@ -26,10 +26,13 @@ QEMU, and run Foundry gates. For current priorities, use
 
 ### What is RamenOS?
 
-RamenOS is an experimental Rust OS for agents, built around typed authority
-and machine-readable state. Host services and selected QEMU bridges implement
-parts of the model; a complete agent task and comparative evaluation remain
-[planned](plans/2026-09-16-agent-task-proof.md).
+RamenOS is a Rust-first, post-Unix OS being built for everyday use by humans
+and AI agents. Its [Vision](../VISION.md) combines approachable human interaction,
+structured agent interfaces, modular drivers/services, and useful compatibility.
+The project is public pre-alpha: kernel paths, host services, and selected QEMU
+bridges implement foundations; desktop and full target integration remain work.
+Scripted agent tasks and bounded controls exist, while comparative evaluation
+remains [planned](plans/2026-09-16-agent-task-proof.md).
 
 The implementation uses:
 
@@ -54,10 +57,12 @@ The project is organized as three pillars:
 
 The H0–H3 physical lane is S12.4 serial capture and AMT actuation, then S12/S13
 hardware graduation. Default gates do not establish live hardware success.
-SW0 starts Agent Task Proof Phase A independently, without waiting for hardware:
+SW0 continues Agent Task Proof Phase A independently, without waiting for hardware:
 Linux scoped shell, Linux typed, and RamenOS typed adapters under one evaluator.
-Its proposed commands are not available yet. S14 prerequisites from both lanes
-are listed in [Next Tasks](../NEXT_TASKS.md).
+Implemented scripted gates and remaining controls are recorded in
+[Current Status](../CURRENT_STATUS.md). S14 prerequisites from both lanes
+are listed in [Next Tasks](../NEXT_TASKS.md); S14/S15 lead toward human input
+and the desktop rather than being part of this setup guide's current first run.
 
 Use [Development Reference](DEVELOPMENT_REFERENCE.md) for Store CLI examples,
 operator settings, and the repository map.
@@ -486,11 +491,19 @@ just preflight
 
 [Preflight](../tools/ci/foundry_preflight.sh) runs:
 
-1. Format check and IDL code generation/lint.
-2. Bare-metal target builds.
-3. Strict lint baseline and tranches.
-4. Host workspace tests.
-5. The Foundry umbrella and extended gates.
+1. Complete-proof prerequisites: Linux, Python `jsonschema`, Docker with builtin
+   seccomp, and the already installed immutable image pinned by
+   `tools/agent_task/linux_sandbox.py`.
+2. Format check and IDL code generation/lint.
+3. Bare-metal target builds.
+4. Strict lint baseline and tranches.
+5. Host workspace tests.
+6. The Foundry umbrella and extended gates, including the same complete SW0
+   A0–A2.9 sequence used by CI.
+
+Missing proof prerequisites produce `INCOMPLETE` before the build. macOS can run
+individual host/QEMU gates, but a host-only result cannot substitute for the
+Linux container containment checks in full preflight.
 
 ### Interpreting Results
 

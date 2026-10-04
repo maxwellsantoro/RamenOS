@@ -66,6 +66,37 @@ pub fn write_manifest_atomic(path: &Path, manifest: &Manifest) -> Result<(), std
     Ok(())
 }
 
+/// Publish immutable CAS content, retaining an existing artifact's exact metadata.
+/// Store callers must serialize writers and check ownership before calling this.
+/// Incomplete or corrupt existing artifacts fail closed rather than being replaced.
+pub fn publish_cas_artifact(
+    root: &Path,
+    manifest: &Manifest,
+    publish_blob: impl FnOnce(&Path) -> Result<(), std::io::Error>,
+) -> Result<(), std::io::Error> {
+    let id = ContentId::parse(&manifest.content_id)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidInput, error))?;
+    let blob = blob_path_for(root, &id);
+    let metadata = manifest_path_for(root, &id);
+    if blob.try_exists()? || metadata.try_exists()? {
+        verify_blob_matches_manifest(&blob, &metadata)?;
+        // Also bind the existing manifest to the requested CAS name.
+        let existing: Manifest = serde_json::from_slice(&fs::read(&metadata)?)?;
+        if existing.content_id != manifest.content_id || existing.size_bytes != manifest.size_bytes
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "existing CAS identity mismatch",
+            ));
+        }
+        return Ok(());
+    }
+    publish_blob(&blob)?;
+    write_manifest_atomic(&metadata, manifest)?;
+    File::open(root)?.sync_all()?;
+    Ok(())
+}
+
 pub fn write_blob_atomic(dst: &Path, src: &Path) -> Result<(), std::io::Error> {
     let tmp = temp_path(dst);
     {
@@ -93,20 +124,65 @@ pub fn verify_blob_matches_manifest(blob: &Path, manifest: &Path) -> Result<(), 
     let raw = fs::read_to_string(manifest)?;
     let meta: Manifest = serde_json::from_str(&raw)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let id = ContentId::parse(&meta.content_id)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    verify_blob_identity(blob, &meta, &id)
+}
+
+/// Bind the requested identity to the already authenticated manifest and bytes.
+/// Does not reopen manifest metadata after its signature has been validated.
+pub fn verify_blob_identity(
+    blob: &Path,
+    meta: &Manifest,
+    requested: &ContentId,
+) -> Result<(), std::io::Error> {
+    if meta.content_id != requested.as_str() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "requested content_id mismatch",
+        ));
+    }
     if meta.schema_version != 1 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "schema_version unsupported",
         ));
     }
-    let actual_size = fs::metadata(blob)?.len();
-    if meta.size_bytes != actual_size {
+    // Size and digest describe one opened byte stream, even if the pathname is
+    // replaced while verification runs. Consumers still verify their own snapshot.
+    let mut file = File::open(blob)?;
+    if !file.metadata()?.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "nonregular blob",
+        ));
+    }
+    let mut hasher = Sha256::new();
+    let mut size = 0u64;
+    let mut buffer = [0u8; 8192];
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        size = size
+            .checked_add(count as u64)
+            .ok_or_else(|| std::io::Error::other("blob size overflow"))?;
+        if size > meta.size_bytes {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "size_bytes mismatch",
+            ));
+        }
+        hasher.update(&buffer[..count]);
+    }
+    if size != meta.size_bytes {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "size_bytes mismatch",
         ));
     }
-    let expected = hash_blob(blob)?;
+    let expected = format!("sha256:{}", hex::encode(hasher.finalize()));
     if meta.content_id != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,

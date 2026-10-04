@@ -1,10 +1,12 @@
 # Contributing
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Active
 
-RamenOS is built as small, evidence-bearing vertical slices. Before changing a
-subsystem, read [AGENTS.md](AGENTS.md), [CONSTITUTION.md](CONSTITUTION.md), and
+RamenOS is being built as an everyday, post-Unix OS for humans and AI agents,
+through small, evidence-bearing vertical slices. Read [Vision](VISION.md) for
+the product direction. Before changing a subsystem, read [AGENTS.md](AGENTS.md),
+[CONSTITUTION.md](CONSTITUTION.md), and
 the active planning pair: [CURRENT_STATUS.md](CURRENT_STATUS.md) plus
 [NEXT_TASKS.md](NEXT_TASKS.md).
 
@@ -35,9 +37,16 @@ preflight before pushing when practical.
 - Use typed control messages and shared memory for bulk data.
 - Do not design native APIs around POSIX or add ioctl-like escape hatches.
 - For driver work, begin with the Reference Vault and Oracle traces.
+- Connect each slice to a human, agent, hardware, or developer need. Independent
+  components still need conformance and recovery checks with affected consumers.
+- Keep core human interactions usable without an AI model; agent assistance
+  follows explicit policy and bounded grants.
 
 ## Documentation
 
+- Preserve the shared framing in `VISION.md`: an everyday OS for humans and AI
+  agents. Describe speed, safety, adaptability, and ease of use as goals until
+  supported by matching evidence; distinguish pre-alpha status from the destination.
 - Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
 - Update `NEXT_TASKS.md` only when execution order changes.
 - Record design choices in `DECISIONS.md`.

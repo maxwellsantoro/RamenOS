@@ -1,11 +1,12 @@
 # Research Program
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** G0 scaffold
 
-RamenOS should move quickly without breaking things. The path is not to skip
-research, and not to turn the OS into an experimental toy. The path is to make
-research operational.
+Research serves the [Vision](../../VISION.md) of an everyday, post-Unix OS for
+humans and AI agents. It turns uncertainty about safety, performance, human
+interaction, agent control, and hardware adaptability into evidence and
+implementation requirements. Each question needs a concrete product landing path.
 
 ## Principle
 
@@ -21,6 +22,10 @@ Research is required when a question affects:
 - Semantic State as a machine-readable OS substrate.
 - Execution Fabric scheduling or resource authority.
 - RamenOrg autonomy, merge/release authority, or public claims.
+- Human permission comprehension, interaction, and recovery when the design
+  introduces an unknown that affects usability or safety.
+- Driver/service fault containment and consumer behavior across replacement.
+- Performance or hardware-adaptability claims that need representative measurements.
 
 ## Production Loop
 

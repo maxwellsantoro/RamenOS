@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-09-30
 **Status:** Active
 
 ## 2026-02-03 — Monorepo with hard boundaries
@@ -617,3 +617,435 @@ a zero-byte requirement and set the returned length to zero on success. The fina
 writer also rejects an unexpectedly large backend reply before changing either
 destination. Import signatures and wire layouts are unchanged. Raw WAT callers
 must initialize capacity, just as the generated Rust SDK already does.
+
+## 2026-09-29 — Immutable Store publication and bounded WASM guest execution
+
+Store-owned CAS writers serialize publication using the service's existing
+registry/index lock. CoW receives that same live ownership registry, resolves
+only domain-visible source paths, and checks destination ownership before
+publishing. A readable global source may receive a domain-local overlay; global
+readability never grants permission to replace the source artifact's metadata.
+Fresh artifacts persist ownership before the new projection is exposed. Existing
+same-owner content is verified and reused byte-for-byte, including its manifest
+and signatures. Unattributed, corrupt, or incomplete pre-existing artifacts fail
+closed and require an explicit trusted repair/migration. Ordinary ingestion uses
+the same rules. Internal aggregate index snapshots preserve existing CAS metadata
+and remain unattributed, so they do not become globally readable. Snapshot CAS
+publication precedes working-copy publication; CoW and ordinary ingestion install
+their cloned indexes only after persistence succeeds. The final working-copy
+rename is followed by parent-directory synchronization. This retains the single
+serialized writer model; it does not introduce cross-process writer coordination
+or a multi-file transaction.
+
+Native WASM guest execution has a nonzero wall-clock budget (30 seconds by
+default), supplied by the launch plan or the native runner CLI. Wasmtime epoch
+interruption instruments guest code, including module start sections. Each run
+has a monotonic deadline; a shared engine epoch checks each invocation's own
+clock so one timer cannot interrupt another run early. The timer is cancelled
+and joined on every exit path. Zero/unrepresentable budgets fail closed, and
+expiration returns a distinct execution-timeout error. Compilation and blocking
+host calls are not preempted by epoch interruption; this is a guest-execution
+bound, not full host-process containment. Process watchdogs bound regression
+runs independently of the implementation under test.
+
+AArch64 descriptor assembly is a pure architecture helper compiled in host tests
+on either architecture. Leaf descriptors include the page-type bit, and both
+address and flag updates retain the supported PXN/UXN attributes. Tests inspect
+stored descriptors, including execute transitions and address replacement.
+This adds descriptor/build evidence, not target fault-recovery or metal claims.
+
+## 2026-09-30 — SW0 contract model before service integration
+
+SW0 Phase A is split into A0 contract fixtures, A1 one RamenOS scripted service
+proof, and A2 Linux/control conformance. A0 is a pure model in the schema crate,
+not a service or new native wire interface; A1 must define/generate missing
+operations through IDL before implementing boundary handlers. A0's synthetic
+fixture and trusted executor inputs provide no credential or validation
+authenticity. All IO, clocks, grant verification, watchdogs and persistence live
+outside the schema module. The existing CoW helper remains a foundation, not
+the task's transaction implementation.
+
+Accepted output publication follows immutable staging and successful validation
+bound to candidate/validator/schema/policy and task/domain/resource/generation.
+Commit checks revision plus content identity to reject ABA, rechecks authority
+and validation expiry, and retains the successful request binding and receipt.
+An exact retry returns that receipt without another effect; changed request-ID
+reuse fails. Receipt access requires current authority; revoked authority must
+be renewed before retrieval. Renewed authority requires fresh validation for a
+new commit. A0 bounds candidates and successful receipts to 64 each per task;
+capacity fails closed without eviction. A1 must atomically persist accepted
+reference, revision and receipt, with lost-reply/crash/restart assertions.
+
+A0 declares separate guest, whole-invocation, host-call and diagnostic limits.
+A1 uses a supervised worker/watchdog, bounded IPC/memory and explicit cleanup;
+epoch interruption alone does not meet the whole-invocation contract. Budget
+declarations and reported outcomes passing A0 do not prove timers or containment.
+
+The proposed Phase B ceiling is USD 100, 500 final matched blocks plus the
+30-block pilot, and 8 active model-run hours; a funded work order must freeze
+actual settings before collection. An unaffordable powered sample becomes an
+explicit exploratory report, not a truncated powered trial. S14 depends on a
+recorded proceed/defer decision over A1/A2 and that bounded report, H0/H1, and
+its own design/IDL/Oracle/gate; a positive comparative outcome is not required.
+
+Physical work awaits test-hardware setup. H3 graduation additionally requires
+implemented slot publication/readback, selected-slot boot, and rollback/recovery
+with fresh per-boot provenance and artifact identities. Firmware NVMe detection
+and A/B metadata alone cannot establish those transitions or native block I/O.
+
+## 2026-09-30 — SW0 A1.0 control contract before service registration
+
+Reserve protocol 14 for the bounded task transaction IDL. A1.0 freezes fixed
+control layouts and request syntax; A1.1 must freeze bulk-state serialization,
+reply validation and service assertions before registering an endpoint. Do not
+add this interface to the current broker registry until task/resource/lifetime
+bindings can be enforced. Existing Semantic Store query, projection CoW and
+Semantic State prototypes do not provide that enforcement.
+
+Use opaque service-owned task/candidate/receipt/subscription objects and existing
+kernel Shmem handles for bulk bytes. Derive caller domain from trusted transport;
+never accept a caller-selected domain or validation attestation. Read/stage/
+validate/commit/observe rights are distinct. Receipt retrieval requires current
+COMMIT authority, consistent with A0 retry semantics; OBSERVE does not reveal
+commit receipts. Policy authority is separate from task rights. Revalidate
+subscriptions on every delivery, including expiry/revocation, and seal candidate
+bytes before validation. A1.0 preflight establishes none of these backend checks.
+
+Retain A1.1's durable transaction and supervised worker requirements. Keep its
+host service proof independent of Linux controls, model runs and hardware setup.
+The new gate reports `environment=host claim=wire-contract` only.
+
+## 2026-09-30 — SW0 A1.1 bounded host fixture service
+
+Implement the generated task contract in an opt-in Store task service, with a
+separate Native Runner worker and strict schema records. Both require
+`agent_task_v1_dev`, disabled by default; no production endpoint/broker is
+registered. A trusted launcher assigns domains to connected host transports and
+provides scoped file-backed mappings. These are named host proof boundaries,
+not production authentication, a client process sandbox or target enforcement.
+Use a tiny canonical-JSON equality dialect for the first useful fixture; general
+schema execution and model-facing adapters are subsequent work.
+
+Store keeps output reference/revision, semantic commit binding, original receipt,
+trusted validation and dispatched-call audit in one synchronized journal under
+an exclusive writer lock. A failed persistence attempt poisons the service until
+recovery. Restart invalidates grants/validation by advancing generation; stable
+candidate/receipt locators survive for exact successful retries. A renewed
+`task_cap` is permitted for a retry because current authority is checked afresh;
+all semantic fields must still match. Locators alone grant no authority. This
+clarifies A1.0's blanket generation wording without reviving revoked grants.
+
+The validator has no custom host imports. Its private guest input header goes
+through IDL/codegen as reserved type 20, never accepted in task request dispatch.
+Its worker verifies CAS hashes and handles JSON normalization; the pinned WASM
+program performs the comparison. CAS reads and compilation run inside the outer
+watchdog. Two validators per task is the viable initial admission limit; check
+caller authority before revealing exhaustion. Linux proves process-group cleanup
+and descendant reaping and imposes an address-space ceiling; macOS has a narrower
+containment claim. Storage/scheduler hard real-time and physical power-loss
+behavior are outside this host gate.
+
+Coalesce subscriptions to one pending event per type, bind delivery to the
+issuing connection/current observer grant and use fresh snapshots. Consumers
+resynchronize by state read after notification loss. The independent verifier
+checks receipt/validation replay and audit hash integrity; it does not establish
+operator-resistant authenticity or complete OS-event replay. A2 remains required
+before comparative model collection, and physical work stays deferred.
+
+
+## 2026-09-30 — SW0 A2.1 measured Linux scoped-shell foundation
+
+Land the Linux substrate separately from full A2 conformance. Bubblewrap on
+`bigman` cannot initialize the isolated network namespace under current policy;
+use its available Docker engine without changing host security settings. Pin an
+installed Python image by digest and resolve its immutable ID. CI pulls that
+exact digest before the gate; no unavailable control or fallback can report PASS.
+Keep daemon/mount selection entirely in trusted tooling, outside the consumer.
+
+Inspect actual namespaces, UID/capabilities/seccomp, mounts and cgroup configuration
+and execute forced probes. Share A1.1's development fixture bytes and exact WASM
+worker; seal staged bytes into a read-only private CAS subset before validation.
+Remove the whole container on every exit and fail on uncertain creation/cleanup.
+Record broader shell helpers/metadata, process delegation and open descriptors
+surviving mode changes. Do not call these equivalent to RT grant revocation.
+
+The accepted artifact is evaluator evidence, not an LS durable commit receipt.
+One development instance is sufficient for this substrate milestone; it is not
+a hidden fixture bank or model comparison. Next are shared serializer/RT adapter,
+independent LT transactions, LS transaction commands and full all-arm authority
+mapping. A2 and Phase B stay pending; physical HIL remains deferred.
+
+
+## 2026-09-30 — SW0 A2.2 shared JSON codec and opt-in RT bridge
+
+Put the model-facing contract in a backend-free host tooling library, with the
+Store bridge/launcher behind `agent_task_v1_dev`. Services do not acquire new
+cross-service IO dependencies. Wrap eight existing generated task operations;
+no new native authority, raw path, shell or caller-domain field is introduced.
+Use canonical string IDs through u64::MAX and bounded padded base64 for bytes.
+Backend grants and denials remain authoritative; syntax checks mint no authority.
+
+Publish one tool description and request/response schema artifact for both typed
+arms, independently exercised by a scripted executable consumer. Release source
+and reply mappings, preserve exact successful commit retry semantics, and never
+solve or retry a mutation in the adapter. Suppress legacy library stderr only in
+this standalone opt-in launcher; structured stdout remains the model transport
+and durable service audit remains in the private journal. Keep transport failure
+honest about potentially durable commits and require explicit recovery/retry.
+
+Defer model subscriptions to a separately versioned lifecycle contract. This
+bridge has no subscription, hidden event queue or automatic observation calls.
+The LT backend must import these descriptions/codec and map the same virtual
+resources; its transactions, LS commands, full canonical authority conformance
+and hidden-bank partitioning remain next. No paid/model or physical run is begun.
+
+## 2026-09-30 — SW0 A2.3 independent Linux transaction enforcement
+
+Use a separate Python Linux broker behind the existing default-off Rust typed
+transport. It owns grants, generation/expiry, private file sealing and a single
+synchronized revision/receipt journal; it imports neither RT service enforcement
+nor the A0 reference state machine. The shared codec/descriptions remain the model
+contract, and direct broker tests independently check authority behind that codec.
+No new native interface, production registration or kernel dependency is added.
+
+Reuse the measured Docker substrate for a pinned worker and read-only three-blob
+subset. Stream and seal the large debug worker instead of buffering it wholesale.
+Invalidate prior validation before a new attempt. Treat IO uncertainty as a poisoned
+session; require explicit current-authority receipt lookup/retry after recovery.
+Replay receipt revisions independently of JSON key order and retain the original
+validation observation with each receipt. Host client isolation and abrupt broker
+cleanup remain unproved; this milestone uses trusted scripted consumers.
+
+Compare shared named RT/LT development cases with byte-identical descriptions,
+allowing only consistently aliased opaque handles and declared clock/duration
+fields. Do not generalize those cases to full equivalence, narrower authority or a
+model result. LS transactions, subscriptions, full authority inventories, hidden
+fixtures and evaluator session supervision remain next; hardware stays deferred.
+
+## 2026-09-30 — SW0 A2.4 contained shell commands share Linux transactions
+
+Expose conventional task commands inside the measured Linux container, backed by
+LT's independent Linux transaction engine. This isolates the Linux interface
+contrast; LS does not acquire a second repair/validation/publication implementation.
+A read-only task mount contains bootstrap/helper and one private Unix endpoint.
+The host broker requires real UID/GID 65534 peer credentials and fixes domain/task
+outside request bytes. Model file paths never reach it: the helper opens/bounds
+bytes inside the container. This is host experiment tooling, not a native OS API.
+
+Preserve ordinary command stdout/stderr and nonzero exit status explicitly. The
+shared substrate's strict nonzero failure remains the default for validators and
+existing gates. Persist a pending shell cleanup checkpoint before launch and a
+measured removal record afterward, alongside the existing shared container history.
+Uncertain create/removal/journal writes poison the session and block restart until
+trusted reconciliation. A dispatched commit can finish after a lost reply; never
+retry or infer no effect automatically. Transport audit records socket-write success,
+not delivery acknowledgment, and remain session-local rather than crash-persistent.
+
+Record the broader shell file/helper/process/delegation envelope, readable policy/
+validator pins, actual shell isolation versus the typed scripted harnesses, and
+additional checkpoint instrumentation. None establishes equal/narrower authority
+or substrate advantage. Shared subscriptions, canonical inventories, hidden-bank/
+evaluator/session controls remain next. No model or physical trial begins here.
+
+## 2026-09-30 — SW0 A2.5 explicit typed subscription polling
+
+Use a separately described version 2 model contract with explicit subscribe,
+poll and cancel operations. Keep version 1's eight-operation artifact unchanged.
+Bound each connection/session to 16 subscriptions, with two coalesced pending
+event types each. Poll returns fresh authorized state only when an event is pending;
+there is no unsolicited JSON, background observation, initial event or repair policy.
+Recheck the original OBSERVE grant and connection/session before lookup/delivery.
+Cancellation, generation revocation, expiry and disconnect/restart discard queues.
+
+Add protocol-14 typed message pairs 21–26 through IDL/codegen, retaining existing
+push subscribe/events. RT uses the native service's signal path and shared-memory
+snapshot lifecycle; LT owns an independent in-memory implementation. Draining is
+at-most-once, so a lost poll response requires explicit state resynchronization.
+Revocation counts live grants after expiry reclamation. Named comparison permits
+only opaque-handle aliasing, declared clock fields and the predeclared expiry
+case's redacted expired/denied difference; other outputs must agree.
+
+LS's helper remains eight conventional version 1 verbs. Raw LS clients can reach
+the shared broker's version 2 operations with launcher-session lifetimes; record
+that available authority and difference in the upcoming all-arm inventory. This
+milestone adds finite typed lifecycle evidence, not full protocol/authority
+equivalence, durable notification replay or model/target/metal evidence. Continue
+with canonical inventories and negative cases, then hidden-bank/evaluator controls.
+
+## 2026-09-30 — SW0 A2.6 finite canonical authority evidence
+
+Freeze a logical tuple universe and collect actual host RT, independent LT and
+contained LS observations through one scripted development consumer. Preserve
+separate task effects and evaluator probes; compare semantic point results and
+negative outcomes without substituting policy intent for available authority.
+A rejected virtual-resource grant is a delegate attempt, not a filesystem write;
+real unmounted LS canary reads/writes are distinct tuples. Retain actual credentials,
+namespace/mount/container data, backend clocks and independent accepted journal/byte
+checks. Previously returned observations survive grant revocation, and LS direct
+fixture/descriptors and raw session access retain their measured broader lifetimes.
+
+Use maximum observed availability and time-indexed samples as finite artifacts.
+Do not label these complete E_max/E(t), infer continuous access, or count handles
+as authority. Unmeasured host-client/transitive/unexercised authority stays unknown;
+set inclusion and narrower-claim eligibility remain blocked. The reducer rejects
+unsupported/tampered claims and any successful or unconfirmed forbidden probe.
+All data belong to isolated evaluator runs, not model context or cost samples.
+
+The shared post-commit read case revealed LT returning stale original fixture
+bytes while RT read accepted output. Make LT resource A resolve the current
+accepted CAS pointer, matching the existing native contract; preserve the original
+LS fixture mount as a separate observation. Gate renewal/restart reads accordingly.
+Continue with hidden-bank/evaluator session controls and remaining authority
+coverage. Full A2, model trials, target enforcement and physical runs remain pending.
+
+## 2026-09-30 — SW0 A2.7 private bank contract and external session controls
+
+Keep development, pilot and final instance identities/initial/target hashes
+disjoint. Use five exact-target repair classes crossed with three instruction
+conditions per partition, HMAC-derived from an operator seed. A separate oracle
+and owner-only private root remain outside model input directories. Public
+commitments freeze bank/partition hashes; pilot/final selection requires a trusted
+bank-commit/study-bound release. This contract is not a signature or an OS boundary
+against the owner. Generate no real hidden bank during tuning or default CI.
+
+Run one actual adapter per fresh arm storage/grant/transcript, with external idle/
+whole-session and whole-frame deadlines, request/output/diagnostic/context bounds,
+and no implicit retry. Count every supplied visible description, task/bootstrap,
+request/reply and final text as role-prefixed UTF-8 transport bytes. This is not
+model token accounting. The scripted gate cycles six orders over unique IDs and
+retains all 45 attempted arm rows; actual validator deadline responses are failed
+tasks with unchanged publication pointers, not successful repairs or removed rows.
+Malformed/other task failures fail closed; every arm must demonstrate successful
+independently graded publication. Budgets are not widened to hide timeout effects.
+
+Track owned observed process identities/groups, stop them and reap the adapter.
+Give LT/LS containers an optional trusted evaluator label for scoped removal and
+inventory. Normal EOF/journal removal records plus empty inventory qualify normal
+gate cleanup. A forcibly interrupted daemon create may finish later, so even
+observed removal cannot certify that run: retain and quarantine uncertainty.
+Do not rewrite a poisoned journal or silently resume it. Resolve forced create/
+commit reconciliation, broader authority/lifetime/deputy mappings, actual hidden
+bank/study releases and provider/token accounting before full A2/Phase B claims.
+
+## 2026-10-01 — SW0 A2.8 named lifecycle receipts and explicit reconciliation
+
+Persist a bounded private intent before each evaluator-contained Docker create,
+then its immutable acknowledged ID and verified removal. Fence the scope before
+stopping observed processes; forbid new intents but allow an already-issued RPC's
+acknowledgement to resolve later. Certify only fenced scopes with every intent
+resolved and every acknowledged object removed, empty inventory and no untracked
+objects. An empty inventory alone never resolves pending work. Use a controlled
+late actual create to exercise that distinction, then verify stale start fails.
+This is named trusted host lifecycle evidence, not general daemon/host crash,
+power-loss, unobserved escape or malicious-host isolation proof. Keep uncertainty.
+
+LT validators and LS shells persist invocation-linked pending cleanup checkpoints.
+Provide a separate trusted, explicit reconciliation function using the matching
+ledger proof and existing exclusive writer lock. Repair only cleanup rows and
+retain their prior hashes; preserve all other journal fields. Ordinary failed
+sessions never rewrite or resume themselves. Restart with fresh grants and look
+up original receipts explicitly; do not retry commits. Gate before-dispatch and
+after-publication interruptions in all three arms, including an LS shell still
+running after durable commit, and the existing native abrupt crash cases.
+
+A smaller durable ledger suffices for these named cases; defer a guardian service
+and general daemon restart/recovery contract until evidence requires them. Keep
+full A2 authority/lifetime/deputy coverage, real hidden-bank/provider controls,
+model comparison and target integration separate. Hardware remains deferred.
+
+## 2026-10-01 — SW0 A2.9 finite issuance projections and lifetime witnesses
+
+Enumerate every nonempty subset of the five declared task rights under two fresh
+fixture policies: full (31) and read/observe-only (17), with the same 60000 ms
+lifetime ceiling. Bind a separate right-to-canonical-tuple catalog and the existing
+A2.6 universe hash. Require exact issued-right echoes and redacted denials; prove
+actual subset read/observe access and separately execute useful single-right
+read/stage/validate/commit/observe effects using explicit evaluator prerequisites.
+Do not equate permission issuance with successful data effects, or compare opaque
+locator aliases. Independently grade bytes, pins, accepted references and receipts.
+
+Qualify equality only within this declared-interface issued-right projection.
+A commit bit does not bypass validation or revision/content guards. Keep VALIDATE
+unexercised in issuance enumeration and demonstrate its effect in a separate
+witness. Trace auxiliary probes separately from future model task/cost records.
+Whole E_max/E(t), arbitrary policies/resources and host/transitive reach remain
+unknown; no narrower-authority score or readiness follows from these finite cases.
+
+Use actual backend clocks to witness short-grant expiry, test every task operation
+again after renewal, and revoke the generation. Fresh policy-backed grants remain
+requestable, without reviving old grants/subscriptions. Retain raw denied/expired
+statuses and normalize only their terminal rejection for this named conclusion.
+Demonstrate that LS mounted reads and open descriptors passed to children survive
+expiry/revocation; do not erase them from its authority inventory. These are named
+points, not continuous scheduling or isolation proof. Continue with remaining
+host-client/deputy/unexercised and continuous coverage plus real bank/study/provider
+controls. Keep physical testing deferred.
+
+## 2026-10-03 — Shared product vision for humans and AI agents
+
+**Context:** Agent-task work and public introductions had narrowed the description
+of RamenOS to an experimental OS for agents. The founder reaffirmed the broader
+destination: an everyday, post-Unix OS for humans and AI agents, aiming for fast
+execution, hardware adaptability, safety, and ease of use.
+
+**Chosen:** Use `VISION.md` as the shared product direction and align maintained
+project, architecture, roadmap, contributor, governance, and research guidance.
+Human interfaces and agent interfaces are first-class parts of one product.
+Drivers and software should evolve behind typed contracts with isolated execution,
+bounded failures, and Foundry checks for effects on consumers. Compatibility is
+a useful path while native design remains free to evolve beyond Unix constraints.
+
+Clarify `CONSTITUTION.md` with human usability and policy authority alongside
+agent interfaces, and with modularity that acknowledges dependencies and recovery
+requirements. Core human interaction remains usable without an AI model. Existing
+capability, IDL, kernel/service/Store, and evidence invariants remain in force.
+
+**Consequences:** SW0 is a bounded proof of the agent proposition within the
+broader product. S14/S15 retain their human-input and desktop purpose. Current
+hardware/software ordering and prerequisites remain intact. Public pre-alpha is
+the current stage; performance, full isolation, hardware breadth, and everyday
+readiness require matching evidence. Historical decisions, plans, and trial reports
+retain their original chronology. This decision adds no implementation evidence.
+
+## 2026-10-03 — Review fixes for source authority, durable publication, and IPC bounds
+
+**Context:** Review reproduced signed-artifact identity substitution, corrupt
+GetBlob success, ambient host pathname ingestion, CAS/ownership crash orphans,
+IPC calls exceeding native deadlines, uncertain request replay, and LT duplicate
+staging drift. Local preflight omitted Linux SW0 gates run by CI, and S11.8/S13.6
+claims exceeded their embedded-vector providers' actual evidence.
+
+**Chosen:** Store compares the canonical requested ID with the already
+signature-checked manifest and the blob's opened byte stream. The WASM consumer
+independently hashes its exact compilation/execution snapshot. Keep the host
+client's path API, but open regular sources in the caller and transfer one
+SCM_RIGHTS descriptor under a new host message type (7). The service never opens
+the label; legacy message 4 closes fail-closed. Native `src_shm_cap`/`src_len` IDL
+is unchanged. This preserves large-file workflows without issuing ambient source
+read authority to Store write-capability holders.
+
+A Store-owned publication helper durably records canonical identity, exact
+manifest, domain and global flag before publishing CAS names. Startup and retries
+complete matching valid content or abort an empty intent; corrupt/conflicting
+state fails closed. Unattributed content without an intent cannot be adopted.
+Existing same-owner artifacts retain their prior manifest/signatures; internal
+aggregate projection snapshots remain unattributed.
+
+Both native IPC transports use nonblocking connect and absolute invocation
+read/write deadlines, including partial progress. A lost/failed dispatch has an
+uncertain effect and is never replayed; the reusable Unix session is poisoned.
+Standalone bridges retain bounded per-transaction budgets. No kernel deduplication
+or successful rollback of uncertain effects is claimed.
+
+LT staging counts distinct content IDs and preserves duplicate caps/validation.
+CI and full preflight share the complete SW0 sequence; missing Linux/Docker/image
+or Python requirements mean incomplete proof, not a passing platform skip.
+S11.8/S13.6 are contract/shared-memory checks against embedded Oracle vectors.
+Device-backed native execution remains work requiring Oracle-grounded gates.
+QEMU staging, mutable firmware variables and serial logs are unique per run.
+
+**Consequences:** Updated host clients and services must be deployed together;
+there is no unsafe legacy pathname fallback. Recovery trusts the private Store
+root's durable intent, not requester assertions, and does not automatically repair
+preexisting orphan/corrupt artifacts. These changes add bounded host/QEMU evidence
+and no physical, native device-I/O, whole-system isolation, or readiness claim.

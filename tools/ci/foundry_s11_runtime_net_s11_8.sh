@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Foundry gate for S11.8 runtime harness.net packet I/O in QEMU.
 #
-# Closes S11 Definition of Done item (4): distilled virtio-net send/receive under
-# native harness.net control in QEMU, not only driver_foundry host replay.
+# Proves typed harness transfers against embedded Oracle vectors.
+# Does not execute a device-backed native virtio-net driver.
 
 set -euo pipefail
 
@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 export CARGO_TARGET_DIR="$ROOT_DIR/target"
 
-echo "=== S11.8 Runtime harness.net Packet I/O Foundry Gate ==="
+echo "=== S11.8 Oracle-vector harness.net Transfer Foundry Gate ==="
 
 fail() {
   echo "FOUNDRY_S11_RUNTIME_NET_S11_8: FAIL code=$1 detail=$2" >&2
@@ -39,9 +39,18 @@ cargo test -p kernel net_harness --features test_protocols --quiet \
 
 echo "FOUNDRY_S11_RUNTIME_NET_S11_8: INFO step=host_unit_tests ok"
 
-OUT_DIR="$ROOT_DIR/out"
+mkdir -p "$ROOT_DIR/out/logs"
+OUT_DIR="$(mktemp -d "$ROOT_DIR/out/s11-runtime-net.XXXXXX")"
+cleanup() {
+  if [[ -n "${QEMU_PID:-}" ]]; then
+    kill "$QEMU_PID" >/dev/null 2>&1 || true
+    wait "$QEMU_PID" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$OUT_DIR"
+}
+trap cleanup EXIT
 UEFI_DIR="$OUT_DIR/uefi"
-LOG_DIR="$OUT_DIR/logs"
+LOG_DIR="$ROOT_DIR/out/logs"
 INIT_DIR="$OUT_DIR/init"
 mkdir -p "$UEFI_DIR" "$LOG_DIR" "$INIT_DIR"
 
@@ -144,7 +153,7 @@ OVMF_VARS_TEMPLATE="$(find_firmware OVMF_VARS \
 )" || true
 OVMF_VARS="$(prepare_vars "$OVMF_VARS_TEMPLATE" "$UEFI_DIR/x86_64_vars.fd")"
 
-LOG="$LOG_DIR/qemu_x86_64_net_packet_io.log"
+LOG="$LOG_DIR/$(basename "$OUT_DIR").log"
 rm -f "$LOG"
 
 echo "FOUNDRY_S11_RUNTIME_NET_S11_8: INFO qemu boot x86_64"
@@ -167,6 +176,7 @@ QEMU_PID=$!
 if ! wait_for_log "$LOG" "harness.net: packet_io ok" 30; then
   kill "$QEMU_PID" >/dev/null 2>&1 || true
   wait "$QEMU_PID" >/dev/null 2>&1 || true
+  unset QEMU_PID
   echo "--- qemu serial log (tail) ---" >&2
   tail -n 40 "$LOG" >&2 || true
   fail "PACKET_IO_MISSING" \
@@ -175,14 +185,15 @@ fi
 
 kill "$QEMU_PID" >/dev/null 2>&1 || true
 wait "$QEMU_PID" >/dev/null 2>&1 || true
+unset QEMU_PID
 
 grep -q "harness.net: send_packet ok" "$LOG" \
   || fail "SEND_PACKET_MISSING" "send_packet marker not in serial log"
 grep -q "harness.net: receive_packet ok" "$LOG" \
   || fail "RECEIVE_PACKET_MISSING" "receive_packet marker not in serial log"
 grep -qE 'harness.net: trace_sha256_prefix=482af3005a3520aa' "$LOG" \
-  || fail "TRACE_PREFIX_MISSING" "live Oracle trace prefix not in serial log"
+  || fail "TRACE_PREFIX_MISSING" "embedded Oracle trace prefix not in serial log"
 
 echo "FOUNDRY_S11_RUNTIME_NET_S11_8: METRIC trace_sha256_prefix=482af3005a3520aa"
-echo "FOUNDRY_S11_RUNTIME_NET_S11_8: PASS"
+echo "FOUNDRY_S11_RUNTIME_NET_S11_8: PASS scope=oracle-vector-harness device_io=false log=$LOG"
 echo "FOUNDRY_S11_RUNTIME_NET_S11_8: ok"

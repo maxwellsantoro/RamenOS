@@ -1,11 +1,16 @@
 # Research Index
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** G0 scaffold
 
 RamenOS is a research-backed OS, not a research OS. Research is part of the
 build process when the project faces doctrine-level novelty, security risk, or
 scale problems that cannot be safely guessed through implementation alone.
+
+The product destination is the [Vision](../../VISION.md): an everyday, post-Unix
+OS for humans and AI agents. Research must serve human usability, agent control,
+modular development, hardware adaptability, or another concrete product risk.
+The current agent questions are part of that program rather than its entire scope.
 
 ## Program Docs
 

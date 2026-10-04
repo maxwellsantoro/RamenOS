@@ -1,20 +1,25 @@
 # Documentation Index
 
-**Last Updated:** 2026-09-16
+**Last Updated:** 2026-10-03
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
 investigations are preserved under [archive](archive/README.md), where they are
 historical and non-authoritative.
 
+The [Vision](../VISION.md) is an everyday, post-Unix OS for humans and AI agents.
+Architecture, hardware, agent-task, desktop, Foundry, and Store documents describe
+parts of that product, with implementation status and evidence recorded separately.
+
 ## Start Here
 
 | Need | Document |
 |------|----------|
+| Product vision and description guidance | [Vision](../VISION.md) |
 | Project overview and first commands | [README](../README.md) |
 | Landed state | [Current Status](../CURRENT_STATUS.md) |
 | Next executable work | [Next Tasks](../NEXT_TASKS.md) |
-| Medium-range direction | [Roadmap](../ROADMAP.md) |
+| Product destination and medium-range direction | [Roadmap](../ROADMAP.md) |
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
@@ -29,7 +34,7 @@ The operational source of truth is
 ## Architecture and Policy
 
 - [Constitution](../CONSTITUTION.md): non-negotiable platform invariants.
-- [Platform Overview](../PLATFORM_OVERVIEW.md): OS, Foundry, and Store with Landed / Partial / Target architecture markers.
+- [Platform Overview](../PLATFORM_OVERVIEW.md): human and agent interfaces, modular OS, Foundry, and Store with Landed / Partial / Target architecture markers.
 - [Store Spec](../STORE_SPEC.md): package intelligence and launch-plan model.
 - [Driver Capsule Spec](../DRIVER_CAPSULE_SPEC.md): quarantined legacy-driver boundary.
 - [Hardware Strategy](HARDWARE_STRATEGY.md): Tier-1 and Golden Machine policy.
@@ -49,6 +54,18 @@ The operational source of truth is
 - [Ring Buffer V0](RING_BUFFER_V0.md)
 - [Multi-Domain Architecture](MULTI_DOMAIN.md)
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
+- [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; the implemented A1.1 host proof has a separately documented fixture boundary.
+- [Agent Task Adapter V1](AGENT_TASK_ADAPTER_V1.md): A2.2 shared JSON codec/descriptions, opt-in RT bridge, external scripted consumer and remaining full-A2 work.
+- [Agent Task Evaluator Controls V1](AGENT_TASK_EVALUATOR_CONTROLS_V1.md): A2.7 disjoint bank/release contract, external scripted session bounds, private failure evidence and retained forced failures.
+- [Agent Task Requestable Authority V1](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md): A2.9 all-subset grant issuance under two policies, single-right effects and named lifetime points; broader authority remains unknown.
+- [Agent Task Reconciliation V1](AGENT_TASK_RECONCILIATION_V1.md): A2.8 named acknowledged lifecycle cleanup, unresolved-create quarantine and explicit all-arm receipt recovery.
+- [Agent Task Authority V1](AGENT_TASK_AUTHORITY_V1.md): A2.6 finite canonical inventory, shared RT/LT/LS negative cases, observed/task/probe distinctions and unknown authority boundaries.
+- [Agent Task Subscriptions V2](AGENT_TASK_SUBSCRIPTIONS_V2.md): A2.5 shared typed pull/cancel lifecycle, bounded coalescing, current observation authority and RT/LT lifecycle checks.
+- [Agent Task LS Transactions V1](AGENT_TASK_LS_TRANSACTIONS_V1.md): A2.4 contained shell commands/launcher, shared Linux transactions, receipt recovery and peer/cleanup gates.
+- [Agent Task LT Backend V1](AGENT_TASK_LT_BACKEND_V1.md): A2.3 independent Linux grants/sealed validation/durable receipts and named RT/LT point-case checks.
+- [Agent Task Linux Control V1](AGENT_TASK_LINUX_CONTROL_V1.md): A2.1 scripted Linux repair, measured containment, forced probes and remaining all-arm conformance.
+- [Agent Task Service Proof V1](AGENT_TASK_SERVICE_PROOF_V1.md): opt-in A1.1 useful host task, worker/durability assertions and precise evidence scope.
+- [Agent Task Protocol V1](AGENT_TASK_PROTOCOL_V1.md): SW0 A1.0 native control layouts/preflight, call-path inventory and A1.1 service assertion matrix; production handler registration remains disabled.
 - [`idl/`](../idl/): canonical typed interfaces and generated-binding inputs.
 
 ## Active and Gate-Bound Plans
@@ -102,6 +119,8 @@ gate validates their exact paths.
 
 ## Maintenance
 
+- Keep product framing aligned with `VISION.md`; specialized contracts and
+  historical reports retain their bounded scope rather than implying whole-OS readiness.
 - Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
 - Update `NEXT_TASKS.md` when execution order changes.
 - Move completed, non-gate-bound plans to `docs/archive/plans/`.

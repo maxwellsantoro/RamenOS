@@ -1,9 +1,13 @@
 # Hardware Strategy
 
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-10-03
 **Status:** Active
 
-To avoid eternal VM purgatory and "snowflake SoC" death, RamenOS targets specific hardware profiles.
+Hardware support serves the [Vision](../VISION.md) of a fast, adaptable everyday
+OS for humans and AI agents. RamenOS qualifies specific hardware profiles first,
+then expands support through typed driver contracts, isolated domains, Oracle
+traces, and Foundry gates. Hardware breadth and fault containment require
+per-device evidence; they are not established by the architecture alone.
 
 ## Tier-1: The Golden Platform (PC-Class)
 Our primary target for bare-metal graduation. To be Tier-1, the hardware MUST support:

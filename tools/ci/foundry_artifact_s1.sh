@@ -10,7 +10,7 @@ STORE_SOCKET="$ROOT_DIR/out/store/store.sock"
 STORE_LOG="$ROOT_DIR/out/store/store_service.log"
 
 rm -rf "$ARTIFACT_ROOT" "$INSTALLED_ROOT"
-mkdir -p "$ARTIFACT_ROOT" "$INSTALLED_ARTIFACTS"
+mkdir -p "$ARTIFACT_ROOT" "$INSTALLED_ARTIFACTS" "$(dirname "$STORE_LOG")"
 rm -f "$STORE_SOCKET"
 
 RAMEN_STORE_DEV_MODE=1 \
@@ -95,7 +95,7 @@ if [[ $schema_status -eq 0 ]]; then
   exit 3
 fi
 
-echo "$schema_out" | grep -Eq "schema_version unsupported|supervisor: artifact invalid"
+echo "$schema_out" | grep -Eq "schema_version unsupported|supervisor: artifact invalid|supervisor: artifact verification failed: store service error: status=4"
 
 cp "$manifest_backup" "$manifest"
 

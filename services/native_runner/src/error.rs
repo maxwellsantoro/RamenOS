@@ -26,6 +26,9 @@ pub enum RunnerError {
 
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
+
+    #[error("WASM execution timed out after {timeout_ms} ms")]
+    ExecutionTimeout { timeout_ms: u64 },
 }
 
 /// Status codes returned to WASM modules.

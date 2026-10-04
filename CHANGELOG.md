@@ -2,7 +2,115 @@
 
 ## [Unreleased]
 
+### Fixed
+- Bound Store reads/verification to the requested content ID, authenticated
+  manifest, and blob bytes. Native WASM execution verifies its consumed snapshot.
+- Replaced host ingestion's service-side pathname reads with caller-opened source
+  descriptors. Legacy pathname-only messages fail closed; native ingestion retains
+  its typed shared-memory contract.
+- Added durable owner-bound CAS publication intents and restart/in-process
+  recovery for ingestion, projection commits, and private task artifacts.
+- Bound Unix/chardev host IPC to each native invocation's absolute deadline and
+  removed automatic replay after uncertain dispatch.
+- Made LT duplicate staging reuse candidate capabilities and validation, matching
+  RT's 64-unique-candidate limit; added direct and executable regressions.
+- Shared the complete SW0 gate sequence between CI and preflight. Full preflight
+  requires Linux, jsonschema, Docker/seccomp, and the installed pinned image.
+- Scoped S11.8/S13.6 claims to embedded Oracle-vector harness transfers; native
+  device I/O remains unproven. Isolated their QEMU staging and firmware variables.
+- Isolated Store smoke fixtures from persistent test/operator CAS state and
+  updated the artifact gate for earlier explicit schema-validation rejection.
+- Made the S1 gate create its own log/plan directory so clean CI checkouts do
+  not depend on the S0 smoke gate's former shared output directory.
+
 ### Changed
+- Aligned maintained project documentation and agent guidance with the everyday,
+  post-Unix OS vision for humans and AI agents. Added `VISION.md`, connected
+  hardware, agent-task, desktop, Foundry, and Store work to that destination,
+  and recorded the Constitution clarification in `DECISIONS.md`. Execution order
+  and existing evidence boundaries are preserved; no runtime or readiness claim
+  is added.
+- Added SW0 A2.9's finite requestable rights and named lifetime gate. All three
+  arms enumerate 31 grant subsets under full and read/observe-only policies,
+  demonstrate actual single-right effects and reject old grants across expiry,
+  renewal and generation revocation. LS mounted and inherited-descriptor reads
+  remain explicit broader lifetime observations. Issued-right projection equality
+  does not qualify whole/continuous authority or model/target claims.
+- Added SW0 A2.8 named forced lifecycle cleanup and interrupted commit recovery.
+  Private durable intent/acknowledged-ID/removal ledgers fence new invocations and
+  keep unresolved creates uncertified despite empty inventory. Explicit locked
+  LT/LS cleanup reconciliation preserves task effects; the Linux gate checks six
+  actual all-arm recovery cases without commit retry and a late actual Docker
+  create/stale-start case. Broader authority and model/target claims remain pending.
+- Added SW0 A2.7's disjoint bank/release contract and external scripted sessions.
+  The Linux gate accounts for 15 synthetic development fixtures in all three arms
+  with independent grading, six arm orders, fresh storage/context and absolute
+  deadlines plus byte/frame/request bounds. Failure evidence and scoped container
+  reconciliation preserve forced daemon uncertainty and actual validator timeouts
+  remain in the attempted denominator; no hidden/model claim is made.
+- Added SW0 A2.6's finite canonical authority inventory and shared RT/LT/LS
+  development cases. The Linux CI gate checks 33 common cases, 15/15/21 forbidden
+  attempts with zero successes, actual LS file/process/session behavior and
+  independent accepted journal/byte grading. Task effects, probe effects, observed
+  availability and unknowns are separate; full authority and model claims remain pending.
+- Fixed LT scoped config reads after commit to use the current accepted CAS
+  reference, matching RT after renewal/restart. Original LS input mounts remain
+  immutable fixture observations rather than accepted-output aliases.
+- Added SW0 A2.5's shared version 2 typed subscription lifecycle while preserving
+  the version 1 artifact. Generated native pull/poll/cancel messages and independent
+  LT state bound queues, recheck observation authority and discard subscriptions
+  on cancellation, revocation, expiry and disconnect/restart. A Linux CI gate
+  compares 50 operations per arm; native connection and mapping tests supplement
+  executable/schema checks. Full authority conformance and model trials remain pending.
+- Added SW0 A2.4's contained LS command helper and opt-in bounded shell launcher,
+  sharing Linux transactions with LT. Real shell repair/commit, abandoned-reply
+  receipt lookup, restart, peer credentials, malformed/stalled frames, descriptor
+  inventory and mount protection are gated. Persisted shell cleanup checkpoints
+  block uncertain recovery. Preserved nonzero shell output/exit feedback while
+  validators retain strict nonzero failure. Full A2 and model trials remain pending.
+- Added SW0 A2.3's independent Linux typed transaction broker and default-off
+  executable using the same JSON descriptions/codec as RT. Sealed files, policy
+  grants, Docker-contained validation, revision/hash commits and original receipts
+  survive restart; uncertain publication fails closed and recovers explicitly.
+  Direct broker tests and shared RT/LT point cases run in the Linux CI gate.
+  LS durable commands, subscriptions and full A2 conformance remain pending.
+- Made forged-result worker test fixtures consume their job before exiting, so
+  CI tests result validation consistently instead of racing the input pipe.
+- Added SW0 A2.2's shared model-facing JSON contract and opt-in RT adapter:
+  eight generated native operations, bounded lossless encodings, canonical byte
+  payloads, redacted backend denials and mapping cleanup. A separate scripted
+  consumer/schema reader exercises repair, receipt recovery and revocation in
+  extended CI. LT/LS transactions, subscriptions and full A2 remain pending.
+- Added SW0 A2.1's real Linux scoped-shell development-fixture gate: pinned
+  Docker image, nonroot namespaces/mounts/seccomp/cgroups, shared RT fixture and
+  worker, immutable candidate validation, forced boundary/resource probes and
+  whole-container cleanup. Recorded retained-descriptor behavior and broader
+  shell authority. Full A2 typed/transaction conformance remains pending.
+- Implemented SW0 A1.1's opt-in scripted host task service and private validator
+  worker. Added policy-bound grants, immutable staging, synchronized output/receipt
+  publication, crash/retry recovery, scoped snapshots/events, worker deadlines,
+  bounded concurrency and independent receipt/audit replay. The CI-bound RT gate
+  exercises forged requests, actual backend stalls and guest/start loops. Host
+  fixture evidence adds no production, target-kernel, model-comparison or metal claim.
+- Defined SW0 A1.0's native task control contract through IDL/codegen: nine
+  request/reply pairs, one event and allocation-free fail-closed request preflight.
+  Added the extended-CI wire-contract gate and documented actual service gaps
+  and the A1.1 assertion matrix. This enables no handler or grant; the useful
+  service proof, durable receipts and outer worker containment remain pending.
+- Implemented SW0 A0 task-contract fixtures and the CI-bound Foundry gate:
+  validation identity/authority binding, revision-checked commits, revocation,
+  exact retries, malformed/over-budget results and bounded retained state.
+  Split the execution plan into A0/A1/A2, specified outer validator deadlines
+  and durable receipts, bounded the proposed study, and corrected H3 graduation
+  prerequisites. A0 is a pure model; service integration and hardware runs remain
+  pending, with physical work deferred until test-hardware setup.
+- Closed the September 29 project review findings: AArch64 leaf type and PXN/UXN
+  encoding, projection ownership/publication ordering, immutable CAS metadata
+  reuse, and enforced native WASM guest deadlines (including start sections).
+  Added cross-domain collision, restart retrieval, private-source, corrupt/orphan
+  ownership, failed-ingestion/snapshot persistence, concurrent deadline, and
+  supervisor-forwarding regressions. Host/QEMU evidence adds no physical
+  graduation claim.
 - Revised the Agent Task Proof to separate Linux scoped shell, Linux typed, and
   RamenOS typed effects using a shared typed protocol and hidden fixture bank.
   Defined canonical authority envelopes/probes, a pilot-to-powered-study rule,

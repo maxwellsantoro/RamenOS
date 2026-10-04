@@ -22,6 +22,7 @@ default = []
 posix_runner_v0_dev = []
 
 [dependencies]
+sha2 = "0.10"
 kernel_api = { path = "../kernel_api" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

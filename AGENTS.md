@@ -1,10 +1,19 @@
 # RamenOS — Agent Instructions
 
-Reliability-first, post-Unix operating system. Three pillars: **OS Core** (kernel + services + runtimes), **Foundry** (tooling + CI gates), **Store** (Run Now → Vote/Port → Publish).
+Reliability-first, post-Unix operating system being built for **humans and AI agents**, with everyday use as the destination. Three pillars: **OS Core** (kernel + services + runtimes), **Foundry** (tooling + CI gates), **Store** (Run Now → Vote/Port → Publish).
 
 > **Operational truth lives in `CURRENT_STATUS.md` (landed state) + `NEXT_TASKS.md` (next work).** `ROADMAP.md` is directional, not operational. This file is the *stable agent contract*; slice-level status and history live in the status docs and `SLICES.md`, so it should change rarely.
 
 ## Mission
+
+Build an everyday OS that aims for fast execution, hardware adaptability, safety,
+and ease of use. Humans need approachable interactions and control over policy;
+agents need structured state and explicit, revocable authority. Drivers and
+software should evolve independently behind typed contracts, with isolated
+execution and Foundry checks for effects across boundaries. Compatibility is a
+useful path, while native design remains free to evolve beyond Unix constraints.
+Use [VISION.md](VISION.md) as the shared product direction.
+
 Implement the OS via vertical slices — do not build large subsystems in isolation. **Every change must do at least one of:**
 - improve boot/run behavior, **or**
 - implement a defined IDL contract, **or**
@@ -12,6 +21,20 @@ Implement the OS via vertical slices — do not build large subsystems in isolat
 - implement a Store feature that consumes an OS capability.
 
 If blocked, pick the simplest viable default, record it in `DECISIONS.md`, and move on — do not stop for "perfect design." Prefer small diffs with tests over big refactors; update `CURRENT_STATUS.md` + `CHANGELOG.md` per milestone.
+
+## Product framing and claim discipline
+
+- Describe RamenOS as an OS for humans and AI agents. Keep desktop usability,
+  hardware support, and developer workflows visible alongside agent interfaces.
+- SW0 Agent Task Proof is a bounded validation lane within that product vision;
+  its results inform design without redefining the project as an agent-only platform.
+- Keep core human interactions usable without an AI model. Models may translate
+  user intent; explicit policy and enforcement remain the authority.
+- State performance, safety, hardware adaptability, isolation, and everyday
+  readiness as goals until matching evidence exists. Public pre-alpha describes
+  the current stage, not the final product category.
+- Isolation contains faults and explicit contracts reduce coupling; neither
+  removes dependencies or the need to test affected consumers.
 
 ## Non-negotiables (Constitution)
 1. Rust-first kernel and core services.
@@ -25,8 +48,8 @@ If blocked, pick the simplest viable default, record it in `DECISIONS.md`, and m
 
 ## Active track
 - **Now:** S12.4 HIL appliance v0 physical loop (serial observer first, then power/reset actuation), feeding the preferred appliance-mediated S13 metal HIL graduation path. Standalone golden-machine `PASS/METAL` must be provenance-stamped separately. S14 USB xHCI + HID is deferred to a design pass.
-- **Parallel software lane:** SW0 Agent Task Proof Phase A can start independently of physical H0–H3; it does not wait for NVMe graduation. S14 prerequisites from both lanes live in `NEXT_TASKS.md`.
-- **Authoritative pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md` §13). `SLICES.md` has slice history.
+- **Parallel software lane:** SW0 Agent Task Proof Phase A continues independently of physical H0–H3; it does not wait for NVMe graduation. Landed steps and remaining authority coverage live in `CURRENT_STATUS.md` + `NEXT_TASKS.md`; S14 prerequisites from both lanes live in `NEXT_TASKS.md`.
+- **Authoritative pair:** `CURRENT_STATUS.md` + `NEXT_TASKS.md` (deferred decisions in `ROADMAP.md`, under Deferred Decisions). `SLICES.md` has slice history.
 - **Keep green:** `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` when touching org/research planning.
 
 ## Workspace crates
@@ -68,7 +91,7 @@ Gates are shell scripts in `tools/ci/`, run via `just`. Representative set (full
 | S11 | `just s11` | Driver Factory replay + reference vault + net harness |
 | S13 | `just s13` | Persistent storage / block Oracle (QEMU) |
 | Org governance | `just foundry-org-governance-g0` | RamenOrg packets, drift, merge gate |
-| Umbrella | `just foundry-all-s0-s1-s2-s3` | Full S0–S8 suite (used in CI) |
+| Umbrella | `just foundry-all-s0-s1-s2-s3-s4-s5-s6` | Full S0–S8 suite (used in CI) |
 | CI extended | `just foundry-ci-extended` | S7 security + S9/S10/S11 subset |
 
 S2 needs `S2_COMPAT_KERNEL`/`S2_COMPAT_INITRD`/`S2_COMPAT_ARTIFACT` (or `S2_COMPAT_KERNEL_URL` to fetch).
@@ -114,6 +137,7 @@ Every PR is opened by the `ramen-implementer` bot (A2) and approved + merged by 
 - **Defense in depth** (capabilities + schema + seccomp + namespaces).
 
 ## Key documents
+- `VISION.md` — everyday OS for humans and AI agents; product goals and description guidance
 - `CONSTITUTION.md` — invariants (modify only with a `DECISIONS.md` entry)
 - `CURRENT_STATUS.md` + `NEXT_TASKS.md` — landed state + next work
 - `SLICES.md` — slice definitions/status · `ROADMAP.md` — sequencing

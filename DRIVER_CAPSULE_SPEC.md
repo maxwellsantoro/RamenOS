@@ -2,10 +2,16 @@
 
 ## Driver Capsule v0: Quarantined Legacy Driver Behind Typed Harnesses
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Reference architecture; v0 path landed
 **Slice:** S3.x (post-S3), depends on S2.2 hardening (wire helpers, trace ring contract, negative gates)
 **Primary goal:** Achieve day-1 hardware coverage without polluting kernel architecture, while producing protocol traces that enable eventual native rewrites.
+
+This boundary supports the [Vision](VISION.md): hardware adaptability and
+independently developed components in an everyday OS for humans and AI agents.
+The isolation and crash-containment statements below are architecture requirements;
+the landed v0 path does not establish them for every device or execution backend.
+Qualification requires the matching conformance, recovery, and hardware evidence.
 
 ---
 

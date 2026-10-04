@@ -16,7 +16,8 @@ use std::time::Duration;
 const MSG_GET_MANIFEST: u8 = 1;
 const MSG_GET_BLOB: u8 = 2;
 const MSG_VERIFY_ARTIFACT: u8 = 3;
-const MSG_INGEST_ARTIFACT: u8 = 4;
+// Host descriptor ingestion; legacy message 4 is deliberately unsupported.
+const MSG_INGEST_ARTIFACT: u8 = 7;
 const MSG_QUERY_PROJECTION_BY_PATH: u8 = 5;
 const MSG_QUERY_PROJECTION_BY_TAG: u8 = 6;
 
@@ -79,6 +80,7 @@ pub struct IngestArtifactRequest {
     pub request_id: u64,
     pub kind: String,
     pub channel: String,
+    /// Projection label only; source authority is the separately transferred fd.
     pub src_path: String,
     /// Capability bytes (serialized StoreCapability)
     pub capability_bytes: Vec<u8>,
@@ -389,7 +391,25 @@ impl StoreClient {
             capability_bytes,
         };
 
-        let reply_bytes = self.send_request(MSG_INGEST_ARTIFACT, &request)?;
+        use std::os::unix::fs::OpenOptionsExt;
+        let source = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
+            .open(src_path)?;
+        if !source.metadata()?.is_file() {
+            return Err(StoreClientError::InvalidResponse(
+                "ingest requires a regular file".into(),
+            ));
+        }
+        self.ensure_connected()?;
+        let mut msg = vec![MSG_INGEST_ARTIFACT];
+        msg.extend_from_slice(&bincode::serialize(&request)?);
+        let stream = self.stream.as_mut().unwrap();
+        frame::write_message(stream, &msg)
+            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
+        crate::source_fd::send(stream, &source)?;
+        let reply_bytes = frame::read_message(stream)
+            .map_err(|e| StoreClientError::FramingFailed(e.to_string()))?;
         let reply: IngestArtifactReply = bincode::deserialize(&reply_bytes)?;
         self.validate_request_id(reply.request_id, request_id)?;
         self.ensure_status_ok("ingest_artifact", reply.status)?;
