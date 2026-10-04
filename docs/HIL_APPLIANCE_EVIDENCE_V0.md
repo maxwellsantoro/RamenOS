@@ -1,7 +1,7 @@
 # HIL Appliance Evidence V0
 
-**Last Updated:** 2026-06-24
-**Status:** Scaffold schema for S12.4 / S13.9
+**Last Updated:** 2026-10-03
+**Status:** Wrapper contract and serial observer implemented; physical runs pending
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 
 The HIL appliance evidence object is a **wrapper** around a physical run. It records what the Raspberry Pi-class controller observed and actuated. It does not replace target-emitted `hil_evidence:` markers or per-gate evidence JSON.
@@ -38,14 +38,16 @@ Per-gate HIL evidence also carries `claim_path`. Appliance wrapper evidence uses
 `claim_path: operator-golden-machine` for standalone live golden-machine
 graduation.
 
-## Required JSON shape
+## Serial-observer JSON shape
+
+This example uses placeholders. The capture script supplies actual timestamps,
+hashes, identifiers and observations; placeholder values cannot qualify a run.
 
 ```json
 {
   "schema_version": 1,
   "evidence_kind": "hil_appliance_run_v0",
   "evidence_level": "PASS/HIL-APPLIANCE",
-  "claim_path": "appliance-mediated",
   "run_id": "hil_appliance_20260622T131700Z_pi-hil-01_s13-hil",
   "appliance_id": "pi-hil-01",
   "target_id": "lenovo-thinkcentre-m900-i7-6700-lab-01",
@@ -59,14 +61,7 @@ graduation.
   "serial_log_sha256": "unknown",
   "controller_log": "out/evidence/hil_appliance_<run_id>.controller.log",
   "controller_log_sha256": "unknown",
-  "power_events": [
-    {
-      "kind": "press_power",
-      "started_at_unix_ms": 0,
-      "duration_ms": 500,
-      "result": "ok"
-    }
-  ],
+  "power_events": [],
   "artifact_hashes": {
     "kernel_build_id": "unknown",
     "init_img_sha256": "unknown"
@@ -79,7 +74,7 @@ graduation.
     "init_profile": "unknown",
     "machine_id": "unknown",
     "storage_manifest_sha256": "unknown",
-    "kernel_efi_sha256": "unknown",
+    "kernel_build_id": "unknown",
     "init_img_sha256": "unknown",
     "boot_epoch_nonce": "unknown"
   },
@@ -90,6 +85,11 @@ graduation.
   "result": "pass"
 }
 ```
+
+The current serial observer emits no actuation events. The empty `power_events`
+array is intentional; the future AMT actuator must record its own action/transport/
+target/result evidence. `claim_path` belongs to per-gate S13 evidence rather than
+the current wrapper emitted by `appliance_capture_serial.sh`.
 
 ## Validation doctrine
 
@@ -117,7 +117,10 @@ Unsafe claim:
 
 > The HIL appliance proves the target state independently.
 
-The target proves target claims by emitting provenance markers and passing the relevant Foundry gate. The appliance proves the lab loop was live, observable, and reproducible.
+Target markers, prepared build hashes, fresh nonces, and gate assertions bind
+a result to the expected run under the trusted lab protocol. They are not
+cryptographic target attestation or a proof of every target state. Reproducibility
+and physical completion require the corresponding runs, not just this wrapper.
 
 ## Prepared build and run binding
 

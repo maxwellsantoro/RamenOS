@@ -17,7 +17,8 @@ Our primary target for bare-metal graduation. To be Tier-1, the hardware MUST su
 - USB xHCI
 - **A working IOMMU** (VT-d, AMD-Vi, or ARM SMMU)
 
-*Strategy:* We optimize for one specific x86_64 machine first (the acquired Lenovo ThinkCentre M900), followed by one PC-class ARM64 machine. IOMMU is strictly required so that user-space drivers are safely sandboxed in silicon, not just software.
+*Strategy:* We optimize for one specific x86_64 machine first (the acquired Lenovo ThinkCentre M900), followed by one PC-class ARM64 machine. An IOMMU is required for the intended DMA containment boundary; inventory
+alone does not prove that boundary is configured or enforced.
 
 **S12 reference (2026-07-19):** The acquired Lenovo ThinkCentre M900 Small Form Factor (machine type 10FH, model 00SNUS) with an Intel Core i7-6700 and 8 GiB RAM is the pinned Tier-1 golden machine. Its populated rear RS-232/DB9 port makes the serial-observer HIL path direct and repeatable. The Pi↔M900 serial chain is physically installed and ready. S12 runs on the installed 240 GB SanDisk SATA SSD; a compatible M.2 2280 PCIe NVMe drive remains required for S13 metal graduation. See `hardware/golden_machine_v0.toml` and `docs/plans/2026-06-21-s12-golden-machine-design.md`.
 
@@ -30,7 +31,8 @@ Minimum appliance duties:
 - timestamped evidence bundle generation;
 - later KVM-grade HDMI capture, USB HID injection, and virtual boot media.
 
-The S12.4.0 scaffold gate (`tools/ci/foundry_hil_appliance_s12_4.sh`) protects the docs/manifest/evidence-schema contract in normal CI. The next physical implementation work is S12.4.1 serial observation followed by S12.4.2 AMT power/reset actuation. A front-panel relay or smart plug/PDU is a deferred fallback, not a current purchase requirement.
+The S12.4.0 scaffold gate (`tools/ci/foundry_hil_appliance_s12_4.sh`) protects the docs/manifest/evidence-schema contract in normal CI. Serial-observer tooling is landed; the next physical work is its first live
+capture followed by S12.4.2 AMT power/reset implementation and validation. A front-panel relay or smart plug/PDU is a deferred fallback, not a current purchase requirement.
 
 Electrical rule: Pi GPIO UART is 3.3V TTL only. Do not connect Pi GPIO directly to PC RS-232/DB9. See `hardware/hil_appliance_v0.toml`, `docs/plans/2026-06-22-hil-appliance-controller.md`, and `tools/ci/foundry_hil_appliance_s12_4.sh`.
 
@@ -40,4 +42,4 @@ Devices like the Raspberry Pi.
 
 ## GPU Strategy
 GPUs are treated as hostile ecosystems.
-*Strategy:* They start in quarantined black-boxes (Linux compatibility domains) exporting only display surfaces via shared memory. They are only distilled into native components via the Foundry pipeline once the control plane is perfectly mapped and understood.
+*Strategy:* They start in quarantined black-boxes (Linux compatibility domains) exporting only display surfaces via shared memory. They are only distilled into native components via the Foundry pipeline after pinned traces, contracts, and gates establish the selected control-plane behavior.

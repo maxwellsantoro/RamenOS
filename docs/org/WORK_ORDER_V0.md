@@ -15,7 +15,7 @@ implementation, review, research, or release work.
   "work_order_id": "WO-2026-06-23-s12-4-1-serial-observer",
   "repo_sha": "unknown",
   "role": "Implementer",
-  "authority_level": "A1",
+  "authority_level": "A2",
   "task": "Implement S12.4.1 HIL appliance serial observer",
   "scope": ["tools/hil", "tools/ci", "hardware", "NEXT_TASKS.md"],
   "context_refs": [
@@ -33,6 +33,10 @@ implementation, review, research, or release work.
   "rollback_plan": "Revert only files touched by this work order"
 }
 ```
+
+This example is illustrative and grants no authority. A real bounded A2-local
+work order must bind the current repository SHA, approved context, explicit
+denials, and evidence before execution.
 
 ## Validation Rules
 

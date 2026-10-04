@@ -1,5 +1,11 @@
 # S10.1: Native Runner Production Integration
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-19
 **Status:** Approved
 **Related:** S10.0 Native Runner Phase 2, V-006 Security Remediation, V-012 Trace Service

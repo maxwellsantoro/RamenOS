@@ -1,7 +1,7 @@
 # RQ-0002: AI-Governed Org Kernel
 
 **Last Updated:** 2026-06-23
-**Status:** Research question / G0 scaffold
+**Status:** Open research question; bounded G0 foundations implemented
 
 ## Question
 
@@ -33,7 +33,7 @@ governance artifacts, a drift gate, and a research-backed roadmap for staged
 autonomy. Merge, release, hardware, and public support authority remain disabled
 unless explicitly granted later.
 
-## Required Outputs
+## Implemented foundations
 
 - Org Kernel docs under `docs/org/`.
 - Research program docs under `docs/research/`.
@@ -43,10 +43,8 @@ unless explicitly granted later.
 
 ## Landing Path
 
-G0 lands as a documentation and Foundry-gate slice. Later slices may add:
-
-- Board packet generation.
-- Work order and vote JSON validation.
-- Handoff artifact storage under `out/org/`.
-- Read-only automation heartbeats.
-- PR/release/hardware authority only after explicit decisions and controls.
+G0 has landed docs, renderers, validators, drift checks and bounded local trials.
+The open question requires evaluating their failure modes and actual role/context
+separation, including fresh isolated reproduction. Identity-level enforcement,
+release policy and hardware/public-support authority need explicit later decisions
+and controls. Local packet validation does not establish a fully autonomous org.

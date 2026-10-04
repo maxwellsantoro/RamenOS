@@ -1,8 +1,13 @@
 # S8 Phase 5: Data Plane Ring Buffer - Revised Plan
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-10
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement zero-copy data transfer between domains using lock-free SPSC ring buffer in shared memory, with proper multi-domain support and fixed pointer validation.
 

@@ -4,50 +4,30 @@ description: RamenOS architecture invariants and coding patterns. Apply when wri
 user-invocable: false
 ---
 
-## Non-Negotiables (CONSTITUTION.md)
+Read `AGENTS.md` and `CONSTITUTION.md` for the stable contract; use
+`CURRENT_STATUS.md` and `NEXT_TASKS.md` for landed scope and next work.
 
-1. Native interfaces are **typed Harnesses/Portals** -- no ioctl-style escape hatches
-2. **POSIX is compatibility-only** -- never design native APIs around POSIX semantics
-3. **Capability validation is kernel-side** for fast-path ops; user-space brokers decide grants
-4. Control plane uses **typed messages**; data plane is **zero-copy shared memory**
-5. Preserve boundaries: **kernel != services != store**
+- Native interfaces are typed Harnesses/Portals defined in IDL. POSIX remains
+  compatibility-only; no native ioctl or untyped command escape hatch.
+- Brokers decide grants; the kernel validates capabilities on native fast paths.
+  Define request authority separately from observable authority at service boundaries.
+- Control uses bounded typed messages; bulk data uses shared memory. Check object
+  lifetime, consumer ranges, and actual copy costs rather than inferring them.
+- No heap allocation in `kernel/`. Architecture code belongs in `kernel/src/arch/`.
+  `kernel_api` has no external dependencies; `kernel` permits the recorded `spin`
+  exception. New dependencies need an explicit decision.
+- Services consume `kernel_api` contracts, never kernel internals. Artifact types
+  belong in `artifact_store_schema`; Store I/O ownership stays in the owning layer.
+- New contracts go in `idl/harness/`, `idl/portals/`, or `idl/services/` and are
+  registered in `tools/ci/run_codegen.sh`. Never hand-edit generated content.
+- Write behavior/denial assertions before implementation; deliver a bounded slice
+  and real consumer. Keep domain accounting, traces, and grants scoped.
+- Obtain the Reference Vault and Oracle traces before hardware code. Derive port
+  policy from observed-capability evidence and test it against scenarios.
+- Core human interactions must remain usable without a model. Performance,
+  containment, metal and readiness claims require matching evidence.
+- Run formatting, affected checks, and required integration gates. Record design
+  decisions in `DECISIONS.md`; update status/changelog for landed milestones.
 
-## Kernel Code Rules
-
-- No dynamic allocation until mm is stable
-- Keep arch-specific code in `kernel/arch/`
-- IPC message formats must be typed and versionable (defined in `kernel_api`)
-- No external crate dependencies in `kernel/` or `kernel_api/`
-
-## Interface Discipline
-
-- New interfaces must be added to `/idl` as TOML specs
-- Code-generate Rust bindings via `just codegen` (uses `idl_codegen`)
-- Never hand-write code that should be generated
-
-## Slice Discipline
-
-- Every change must: improve boot/run, implement an IDL contract, add a Foundry gate, or implement a Store feature
-- Gate-first: write the Foundry gate assertion before the implementation
-- No "temporary hacks" that violate the Constitution
-- Prefer small diffs with tests over big refactors
-
-## File Organization
-
-| Directory | Purpose | Dependencies |
-|-----------|---------|-------------|
-| `kernel/` | Core kernel library | None (no external crates) |
-| `kernel_api/` | Shared types for kernel/runtime | None |
-| `kernel_aarch64/` | aarch64 bootstrap | kernel |
-| `kernel_uefi/` | x86_64 UEFI boot | kernel, uefi crate |
-| `idl/` | Interface definitions (TOML) | N/A |
-| `services/` | User-space services | Must not reach into kernel |
-| `store/` | Software store metadata | Independent of kernel |
-| `tools/ci/` | Foundry gate scripts | N/A |
-
-## Style
-
-- Clippy with `-D warnings` (deny all warnings)
-- `cargo fmt` for formatting
-- Update `CURRENT_STATUS.md` and `CHANGELOG.md` per milestone
-- Record design choices in `DECISIONS.md`
+Keep guidance here focused on applying the contract; do not duplicate the current
+queue or weaken invariants with an informal future exception.

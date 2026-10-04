@@ -72,7 +72,8 @@ aggregate report. Recovery checks compare non-cleanup journal fields directly;
 private grading confirms revision, receipt count and accepted bytes independently
 of consumer final text. No pilot/final bank selection or model credentials are used.
 
-Next extend requestable/unexercised authority and continuous lifetime coverage,
+[A2.9](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) adds finite requestable-right
+and named lifetime witnesses. Extend broader unexercised/continuous authority
 and resolve or explicitly bound host-client/deputy differences. Real bank/study
 freezing and provider/token accounting precede full A2 or comparative collection.
 Unacknowledged daemon work remains quarantined until explicit evidence resolves it;

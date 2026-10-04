@@ -1,5 +1,10 @@
 # G0.8 Bounded Implementation Trial for S12.4.1
 
+> Gate-bound historical milestone. This stable path is consumed by governance
+> checks. Use [Current Status](../../CURRENT_STATUS.md) and
+> [Next Tasks](../../NEXT_TASKS.md) for current scope and authority.
+
+
 **Date:** 2026-06-23
 **Status:** Implemented
 **Authority:** A2-local only, reclassified by G0.8.1

@@ -14,7 +14,7 @@ does not change the lane prerequisites below.
 ## Parallel Execution Lanes
 
 **Now:** SW0 A2 remaining host/deputy/unexercised and continuous authority coverage; HIL appliance hardware runs await setup.
-A0/A1.0 contracts, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented.
+Implemented steps and their precise boundaries are listed in [Current Status](CURRENT_STATUS.md).
 Physical H0–H3 await test-hardware setup; no live capture or actuation is scheduled.
 
 H0–H3 are ordered within the physical lane; SW0 is an independent software lane,
@@ -79,86 +79,32 @@ manual media/nonce staging is needed. See [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.m
 
 ## Software Lane: SW0 Agent Task Proof
 
-**Next software action:** A2 — bound remaining host-client/deputy differences and
-unexercised authority outside the declared interface; extend continuous lifetime
-coverage beyond named points and fixture policies. Freeze real bank/study releases
-and provider/token accounting before
-full A2 or comparative model collection.
-[A2.9 requestable authority](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) checks
-31 grant subsets under two policies, single-right effects and named expiry/renewal/
-revocation points. Equality is limited to the issued-right interface projection;
-whole envelopes and broader host/deputy reach remain unknown.
-[A2.8 reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md) checks named
-acknowledged lifecycle cleanup and explicit all-arm interrupted-commit recovery.
-Unresolved create intents remain quarantined until explicit evidence resolves them.
-[A2.7 evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md) supply the
-bank/release contract and external session bounds across 45 synthetic development
-attempts. Validator timeouts remain in the denominator; a separate forced LS
-timeout remains a failed task; its cleanup is certified only with complete
-acknowledged-ID evidence.
-[A2.6 finite authority inventory](docs/AGENT_TASK_AUTHORITY_V1.md) freezes logical
-tuples and compares 33 common cases in all arms, preserving unknown mappings.
-[A2.5 typed subscriptions](docs/AGENT_TASK_SUBSCRIPTIONS_V2.md) supply a bounded
-version 2 poll/cancel lifecycle with named RT/LT comparisons and explicit LS scope.
-[A2.4 LS commands](docs/AGENT_TASK_LS_TRANSACTIONS_V1.md) provide contained shell
-transactions, a bounded launcher and receipt recovery. A2.3's
-[independent LT backend](docs/AGENT_TASK_LT_BACKEND_V1.md) runs the shared
-[JSON contract](docs/AGENT_TASK_ADAPTER_V1.md) and named RT/LT point cases.
-A2.1's
-[Linux scoped-shell foundation](docs/AGENT_TASK_LINUX_CONTROL_V1.md) is runnable
-with real containment probes. Preserve A1.1's independently runnable host gate
-and its explicit
-[fixture boundary](docs/AGENT_TASK_SERVICE_PROOF_V1.md).
-SW0 has no H0–H3 prerequisite. The
-[Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines one
-consumer task: repair a scoped configuration, execute its pinned validator, and
-report the resulting artifact while access to another workspace is denied.
+**Next software action:** complete the remaining A2 controls before model
+collection. Preserve the independently runnable A1.1 host proof. SW0 has no
+H0–H3 prerequisite; its consumer is a scoped configuration repair, pinned
+validation and checked artifact publication.
 
-0. A0 is implemented: `just foundry-agent-task-contract-a0` checks the pure
-   contract model and synthetic fixtures. It is not a useful task or an
-   enforcement boundary. See [Agent Task Contract V0](docs/AGENT_TASK_CONTRACT_V0.md).
-1. A1.0 is implemented: `just foundry-agent-task-protocol-a1-0` checks generated
-   fixed control layouts and fail-closed request preflight. The documented
-   call-path inventory and A1.1 matrix do not supply service enforcement.
-   A1.1 is implemented: `just foundry-agent-task-proof-rt` checks the useful
-   scripted host task, forced denials, worker bounds, durable receipt recovery,
-   scoped events and audit/receipt replay. Production registration, separately
-   isolated clients and target-kernel task enforcement remain outside its scope.
-2. A2.1 implements a scripted Linux scoped-shell repair, shared development
-   fixture, pinned validation, measured Docker containment and named probes. It
-   does not supply LS durable commits or all-arm conformance.
-   A2.2 implements the shared JSON codec/descriptions and opt-in RT bridge with
-   independent executable/schema assertions. A2.3 adds independent LT transactions,
-   direct broker denials/recovery and shared named point-case checks. A2.4 adds
-   contained LS commands/launcher
-   using the same Linux transaction engine, with real peer and cleanup checks.
-   A2.5 adds shared typed subscriptions, coalescing, cancellation and lifecycle
-   comparisons while preserving version 1. A2.6 adds a fixed canonical vocabulary,
-   33 shared cases, explicit LS file/process/raw-session probes and separate
-   available/task/probe effects. Full E_max/E(t), unexercised/deputy/isolation
-   authority remain incomplete. A2.7 adds bank/release contracts and bounded
-   scripted sessions with private failure evidence; real hidden-bank qualification,
-   provider/token accounting remain pending. A2.8 adds durable lifecycle fencing and
-   explicit receipt recovery; unacknowledged daemon work stays unknown. A2.9 adds
-   finite requestable grant subsets and lifetime witnesses, not complete envelopes.
-   Keep A1 runnable
-   independently; comparative data collection requires all A2 controls to pass.
-3. Pilot Linux scoped shell, Linux typed, and RamenOS typed using one evaluator
-   and hidden fixture bank. Verify LT/RT protocol equivalence and canonical
-   authority mappings. Use the predeclared power rule to size and freeze the
-   final comparison within a funded, predeclared ceiling, then run it opt-in.
-   If power is unaffordable, publish a bounded exploratory report and record the
-   proceed/defer decision with its limitations. Report the three contrasts and
-   separate
-   completion, authority, cost, and audit/replay outcomes, including uncertainty.
-4. Add target-side enforcement evidence for named task operations. The existing
-   QEMU snapshot/IPC bridge alone cannot establish this task's OS boundary.
+| Order within SW0 | Work remaining | Acceptance / dependency |
+|------------------|----------------|-------------------------|
+| A2 authority | Bound host-client/deputy differences and unexercised authority outside the declared interface; extend continuous lifetime coverage | Named backend and OS probes, explicit available/task/probe effects, and honest unknown/inclusion results; finite issued-right equality is insufficient |
+| A2 study controls | Freeze real bank/study releases, provider/token accounting and arm supervision | Independent hidden partitions, identical authorized task resources, frozen context/usage accounting and no silent retry or discarded failure rows |
+| A2 conformance | Run all deterministic controls across LS/LT/RT and validate canonical mappings | No skipped negative cases or missing protocol/authority mappings; preserve the client/deputy differences in the report |
+| Phase B pilot and report | Pilot the three arms, apply the predeclared power rule, then freeze an affordable final comparison or publish exploratory results | Explicit funded ceiling and opt-in work order; separate interface/substrate/total contrasts and completion, authority, cost and audit/replay outcomes with uncertainty |
+| Phase C target evidence | Add target enforcement for named task operations | Actual kernel/QEMU grants and forbidden probes per operation; the snapshot/IPC bridge alone is insufficient |
 
-A0/A1.0, A1.1/A2.1 host foundations, A2.2 JSON/RT, A2.3 LT, A2.4 LS transactions, A2.5 typed subscriptions, A2.6 finite authority inventory, A2.7 scripted evaluator controls, A2.8 named reconciliation and A2.9 finite requestable/lifetime points are implemented;
-full A2 conformance and model comparison are **not implemented**. Completion of
-the contract is not completion
-of the experiment; an unfavorable comparison is a valid
-result and should inform the next software slice.
+The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) owns the
+experimental contract and proposed future commands. The implemented gate/contract
+map is in [Current Status](CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment).
+Full A2 conformance and model comparison are **not implemented**.
+
+Carry forward the [authority inventory](docs/AGENT_TASK_AUTHORITY_V1.md),
+[requestable/lifetime boundary](docs/AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md),
+[evaluator controls](docs/AGENT_TASK_EVALUATOR_CONTROLS_V1.md), and
+[reconciliation](docs/AGENT_TASK_RECONCILIATION_V1.md): retain validator timeouts
+and forced failures in the denominator; quarantine unresolved create intents;
+certify cleanup only from complete acknowledged-ID evidence. Completion of a
+contract is not completion of the study. A tie, regression or budget-limited
+report is a valid result for the next software decision.
 
 ## S14 Expansion Prerequisites
 
@@ -178,7 +124,7 @@ This lane can proceed without displacing H0–H3 or SW0.
 
 | Priority | Task | Gate or artifact |
 |----------|------|------------------|
-| GP0 | G0.8.1 implementation authority and serial claim hygiene | `just foundry-org-governance-g0` |
+| GP0 | Maintain G0.8.1 implementation authority and serial claim hygiene | `just foundry-org-governance-g0` |
 | GP1 | RQ-0002 AI-governed Org Kernel research packet | [RQ-0002](docs/research/questions/RQ-0002-ai-org-kernel.md) |
 | GP2 | RQ-0001 offer-shaped service-boundary research packet | [RQ-0001](docs/research/questions/RQ-0001-offer-boundaries.md) |
 | GP3 | Identity-level role separation | Future design; no authority increase |
@@ -204,10 +150,9 @@ before pushing when practical.
 
 - S14 implementation until the H0/H1 loop is stable, SW0 Phase A/B results are
   reviewed, and the S14 design/IDL/Oracle/gate prerequisites above are met.
-- After this branch merges, update the GitHub repository description to:
-  "A Rust-first, post-Unix OS for humans and AI agents, designed for everyday
-  use through typed contracts, modular components, and evidence-backed
-  development. Public pre-alpha."
+- After the product-framing change is merged, reconcile the GitHub repository
+  description with the short description in [VISION.md](VISION.md#describing-ramenos).
+  Repository metadata is an external follow-up, not a local documentation edit.
 - Smart plug/PDU and front-panel relay purchases until AMT validation establishes
   a concrete recovery gap.
 - Full execution-fabric transport and broad real-kernel broker migration.

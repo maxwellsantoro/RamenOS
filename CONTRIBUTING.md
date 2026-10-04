@@ -25,9 +25,11 @@ just clippy
 just preflight
 ```
 
-`just preflight` runs IDL lint/codegen, strict lint tranches, host tests, and the
-Foundry umbrella. Run the narrow slice gate while iterating and the full
-preflight before pushing when practical.
+`just preflight` checks Linux evaluator prerequisites, then format/codegen/IDL,
+target builds, strict lint, host tests, and umbrella/extended Foundry suites.
+Missing Linux, JSON-schema support, Docker/seccomp, or the pinned image reports
+INCOMPLETE. Use the focused slice gate while iterating and follow
+[Getting Started](docs/GETTING_STARTED.md) for environment-specific checks.
 
 ## Change Discipline
 
@@ -48,7 +50,7 @@ preflight before pushing when practical.
   agents. Describe speed, safety, adaptability, and ease of use as goals until
   supported by matching evidence; distinguish pre-alpha status from the destination.
 - Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
-- Update `NEXT_TASKS.md` only when execution order changes.
+- Update `NEXT_TASKS.md` when tasks complete or execution order/dependencies change.
 - Record design choices in `DECISIONS.md`.
 - Move completed, non-gate-bound plans to `docs/archive/plans/` and repair links.
 - Use evidence labels from `EVIDENCE_LEVELS.md`; do not overstate QEMU or replay

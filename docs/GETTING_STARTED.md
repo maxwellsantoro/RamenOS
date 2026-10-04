@@ -3,744 +3,138 @@
 **Last Updated:** 2026-10-03
 **Status:** Active contributor guide
 
-Set up a development environment, build the host and target components, boot in
-QEMU, and run Foundry gates. For current priorities, use
-[`CURRENT_STATUS.md`](../CURRENT_STATUS.md) and
-[`NEXT_TASKS.md`](../NEXT_TASKS.md).
-
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Prerequisites](#prerequisites)
-3. [Development Environment Setup](#development-environment-setup)
-4. [Building RamenOS](#building-ramenos)
-5. [Running in QEMU](#running-in-qemu)
-6. [Running Foundry Gates](#running-foundry-gates)
-7. [Architecture-Specific Notes](#architecture-specific-notes)
-8. [Common Issues and Troubleshooting](#common-issues-and-troubleshooting)
-9. [Next Steps](#next-steps)
-
----
-
-## Introduction
-
-### What is RamenOS?
-
-RamenOS is a Rust-first, post-Unix OS being built for everyday use by humans
-and AI agents. Its [Vision](../VISION.md) combines approachable human interaction,
-structured agent interfaces, modular drivers/services, and useful compatibility.
-The project is public pre-alpha: kernel paths, host services, and selected QEMU
-bridges implement foundations; desktop and full target integration remain work.
-Scripted agent tasks and bounded controls exist, while comparative evaluation
-remains [planned](plans/2026-09-16-agent-task-proof.md).
-
-The implementation uses:
-
-- **Typed Harnesses + Portals**: No ioctl-style escape hatches in native interfaces
-- **Compatibility Domains**: Linux/POSIX and GPU compatibility paths with
-  [explicit isolation limits](../SECURITY_STATUS.md)
-- **Unified Foundry Pipeline**: Trace, replay, fuzz, minimize, and gate workflow for drivers and app ports
-
-The project is organized as three pillars:
-1. **OS Core** (kernel + services + runtimes)
-2. **Foundry** (tooling + CI gates)
-3. **Store Platform** (Run Now, Vote/Port, Publish)
-
-### Choose a first run
-
-| Goal | Command | What it exercises |
-|------|---------|-------------------|
-| Inspect the agent-facing substrate | `just foundry-semantic-state-s10-2` | Host snapshots, subscriptions, filtered views, and runner tests |
-| Boot the kernel | `just foundry-s0` | x86_64/aarch64 QEMU boot, IPC, and tracing |
-| Inspect the selected target bridge | `just foundry-qemu-ipc-bridge-s10-5-2` | Host-to-QEMU framed IPC; not a complete target-native runtime |
-| Work on current hardware/storage foundations | `just s11`, `just s12`, `just s13` | Driver replay, inventory, and QEMU paths |
-
-The H0–H3 physical lane is S12.4 serial capture and AMT actuation, then S12/S13
-hardware graduation. Default gates do not establish live hardware success.
-SW0 continues Agent Task Proof Phase A independently, without waiting for hardware:
-Linux scoped shell, Linux typed, and RamenOS typed adapters under one evaluator.
-Implemented scripted gates and remaining controls are recorded in
-[Current Status](../CURRENT_STATUS.md). S14 prerequisites from both lanes
-are listed in [Next Tasks](../NEXT_TASKS.md); S14/S15 lead toward human input
-and the desktop rather than being part of this setup guide's current first run.
-
-Use [Development Reference](DEVELOPMENT_REFERENCE.md) for Store CLI examples,
-operator settings, and the repository map.
-
-### Who This Guide Is For
-
-This guide is for developers who want to:
-- Contribute to the RamenOS codebase
-- Understand the build system and architecture
-- Run and test the OS in QEMU
-- Work on kernel, services, or tooling components
-
-### What You'll Learn
-
-By the end of this guide, you will be able to:
-- Set up a complete development environment
-- Build the kernel and services for multiple architectures
-- Run RamenOS in QEMU with UEFI boot
-- Execute Foundry gates to verify functionality
-- Troubleshoot common issues
-
----
+RamenOS is an everyday OS being built for humans and AI agents. It is public
+pre-alpha: the commands below exercise host components and selected target
+paths. Read [Current Status](../CURRENT_STATUS.md) and
+[Next Tasks](../NEXT_TASKS.md) for evidence and current priorities.
 
 ## Prerequisites
 
-### Required Tools
+Use Rust via rustup, `just`, Python 3, Git, and QEMU with both
+`qemu-system-x86_64` and `qemu-system-aarch64`. x86_64 UEFI gates also need
+OVMF firmware. The repository pins the Rust nightly, components, and cross-targets
+in [rust-toolchain.toml](../rust-toolchain.toml); Cargo uses that toolchain when
+run from this checkout.
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Rust | nightly-2026-02-08 | Kernel and services development |
-| QEMU | 7.0+ | x86_64 and aarch64 emulation |
-| OVMF | UEFI firmware | UEFI boot support for x86_64 |
-| just | 1.0+ | Command runner for justfile |
-| Git | 2.0+ | Version control |
-| Python | 3.8+ | Build scripts and tooling |
-
-### Rust Toolchain
-
-RamenOS uses a pinned nightly Rust toolchain for bare-metal development. The toolchain is defined in [`rust-toolchain.toml`](../rust-toolchain.toml):
-
-```toml
-[toolchain]
-channel = "nightly-2026-02-08"
-components = ["rust-src", "llvm-tools", "rustfmt", "clippy"]
-targets = [
-  "x86_64-unknown-none",
-  "aarch64-unknown-none",
-  "x86_64-unknown-uefi",
-  "aarch64-unknown-uefi",
-]
-```
-
-The toolchain includes:
-- `rust-src`: Source code for building bare-metal targets
-- `llvm-tools`: Linker tools for bare-metal work
-- `rustfmt`: Code formatting
-- `clippy`: Linting
-
-### QEMU Installation
-
-RamenOS requires QEMU for both x86_64 and aarch64 architectures:
-
-- **qemu-system-x86_64**: For UEFI boot testing on x86_64
-- **qemu-system-aarch64**: For direct kernel boot on aarch64
-
-### OVMF Firmware
-
-OVMF (Open Virtual Machine Firmware) provides UEFI boot support for QEMU x86_64. You need:
-- `OVMF_CODE.fd`: UEFI firmware code (read-only)
-- `OVMF_VARS.fd`: UEFI variable store (writable copy)
-
-### just Command Runner
-
-The project uses `just` as a command runner (similar to `make` but with simpler syntax). All build commands are defined in the [`justfile`](../justfile).
-
----
-
-## Development Environment Setup
-
-### macOS Setup (Primary Platform)
-
-#### 1. Install Homebrew Packages
+On macOS, the basic Homebrew tools are:
 
 ```bash
-# Install QEMU for both architectures
-brew install qemu
-
-# Install OVMF firmware for UEFI boot
-brew install edk2-ovmf
-
-# Install just command runner
-brew install just
+brew install qemu just
 ```
 
-#### 2. Install Rust
+Provide OVMF code and, when available, a matching variables template. Gates
+search the paths in [foundry_s0.sh](../tools/ci/foundry_s0.sh), including Homebrew
+QEMU/edk2 and Linux OVMF locations. For another installation, set `OVMF_CODE`
+and `OVMF_VARS` to the actual firmware files. Gates copy the variables template
+into `out/`; do not use an installed firmware template as writable VM storage.
+
+The Linux CI dependencies are recorded in
+[ci.yml](../.github/workflows/ci.yml). On a Debian/Ubuntu host the boot/tooling
+packages include:
 
 ```bash
-# Install rustup if not already installed
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# The project will automatically use the pinned toolchain from rust-toolchain.toml
-# when you run cargo commands in the project directory
+sudo apt-get install qemu-system-x86 qemu-system-arm ovmf \
+  python3 python3-jsonschema gcc cpio gzip e2fsprogs curl
 ```
 
-#### 3. Verify Installation
+Install rustup and `just` separately if unavailable. Full preflight additionally
+requires Linux evaluator facilities and the configured Docker image. Use focused
+gates on other hosts; a missing prerequisite is not a successful evaluation.
+
+Verify the toolchain from the repository root:
 
 ```bash
-# Check Rust version (should show nightly-2026-02-08 in project directory)
-cd RamenOS
 cargo --version
-
-# Check QEMU
+just --version
+python3 --version
 qemu-system-x86_64 --version
 qemu-system-aarch64 --version
-
-# Check just
-just --version
-
-# Verify OVMF location
-ls /opt/homebrew/share/edk2-ovmf/x64/
-# Should show: OVMF_CODE.fd OVMF_VARS.fd
 ```
 
-### Linux Setup
+## Choose a first run
 
-#### 1. Install Packages (Ubuntu/Debian)
+| Goal | Command | Evidence |
+|------|---------|----------|
+| Build typed host components | `just build-host` | Host build; runs codegen first |
+| Inspect structured OS state | `just foundry-semantic-state-s10-2` | Host snapshots, subscriptions, filtered views, runner checks |
+| Run a Store demo | `just foundry-store-s0` | Self-contained host service and launch plan |
+| Boot both kernel architectures | `just foundry-s0` | QEMU boot, IPC, tracing, memory initialization |
+| Inspect the selected target bridge | `just foundry-qemu-ipc-bridge-s10-5-2` | Framed host/QEMU IPC for the selected contract |
+| Check hardware/storage foundations | `just s11`, `just s12`, `just s13` | Replay, inventory, embedded vectors and QEMU assertions |
+
+For SW0's implemented task controls, use the command/scope table in
+[Current Status](../CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment).
+The physical lane and software lane proceed independently. Default hardware
+gates do not establish a physical run or metal graduation.
+
+## Build and regenerate
+
+Run commands from the repository root. [justfile](../justfile) owns recipes;
+[run_codegen.sh](../tools/ci/run_codegen.sh) owns the complete binding-output list.
 
 ```bash
-# Install QEMU
-sudo apt-get install qemu-system-x86 qemu-system-arm
-
-# Install OVMF firmware
-sudo apt-get install ovmf
-
-# Install just (from release)
-curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/bin
-# Add ~/bin to your PATH
-
-# Install build essentials
-sudo apt-get install build-essential python3 python3-pip
-```
-
-#### 2. Install Rust
-
-```bash
-# Install rustup
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-#### 3. Verify Installation
-
-```bash
-# Check OVMF location
-ls /usr/share/OVMF/
-# Should show: OVMF_CODE.fd OVMF_VARS.fd (or OVMF_CODE_4M.fd OVMF_VARS_4M.fd)
-```
-
-### Rust Toolchain Configuration
-
-The project uses a `rust-toolchain.toml` file to automatically select the correct toolchain. No manual configuration is needed when working within the project directory.
-
-To verify the toolchain is correct:
-
-```bash
-cd RamenOS
-rustup show
-# Should show: nightly-2026-02-08 (with required components and targets)
-```
-
-If components are missing, install them:
-
-```bash
-rustup component add rust-src llvm-tools rustfmt clippy
-rustup target add x86_64-unknown-none aarch64-unknown-none x86_64-unknown-uefi aarch64-unknown-uefi
-```
-
-### Clippy and rustfmt Configuration
-
-The project uses specific formatting settings defined in [`rustfmt.toml`](../rustfmt.toml):
-
-```toml
-style_edition = "2024"
-```
-
-Run formatting before committing:
-
-```bash
-# Format all code
-cargo fmt --all
-
-# Check formatting without modifying
-cargo fmt --all --check
-```
-
-Run clippy for linting:
-
-```bash
-# Run baseline clippy (host workspace)
-just clippy
-
-# Run strict lint tranches
-just clippy-strict
-```
-
----
-
-## Building RamenOS
-
-### Cloning the Repository
-
-```bash
-git clone https://github.com/maxwellsantoro/RamenOS.git
-cd RamenOS
-```
-
-### Building the Kernel
-
-The kernel can be built for multiple targets:
-
-```bash
-# Build kernel for x86_64 (bare-metal)
-cargo build -p kernel --target x86_64-unknown-none
-
-# Build kernel for aarch64 (bare-metal)
-cargo build -p kernel --target aarch64-unknown-none
-
-# Build UEFI kernel for x86_64
-cargo build -p kernel_uefi --target x86_64-unknown-uefi
-
-# Build aarch64 kernel (standalone)
-cargo build -p kernel_aarch64 --target aarch64-unknown-none --release
-```
-
-### Building Services
-
-Host-side services run on the development machine:
-
-```bash
-# Build all host-side components
-just build-host
-
-# This excludes kernel_uefi and kernel_aarch64 which are target-specific
-```
-
-### Running IDL Code Generation
-
-RamenOS uses IDL (Interface Definition Language) files to generate typed contracts:
-
-```bash
-# Generate all IDL code
 just codegen
-```
-
-This generates:
-- Rust code in `kernel_api/src/generated/`
-- C headers in `tools/capsule/generated/`
-
-### Building All Targets
-
-```bash
-# Build all target-specific components
+just build-host
 just build-targets
+just build-uefi
 ```
 
-### Running Tests
+`build-targets` cross-compiles the no_std kernel/API and aarch64 boot path.
+`build-uefi` builds UEFI images. These builds alone do not assert boot behavior.
+`codegen` updates Rust kernel bindings, the C capsule header, SDK WASM imports,
+and native-runner host bindings. Never hand-edit generated content. See
+[IDL Tools](../idl/tools/README.md) before introducing a native interface.
+
+## QEMU boot
+
+Use `just foundry-s0` for a repeatable boot. It builds the init image, stages
+`BOOTX64.EFI` and `init.img` together under `out/uefi/x86_64/EFI/BOOT`, prepares
+firmware variables, boots both architectures, and checks the serial assertions.
+Inspect `out/logs/` on failure.
+
+For interactive debugging, adapt that gate's QEMU commands and keep its init
+loading behavior. The aarch64 path loads the init image at `0x44000000` using
+QEMU's loader device; specifying only `-kernel` omits the required init payload.
+The x86_64 path loads `init.img` beside the EFI executable, not at the FAT root.
+Use one serial stdio owner, for example `-display none -monitor none -serial
+stdio`; avoid conflicting monitor/serial assignments.
+
+Stop debugging VMs before rerunning a gate that reuses its output images or
+sockets. Boot logs are QEMU evidence; physical observation requires the
+[HIL protocol](plans/2026-06-22-hil-appliance-controller.md).
+
+## Validate a change
+
+Choose the gate that asserts the changed behavior, then the required integration
+checks. For docs/org planning, keep these green:
 
 ```bash
-# Run host workspace tests
-cargo test --workspace --exclude kernel_uefi --exclude kernel_aarch64
-
-# Or use the preflight command which includes tests
-just preflight
-```
-
----
-
-## Running in QEMU
-
-### x86_64 QEMU Setup
-
-The x86_64 boot uses UEFI firmware (OVMF) and loads the kernel from a FAT disk image.
-
-#### Manual QEMU Command
-
-```bash
-# Build the UEFI kernel
-cargo build -p kernel_uefi --target x86_64-unknown-uefi
-
-# Create boot directory structure
-mkdir -p out/uefi/x86_64/EFI/BOOT
-cp target/x86_64-unknown-uefi/debug/kernel_uefi.efi out/uefi/x86_64/EFI/BOOT/BOOTX64.EFI
-
-# Run QEMU (macOS paths)
-qemu-system-x86_64 \
-  -machine q35 \
-  -m 512M \
-  -drive if=pflash,format=raw,readonly=on,file=/opt/homebrew/share/edk2-ovmf/x64/OVMF_CODE.fd \
-  -drive if=pflash,format=raw,file=/opt/homebrew/share/edk2-ovmf/x64/OVMF_VARS.fd \
-  -drive format=raw,file=fat:rw:out/uefi/x86_64 \
-  -nographic \
-  -serial stdio
-```
-
-#### Linux Paths
-
-```bash
-# Use these paths on Linux
-OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
-OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
-```
-
-### aarch64 QEMU Setup
-
-The aarch64 boot uses direct kernel loading (no UEFI).
-
-#### Manual QEMU Command
-
-```bash
-# Build the aarch64 kernel
-cargo build -p kernel_aarch64 --target aarch64-unknown-none --release
-
-# Run QEMU
-qemu-system-aarch64 \
-  -machine virt \
-  -cpu cortex-a57 \
-  -m 512M \
-  -kernel target/aarch64-unknown-none/release/kernel_aarch64 \
-  -nographic \
-  -serial stdio
-```
-
-### Expected Output
-
-When RamenOS boots successfully, you should see:
-
-```
-RAMEN OS S0 boot
-mm: allocator ready
-init: hello
-init: ping/pong ok
-init: ipc badlen small ok
-init: ipc badlen large ok
-init: ipc unknown proto ok
-init: trace ok
-```
-
-These messages indicate:
-- **RAMEN OS S0 boot**: Kernel entry point reached
-- **mm: allocator ready**: Memory management initialized
-- **init: hello**: Init component started
-- **init: ping/pong ok**: IPC mechanism working
-- **init: ipc badlen tests**: IPC error handling working
-- **init: trace ok**: Tracing system working
-
-### Using the Foundry Gate
-
-The easiest way to run QEMU is through the Foundry gate:
-
-```bash
-# Run the S0 boot gate (builds and tests both architectures)
-just foundry-s0
-```
-
----
-
-## Running Foundry Gates
-
-### What Are Foundry Gates?
-
-Foundry gates verify specific functionality through host tests, contract checks,
-replay, or QEMU as appropriate. They build the required components, assert
-expected behavior (including negative cases), and report pass/fail status.
-
-Foundry gates are located in `tools/ci/` and named `foundry_*.sh`.
-
-### Running Focused Gates
-
-```bash
-# Host agent-facing components
-just foundry-semantic-state-s10-2
-just foundry-broker-kernel-bridge-s10-5-1
-
-# Selected host/target integration (requires QEMU)
-just foundry-host-target-s10-5
-just foundry-qemu-ipc-bridge-s10-5-2
-
-# Driver Factory, golden-machine scaffold, and storage
 just s11
 just s12
 just s13
-
-# Appliance inventory/scaffold and planning consistency
-just hil-appliance
 just foundry-org-governance-g0
 ```
 
-`just hil-appliance` defaults to inventory/fixture validation. Physical capture
-and graduation require the preparation and provenance in
-[Evidence Levels](../EVIDENCE_LEVELS.md); passing the default gate is not a live
-capture. The current lab steps are in [Next Tasks](../NEXT_TASKS.md).
-
-### Running the Umbrella and Extended Gates
-
-```bash
-# Historical alias: S0-S6, plus S7 GPU quarantine and S8 shared-memory contracts
-just foundry-all-s0-s1-s2-s3-s4-s5-s6
-
-# Review regressions, security, S10 bridges, S11-S13, and governance
-just foundry-ci-extended
-```
-
-The S2 compatibility portion requires `S2_COMPAT_KERNEL`, `S2_COMPAT_INITRD`,
-and `S2_COMPAT_ARTIFACT` (or the documented fetch inputs); see
-[compatibility tooling](../tools/compat/README.md). These suites are broader
-than the focused commands above. Consult the [justfile](../justfile) for all
-aliases and [the extended script](../tools/ci/foundry_ci_extended.sh) for its
-exact coverage.
-
-### Running Preflight
-
-The preflight command runs a comprehensive check before pushing:
-
-```bash
-just preflight
-```
-
-[Preflight](../tools/ci/foundry_preflight.sh) runs:
-
-1. Complete-proof prerequisites: Linux, Python `jsonschema`, Docker with builtin
-   seccomp, and the already installed immutable image pinned by
-   `tools/agent_task/linux_sandbox.py`.
-2. Format check and IDL code generation/lint.
-3. Bare-metal target builds.
-4. Strict lint baseline and tranches.
-5. Host workspace tests.
-6. The Foundry umbrella and extended gates, including the same complete SW0
-   A0–A2.9 sequence used by CI.
-
-Missing proof prerequisites produce `INCOMPLETE` before the build. macOS can run
-individual host/QEMU gates, but a host-only result cannot substitute for the
-Linux container containment checks in full preflight.
-
-### Interpreting Results
-
-A successful gate run ends with:
-
-```
-FOUNDRY_S0: ok
-```
-
-If a gate fails:
-1. Check the log files in `out/logs/`
-2. Look for error messages or missing assertions
-3. Verify QEMU and OVMF are correctly installed
-
----
-
-## Architecture-Specific Notes
-
-### x86_64 Specifics
-
-- **Boot Method**: UEFI via OVMF firmware
-- **Machine Type**: Q35 (modern chipset)
-- **Memory**: 512MB default
-- **Firmware Location**:
-  - macOS: `/opt/homebrew/share/edk2-ovmf/x64/`
-  - Linux: `/usr/share/OVMF/`
-- **Entry Point**: `EFI/BOOT/BOOTX64.EFI` on FAT disk image
-
-#### x86_64 Build Targets
-
-| Target | Purpose |
-|--------|---------|
-| `x86_64-unknown-none` | Bare-metal kernel (no std) |
-| `x86_64-unknown-uefi` | UEFI application kernel |
-
-### aarch64 Specifics
-
-- **Boot Method**: Direct kernel loading (no UEFI)
-- **Machine Type**: virt
-- **CPU**: Cortex-A57
-- **Memory**: 512MB default
-- **Entry Point**: Kernel loaded at default address
-
-#### aarch64 Build Targets
-
-| Target | Purpose |
-|--------|---------|
-| `aarch64-unknown-none` | Bare-metal kernel (no std) |
-| `aarch64-unknown-uefi` | UEFI application kernel (future) |
-
-### UEFI Boot Specifics
-
-The UEFI boot process:
-1. QEMU loads OVMF firmware
-2. OVMF initializes UEFI environment
-3. OVMF looks for `EFI/BOOT/BOOTX64.EFI` on the FAT disk
-4. The kernel EFI binary is loaded and executed
-5. Kernel initializes and starts the init component
-
-#### UEFI Disk Structure
-
-```
-out/uefi/x86_64/
-  EFI/
-    BOOT/
-      BOOTX64.EFI    # Kernel UEFI binary
-  init.img          # Init component image
-```
-
----
-
-## Common Issues and Troubleshooting
-
-### QEMU Not Found
-
-**Symptom**: `command not found: qemu-system-x86_64`
-
-**Solution**:
-```bash
-# macOS
-brew install qemu
-
-# Linux (Debian/Ubuntu)
-sudo apt-get install qemu-system-x86 qemu-system-arm
-```
-
-### OVMF Firmware Issues
-
-**Symptom**: `OVMF_CODE not found` or `WARN: OVMF_VARS not found`
-
-**Solution**:
-
-The Foundry gate searches multiple locations. If your OVMF is in a different location, set environment variables:
-
-```bash
-# macOS
-export OVMF_CODE=/opt/homebrew/share/edk2-ovmf/x64/OVMF_CODE.fd
-export OVMF_VARS=/opt/homebrew/share/edk2-ovmf/x64/OVMF_VARS.fd
-
-# Linux
-export OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
-export OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
-```
-
-### Rust Nightly Version Mismatch
-
-**Symptom**: `error: rustc version mismatch`
-
-**Solution**:
-
-The project pins the toolchain in `rust-toolchain.toml`. Ensure you're running cargo from within the project directory:
-
-```bash
-cd RamenOS
-rustup show  # Should show nightly-2026-02-08
-```
-
-If the toolchain isn't being selected automatically:
-```bash
-rustup override set nightly-2026-02-08
-```
-
-### Linker Errors
-
-**Symptom**: `linker 'rust-lld' not found` or undefined symbol errors
-
-**Solution**:
-
-Ensure you have the required components:
-```bash
-rustup component add rust-src llvm-tools
-```
-
-For bare-metal targets, the project uses `rust-lld` as the linker, which is provided by `llvm-tools`.
-
-### Common Build Failures
-
-#### Missing rust-src
-
-**Symptom**: `can't find crate for std` when building target
-
-**Solution**:
-```bash
-rustup component add rust-src
-rustup target add x86_64-unknown-none aarch64-unknown-none
-```
-
-#### Clippy Warnings as Errors
-
-**Symptom**: Build fails with clippy warnings
-
-**Solution**:
-
-The project enforces `-D warnings` for clippy. Fix the warnings or check `docs/LINT_DEBT.md` for allowed exceptions.
-
-For local development with warnings allowed:
-```bash
-just clippy-baseline-soft
-```
-
-#### IDL Codegen Out of Sync
-
-**Symptom**: `use of undeclared type or module` for generated types
-
-**Solution**:
-```bash
-just codegen
-```
-
-### QEMU Boot Hangs
-
-**Symptom**: QEMU starts but no output appears
-
-**Solution**:
-
-1. Check if the kernel was built:
-   ```bash
-   ls -la target/x86_64-unknown-uefi/debug/kernel_uefi.efi
-   ```
-
-2. Check the log file:
-   ```bash
-   cat out/logs/qemu_x86_64.log
-   ```
-
-3. Try running QEMU interactively:
-   ```bash
-   qemu-system-x86_64 \
-     -machine q35 -m 512M \
-     -drive if=pflash,format=raw,readonly=on,file=$OVMF_CODE \
-     -drive format=raw,file=fat:rw:out/uefi/x86_64 \
-     -nographic -serial stdio
-   ```
-
----
-
-## Next Steps
-
-### Where to Learn More
-
-| Document | Purpose |
-|----------|---------|
-| [`PLATFORM_OVERVIEW.md`](../PLATFORM_OVERVIEW.md) | Architecture and component overview |
-| [`ROADMAP.md`](../ROADMAP.md) | Development roadmap and milestones |
-| [`SLICES.md`](../SLICES.md) | Vertical slice definitions |
-| [`CURRENT_STATUS.md`](../CURRENT_STATUS.md) | Current development status |
-| [`CONSTITUTION.md`](../CONSTITUTION.md) | Core design principles |
-| [`DECISIONS.md`](../DECISIONS.md) | Design decisions log |
-
-### How to Contribute
-
-See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for:
-- Toolchain and formatting requirements
-- Lint policy
-- Required preflight checks
-- Lint debt discipline
-
-### Key Files to Explore
-
-| File | Purpose |
-|------|---------|
-| [`kernel/src/lib.rs`](../kernel/src/lib.rs) | Kernel core |
-| [`kernel/src/init.rs`](../kernel/src/init.rs) | Init component |
-| [`kernel/src/ipc_v0.rs`](../kernel/src/ipc_v0.rs) | IPC implementation |
-| [`kernel_api/src/lib.rs`](../kernel_api/src/lib.rs) | Kernel API types |
-| [`idl/`](../idl/) | Interface definitions |
-| [`justfile`](../justfile) | Build commands |
-
-### Development Workflow
-
-1. **Before starting work**: Run `just preflight` to ensure your environment is working
-2. **During development**: Run `cargo fmt --all` and `just clippy` frequently
-3. **Before pushing**: Run `just preflight` to catch issues early
-4. **After pushing**: CI will run the same checks
-
-### Getting Help
-
-- Check [`docs/LINT_DEBT.md`](LINT_DEBT.md) for known lint issues
-- Check [`RISKS.md`](../RISKS.md) for known risks and mitigations
-- Check [`NEXT_TASKS.md`](../NEXT_TASKS.md) for current priorities
+For code changes, the standard entry point is `just preflight`. It checks
+prerequisites before formatting, regeneration, lint/build/test tranches, and the
+Foundry suites. Its agent-task suite requires Linux, JSON-schema support, and
+the configured container runtime/image. `INCOMPLETE` reports missing prerequisites
+or evidence; it must not be reported as PASS. Read the specific gate log rather
+than repeating unrelated checks.
+
+## Troubleshooting and next steps
+
+- **Toolchain/target missing:** let rustup install the pinned toolchain and targets
+  from `rust-toolchain.toml`; confirm the command runs in this checkout.
+- **OVMF missing:** check `OVMF_CODE`/`OVMF_VARS` and the gate's searched paths.
+  Use a matching firmware pair and a private writable variables copy.
+- **Boot stops before init:** confirm the staged init image or aarch64 loader
+  argument. Keep the serial log to identify the last completed assertion.
+- **Store client cannot connect:** start the service and pass its exact socket;
+  service and client defaults currently differ.
+- **Linux evaluator reports INCOMPLETE:** inspect the prerequisite report; do not
+  substitute macOS or an uncontained shell run for a required Linux control.
+
+Use [Development Reference](DEVELOPMENT_REFERENCE.md) for Store examples and
+operator settings, [Contributing](../CONTRIBUTING.md) for review requirements,
+and [Documentation Index](INDEX.md) for architecture and contracts.

@@ -1,77 +1,54 @@
-# S10.5.2: QEMU IPC Bridge (Design Pass)
+# S10.5.2: QEMU IPC Bridge
 
-**Last Updated:** 2026-06-17
-**Status:** Complete (2026-06-17)
-**Parent:** `docs/plans/2026-06-17-s10-5-host-to-target-integration.md`
-**Prerequisite:** S10.5.0 (init semantic snapshot) + S10.5.1 (host broker/proxy bridge) **complete**
+**Last Updated:** 2026-10-03
+**Status:** Maintained reference; selected chardev-serial bridge landed
 
----
+The implemented bridge carries a selected typed request from a host Unix socket
+through QEMU's **COM2 UART** to the kernel init relay. It uses QEMU chardev serial,
+not a virtio-serial driver. COM1 retains boot/evidence logs.
 
-## Problem
+## Transport and framing
 
-S10.5.1 proves host `native_runner` → `KernelHarnessProxy` (Unix socket) → in-process semantic handlers. QEMU kernel still has **no host-facing IPC transport**; semantic bytes on target today flow through init op `OP_SEMANTIC_SNAPSHOT` only.
+The gate's second `-serial` endpoint is a Unix socket. The host
+`ChardevKernelBridge` sends frames to that endpoint; QEMU delivers bytes to
+`arch::serial::ipc`, and `OP_SEMANTIC_IPC_RELAY` handles the selected request.
+The `semantic_ipc_bridge` init profile enables that relay.
 
-S10.5.2 chooses and specifies the first **host↔QEMU control-plane transport** so Wasmtime on the host can transact typed envelopes against the running kernel without the init-bridge shortcut.
+[ipc_frame.rs](../../kernel_api/src/ipc_frame.rs) owns the encoding:
 
-## Options
-
-| Option | Transport | Pros | Cons |
-|--------|-----------|------|------|
-| **A — virtio-serial** | QEMU `-device virtio-serial` + host chardev | Matches capsule relay pattern; bounded framing | Requires init/kernel virtio driver or firmware channel |
-| **B — shared memory doorbell** | Existing shmem region + MMIO notify | Aligns with data-plane model | Needs kernel MMIO page + host mmap in QEMU |
-| **C — target userspace loader** | Native domain on QEMU runs proxy client | No host socket | Requires userspace loader (large scope) |
-
-**Recommendation:** Option **A (virtio-serial)** for S10.5.2 — reuse `capsule_relay` virtio-serial framing discipline and Foundry trace/replay gates.
-
-## Proposed architecture
-
-```
-host native_runner / supervisor
-        |
-        v
-KernelHarnessProxy (host) --[virtio-serial]--> QEMU init relay
-        |                                              |
-        |                                              v
-        |                                    kernel IPC envelope handler
-        |                                              |
-        +<-------- typed reply + shmem cap --------------+
+```text
+[u32 little-endian frame length][encoded Envelope]
 ```
 
-### Components
+The encoded envelope is 88 bytes, including its fixed 64-byte payload and header/
+padding. The general codec bounds frame length; the current target relay accepts
+exactly that envelope size and rejects bad lengths, decoding, routes, and formats.
+The selected operation is Semantic State `get_snapshot`, not arbitrary kernel IPC.
 
-| Component | Owner | Role |
-|-----------|-------|------|
-| `virtio_serial_bridge` (host) | new `services/` crate or extend `kernel_harness_proxy` | Frame envelopes; connect to QEMU chardev |
-| Init relay profile | `tools/init/build_init_image.py` | Read/write virtio-serial; forward to kernel |
-| Kernel forwarder | `kernel/src/init.rs` or dedicated IPC op | Validate + dispatch envelope; return reply |
-| Foundry gate | `foundry_qemu_ipc_bridge_s10_5_2.sh` | Host transact roundtrip; negative malformed frame |
+## Capability and shared-memory boundary
 
-## Wire framing (v0 sketch)
+The init handler exercises deterministic snapshot bytes and kernel shared-memory
+primitives. Host/QEMU markers and hashes correlate the selected request/reply.
+A returned target shared-memory handle does not map target memory into the host
+process. The gate does not establish a complete guest WASM task, general target
+broker grants, or cross-machine shared-memory transport.
 
-Reuse capsule relay length-prefixed little-endian envelope bytes:
+The host native runner supports explicit Unix and `chardev-serial` transports.
+Its invocation deadline includes connect and partial-frame waits; uncertain
+requests are not automatically replayed. Whole-task cleanup and backend lifetime
+remain separately scoped by their contracts.
 
+## Verification
+
+```bash
+just foundry-qemu-ipc-bridge-s10-5-2
 ```
-[u32 le length][Envelope bytes]
-```
 
-Max frame size: 4096 bytes (fail closed). Malformed length → `STATUS_ERR` + gate FAIL.
+The [gate](../../tools/ci/foundry_qemu_ipc_bridge_s10_5_2.sh) checks framing and
+host bridge units, then boots the selected QEMU relay and validates its response.
+It is included in extended CI. A PASS covers this selected host/QEMU transport,
+not a target userspace runtime or hardware qualification.
 
-## Gate definition (red before implementation)
-
-1. QEMU boots `semantic_ipc_bridge` init profile.
-2. Host sends `get_snapshot` envelope; serial shows `semantic_state: get_snapshot ok`.
-3. Reply `shm_cap` non-zero; snapshot sha256 prefix matches S10.5.0 contract.
-4. Negative: oversize frame rejected; invalid protocol rejected.
-
-## Scope guard
-
-- No store service on target
-- No full broker migration
-- No subscribe push over virtio-serial (pull `get_snapshot` only in v0)
-- No Wasmtime inside QEMU
-
-## Sequencing
-
-1. Land this design + red gate script (assert `NOT_IMPLEMENTED` or skip with `RAMEN_CI_STRICT=0` until green).
-2. Implement virtio-serial init relay + host bridge.
-3. Wire `runtime_supervisor` to select chardev transport via `RAMEN_KERNEL_IPC_TRANSPORT=chardev-serial` (or launch-plan `kernel_ipc_transport`).
+See [S10.5](2026-06-17-s10-5-host-to-target-integration.md),
+[broker/proxy bridge](2026-06-17-s10-5-1-broker-kernel-bridge.md), and
+[Current Status](../../CURRENT_STATUS.md) for remaining integration.

@@ -25,29 +25,40 @@ separate evidence requirements.
 
 ## Store CLI Examples
 
-Emit a launch plan from the catalog:
+For a self-contained demo, run `just foundry-store-s0`. For interactive use,
+start a development service from the repository root in one terminal:
+
+```bash
+mkdir -p out/store-demo
+RAMEN_STORE_DEV_MODE=1 RAMEN_STORE_ACCESS_POLICY=AllowAll \
+  RAMEN_STORE_SOCKET="$PWD/out/store-demo/store.sock" \
+  RAMEN_STORE_ROOT="$PWD/out/store-demo/artifacts" \
+  cargo run -p store_service
+```
+
+Those settings permit unsigned artifacts and local access for this demo. In a
+second terminal, emit and validate a plan:
 
 ```bash
 cargo run -p store_cli -- emit-plan \
   --catalog store/catalog.json \
   --program-id ramen.demo.hello \
-  --out out/store/launch_plan.json
-```
+  --store-socket "$PWD/out/store-demo/store.sock" \
+  --tmp-root out/store-demo/tmp \
+  --out out/store-demo/launch_plan.json
 
-Ingest a file into a local installed store:
-
-```bash
-cargo run -p store_cli -- ingest \
-  --src /path/to/file \
-  --installed-root out/installed
-```
-
-Validate an execution launch plan:
-
-```bash
 cargo run -p store_cli -- validate-execution-launch-plan \
-  --src out/store/launch_plan.json
+  --src out/store-demo/launch_plan.json
 ```
+
+To ingest a prepared file, supply its actual path and the same `--store-socket`
+to `cargo run -p store_cli -- ingest --src ...`. Ingestion consumes a scoped
+source descriptor. The service owns artifact storage; the client's
+`--installed-root` is not a substitute for connecting to it.
+
+The service defaults to `out/store_service.sock`, while these client commands
+default to `/tmp/store_service.sock`; using one explicit socket avoids that
+mismatch. Stop the foreground service with Ctrl-C when finished.
 
 ## Operational Knobs
 
@@ -66,7 +77,8 @@ POSIX runner:
 
 HIL:
 
-- `RAMEN_HIL_APPLIANCE=1`: enable physical appliance inventory/control paths.
+- `RAMEN_HIL_APPLIANCE=1`: enable appliance inventory/live serial paths;
+  power/reset actuation remains a separate milestone.
 - `RAMEN_HIL_GRADUATION=1`: require live graduation discipline.
 - `RAMEN_HIL_SERIAL_DEV` / `RAMEN_HIL_SERIAL_LOG`: live serial device or
   development log input, depending on the gate.

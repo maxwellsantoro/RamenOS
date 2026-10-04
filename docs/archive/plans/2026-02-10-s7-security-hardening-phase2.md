@@ -1,5 +1,11 @@
 # S7 Security Hardening - Phase 2: Implementation
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-10
 **Status:** Complete - All 5 High-Severity Issues Fixed
 

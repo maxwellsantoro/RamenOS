@@ -8,11 +8,15 @@ the need to test affected consumers.
 
 ## Rules
 
-### Rule 1: kernel/ and kernel_api/ have NO external crate dependencies
-Check `kernel/Cargo.toml` and `kernel_api/Cargo.toml` — the `[dependencies]` section must contain only workspace path dependencies (other `kernel*` crates). No crates.io dependencies are allowed.
+### Rule 1: bare-metal dependency policy
+`kernel_api/` has no external dependencies. `kernel/` permits the existing `spin`
+synchronization dependency recorded in `DECISIONS.md`; new dependencies require
+an explicit decision. Inspect normal and target-specific Cargo dependencies.
 
-### Rule 2: kernel/ and kernel_api/ have no std usage
-These crates must be `#![no_std]`. Grep for `use std::` in these crates — any match is a violation.
+### Rule 2: no_std runtime paths
+Both crates are `#![no_std]`. Check runtime imports and conditional compilation;
+`std` in an explicitly host-only test is not automatically a runtime violation.
+The kernel's no-heap invariant still applies to its target implementation.
 
 ### Rule 3: services/ must not import from kernel internals
 Files in `services/` may import from `kernel_api` but must NEVER import from `kernel/src/` directly. Check `use` statements and Cargo.toml dependencies.
@@ -24,7 +28,8 @@ Files in `services/` may import from `kernel_api` but must NEVER import from `ke
 No crate should use path dependencies that reach outside the workspace root. All inter-crate dependencies must go through the workspace.
 
 ### Rule 6: Generated code is not hand-edited
-Files matching `*.generated.rs` must not contain manual edits. Check git diff for any staged changes to generated files.
+Files matching `*.generated.rs` must not contain manual edits. Review generated diffs against the IDL and `tools/ci/run_codegen.sh`; regeneration
+is expected and a changed generated file alone is not proof of manual editing.
 
 ## How to Check
 

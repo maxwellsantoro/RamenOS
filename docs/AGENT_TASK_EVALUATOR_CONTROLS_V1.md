@@ -114,7 +114,8 @@ retained timeout. Evidence is trusted evaluator output, not signed attestation.
 The report preserves false hidden-bank/model/full-A2 claims, unknown authority
 inclusion; cleanup certification reflects the persisted lifecycle evidence.
 
-Next extend requestable/unexercised,
-continuous-lifetime and deputy/isolation authority. Freeze the real bank and
+[A2.9](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) adds finite requestable-right
+and named lifetime witnesses. Broader unexercised, continuous-lifetime and
+deputy/isolation authority remain work. Freeze the real bank and
 study releases, model/provider/token accounting, and sample-size/budget decision
 before Phase B. Physical testing remains deferred.

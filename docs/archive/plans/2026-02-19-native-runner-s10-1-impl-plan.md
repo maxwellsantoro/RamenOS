@@ -1,6 +1,11 @@
 # S10.1 Native Runner Production Integration Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 
 **Goal:** Wire native runner into real OS control plane with manifest schema, capability broker, supervisor integration, and real kernel IPC.
 

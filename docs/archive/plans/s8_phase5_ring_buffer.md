@@ -1,5 +1,11 @@
 # S8 Phase 5: Data Plane Ring Buffer
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-10
 **Status:** Planning
 **Dependencies:** S8 Phase 4 (COMPLETE - MMU Integration)

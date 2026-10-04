@@ -1,12 +1,12 @@
 # Research-Backed RamenOrg Plan
 
 **Last Updated:** 2026-10-03
-**Status:** G0 scaffold / planning track
+**Status:** Maintained direction; G0 foundations and bounded trials landed
 
 ## Context
 
-Two attached drafts introduce planning changes that belong in the project, not
-only in chat:
+Two external drafts motivated the research questions below. They are design
+inputs, not repository evidence of runtime behavior:
 
 - The offers/airlock paper frames service boundaries as provider-authored
   offers with separate `Lang` and `ObsContract` objects, plus measured leakage
@@ -27,9 +27,9 @@ The [Vision](../../VISION.md) defines everyday use as the destination. RamenOrg
 coordinates evidence-bearing progress toward human interaction, agent control,
 modular drivers/services, hardware adaptability, and useful compatibility.
 
-## Scope Now
+## Landed foundation
 
-This plan adds a G0 project-control slice:
+The G0 project-control foundation includes:
 
 - Define Org Kernel docs in `docs/org/`.
 - Define research-backed development docs in `docs/research/`.
@@ -58,11 +58,16 @@ G0 does not:
 5. `NEXT_TASKS.md` tracks G0 as a parallel planning/control track.
 6. `CHANGELOG.md` records the scaffold.
 
-## Future Work
+## Remaining decisions and research
 
-- `BoardPacketV0` schema and renderer.
-- JSON validators for work orders, handoffs, and votes.
-- Read-only daily steward heartbeat.
-- Evidence-aware release packet generation.
-- Offer-boundary design pass after the HIL appliance loop is stable.
-- Staged autonomy above A1 only after explicit decisions and controls.
+Board packet rendering, work-order/handoff/vote validators, read-only steward,
+freshness/context binding and bounded implementation/local-loop trials are landed
+with named gates. Their stable plans and trial reports remain referenced by the
+governance gate. They do not settle [RQ-0002](../research/questions/RQ-0002-ai-org-kernel.md).
+
+Remaining work includes identity-level role separation, fresh isolated trial
+reproduction, evidence-aware release policy, and explicit decisions before any
+A3+/hardware/public-support authority. G0.8.1 permits bounded A2-local work only.
+[RQ-0001](../research/questions/RQ-0001-offer-boundaries.md) still needs an
+IDL/evidence landing plan before offer-shaped runtime changes. Research can
+proceed independently; implementation priorities live in [Next Tasks](../../NEXT_TASKS.md).

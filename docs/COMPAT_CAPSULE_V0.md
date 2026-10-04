@@ -1,12 +1,12 @@
 # Compat Capsule Format v0
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-10-03
 **Status:** Active
 
 ## Purpose
 
-A compat capsule descriptor is a JSON document that fully specifies a
-compatibility domain. The Foundry gate generates it; the compat runner
+A compat capsule descriptor specifies the selected Linux VM configuration.
+The Foundry gate generates it; the compat runner
 consumes it to launch a VM/microVM. This document defines format version
 `compat_capsule_v0`.
 
@@ -20,10 +20,15 @@ consumes it to launch a VM/microVM. This document defines format version
 | `cmdline` | string | Kernel command line (e.g. `"console=ttyS0"`). |
 | `resources` | object | Resource limits for the domain (see below). |
 | `log_path` | string (optional) | Path to a serial log file (Foundry gate use). |
+| `projection_vfs` | object (optional) | Host materialized read-only 9p export: `host_path` directory and `mount_tag` (default `ramen_store`). |
 
 Notes:
 - Content IDs are resolved via the installed artifact store (`out/installed/artifacts`).
-- Absolute file paths are not permitted in production plans.
+- Artifact inputs use verified content IDs. Host log/export paths are explicit
+  tooling configuration and do not define a native path-based authority grant.
+- [compat_runner.rs](../runtime_supervisor/src/compat_runner.rs) owns the current
+  config/defaults; projection export has host tests, while a complete guest-read
+  assertion still needs a suitable initrd.
 
 ### artifact_disks entry
 
@@ -42,9 +47,10 @@ Notes:
 
 ## Example
 
-This matches what the current S2 Foundry gate (`tools/ci/foundry_compat_s2.sh`)
-produces: a single kernel, initrd, one read-only virtio-blk artifact disk,
-serial console, 512 MB RAM, 1 CPU.
+The structure below illustrates what the current S2 Foundry gate
+(`tools/ci/foundry_compat_s2.sh`) produces: a single kernel, initrd, one read-only virtio-blk artifact disk,
+serial console, 512 MB RAM, 1 CPU. Replace the placeholder IDs with real
+64-hex SHA-256 content IDs before execution.
 
 ```json
 {
@@ -70,10 +76,10 @@ serial console, 512 MB RAM, 1 CPU.
 
 These are hard boundaries, not deferred features.
 
-- **Virtualization-first.** Compat domains always run in a VM/microVM. Never
-  as containers, never as translated syscalls. This is a constitutional
-  invariant: POSIX is compatibility-only and must not leak into native
-  interfaces.
+- **Virtualization-first.** This capsule runs in a VM/microVM. The descriptor
+  does not configure the separate host POSIX runner or
+  Linux scoped-shell evaluator containers. The constitutional rule is that
+  POSIX remains compatibility-only and must not define native interfaces.
 
 - **GPU quarantine.** GPU access for compat domains is deferred. When it
   arrives it will require explicit policy and a dedicated grant path. It is

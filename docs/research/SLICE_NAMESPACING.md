@@ -1,6 +1,6 @@
 # Slice Namespacing
 
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-10-03
 **Status:** Authoritative
 
 RamenOS now runs **three** parallel work tracks, and their slice identifiers
@@ -21,8 +21,8 @@ The offers/airlock paper (external) called its first prototype slice
 `S12.0: Re-Timing Airlock`. The repo's `S12.0` is the **golden-machine
 contract** (First Metal). Two different `S12.0`s is exactly the drift an
 AI-governed org must catch mechanically. The airlock prototype is therefore
-`R-OFFERS-1`, not `S12.0`, and the status-drift checker enforces that no
-research slice id collides with an OS slice id.
+`R-OFFERS-1`, not `S12.0`, and the status-drift checker rejects OS-style headings in the tracked
+research-slice documents.
 
 ## Rules
 
@@ -31,13 +31,14 @@ research slice id collides with an OS slice id.
 3. A research-bound slice (`R-<PROGRAM>-<n>`) must bind to at least one research
    question via `requires_rq` and state a claim boundary per
    `docs/org/CLAIM_SAFETY.md`.
-4. The drift checker (`tools/org/status_drift.py`) scans docs for slice ids and
-   fails on cross-namespace collisions and on a research slice reusing an OS
-   number.
+4. The drift checker ([status_drift.py](../../tools/org/status_drift.py)) checks
+   required active references and research-slice headings. It is not a complete
+   scan of every identifier in prose; review allocations and cross-references too.
 
 ## Current allocations
 
-- OS: `S0`–`S14` (see `CURRENT_STATUS.md`, `SLICES.md`).
+- OS: `S0`–`S15` (see [Slices](../../SLICES.md)); later numbers describe
+  planned scope, not landed behavior.
 - Org: `G0`–`G0.9` (see `docs/org/`).
 - Research: `R-OFFERS-1` (airlock + leakage meter; see
   `docs/research/slices/R-OFFERS-1-airlock-leakage-meter.md`).

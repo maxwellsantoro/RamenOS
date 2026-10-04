@@ -43,7 +43,9 @@ The core of RamenOS providing IPC, capabilities, memory management, and domain i
 
 ### Service
 
-A user-space process providing system functionality. Services run in isolated domains and communicate via IPC. Examples include the Domain Manager, Store Service, and Capsule Relay.
+A component providing system functionality through typed contracts. The target
+model runs services in isolated domains; many current services are host processes
+or libraries. The execution environment determines the actual isolation boundary.
 
 **Related Terms:** Kernel, Domain, Harness
 
@@ -51,7 +53,9 @@ A user-space process providing system functionality. Services run in isolated do
 
 ### Store
 
-The artifact storage and verification system. The Store manages persistent artifacts (traces, claims, crash contexts) with cryptographic verification and capability-based access control.
+The software discovery, launch, porting, and publication pillar. It uses the
+content-addressed Artifact Store for blobs, manifests, and evidence, and the
+Store Service for artifact I/O and verification. The complete product UI remains work.
 
 **Related Terms:** Store Service, Capability, Evidence Policy
 
@@ -75,7 +79,9 @@ A user-space portal for desktop integration. Portals provide controlled access t
 
 ### Domain
 
-An isolated execution context with its own capabilities, address space, and resource limits. Domains are the fundamental isolation boundary in RamenOS. Each domain has a capability table that determines what resources it can access.
+An intended execution and authority boundary with scoped capabilities, memory,
+and resource accounting. Current kernel registries and host lifecycle fixtures
+implement parts of that model; the general target userspace loader is pending.
 
 **Related Terms:** Capability, Address Space, Domain Manager
 
@@ -87,7 +93,10 @@ An isolated execution context with its own capabilities, address space, and reso
 
 ### Capability
 
-An unforgeable token granting specific rights to a resource. Capabilities are the foundation of RamenOS security. They are stored in kernel-managed capability tables and referenced via Handles. Capabilities cannot be forged or modified by user-space code.
+Explicit rights to a resource, validated by the authority that owns it. Kernel
+handles refer to validated kernel table entries; host service/task grants have
+their own registries and lifetimes. A syntactically valid ID does not itself grant
+authority or establish unforgeability.
 
 **Related Terms:** Handle, Token, Capability Table
 
@@ -95,7 +104,9 @@ An unforgeable token granting specific rights to a resource. Capabilities are th
 
 ### Handle
 
-A kernel-managed reference to a capability, consisting of an index and generation counter. Handles are the user-space representation of capabilities. The generation counter prevents handle reuse attacks when capabilities are revoked and the slot is reallocated.
+A typed reference carrying kind, index, and generation information. The owning
+table validates those fields and rights. Kernel handles and scoped host grant
+handles must not be treated as interchangeable.
 
 **Related Terms:** Capability, Generation Counter, HandleKind
 
@@ -119,7 +130,10 @@ A cryptographic credential used for authentication and authorization. Unlike cap
 
 ### Generation Counter
 
-A 32-bit counter embedded in handles that prevents handle reuse attacks. When a capability is revoked and its slot in the capability table is reallocated, the generation counter increments. This ensures stale handles from one domain cannot accidentally reference new capabilities allocated to different domains.
+A value checked against a resource slot to reject stale references after reuse.
+`kernel_api::cap::Handle` stores a u64 generation; its packed wire form carries
+the low 32 generation bits and low 16 index bits. That finite encoding needs
+its stated lifetime/reuse bounds; it is not an unlimited anti-aliasing guarantee.
 
 **Related Terms:** Handle, Capability
 
@@ -139,7 +153,9 @@ A vertical development unit that ships a complete feature end-to-end. Slices cut
 
 ### Foundry
 
-The test framework for running QEMU-based integration tests. Foundry scripts boot RamenOS in QEMU and validate specific functionality by checking output logs and behavior. Foundry tests are called "Gates."
+The tooling and evidence pillar: host assertions, contract checks, trace/replay,
+QEMU integration, and opt-in hardware gates. Each gate states a bounded claim
+and its evidence level.
 
 **Related Terms:** Gate, Slice
 
@@ -147,7 +163,9 @@ The test framework for running QEMU-based integration tests. Foundry scripts boo
 
 ### Gate
 
-An individual Foundry test script that validates specific functionality. Gates run QEMU with specific configurations and assert expected behavior. Gates are named for the slice they test (e.g., `foundry_s0.sh`, `foundry_shmem_control_s8_phase2.sh`).
+A Foundry check for named behavior and negative cases. It may run host tests,
+replay, QEMU, inventory, or prepared physical HIL. PASS establishes only those
+assertions; missing prerequisites or physical evidence may be INCOMPLETE.
 
 **Related Terms:** Foundry, Slice
 
@@ -163,7 +181,9 @@ Interface Definition Language for defining message formats and service contracts
 
 ### Envelope
 
-A 64-byte IPC message container. Envelopes contain a header (protocol ID, message type, flags) and payload. All IPC messages in RamenOS use the envelope format for uniformity.
+The typed IPC container with protocol, message type, handle, length, and a fixed
+64-byte payload. The bridge encoding in `ipc_frame.rs` is 88 bytes before its
+length prefix. The payload capacity is not the total message size.
 
 **Related Terms:** IPC, Protocol, Message Type
 
@@ -183,7 +203,9 @@ An isolated execution unit that can be either a driver or compatibility domain. 
 
 ### Compat Domain
 
-A domain running a legacy OS (typically Linux) with restricted capabilities. Compat domains enable running existing applications while maintaining RamenOS security boundaries. The POSIX runner manages compat domain execution.
+A compatibility environment for legacy software, currently including a Linux VM
+launched by `compat_runner`. The separate POSIX runner executes shell scripts
+on the host with its documented rlimits-only default; it does not manage that VM.
 
 **Related Terms:** Capsule, Domain, POSIX Runner
 
@@ -235,7 +257,9 @@ A physical memory page (4KB). Frames are the unit of physical memory allocation.
 
 ### Address Space
 
-The virtual memory context for a domain. Each domain has its own address space, providing isolation from other domains. Address spaces are managed by the kernel's memory management subsystem.
+A domain memory context represented by a page-table root. Kernel mapping
+primitives implement parts of the intended separation; complete target process
+isolation and multi-core qualification require additional integration evidence.
 
 **Related Terms:** Domain, Frame, MMU
 
@@ -271,43 +295,11 @@ A specific operation within a protocol. Message types define the structure and s
 
 ### Wire Format
 
-The binary encoding for IPC messages. Wire formats define how message fields are serialized into the 64-byte envelope. The IDL codegen generates serialization and deserialization code for each message type.
+The binary encoding for IPC messages. Wire formats define how message fields are serialized into the envelope's bounded 64-byte payload. IDL generates layouts and IDs; the current wire helpers copy native struct
+representations, while the outer bridge frame has a separate explicit encoding.
 
 **Related Terms:** Envelope, Protocol, Message Type
 
 **See Also:** [Kernel API Wire Module](../kernel_api/src/wire.rs)
 
 ---
-
-## Cross-Reference Index
-
-| Term | Category | Primary Related Terms |
-|------|----------|----------------------|
-| Kernel | Architecture | Service, Domain, Capability |
-| Service | Architecture | Kernel, Domain, Harness |
-| Store | Architecture | Store Service, Capability |
-| Harness | Architecture | Service, Portal, Capability |
-| Portal | Architecture | Harness, Service, Capability |
-| Domain | Architecture | Capability, Address Space |
-| Capability | Security | Handle, Token |
-| Handle | Security | Capability, Generation Counter |
-| HandleKind | Security | Handle, Capability |
-| Token | Security | Capability, Signature |
-| Generation Counter | Security | Handle, Capability |
-| Slice | Development | Foundry, Gate |
-| Foundry | Development | Gate, Slice |
-| Gate | Development | Foundry, Slice |
-| IDL | Development | Protocol, Message Type |
-| Envelope | Development | IPC, Protocol |
-| Capsule | Component | Compat Domain, Domain |
-| Compat Domain | Component | Capsule, Domain |
-| Domain Manager | Component | Domain, Service |
-| Store Service | Component | Store, Service |
-| Capsule Relay | Component | Capsule, Service |
-| Shared Memory | Memory | Frame, Address Space |
-| Frame | Memory | Shared Memory, Address Space |
-| Address Space | Memory | Domain, Frame |
-| Ring Buffer | Memory | Trace, IPC |
-| Protocol | IPC | Message Type, IDL |
-| Message Type | IPC | Protocol, Wire Format |
-| Wire Format | IPC | Envelope, Protocol |

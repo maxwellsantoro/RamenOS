@@ -50,5 +50,6 @@ Follow `AGENTS.md` for required checks when it adds to the mapping below.
   contracts before deciding which checks apply. Org/research planning requires
   keeping `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` green.
 - If unsure which gates are affected, err on the side of running more gates.
-- The umbrella gate `just foundry-all-s0-s1-s2` can be used as a fallback if mapping is ambiguous.
-- S2 gates require local env vars (`S2_COMPAT_KERNEL`, etc.) — skip with a note if unavailable.
+- Resolve the current umbrella recipe from `justfile`: `just foundry-all-s0-s1-s2-s3-s4-s5-s6`.
+  Use it only when the changed boundary justifies that coverage.
+- S2 gates require local env vars (`S2_COMPAT_KERNEL`, etc.) — report INCOMPLETE with the missing inputs if unavailable.

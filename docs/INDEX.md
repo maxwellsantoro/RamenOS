@@ -54,19 +54,26 @@ The operational source of truth is
 - [Ring Buffer V0](RING_BUFFER_V0.md)
 - [Multi-Domain Architecture](MULTI_DOMAIN.md)
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
-- [Agent Task Contract V0](AGENT_TASK_CONTRACT_V0.md): SW0 A0 reference model and fixtures; the implemented A1.1 host proof has a separately documented fixture boundary.
-- [Agent Task Adapter V1](AGENT_TASK_ADAPTER_V1.md): A2.2 shared JSON codec/descriptions, opt-in RT bridge, external scripted consumer and remaining full-A2 work.
-- [Agent Task Evaluator Controls V1](AGENT_TASK_EVALUATOR_CONTROLS_V1.md): A2.7 disjoint bank/release contract, external scripted session bounds, private failure evidence and retained forced failures.
-- [Agent Task Requestable Authority V1](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md): A2.9 all-subset grant issuance under two policies, single-right effects and named lifetime points; broader authority remains unknown.
-- [Agent Task Reconciliation V1](AGENT_TASK_RECONCILIATION_V1.md): A2.8 named acknowledged lifecycle cleanup, unresolved-create quarantine and explicit all-arm receipt recovery.
-- [Agent Task Authority V1](AGENT_TASK_AUTHORITY_V1.md): A2.6 finite canonical inventory, shared RT/LT/LS negative cases, observed/task/probe distinctions and unknown authority boundaries.
-- [Agent Task Subscriptions V2](AGENT_TASK_SUBSCRIPTIONS_V2.md): A2.5 shared typed pull/cancel lifecycle, bounded coalescing, current observation authority and RT/LT lifecycle checks.
-- [Agent Task LS Transactions V1](AGENT_TASK_LS_TRANSACTIONS_V1.md): A2.4 contained shell commands/launcher, shared Linux transactions, receipt recovery and peer/cleanup gates.
-- [Agent Task LT Backend V1](AGENT_TASK_LT_BACKEND_V1.md): A2.3 independent Linux grants/sealed validation/durable receipts and named RT/LT point-case checks.
-- [Agent Task Linux Control V1](AGENT_TASK_LINUX_CONTROL_V1.md): A2.1 scripted Linux repair, measured containment, forced probes and remaining all-arm conformance.
-- [Agent Task Service Proof V1](AGENT_TASK_SERVICE_PROOF_V1.md): opt-in A1.1 useful host task, worker/durability assertions and precise evidence scope.
-- [Agent Task Protocol V1](AGENT_TASK_PROTOCOL_V1.md): SW0 A1.0 native control layouts/preflight, call-path inventory and A1.1 service assertion matrix; production handler registration remains disabled.
-- [`idl/`](../idl/): canonical typed interfaces and generated-binding inputs.
+The [Current Status gate table](../CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment)
+owns implemented SW0 scope and commands. Contract references, in milestone order:
+
+| Step | Contract |
+|------|----------|
+| A0 | [Task semantics and fixtures](AGENT_TASK_CONTRACT_V0.md) |
+| A1.0 | [Native protocol and preflight](AGENT_TASK_PROTOCOL_V1.md) |
+| A1.1 | [Scripted RT service proof](AGENT_TASK_SERVICE_PROOF_V1.md) |
+| A2.1 | [Linux scoped-shell foundation](AGENT_TASK_LINUX_CONTROL_V1.md) |
+| A2.2 | [JSON adapter and RT bridge](AGENT_TASK_ADAPTER_V1.md) |
+| A2.3 | [Independent LT backend](AGENT_TASK_LT_BACKEND_V1.md) |
+| A2.4 | [LS transactions and launcher](AGENT_TASK_LS_TRANSACTIONS_V1.md) |
+| A2.5 | [Typed subscription lifecycle](AGENT_TASK_SUBSCRIPTIONS_V2.md) |
+| A2.6 | [Finite authority inventory](AGENT_TASK_AUTHORITY_V1.md) |
+| A2.7 | [Scripted evaluator controls](AGENT_TASK_EVALUATOR_CONTROLS_V1.md) |
+| A2.8 | [Named reconciliation](AGENT_TASK_RECONCILIATION_V1.md) |
+| A2.9 | [Requestable rights and lifetime witnesses](AGENT_TASK_REQUESTABLE_AUTHORITY_V1.md) |
+
+- [IDL Tools](../idl/tools/README.md): required IDs/types, regeneration, versioning.
+- [Reference Vaults](../drivers/reference_vaults/README.md): driver context and Oracle evidence.
 
 ## Active and Gate-Bound Plans
 
@@ -75,11 +82,13 @@ deferred design surfaces, or contracts consumed directly by Foundry gates.
 
 ### OS and Hardware
 
-- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization, and pilot/powered comparison plan before S14; no results yet
+- [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization, and pilot/powered comparison plan before S14; scripted foundations landed, model comparison pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)
-- [Host-to-target integration](plans/2026-06-17-s10-5-host-to-target-integration.md)
+- [Host-to-target integration](plans/2026-06-17-s10-5-host-to-target-integration.md),
+  [host broker/proxy](plans/2026-06-17-s10-5-1-broker-kernel-bridge.md), and
+  [QEMU serial IPC](plans/2026-06-17-s10-5-2-qemu-ipc-bridge.md)
 - [Driver Factory MVP](plans/2026-02-20-s11-driver-factory-mvp.md)
 - [Golden Machine](plans/2026-06-21-s12-golden-machine-design.md)
 - [Persistent storage](plans/2026-06-21-s13-persistent-storage-design.md)
@@ -95,8 +104,9 @@ consume their stable paths.
 - [Security remediation program](plans/security_remediation_v006_v007_v012.md)
 - [Store service IPC design](plans/v007_phase2_store_service_ipc_design.md)
 
-These older documents remain active because gates, runtime warnings, or security
-guidance still cite their stable paths.
+These stable paths now contain current references; the original analyses are
+archived. Also read the [POSIX guide](../runtime_supervisor/POSIX_RUNNER_SECURITY.md)
+and [vulnerability reporting policy](../SECURITY.md).
 
 ## RamenOrg and Research
 
@@ -117,12 +127,22 @@ guidance still cite their stable paths.
 The G0 milestone plans and trial reports remain in place because the governance
 gate validates their exact paths.
 
-## Maintenance
+## Maintenance and ownership
 
-- Keep product framing aligned with `VISION.md`; specialized contracts and
-  historical reports retain their bounded scope rather than implying whole-OS readiness.
-- Update `CURRENT_STATUS.md` and `CHANGELOG.md` when a milestone lands.
-- Update `NEXT_TASKS.md` when execution order changes.
-- Move completed, non-gate-bound plans to `docs/archive/plans/`.
-- Repair inbound links in the same change as any move.
-- Do not duplicate current status in design docs; link to the authoritative pair.
+| Information | Maintained owner |
+|-------------|------------------|
+| Product framing and description guidance | [Vision](../VISION.md) |
+| Stable contributor/agent invariants | [AGENTS.md](../AGENTS.md), [Constitution](../CONSTITUTION.md) |
+| Landed behavior and evidence limits | [Current Status](../CURRENT_STATUS.md) |
+| Next work, dependencies and acceptance | [Next Tasks](../NEXT_TASKS.md) |
+| Direction and deferred choices | [Roadmap](../ROADMAP.md) |
+| Milestone history / decision rationale | [Changelog](../CHANGELOG.md), [Decisions](../DECISIONS.md) |
+| Exact native layout / artifact validation | IDL, schema source and named gates |
+| Superseded plans and investigations | [Archive](archive/README.md) |
+
+Update the relevant owner instead of copying its queue or history into another
+reference. Design docs may record the implemented contract and its limits; proposed
+behavior and commands must be labeled. Preserve gate-bound paths and original
+trial evidence. When archiving an analysis behind a stable reference, repair its
+links and add a historical banner. Recheck local links/anchors and recipe names
+against `justfile`; run the required governance and affected Foundry gates.

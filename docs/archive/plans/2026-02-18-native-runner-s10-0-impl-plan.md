@@ -1,6 +1,11 @@
 # Native Runner S10.0 Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 
 **Goal:** Implement the native runner executor that loads WASM modules, injects capabilities via exported globals, and executes with host functions that perform single kernel IPC crossings.
 

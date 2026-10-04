@@ -1,5 +1,11 @@
 # S10.3.4: Copy-on-Write Projection Writes
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-06-17
 **Status:** Complete (2026-06-17)
 **Related:** `docs/plans/2026-02-20-s10-3-projection-storage.md`, `docs/archive/plans/2026-06-17-s10-3-3-read-only-vfs-projection.md`

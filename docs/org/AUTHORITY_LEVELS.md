@@ -3,10 +3,11 @@
 **Last Updated:** 2026-06-23
 **Status:** G0 scaffold
 
-Authority levels stage autonomy. Advancement is earned by evidence, gates, and
-separated review, not by confidence.
+Authority levels stage autonomy. Each action requires an explicit grant within
+its work order; a level name alone grants nothing. Advancement requires evidence,
+gates, separated review, and a recorded decision.
 
-| Level | Name | Allowed by default | Explicitly not allowed |
+| Level | Name | Scope when explicitly granted | Explicitly not allowed |
 |-------|------|--------------------|------------------------|
 | A0 | Read-only board | Read repo state, produce board packets, identify drift, propose work | Write files, open PRs, actuate hardware |
 | A1 | Issue/doc proposal | Draft issues, docs, research questions, and plans | Merge, release, hardware control |

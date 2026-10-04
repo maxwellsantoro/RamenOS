@@ -24,6 +24,14 @@
   not depend on the S0 smoke gate's former shared output directory.
 
 ### Changed
+- Consolidated documentation ownership: stable agent rules, landed status, next
+  work, and directional roadmap now avoid repeated milestone histories. Repaired
+  setup/Store examples, IDL guidance, agent skills, and host/target references.
+- Archived superseded POSIX/Store remediation analyses behind current references
+  at their gate-bound paths; marked archive and governance trial scope explicitly.
+  Corrected isolation, copy behavior, bridge transport, benchmark, and HIL evidence
+  descriptions against implementation. This documentation maintenance adds no
+  runtime, model, hardware, or release-readiness evidence.
 - Aligned maintained project documentation and agent guidance with the everyday,
   post-Unix OS vision for humans and AI agents. Added `VISION.md`, connected
   hardware, agent-task, desktop, Foundry, and Store work to that destination,

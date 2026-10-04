@@ -1,13 +1,13 @@
 # MergeGateV0 (A3 conditional merge)
 
 **Last Updated:** 2026-06-23
-**Status:** G0 scaffold
+**Status:** Implemented local packet validator; remote merge policy is separate
 
 `MergeGateV0` is the A3 gate: the set of preconditions an agent work product
 must satisfy before it may merge. It is the closure of the work loop
 (`WorkOrderV0` → implementer → reviewer → gates → evidence → board vote → merge)
-and the first place RamenOrg enforces separation of duties, evidence-bearing
-votes, and research-blocks-implementation on real work.
+and validates role separation, evidence-bearing votes, and research
+prerequisites within the submitted local artifacts.
 
 ## A3 preconditions (all required)
 
@@ -33,13 +33,12 @@ A `MergeRequestV0` passes only when every condition holds:
 
 ## Honest outcome: LOOP-LOCAL vs MERGE
 
-A real `PASS/MERGE` requires GitHub branch protection (required reviews, status
-checks, linear history) plus merge credentials — both are deployment settings
-outside this repo. Until an explicit A3-authority decision configures them, the
-gate proves the **loop machinery** on a real change and records `PASS/LOOP-LOCAL`:
-the writer→reviewer→vote→precondition chain validated locally, with the remote
-merge explicitly deferred. This is the org equivalent of `PASS/QEMU` vs
-`PASS/METAL`: do not claim a remote merge that did not happen.
+The local validator accepts `PASS/LOOP-LOCAL` for its bounded packet chain. It
+does not query GitHub protections or execute a merge. The later
+[implementer-bot workflow](RAMEN_IMPLEMENTER_BOT.md) describes the distinct
+bot-author/human-review identities; remote checks and approval still need actual
+platform evidence. A local role label is not identity-level separation, and a
+local packet PASS does not establish that a remote PR merged.
 
 ## Validation
 

@@ -1,5 +1,11 @@
 # S2 Slice Plan (Gate-First)
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-18
 **Status:** Historical
 **Scope:** Slice S2 planning only.

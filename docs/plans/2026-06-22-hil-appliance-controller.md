@@ -1,6 +1,6 @@
 # S12.4 / S13.9: HIL Appliance Controller
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-03
 **Status:** Active; S12.4.1 serial observer first, then S12.4.2 Intel AMT power/reset
 **Gate:** `tools/ci/foundry_hil_appliance_s12_4.sh`
 **Related:** `hardware/hil_appliance_v0.toml`, `hardware/golden_machine_v0.toml`, `EVIDENCE_LEVELS.md`, `docs/HIL_APPLIANCE_EVIDENCE_V0.md`, `docs/plans/2026-06-21-s12-golden-machine-design.md`, `docs/plans/2026-06-21-s13-persistent-storage-design.md`
@@ -125,7 +125,8 @@ controller logs, or evidence JSON.
 
 ### 2.2 Controller commands
 
-The first implementation should expose shell-level commands before any daemon/API:
+Serial capture is implemented as a shell command. The other names below are
+proposed actuator/runner interfaces; they are not files available in this checkout:
 
 ```bash
 tools/hil/appliance_capture_serial.sh
@@ -159,37 +160,11 @@ hil_appliance_<run_id>.json
   -> references serial/controller/video artifacts by hash
 ```
 
-Minimum JSON fields:
+The canonical [wrapper contract](../HIL_APPLIANCE_EVIDENCE_V0.md) owns the JSON
+shape. The current observer emits `power_events: []`; AMT actuation and its
+structured event records remain a separate milestone. Graduation also binds
+target `hil_evidence:` markers, prepared hashes, and the fresh expected nonce.
 
-```json
-{
-  "schema_version": 1,
-  "evidence_kind": "hil_appliance_run_v0",
-  "evidence_level": "PASS/HIL-APPLIANCE",
-  "run_id": "hil_appliance_20260622T131700Z_pi-hil-01_s13-hil",
-  "appliance_id": "pi-hil-01",
-  "target_id": "lenovo-thinkcentre-m900-i7-6700-lab-01",
-  "git_sha": "...",
-  "gate": "s13-hil",
-  "started_at_unix_ms": 0,
-  "ended_at_unix_ms": 0,
-  "serial_device": "/dev/ttyUSB0",
-  "serial_input_kind": "live_device",
-  "serial_log_sha256": "...",
-  "controller_log_sha256": "...",
-  "power_events": [],
-  "artifact_hashes": {},
-  "serial_markers_observed": [],
-  "target_hil_evidence_markers": {},
-  "gate_evidence": [
-    "out/evidence/s13_7_nvme_boot_evidence.json",
-    "out/evidence/s13_8_atomic_update_evidence.json"
-  ],
-  "result": "pass"
-}
-```
-
-Graduation mode must also capture the `hil_evidence:` markers required by `EVIDENCE_LEVELS.md`.
 
 ---
 
@@ -210,7 +185,7 @@ Gate behavior:
 - Physical controller inventory runs only with `RAMEN_HIL_APPLIANCE=1`.
 - Strict CI may require a connected controller.
 
-### S12.4.1 — Serial observer — ACTIVE
+### S12.4.1 — Serial observer — TOOLING LANDED; LIVE VALIDATION PENDING
 
 Deliverables:
 
@@ -309,7 +284,7 @@ These remain out of scope until the appliance v0 loop is stable.
 |------|-----|----------|
 | Default CI | none | Validate docs/manifests only; no hardware required |
 | Appliance inventory | `RAMEN_HIL_APPLIANCE=1` | Validate controller tools, serial device, AMT config state, dry-run evidence JSON |
-| HIL live | `RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_APPLIANCE=1` | Run live capture + AMT power/reset control |
+| HIL live | `RAMEN_HIL_GOLDEN_MACHINE=1 RAMEN_HIL_APPLIANCE=1` | Select live capture; AMT actuation still requires implementation and explicit authorization |
 | Graduation | `RAMEN_HIL_GRADUATION=1 RAMEN_HIL_APPLIANCE=1` | Disallow stale logs; require live serial + evidence JSON |
 | Strict | `RAMEN_CI_STRICT=1` | Hardware skips become failures |
 
@@ -351,8 +326,8 @@ In scope now:
 
 - Pi appliance plan and manifest.
 - Serial observation.
-- Smart plug/PDU and front-panel relay fallback hardware until AMT testing
-  demonstrates a concrete need.
+- Define AMT-backed control; fallback hardware remains deferred until tests
+  demonstrate a concrete recovery need.
 - Evidence packaging.
 - Integration with S12/S13 HIL gate discipline.
 

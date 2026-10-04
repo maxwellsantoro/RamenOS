@@ -152,7 +152,8 @@ Domain labels or a broker API do not by themselves establish containment.
 **Landed:** Foundry provides deterministic gates for contracts, negative cases,
 QEMU behavior, and selected driver trace/replay paths. The virtio-net and
 virtio-blk Reference Vaults, Oracle captures, replay scoreboards, and runtime
-harness I/O are inspectable through `just s11` and `just s13`.
+harness transfers over embedded Oracle vectors are inspectable through
+`just s11` and `just s13`; native device-backed I/O remains unproven.
 
 **Partial, physical loop:** S12.4 has appliance inventory, evidence contracts,
 and serial-capture tooling. The first live Pi↔M900 observation, AMT actuation,
@@ -261,11 +262,9 @@ with negative cases. Implementations must meet kernel/service/Store boundaries
 and accurately name their evidence environment. See [Slices](SLICES.md) for
 the definition of done and [Agent Instructions](AGENTS.md) for contribution rules.
 
-H0–H3 cover the physical loop, awaiting hardware setup. SW0 continues remaining
-A2 authority coverage and evaluation controls after its implemented foundations.
-S14 expansion waits for a stable appliance loop, A1/A2 evidence, a recorded proceed/defer
-decision on the bounded comparison report, and its own IDL/Oracle/gate design pass. See [Next Tasks](NEXT_TASKS.md)
-for the authoritative prerequisites; SW0 does not wait for NVMe graduation.
+[Next Tasks](NEXT_TASKS.md) owns physical/software lane sequencing and S14
+prerequisites. [Current Status](CURRENT_STATUS.md) owns their landed evidence;
+this architecture reference does not duplicate the queue.
 
 ## 6. Release Channels — Target promotion policy
 

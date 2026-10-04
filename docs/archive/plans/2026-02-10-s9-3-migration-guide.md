@@ -1,5 +1,11 @@
 # S9.3 Production Deployment Guide
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Document Version:** 1.0
 **Last Updated:** 2026-02-10
 **Phase:** V-007 Phase 5 - Enhanced Store Security

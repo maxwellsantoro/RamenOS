@@ -1,5 +1,10 @@
 # G0.8 Bounded Implementation Trial
 
+> Historical bounded trial. Results retain their original evidence and authority
+> scope; this report grants no new permissions. See
+> [Current Status](../../../CURRENT_STATUS.md) for landed state.
+
+
 **Trial date:** 2026-06-23
 **Baseline:** G0.7 `PASS/PATCH-PLAN`
 **Trial agent:** current Codex implementation agent

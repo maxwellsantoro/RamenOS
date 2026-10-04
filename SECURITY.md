@@ -20,15 +20,15 @@ Please include, as far as you can:
 
 ## Supported versions
 
-Only the `main` branch tip is in scope. There are **no tagged releases** and no
-stable API/ABI. Pre-alpha means interfaces and behavior may change without notice.
+Only the `main` branch tip is in scope. There is no supported stable RamenOS
+release or stable API/ABI. Compatibility-fixture tags are not OS releases.
+Pre-alpha interfaces and behavior may change without notice.
 
 ## Current posture
 
-RamenOS is pre-alpha. Foundational controls have landed — fail-closed defaults
-across the Store, runner, wire-format, capability, and trace-isolation paths —
-but **architectural risk remains** and no formal verification, independent audit,
-or stable release threat model exists.
+RamenOS is pre-alpha. Named Store, runner, capability, and trace paths have
+fail-closed authorization and wire checks. **Architectural risk remains**, and
+no formal verification, independent audit, or stable release threat model exists.
 
 - Current controls and residual risk: [SECURITY_STATUS.md](SECURITY_STATUS.md)
 - Active risk register: [RISKS.md](RISKS.md)
