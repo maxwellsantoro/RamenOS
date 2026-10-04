@@ -10,7 +10,7 @@ STORE_SOCKET="$ROOT_DIR/out/store/store.sock"
 STORE_LOG="$ROOT_DIR/out/store/store_service.log"
 
 rm -rf "$ARTIFACT_ROOT" "$INSTALLED_ROOT"
-mkdir -p "$ARTIFACT_ROOT" "$INSTALLED_ARTIFACTS"
+mkdir -p "$ARTIFACT_ROOT" "$INSTALLED_ARTIFACTS" "$(dirname "$STORE_LOG")"
 rm -f "$STORE_SOCKET"
 
 RAMEN_STORE_DEV_MODE=1 \

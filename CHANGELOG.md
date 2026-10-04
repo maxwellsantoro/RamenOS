@@ -20,6 +20,8 @@
   device I/O remains unproven. Isolated their QEMU staging and firmware variables.
 - Isolated Store smoke fixtures from persistent test/operator CAS state and
   updated the artifact gate for earlier explicit schema-validation rejection.
+- Made the S1 gate create its own log/plan directory so clean CI checkouts do
+  not depend on the S0 smoke gate's former shared output directory.
 
 ### Changed
 - Aligned maintained project documentation and agent guidance with the everyday,

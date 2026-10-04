@@ -74,6 +74,8 @@ see [EVIDENCE_LEVELS.md](EVIDENCE_LEVELS.md).
   proof substrate. Host/QEMU checks do not substitute for Linux containment evidence.
 - S11.8/S13.6 explicitly validate embedded Oracle vectors, with isolated QEMU
   staging; device-backed native net/block evidence remains outstanding.
+- S1 creates its own output directory independently of S0; consolidated-PR CI
+  exposed the missing directory on a clean checkout after S0 fixture isolation.
 - Local macOS validation: 797 host workspace tests passed (11 ignored), strict
   workspace Clippy and all six lint tranches passed, bare-metal targets built,
   and the S0–S8 umbrella, S7 security, S11/S12/S13, governance G0, RT proof, JSON
