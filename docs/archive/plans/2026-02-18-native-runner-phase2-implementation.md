@@ -1,5 +1,11 @@
 # S10.0: Native Runner Phase 2 Implementation
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-18
 **Status:** Approved
 **Related:** V-006 Security Remediation, Native Runner Design (2026-02-18-native-runner-design.md)

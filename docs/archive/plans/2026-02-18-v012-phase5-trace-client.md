@@ -1,5 +1,11 @@
 # V-012 Phase 5: User-Space Trace Service Client
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-18
 **Status:** PLANNED
 **Depends On:** V-012 Phase 4 (Kernel-side trace service - COMPLETE)

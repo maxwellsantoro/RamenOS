@@ -126,9 +126,10 @@ the socket write succeeded. A successful write is not a client-delivery acknowle
 The journal durably reconstructs accepted effects/receipts; the session transport
 log is in memory and does not prove complete crash-persistent operation audit.
 
-Model subscription lifecycle, complete canonical authority mapping/time-indexed
-inventories, shared hidden fixture/evaluator/session controls and all-arm negative
-conformance remain next. No model or physical-hardware trial runs in this gate.
+Later typed subscriptions, finite authority cases, evaluator/session controls
+and reconciliation have separately bounded gates. Complete time-indexed authority,
+real study releases, provider/cost accounting and full all-arm conformance remain
+pending in [Next Tasks](../NEXT_TASKS.md). No model or physical trial runs here.
 
 A2.5 adds [version 2 typed subscriptions](AGENT_TASK_SUBSCRIPTIONS_V2.md) to
 the shared Linux broker. The conventional helper remains eight version 1 verbs;

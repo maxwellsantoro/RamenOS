@@ -18,7 +18,7 @@ against those signals.
 
 ## Doctrine Under Review
 
-The attached offers/airlock paper proposes:
+The external offers/airlock draft, summarized here, proposes:
 
 - A single key-routed boundary verb: `present(key)`.
 - Independent request authority and observable authority:

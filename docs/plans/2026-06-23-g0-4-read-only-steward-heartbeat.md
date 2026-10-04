@@ -1,7 +1,12 @@
 # G0.4 Read-Only Steward Heartbeat / Board Brief
 
+> Gate-bound historical milestone. This stable path is consumed by governance
+> checks. Use [Current Status](../../CURRENT_STATUS.md) and
+> [Next Tasks](../../NEXT_TASKS.md) for current scope and authority.
+
+
 **Last Updated:** 2026-06-23
-**Status:** Scaffold
+**Status:** Implemented bounded milestone; retained gate-bound plan
 
 ## Purpose
 

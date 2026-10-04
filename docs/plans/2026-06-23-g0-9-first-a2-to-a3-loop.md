@@ -1,5 +1,10 @@
 # Plan: G0.9 — First A2→A3 Loop + Research-Blocks-Implementation + Human Directives + Slice Namespacing
 
+> Gate-bound historical milestone. This stable path is consumed by governance
+> checks. Use [Current Status](../../CURRENT_STATUS.md) and
+> [Next Tasks](../../NEXT_TASKS.md) for current scope and authority.
+
+
 **Date:** 2026-06-23
 **Slice:** `G0.9` (org/governance namespace; see `docs/research/SLICE_NAMESPACING.md`)
 **Authority:** A2-local (docs + Foundry governance gates)

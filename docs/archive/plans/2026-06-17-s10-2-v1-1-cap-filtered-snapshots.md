@@ -1,5 +1,11 @@
 # S10.2 v1.1: Capability-Filtered Snapshots + Reactor Publish
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-06-17
 **Status:** Complete
 **Gate:** `tools/ci/foundry_semantic_state_s10_2.sh` (`capability_filter`, `domain_manager_reactor_publish`)

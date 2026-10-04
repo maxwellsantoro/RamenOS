@@ -38,21 +38,10 @@ whole-product readiness.
 **Goal:** Make physical HIL repeatable through a dedicated appliance rather than
 manual serial-log handling.
 
-Landed:
-
-- S12.0 golden-machine contract and Tier-1 profile.
-- S12.1 GOP probe in QEMU OVMF.
-- S12.2 physical boot gate scaffold.
-- S12.3 IOMMU inventory.
-- S12.4.0 appliance manifest, evidence wrapper, and inventory gate.
-- S12.4.1 serial-observer scaffold.
-
-Remaining:
-
-- Prove stable live serial capture through the appliance.
-- Provision and validate bounded Intel AMT 11 power/reset actuation from the appliance.
-- Begin S12 on the installed SanDisk SATA SSD; add M.2 NVMe before S13 graduation.
-- Run S12 and S13 graduation using appliance evidence plus target evidence.
+The appliance inventory and serial-observer scaffold are landed. Physical
+validation and bounded AMT actuation remain work. The exact installed hardware,
+landed assertions, and H0–H3 acceptance criteria live in
+[Current Status](CURRENT_STATUS.md) and [Next Tasks](NEXT_TASKS.md).
 
 ## S13 Graduation Boundary
 

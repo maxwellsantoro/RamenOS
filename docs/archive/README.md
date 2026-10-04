@@ -1,6 +1,6 @@
 # Documentation Archive
 
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-03
 **Status:** Historical and non-authoritative
 
 This directory preserves completed or superseded plans, designs, and
@@ -35,3 +35,7 @@ Archive a document when all of the following are true:
 
 Git history is not a substitute for clear navigation, and the archive is not a
 second backlog.
+
+When a gate or runtime warning requires an old path, keep a concise current
+reference there and archive the superseded analysis here. Preserve original
+dates and results; an archive banner does not renew a claim or authorize work.

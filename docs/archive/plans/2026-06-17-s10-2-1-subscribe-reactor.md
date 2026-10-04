@@ -1,5 +1,11 @@
 # S10.2.1: Subscribe Reactor (v1)
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-06-24
 **Status:** Complete
 **Gate:** `tools/ci/foundry_semantic_state_s10_2.sh` (`subscribe_delivery` step)

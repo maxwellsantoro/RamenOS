@@ -77,8 +77,10 @@ diagnostics budget as RT. Preparation and remaining worker time consume the wall
 budget. Cleanup uses the substrate's separate bounded waits; slow cleanup can make
 LT fail the overall elapsed check. Launcher startup, interactive input waits and
 stdout backpressure do not have a whole model-session deadline. Abrupt destruction
-of the host broker/daemon is not a proved container cleanup path. A future evaluator
-must add session supervision and reconciliation before unattended model trials.
+of the host broker/daemon is not a proved container cleanup path. Later
+[evaluator controls](AGENT_TASK_EVALUATOR_CONTROLS_V1.md) and
+[reconciliation](AGENT_TASK_RECONCILIATION_V1.md) add named supervision and
+cleanup cases; broader daemon/lifetime limits still precede unattended trials.
 
 ## Evidence and comparison limits
 
@@ -104,5 +106,6 @@ LT has no RT-style complete durable operation audit or asynchronous event stream
 [A2.4](AGENT_TASK_LS_TRANSACTIONS_V1.md) supplies LS commands sharing this Linux
 engine. [A2.5](AGENT_TASK_SUBSCRIPTIONS_V2.md) adds an independent in-memory typed
 subscription lifecycle and shared version 2 description/codec. All-arm authority
-inventories/conformance, hidden fixtures and model evaluation remain next. There
+cases are recorded in the [authority contract](AGENT_TASK_AUTHORITY_V1.md);
+complete conformance, real hidden fixtures and model evaluation remain pending. There
 are no model calls, physical runs, merge authority or security/graduation claims.

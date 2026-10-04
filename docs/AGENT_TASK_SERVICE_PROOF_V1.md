@@ -145,8 +145,9 @@ proof against an operator who can rewrite the entire trusted journal. It covers
 dispatched calls and receipt replay, not a replay of every OS event or byte that
 failed transport parsing. Keep evaluator journals out of the agent's context.
 
-A2 is next: Linux scoped-shell and typed controls, a model-facing RT adapter,
-common serialization/fixtures, actual authority/containment inventory and forced
-backend probes for all arms. Comparative runs require that conformance first.
+Downstream Linux adapters, shared serialization, finite authority cases, evaluator
+controls and reconciliation have their own [landed scopes](../CURRENT_STATUS.md).
+Full A2 conformance, remaining host/deputy and continuous authority, real study
+controls and comparative runs remain pending.
 Production routing/authentication and task-specific kernel enforcement remain
 separate work; physical HIL continues to await test-hardware setup.

@@ -23,16 +23,18 @@ This is how PRs get created *as the org, not as a person*.
 | PR author shown as | `ramen-implementer[bot]` (API: `app/ramen-implementer`) |
 | Authority level | **A2** — branch, code, run gates, open PRs. No self-approve, merge, release, hardware, or public-support authority. |
 
-### Installation permissions (least-privilege, repo-scoped)
+### Installation permissions and role limits
 
 - `contents: write` — push branches, commits
 - `pull_requests: write` — open / review / merge PRs
 - `workflows: write` — modify `.github/workflows/`
 - `metadata: read` — baseline (required)
 
-The App is installed on `maxwellsantoro/RamenOS` only. GitHub does not dispatch
-to self-hosted runners for fork PRs, so external contributors' PRs never run on
-your infrastructure.
+The recorded installation is repo-scoped. These API permissions can perform
+more actions than the A2 role authorizes, including PR review/merge operations;
+the role and separate reviewer requirements still apply. Runner selection and
+fork handling depend on workflow and repository settings, not this identity.
+Review [.github/workflows](../../.github/workflows/) before changing CI trust.
 
 ## The private key (crown jewel)
 
@@ -56,8 +58,9 @@ export GH_TOKEN=$(python3 tools/org/mint_app_token.py \
 ```
 
 `gh` prefers `GH_TOKEN` over stored auth, so the session acts as the bot until
-you `unset GH_TOKEN`. The token never touches shell history when captured this
-way. To just resolve the installation id: add `--print-installation-id`.
+you `unset GH_TOKEN`. Capture it without printing the value or enabling shell
+tracing; tracing/debug output can expose an expanded assignment. To resolve only
+the installation id, add `--print-installation-id`.
 
 ### Verifying the bot
 
@@ -117,8 +120,8 @@ This is the A2→A3 split in action: implementer opens, reviewer approves+merges
 - The **human** (A3) approves and merges. The branch rule requires ≥1 approval
   from a non-author.
 - Never let one identity write, approve, **and** merge the same change.
-- Do not grant the bot merge/release/hardware authority. The App's permissions
-  stay at contents/pull_requests/workflows write only.
+- Do not grant the bot merge/release/hardware authority. API write permissions
+  do not themselves enforce those role denials.
 
 ## Stage 2 (future): a reviewer bot
 

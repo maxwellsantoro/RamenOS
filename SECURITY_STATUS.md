@@ -11,8 +11,9 @@ requirements; this document describes the current evidence and residual risks
 rather than treating the everyday-OS destination as a security assurance.
 
 The tracked S7 and S9 remediation milestones are complete. RamenOS now has
-fail-closed defaults across its early Store, runner, wire-format, capability,
-and trace-isolation paths, with deterministic Foundry coverage.
+fail-closed authorization and wire checks on named Store, runner, capability,
+and trace paths, with deterministic Foundry coverage. POSIX resource limits
+remain best effort and are not an isolation boundary.
 
 This is not a production-security claim. The system remains pre-alpha, physical
 graduation is incomplete, and several controls are scaffolds or bounded host-side
@@ -73,8 +74,8 @@ scope asserted by that gate.
 
 The detailed remediation sequence is retained in:
 
-- [Security remediation program](docs/plans/security_remediation_v006_v007_v012.md)
-- [Store service IPC design](docs/plans/v007_phase2_store_service_ipc_design.md)
+- [Security remediation program](docs/archive/plans/2026-02-09-security-remediation-v006-v007-v012.md)
+- [Store service IPC design](docs/archive/plans/2026-02-09-store-service-ipc-design.md)
 - [S7 implementation record](docs/archive/plans/2026-02-10-s7-security-hardening-phase2.md)
 - [S7 gate record](docs/archive/plans/2026-02-18-s7-security-hardening-phase3.md)
 - [S9.3 migration record](docs/archive/plans/2026-02-10-s9-3-migration-guide.md)

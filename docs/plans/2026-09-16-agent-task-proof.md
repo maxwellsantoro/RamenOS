@@ -397,7 +397,10 @@ Full authority conformance and comparison commands remain planned. The [service 
 names the implemented host boundaries and remaining integration. The [A1.0 protocol](../AGENT_TASK_PROTOCOL_V1.md) records
 the actual call-path inventory and A1.1 service assertions.
 
-| Phase | Deliverable and proposed command | Permitted conclusion |
+The A0/A1 and numbered A2 recipes below are implemented. The full A2, Phase B,
+and Phase C commands are proposed interfaces and do not exist in `justfile` yet.
+
+| Phase | Deliverable and command | Permitted conclusion |
 |-------|----------------------------------|----------------------|
 | A0: contract fixtures | Versioned schema, pure transaction reference model, synthetic deterministic fixtures; `just foundry-agent-task-contract-a0` | The modeled contract rejects the named bad transitions; no service/kernel enforcement or useful task claim |
 | A1.0: native control contract | IDL/generated control layouts and request preflight; `just foundry-agent-task-protocol-a1-0` | Bounded request syntax only; no handler or grant enabled |
@@ -411,7 +414,7 @@ the actual call-path inventory and A1.1 service assertions.
 | A2.7: scripted evaluator controls | Disjoint bank/release contract, external deadline/frame/context budgets, fresh sessions and 45 synthetic development attempts; `just foundry-agent-task-evaluator-controls` | Scripted control behavior and retained failures; no real hidden-bank, model/token comparison or certified forced daemon cleanup |
 | A2.8: named reconciliation | Durable lifecycle fencing, exact acknowledged-ID removal, explicit cleanup checkpoint repair and six all-arm interrupted commit cases; `just foundry-agent-task-reconciliation` | Named host recovery without commit retry; unresolved creates and broader host/daemon failure modes remain unknown |
 | A2.9: finite requestable/lifetime witnesses | All 31 grant subsets under two fixture policies, single-right actual effects and expiry/renewal/revocation points; `just foundry-agent-task-requestable-authority` | Equal declared-interface issued-right projections only; whole/continuous and host/deputy authority remain unknown |
-| A2: comparison controls | Implement LS/LT adapters, shared evaluator/hidden bank, LT/RT protocol fixtures, canonical authority mapping and negative cases; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
+| A2: comparison controls | Complete remaining authority/conformance and real bank/study/provider controls over the landed adapters and evaluator fixtures; `just foundry-agent-task-proof` | All three controls conform and are ready for the frozen comparison; no measured model advantage |
 | B: model comparison | Separate pilot, power calculation, frozen three-arm matched-block manifest, and opt-in evaluator; `just agent-task-proof-eval` | Claim-specific success, authority, cost, and audit results for these models/tasks only |
 | C: target enforcement | Exercise task grants and forbidden operations through the kernel/QEMU path; `just foundry-agent-task-proof-qemu` | Only the specific operations actually enforced by the target qualify as target evidence |
 

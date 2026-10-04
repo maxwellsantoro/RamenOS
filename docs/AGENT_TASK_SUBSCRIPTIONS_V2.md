@@ -79,8 +79,8 @@ codec is default/backend-free; both executable backends remain feature gated.
 LS's conventional helper still exposes eight version 1 commands. A raw LS client
 can send version 2 packets to the shared Linux broker; those subscriptions live
 for the whole LS launcher session, across command socket disconnects. This
-additional observable authority and lifecycle difference belong in the upcoming
-all-arm inventory. This milestone establishes the RT/LT typed lifecycle only.
+additional observable authority and lifecycle difference are retained in the
+[all-arm authority inventory](AGENT_TASK_AUTHORITY_V1.md). This milestone establishes the RT/LT typed lifecycle only.
 
 ## Evidence and next work
 
@@ -101,6 +101,7 @@ protocol equivalence or canonical authority conformance.
 
 `out/agent-task-subscriptions/` records private evaluator transcripts, fixture,
 source/lockfile fingerprints, tool/binary/worker hashes and a report. Keep these
-artifacts outside model context. Canonical available/exercised authority mapping,
-all-arm negative fixtures, hidden-bank partitioning and evaluator session/cost
-supervision are next. No paid/model or physical run is part of this gate.
+artifacts outside model context. Later [authority cases](AGENT_TASK_AUTHORITY_V1.md)
+and [evaluator controls](AGENT_TASK_EVALUATOR_CONTROLS_V1.md) have their own scope.
+Complete authority, real hidden-bank and provider/cost supervision remain pending.
+No paid/model or physical run is part of this gate.

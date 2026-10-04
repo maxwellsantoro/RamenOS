@@ -83,7 +83,7 @@ All status values are fixed in `kernel_api::agent_task_protocol`: OK=0,
 DENIED=1, INVALID=2, CONFLICT=3, VALIDATION_FAILED=4, EXPIRED=5, TIMEOUT=6,
 CAPACITY=7, IO=8, REQUEST_REUSE=9, NOT_FOUND=10. Validation outcomes are
 NOT_RUN=0, VALID=1, INVALID=2, TIMEOUT=3, HOST_FAILURE=4. Unknown values fail
-closed at the future consumer. `diagnostics_flags` bit 0 reports truncation;
+closed by the opt-in reply preflight; production consumers must retain that check. `diagnostics_flags` bit 0 reports truncation;
 all other bits and all reserved fields must be zero. Truncated diagnostics
 cannot establish valid attestation under the A0 contract.
 
@@ -118,8 +118,8 @@ the current host/WASM bridge, which can copy into guest memory.
 | `services/store_service/src/projection_cow.rs` | Immutable CAS and domain ownership publication | No task endpoint, expected-revision transaction or durable request receipts |
 | `services/domain_manager/src/broker.rs` | Manifest/channel policy and interface rights grants | No task/resource/lifetime-bound registry; protocol 14 is not registered |
 | `services/semantic_state/src/reactor.rs` | Host snapshot/subscription prototype | Synthetic handles are not real task mappings or run-scoped provenance |
-| `services/native_runner/src/runner.rs` | Pinned WASM execution and guest epoch deadline | No isolated validator input/result worker or outer compilation/host-call watchdog |
-| `services/native_runner/src/kernel_bridge.rs` | Unix/serial bridge transport | Unix service waits need task deadlines and cancellation; serial timeout is not whole-invocation containment |
+| `services/native_runner/src/runner.rs` | General host WASM execution and guest epoch deadline | SW0 uses a separate supervised validator worker; general runner epochs alone do not bound compilation or blocking host calls |
+| `services/native_runner/src/kernel_bridge.rs` | Unix/chardev IPC with absolute invocation deadline, including connect/partial transfers | Whole-task lifetime/cancellation and target enforcement remain separate; uncertain requests are not automatically replayed |
 
 ## A1.1 assertions required before implementation
 

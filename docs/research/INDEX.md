@@ -1,7 +1,7 @@
 # Research Index
 
 **Last Updated:** 2026-10-03
-**Status:** G0 scaffold
+**Status:** Active research navigation; questions remain open
 
 RamenOS is a research-backed OS, not a research OS. Research is part of the
 build process when the project faces doctrine-level novelty, security risk, or
@@ -14,13 +14,13 @@ The current agent questions are part of that program rather than its entire scop
 
 ## Program Docs
 
-- `docs/research/RESEARCH_PROGRAM.md` - operating model for research-backed
+- [Research Program](RESEARCH_PROGRAM.md) - operating model for research-backed
   development.
-- `docs/research/questions/RQ-0001-offer-boundaries.md` - provider-authored
+- [RQ-0001](questions/RQ-0001-offer-boundaries.md) - provider-authored
   offers, re-timing airlocks, and governed leakage.
-- `docs/research/questions/RQ-0002-ai-org-kernel.md` - RamenOrg / Org Kernel for
+- [RQ-0002](questions/RQ-0002-ai-org-kernel.md) - RamenOrg / Org Kernel for
   agent-governed project operation.
-- `docs/research/papers/README.md` - paper pipeline staging area.
+- [Paper Pipeline](papers/README.md) - paper pipeline staging area.
 
 ## Current Research Questions
 

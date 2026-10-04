@@ -1,5 +1,11 @@
 # V-006 Phase 4: Native Runner Design
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Last Updated:** 2026-02-18
 **Status:** Approved
 **Related:** V-006 Security Remediation, S8 Shared Memory, V-012 Trace Service

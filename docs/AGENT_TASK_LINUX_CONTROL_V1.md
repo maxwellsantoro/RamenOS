@@ -3,8 +3,9 @@
 **Status:** implemented development-fixture gate, not full A2 conformance.
 **Command:** `just foundry-agent-task-linux-control` on Linux with Docker.
 **Claim:** one scripted repair, pinned WASM validation and the named Linux probes.
-The LT backend, shared model-facing protocol, durable Linux task transactions,
-hidden fixture bank and complete canonical authority conformance remain next.
+The LT backend, shared protocol, and durable Linux transactions are outside
+this A2.1 gate and landed in later steps listed in [Current Status](../CURRENT_STATUS.md).
+The real hidden fixture bank and complete authority conformance remain pending.
 No comparative model, narrower-authority, target-kernel or physical claim follows.
 
 ## Actual Linux substrate
@@ -108,9 +109,10 @@ unsafe staging, invalid validation, mutable/forged results, output/deadline boun
 PID ceilings and background cleanup. Zero successful forbidden probes applies
 only to that suite. Unprobed effects and all-arm/time-indexed authority mapping
 remain `unknown`; this report makes no set-inclusion claim. Protocol descriptions,
-serializer, pagination/events, LS transactions and LT/RT equivalence are not frozen.
+serializer, pagination/events, LS transactions and LT/RT point comparisons are
+covered by later contracts, not this A2.1 result.
 
-Next, implement the shared model-facing serializer and RT adapter, then an
-independent LT transaction backend using this measured Linux substrate. Complete
-all-arm lifecycle probes, effective/exercised authority mapping and hidden-bank
-partitioning before the full `foundry-agent-task-proof` command can pass.
+Use the [current queue](../NEXT_TASKS.md) for remaining full-A2 authority,
+lifecycle, hidden-bank and evaluator work. The proposed full conformance command
+in the [study plan](plans/2026-09-16-agent-task-proof.md) is not a runnable recipe
+or a conclusion supplied by this foundation gate.

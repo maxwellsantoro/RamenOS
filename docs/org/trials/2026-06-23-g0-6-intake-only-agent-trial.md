@@ -1,5 +1,10 @@
 # G0.6 Intake-Only Agent Trial
 
+> Historical bounded trial. Results retain their original evidence and authority
+> scope; this report grants no new permissions. See
+> [Current Status](../../../CURRENT_STATUS.md) for landed state.
+
+
 **Trial date:** 2026-06-23
 **Baseline commit:** `2dd4f4ca82c516b28fc4ca824229dbdb2a192f30`
 **Trial agent:** fresh default agent `019ef54a-06e3-75f0-9d61-b595d52de90d`

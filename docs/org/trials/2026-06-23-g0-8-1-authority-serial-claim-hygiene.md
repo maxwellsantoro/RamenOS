@@ -1,5 +1,10 @@
 # G0.8.1 Authority and Serial Claim Hygiene Trial
 
+> Historical bounded trial. Results retain their original evidence and authority
+> scope; this report grants no new permissions. See
+> [Current Status](../../../CURRENT_STATUS.md) for landed state.
+
+
 **Trial date:** 2026-06-23
 **Baseline:** G0.8 `PASS/PATCH`
 **Trial agent:** current Codex implementation agent

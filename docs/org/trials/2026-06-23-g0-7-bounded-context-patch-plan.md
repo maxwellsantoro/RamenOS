@@ -1,5 +1,10 @@
 # G0.7 Bounded Context Patch-Plan Trial
 
+> Historical bounded trial. Results retain their original evidence and authority
+> scope; this report grants no new permissions. See
+> [Current Status](../../../CURRENT_STATUS.md) for landed state.
+
+
 **Trial date:** 2026-06-23
 **Baseline commit:** `be32227af3a1e2e03de622d2c5243f6f7175ea8a`
 **Trial agent:** fresh default agent `019ef581-71eb-72d3-b4c0-bccf8cfa2c17`

@@ -1,167 +1,74 @@
-# S12: First Metal (Golden Machine)
+# S12: First Metal — Golden Machine
 
-**Last Updated:** 2026-07-19
-**Status:** Physically ready; SATA-backed S12 start, firmware/AMT preflight and live capture next
-**Gate:** `tools/ci/foundry_s12_golden_machine_s12_0.sh`
-**Related:** `docs/HARDWARE_STRATEGY.md`, `ROADMAP.md` §12, `hardware/golden_machine_v0.toml`
+**Last Updated:** 2026-10-03
+**Status:** Machine contract and probes landed; physical graduation pending
 
----
+S12 qualifies UEFI boot, visible GOP output, serial evidence, and IOMMU inventory
+on a pinned Tier-1 machine. QEMU probes and physical setup are preparation for
+that result. Default CI requires no physical target.
 
-## Executive Summary
+## Reference machine
 
-S12 escapes VM-only bring-up by pinning a **Tier-1 golden machine** contract and proving **UEFI boot to a visible framebuffer (GOP)** with **serial logging** on physical silicon. S11 closed the Driver Factory loop in QEMU; S12 is the first bare-metal vertical slice.
+**CHOSEN:** Lenovo ThinkCentre M900 SFF, machine type 10FH/model 00SNUS,
+Core i7-6700, 8 GiB RAM. Its populated RS-232/DB9 port and integrated graphics
+support the planned serial/GOP path. S12 starts on the installed 240 GB SanDisk
+SATA SSD; a compatible M.2 2280 PCIe NVMe remains required for S13 graduation.
 
-**S12.0 (this milestone):** Pin the hardware contract, add a machine manifest, and land a Foundry smoke gate (inventory + negative assertions). No physical HIL required in default CI.
+[golden_machine_v0.toml](../../hardware/golden_machine_v0.toml) is the
+machine-auditable contract. [Current Status](../../CURRENT_STATUS.md) owns
+installed inventory; [Next Tasks](../../NEXT_TASKS.md) owns live-run sequencing.
+The Pi/adapter/null-modem chain is installed, while firmware/AMT preflight and
+first live serial capture remain pending.
 
-**S12.1+:** GOP probe implementation (QEMU OVMF dev path, then physical HIL).
+Before physical evidence, check UEFI/USB boot, GOP on integrated graphics, serial,
+and VT-d. Provision Intel AMT 11 on the trusted wired lab network and keep its
+credentials outside evidence. Front-panel relay/PDU fallback is deferred until
+AMT testing identifies a concrete recovery gap.
 
----
+## Tier-1 contract
 
-## 0. Tier-1 reference machine (updated 2026-07-01)
+| Capability | Evidence required |
+|------------|-------------------|
+| UEFI boot | Prepared RamenOS `BOOTX64.EFI` identity and live boot |
+| Serial | Fresh target transcript correlated with the run |
+| GOP framebuffer | Probe/fill and target mode markers |
+| IOMMU | ACPI DMAR/VT-d inventory on the reference profile |
+| PCIe/NVMe | Inventory in S12; boot/storage evidence in S13 |
+| USB xHCI | Inventory in S12; typed input in future S14 |
 
-**CHOSEN:** The acquired Lenovo ThinkCentre M900 Small Form Factor, machine type
-10FH and model 00SNUS, with an Intel Core i7-6700 and 8 GiB RAM. Operator
-photos confirm integrated graphics is active and the rear RS-232/DB9 serial
-port is populated. The installed 240 GB SanDisk SATA SSD is valid for the
-initial S12 boot, GOP, serial, IOMMU, and appliance work. A compatible M.2
-2280 PCIe NVMe drive will be added later and remains mandatory for S13 metal
-graduation. The Pi↔M900 serial chain is physically installed and ready. UEFI
-GOP, VT-d, and AMT 11 remain preflight checks; inventory and physical-setup
-reports do not constitute graduation evidence.
+IOMMU presence does not establish configured DMA containment. Tier-2 profiles
+may later declare degraded trust but cannot redefine the Tier-1 requirement.
+A second x86 profile and ARM64/SMMU qualification remain later work.
 
-| Criterion | ThinkCentre M900 SFF | Framework Laptop 13/16 |
-|-----------|----------------------|------------------------|
-| UEFI + GOP | Standard PC firmware; integrated graphics observed active | Yes, but board variance higher |
-| VT-d (IOMMU) | Available when firmware VT-d is enabled | Typically enabled |
-| Serial HIL path | Populated rear RS-232/DB9 serial port | Requires an external adapter path |
-| Out-of-band control | Intel vPro / AMT 11 over wired Ethernet | Model-dependent |
-| Lab reproducibility | Acquired machine pinned by machine type and model | Multiple mainboard generations |
-| Contributor access | Common refurbished desktop profile | Less uniform in farms |
-| S12 starting storage | Installed 240 GB SanDisk SATA SSD | Existing storage acceptable |
-| Downstream S13 NVMe | Compatible M.2 2280 PCIe NVMe to be added | M.2 NVMe standard |
+## Landed phases and gates
 
-**Firmware preflight:** Before a physical evidence run, enable UEFI boot, Intel VT-d, the rear serial port, USB boot, and Intel AMT network access. Keep the integrated graphics active for the GOP path. Provision AMT only on the trusted wired lab-management network and keep its credentials out of evidence artifacts.
+| Phase | Implemented path | Recipe |
+|-------|------------------|--------|
+| S12.0 | Manifest, contract, inventory/negative assertions | `just foundry-s12-golden-machine-s12-0` |
+| S12.1 | UEFI GOP mode/fill probe; QEMU OVMF assertion | `just foundry-s12-gop-probe-s12-1` |
+| S12.2 | Physical boot gate and USB image tooling | `just foundry-s12-hil-boot-s12-2` |
+| S12.3 | IOMMU inventory probe/gate | `just foundry-s12-iommu-inventory-s12-3` |
+| S12.4 | Appliance manifest/evidence and serial-observer tooling | `just hil-appliance` |
 
-**Deferred secondary:** Framework Laptop 13 (Intel) as a second Tier-1 profile after the ThinkCentre path is green. ARM64 Tier-1 (e.g. Apple-silicon class with SMMU) is post-S12.
+`tools/ci/foundry_s12_golden_machine_s12_0.sh` consumes this stable design path.
+`just s12` runs golden-machine inventory, GOP/QEMU, and appliance checks.
+`just s12-hil` selects the physical boot/IOMMU legs; they require their documented
+opt-in inputs and prepared target. See the [justfile](../../justfile) for recipes
+and scripts rather than inferring coverage from a slice number.
 
-**Manifest:** `hardware/golden_machine_v0.toml` is the machine-auditable source of truth for gates and agents.
+## Graduation and claim boundary
 
----
+Full S12 completion requires the pinned contract, passing GOP probe, physical
+boot/GOP evidence on the Tier-1 reference, and matching IOMMU inventory. Fresh
+provenance must bind the prepared artifact and target run according to
+[Evidence Levels](../../EVIDENCE_LEVELS.md). Default inventory/QEMU success and
+an installed cable do not establish that physical result.
 
-## 1. Tier-1 hardware contract
+The [HIL Appliance Controller](2026-06-22-hil-appliance-controller.md) is the
+preferred observation/actuation path. Standalone golden-machine runs retain a
+separate stamped claim path. The appliance wraps target/per-gate evidence and
+cannot replace it.
 
-Aligned with `docs/HARDWARE_STRATEGY.md`. A golden machine **must** expose:
-
-| Capability | S12 requirement | Evidence |
-|------------|-----------------|----------|
-| UEFI boot | Required | `BOOTX64.EFI` from RamenOS `kernel_uefi` |
-| Serial logging | Required | UART or USB-serial; same banner discipline as QEMU gates |
-| GOP framebuffer | Required (S12 DoD) | UEFI `GraphicsOutputProtocol`; deterministic fill or probe pattern |
-| VT-d / IOMMU | Required (Tier-1) | ACPI DMAR present; firmware VT-d enabled |
-| PCIe + NVMe | Inventory only in S12 | Exercised in S13 |
-| USB xHCI | Inventory only in S12 | Exercised in S14 |
-
-**Non-negotiable:** Tier-2 boards without IOMMU may run in degraded trust mode later; they do **not** define the golden contract.
-
----
-
-## 2. Implementation phases
-
-### Phase 0 — Contract scaffold (S12.0) ✅ target now
-
-- `docs/plans/2026-06-21-s12-golden-machine-design.md` (this doc)
-- `hardware/golden_machine_v0.toml`
-- `tools/ci/foundry_s12_golden_machine_s12_0.sh` — inventory + negative assertions; **PASS without hardware**
-
-### Phase 1 — GOP probe (S12.1) ✅
-
-- `kernel_uefi/src/gop_probe.rs`: locate GOP via UEFI boot services; query mode; 64×64 `VideoFill`
-- QEMU stepping stone: OVMF GOP before physical HIL (gate PASS: 1280×800 BGR)
-- Init profile `gop_probe` + `OP_GOP_PROBE` serial markers:
-
-```
-golden_machine: gop_probe ok
-golden_machine: gop_width=<u32>
-golden_machine: gop_height=<u32>
-golden_machine: gop_pixel_format=<u32>
-```
-
-- Gate: `foundry_s12_gop_probe_s12_1.sh` (QEMU OVMF first)
-
-### Phase 2 — Physical HIL boot (S12.2)
-
-- USB boot stick or PXE flow documented for lab operators
-- Gate: `foundry_s12_hil_boot_s12_2.sh` runs only when `RAMEN_HIL_GOLDEN_MACHINE=1`
-- Default CI: **skip** HIL (fail-closed under `RAMEN_CI_STRICT=1` if skip attempted without explicit policy — same pattern as S2 compat)
-
-### Phase 3 — IOMMU inventory marker (S12.3)
-
-- ACPI DMAR walk or firmware table probe; serial marker `golden_machine: iommu_present=1`
-- No full IOMMU programming in S12; isolation enforcement matures with driver deployment
-
----
-
-## 3. S12 Definition of Done (full slice)
-
-S12 is complete when:
-
-1. **Contract pinned** — manifest + design doc + S12.0 smoke gate PASS.
-2. **GOP probe** — S12.1 gate PASS (QEMU OVMF or physical).
-3. **Physical boot** — S12.2 HIL gate PASS on the Tier-1 reference machine with serial banner + GOP markers.
-4. **IOMMU inventory** — S12.3 gate asserts DMAR/VT-d visibility on the same machine class.
-
-Fast-path (future): `just s12` = S12.0 + S12.1; HIL legs opt-in via env.
-
----
-
-## 4. HIL / CI policy
-
-| Mode | Env | Behavior |
-|------|-----|----------|
-| Default CI | (none) | S12.0 + S12.1 QEMU only; HIL gates **skip** |
-| Lab HIL | `RAMEN_HIL_GOLDEN_MACHINE=1` | Run S12.2 + S12.3 against attached hardware |
-| Strict CI | `RAMEN_CI_STRICT=1` | Skips become FAIL (compat gate pattern) |
-
-**Negative assertions (S12.0 gate):**
-
-- Must not require physical hardware in default `foundry_ci_extended.sh` path.
-- Must not weaken Tier-1 IOMMU requirement in manifest.
-- Must not add ioctl-style framebuffer escapes; GOP stays UEFI boot-services path until native display harness (S15).
-
----
-
-## 5. Inventory (2026-06-21)
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| `kernel_uefi` UEFI entry | ✅ | Serial banner + GOP probe |
-| `hardware/golden_machine_v0.toml` | ✅ S12.0 | Tier-1 contract |
-| GOP probe in `kernel_uefi` | ✅ S12.1 | `gop_probe.rs` |
-| `OP_GOP_PROBE` init profile | ✅ S12.1 | `gop_probe` profile |
-| Physical HIL gate | ✅ S12.2 | `foundry_s12_hil_boot_s12_2.sh` + `tools/hil/build_usb_boot_image.sh` |
-| IOMMU ACPI probe | ✅ S12.3 | `foundry_s12_iommu_inventory_s12_3.sh` + `kernel_uefi/src/iommu_probe.rs` |
-
----
-
-## 6. Scope guard
-
-**In scope:** Tier-1 contract, GOP visibility, serial discipline, HIL gate skeleton.
-
-**Out of scope (later slices):**
-
-- S13: NVMe boot + atomic update on metal
-- S14: USB xHCI + HID
-- S15: Native window compositor / display harness
-- Full IOMMU programming and user-space driver sandbox on metal
-- Tier-2 degraded-trust profiles
-
----
-
-## 7. Gates
-
-| Gate | Phase | Default CI |
-|------|-------|------------|
-| `foundry_s12_golden_machine_s12_0.sh` | S12.0 | Yes |
-| `foundry_s12_gop_probe_s12_1.sh` | S12.1 | Yes (QEMU) |
-| `foundry_s12_hil_boot_s12_2.sh` | S12.2 | No (HIL opt-in) |
-| `foundry_s12_iommu_inventory_s12_3.sh` | S12.3 | No (HIL opt-in) |
+[S13](2026-06-21-s13-persistent-storage-design.md) owns NVMe boot and the required
+update/rollback protocol. USB/HID, native display/compositor, full IOMMU
+programming, and user-space driver containment require their own later gates.

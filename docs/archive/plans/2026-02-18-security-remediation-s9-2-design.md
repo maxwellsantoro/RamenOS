@@ -1,5 +1,11 @@
 # Security Remediation S9.2 Design
 
+> Historical record. Original dates, status, commands, and claims describe the
+> document at the time of writing. Use [Current Status](../../../CURRENT_STATUS.md),
+> [Next Tasks](../../../NEXT_TASKS.md), and [Security Status](../../../SECURITY_STATUS.md)
+> for current behavior; see the [archive policy](../README.md).
+
+
 **Date**: 2026-02-18
 **Scope**: Fix 5 security vulnerabilities (2 P1, 2 P2, 1 P3) identified in security audit
 
