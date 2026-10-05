@@ -1453,3 +1453,37 @@ freeze a live editor/Store admission bridge; copied volatile verdicts cannot
 authorize a commit. Its request deadline closes the original operation/ticket and
 source, while only actual revoke/TTL/service fault retires instance authority.
 Exact bridge signatures and its eighteen-case consumer remain future work.
+
+## 2026-10-05 — Establish native Read before the integrated Save bridge
+
+Split a bounded native Read prerequisite from UI1.1c's remaining Save and task
+work. Use an actual UI1.1a-approved Artifact peer, a private Desktop lifetime gate
+and opaque original calls to connect protocol-368 ReadSelected to a real Store
+owner. Store's default-off native feature may depend on Desktop's default-off
+native module and the shared artifact schema. Desktop does not depend on Store;
+its authority objects do not retain a State back-reference. This is a trusted
+in-process host fixture, with no process or target containment claim.
+
+Do not use a copied verdict or readiness marker as Store authority. The fresh
+Store constructor consumes actual opaque bindings, checks its profile against
+them before IO and rechecks all bindings under one held gate before exposing any
+native grant. A second-binding accessor uses that existing guard rather than
+relocking the mutex. Native grants deny legacy dispatch and shared-data bypasses.
+Desktop retirement runs State-to-Gate before State is released; Store copies
+check Object-to-Gate-to-Data. IO, pause waits and actual joins hold no enforcing
+locks. Each Read preserves its original checked 1000 ms deadline, and closing an
+expired query does not retire a still-live instance.
+
+Charge actual dispatcher and supervisor handles to one 64-row roster, including
+the at-most-two IO subset; this Read step has zero IO producers. Unjoined handles
+remain charged after timeout. Opaque IDs and actual finished joins provide
+cleanup evidence without numeric proof constructors. Checked counter overflow is
+sticky and identities are never reused. Constructor errors or caught unwinds
+retain the consumed witness and any actual partial Core; setup does not spawn
+producers, delete a partial root, or reopen it.
+
+Freeze and independently review nine Read assertions before handlers, then run
+the affected volatile editor and host Store consumers. The original eighteen
+integrated-task cases remain later work after the live Save/shared-data bridge
+is frozen. The API preparation itself establishes no native Read runtime, Save,
+recovery, editor PID, device persistence or target execution.

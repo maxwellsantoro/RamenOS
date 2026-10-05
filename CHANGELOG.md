@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed native Read prerequisite API for UI1.1c, with actual
+  opaque Desktop authority, the original request deadline, separate Store grant
+  checks, canonical selected-data copies and bounded owned joins. The contract
+  freezes nine gate-first assertions and a default-off Store-to-Desktop dependency
+  direction. A single held guard validates both final constructor bindings before
+  native grants are exposed. Assertions, RED, handlers and runtime acceptance
+  remain pending; full keyboard Save, recovery and integrated-task acceptance
+  remain successors.
 - UI1.1b default-off host Store transaction owner using Artifact368, private
   per-object CAS, atomic selection/receipt journals, bounded admission and actual
   joined-writer recovery. Seven behavior cases and sixteen evidence assertions

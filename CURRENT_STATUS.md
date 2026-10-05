@@ -90,7 +90,13 @@ the existing launch, volatile editor, save-schema and host/QEMU consumers.
 
 This proves a trusted in-process host CAS fixture using supported fault hooks and
 a retained reopening owner. It does not connect the editor's live save authority
-to Store: UI1.1c must freeze that bridge and deliver the integrated task. The
+to Store: UI1.1c must freeze that bridge and deliver the integrated task. A separate
+[native Read API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and its
+[bounded contract](docs/contracts/editor-native-read-v0.json) are independently
+reviewed and frozen for nine gate-first assertions. They specify actual approved
+Desktop authority, an original request deadline, Store grant checks, canonical
+copies and owned joins; the assertions and handlers remain pending. This
+preparation adds no native Read runtime, Save or full UI1.1c acceptance. The
 five reused volatile UI records remain separately stamped. Actual editor PID,
 cold-start anti-rollback, device flush, power-loss durability, target execution and
 runtime containment remain unproved. The Mac fixture requires its verified

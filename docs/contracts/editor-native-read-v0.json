@@ -1,0 +1,253 @@
+{
+  "schema_version": 2,
+  "status": "COORDINATOR_FROZEN_NATIVE_READ_GATE_FIRST_CONTRACT",
+  "implementation_authorized": false,
+  "resources_authorized": false,
+  "pending_Save_sha256": "a4b545466ddf8865d119e0450e77c16bc24f8ac5b8a5b3b4d39f1591a0f8b77c",
+  "scope": "NEW READ-only nativeproof, not UI1.1c/Save/Storepreview/task. ActualUIa approvedpeer -> original1000ms -> actualStore ReadSelected1/2/canonicalcopy. NewAPI3/5/7 Unsupported; nonnativeUIb unchanged.",
+  "placement": "Desktop native_authority.rs owns allgate/guard/actual64handles; no commoncrate. Desktopnativefeature->desktop_v0_dev+schema; Storenativefeature->editor_store_v0_dev+Desktopnative. NEVER Desktop->Store. ExistingdevStore->Desktop same direction; actualCargovalidation later.",
+  "opaque_records": "NativeAuthority private identity:u64,gate:Mutex<GateState>,owned:Mutex<ProducerRoster>, NO Statebackedge. Host/State matchingArc. RegistryWitness{authority}; ApprovedReadBinding{authority,row:u64}; NativeReadCall{authority,row/origin:u64,entered/deadline:Instant,request:Envelope}. ApprovedReadGuard/ReadGuard/ReadDeadlineGuard borrowactualbinding/call+MutexGuard<GateState>. NativeReadEntry{authority,result:Arc<EntryResult>}; NativeReadPause{authority,barrier:Arc<EntryBarrier>}. ProducerReservation/ProducerId{authority,id/origin:u64}; JoinedProducerProof{authority,id,outcome}. ALLfields/constructors private/nonClone/nonserde; actualState/new/entry only. No publicArc/tuple or fakecommonproof.",
+  "diagnostic_types": "ReadBindingView: actor:EditorActorV0,object_id/object_generation/selected_revision/expires_at_ms:u64,selected_hash:[u8;32]. ReadCallView:binding,origin_id:u64,entered/deadline:Instant,request:Envelope. ProducerCounts:held/io/joining:u32,joined_total:u64. ReadBarrierView:entered/settled:bool,origin_id/dispatcher/supervisor:u64. JoinOutcome Returned1/Panicked2; ProducerKind DesktopDispatch1/DesktopSupervisor2/StoreDispatch3/StoreSupervisor4/StoreIo5; NativeCounter Binding1/Origin2/Producer3. Views notauthority.",
+  "Desktop_signatures": [
+    "HostDesktop::new_native_read(HostConfig)->Result<(HostDesktop,FixtureController,RegistryWitness),Status>",
+    "HostDesktop::approved_native_read(&self,&PeerContext,u64)->Result<ApprovedReadBinding,Status>",
+    "RegistryWitness::matches_binding(&self,&ApprovedReadBinding)->bool; matches_call(&self,&NativeReadCall)->bool",
+    "ApprovedReadBinding::admit(&self,&RegistryWitness)->Result<ApprovedReadGuard<'_>,Status>; ApprovedReadGuard::view(&self)->ReadBindingView",
+    "HostDesktop::start_native_read(&self,&PeerContext,&Envelope,u64)->Result<NativeReadEntry,Status>; NativeReadEntry::wait(&self)->Result<NativeReadCall,Status>",
+    "NativeReadCall::admit(&self,&RegistryWitness)->Result<ReadGuard<'_>,Status>; ReadGuard::view(&self)->ReadCallView",
+    "NativeReadCall::deadline_guard(&self,&RegistryWitness)->Result<ReadDeadlineGuard<'_>,Status>; ReadDeadlineGuard::close_query(&mut self)->Result<(),Status>",
+    "NativeReadCall::reserve_store_producer(&self,ProducerKind)->Result<ProducerReservation,Status>; ProducerReservation::install(self,JoinHandle<()>)->ProducerId; cancel_unspawned(self)->Result<(),Status>",
+    "RegistryWitness::join_finished(&self,&ProducerId)->Result<JoinedProducerProof,Status>; producer_counts(&self)->ProducerCounts; JoinedProducerProof::producer_id(&self)->u64; outcome(&self)->JoinOutcome",
+    "FixtureController::pause_next_native_read(&self,u64)->Result<NativeReadPause,Status>; release_native_read(&self,&NativeReadPause)->Result<(),Status>; seed_native_counter(&self,NativeCounter)->Result<(),Status>",
+    "NativeReadPause::wait_until_entered(&self,u64)->Result<ReadBarrierView,Status>; wait_until_settled(&self,u64)->Result<ReadBarrierView,Status>",
+    "NativeReadCall::request(&self)->Envelope; entered(&self)->Instant; deadline(&self)->Instant; ReadDeadlineGuard::view(&self)->ReadCallView",
+    "NativeReadEntry::producer_ids(&self)->[&ProducerId;2]",
+    "HostDesktop::native_producers(&self)->Vec<ProducerId>; join_native_finished(&self,&ProducerId)->Result<JoinedProducerProof,Status>; native_producer_counts(&self)->ProducerCounts",
+    "ApprovedReadGuard::view_binding(&self,&ApprovedReadBinding)->Result<ReadBindingView,Status>"
+  ],
+  "Store_opaque": "NativeReadFixture{host,controller,endpoints:Vec<EditorEndpoint>}. NativeReadGrant{witness:Arc<RegistryWitness>,binding:ApprovedReadBinding}. RegisteredRead{inner:Arc<ReadOriginal>}; ReadOriginal{core:Arc<Core>,native:NativeReadCall,grant:Arc<Grant>,binding:Arc<NativeReadGrant>,claimed:AtomicBool}. NativeReadReply{wire:Envelope,selected:Option<NativeSelectedRead>,original:Arc<ReadOriginal>}. NativeSelectedRead{original:Arc<ReadOriginal>,data:Arc<Data>,descriptor:ObjectDescriptor}. Privatefields/constructors, sameoriginal pinned.",
+  "init_types": "NativeReadInitFailure private status:StoreStatus,stage:ReadInitStage,held:ReadInitOwner. ReadInitOwner private witness:Option<RegistryWitness>,bindings:Vec<ApprovedReadBinding>,core:Option<Arc<Core>>,panicked:bool,root:ReadRootObservation. ReadInitStage Validate/PrepareCore/CreateRoot/Provision/Expose; ReadRootObservation NotAttempted/AttemptUncertain/ReportedCreated. Public ReadInitObservation same stage/status/panicked/root,root_path:Option<PathBuf>,core_retained:bool; path<=4096 diagnostic.",
+  "Store_signatures": [
+    "StoreFixture::create_native_read(&Path,FixtureProfile,RegistryWitness,Vec<ApprovedReadBinding>)->Result<NativeReadFixture,NativeReadInitFailure>",
+    "NativeReadFixture::host(&self)->StoreHost; controller(&self)->&FixtureController; endpoint(&self,usize)->Result<&EditorEndpoint,StoreStatus>; NativeReadInitFailure::observation(&self)->ReadInitObservation",
+    "StoreHost::register_native_read(&self,&EditorPeer,NativeReadCall)->Result<RegisteredRead,StoreStatus>; execute_native_read(&self,&RegisteredRead)->Result<NativeReadReply,StoreStatus>; close_native_read_deadline(&self,&RegisteredRead)->Result<(),StoreStatus>",
+    "NativeReadReply::wire(&self)->Envelope; selected(&self)->Option<&NativeSelectedRead>; NativeSelectedRead::descriptor(&self)->ObjectDescriptor; copy_into(&self,u32,&mut[u8])->Result<(),StoreStatus>; copy_checked(&self,&ObjectDescriptor,u32,&mut[u8])->Result<(),StoreStatus>",
+    "StoreHost::native_read_producer_counts(&self)->ProducerCounts; join_native_read_finished(&self,&ProducerId)->Result<JoinedProducerProof,StoreStatus>",
+    "NativeReadReply::producer_ids(&self)->&[ProducerId]; StoreHost::native_read_producers(&self)->Vec<ProducerId>"
+  ],
+  "entry": "ActualUIaapproval then actualArtifactpeer; approved validatesStatepeer/owner/session/instance/gens/resource/right7, exportsactualreadrowonce State->Gate. Lifecycle/TTL/fault SAMEgate BEFOREStateunlock. Start capturesInstant beforevalidation, strict368msg1/readbit1; installscheckedentry+1000ms and reservesactualDesktopdispatcher/supervisor beforeSpawn. Realpause; waitonecall/Timeoutretainsworkers. No Gate->State/no copiedverdict.",
+  "constructor": "FreshStore only,1..2actualbindings prechecked/duplicateactorobject denied. ApprovedReadGuard currentidentity/liveTTL/profileowner/object/gen/rev/hash beforeprovision, dropguardbeforeIO; finalallbindings underSAMEonegate recheckbeforetaggedrights1grants exposure. NO enable_reads/ready/activationtoken. ActualUIaapprovedbinding+State->Gate admission permits DesktopRead beforeStoreexists, whichgrantsNOStoreeffect. Actual freshCore/Grant/concretewitness/currentStoreepoch requiredStoreeffect. Constructors themselves no workers/newgrants beforecomplete. Outerholder before narrowcatch_unwind synchronoussetup borrowingit; CoreinsertedbeforeIO,witnessmovedonce(holderNone), error/unwind retainedactualCore/witness/rootdiagnostic; abort/OOMoutside. NO delete/reopen; callerholdsactualDesktopowner.",
+  "grant_copy": "NativeCore/Grant tagged; legacydispatch/read/writelease/lease_data/draft_source/genericissue_editor/recovery deny native. RegisteractualCore/Grantpointer/currentStoreepoch+privatewitness/nativeactor/objectgen. Outerhandleonlyremap; payloadsame. Atomicexecuteonce/repeatNotReadyzero. Querycloseelapsedonly/earlyNotReady, no mutation. COPYactualObject->ReadGuardGate->Data checksnativeinstance/querydeadline/currentStoreepoch/descriptorSelectedText/checked16slot32gen/equalgen/total_len/object/rev/hash; canonical64header+ASCII<=4096body. Badcopy leavesoutsentinel. Copiedpastbytes retained. No source/writer/receipt/alias APIs.",
+  "handles": "ActualDesktopentry and Storeexecute private reserve/spawn/infallibleinstall exacthandles BEFOREfalliblework; arbitrarycallerinstall notserviceproof. Spawnerrorcancelnohandleonly. Shared64 INCLUDING IOsubset2(readIO0); StoreOwnedsameID/charge notextra64. joinactualfinished markJoining/take underroster,unlockjoinReturned/Panicked, retireexactrowonce/privateproof. Timeoutnochargefree; inlineguardactualreturn only; noforcedhungthreadjoin.2objects/16historicalbindings/64origins/64handles checkedsticky/noIDreuse. Counterseed setsnexttransitionMAX, nowrap; capreachability onlytestedreachable, no allquotasaturationclaim.",
+  "assertions": [
+    [
+      "native_read_positive",
+      "ActualUIaapproval/StoreRead1/2 canonicalbodyhash/deadline; selectedfilesunchanged."
+    ],
+    [
+      "native_read_identity_denials",
+      "WrongactualRegistry/Core/peer/fakecommon denied, ownpositiveworks."
+    ],
+    [
+      "native_read_control_denials",
+      "3/5/7 Unsupported; malformedwire exactInvalid/Unsupported; validReadpositive."
+    ],
+    [
+      "native_read_constructor_recheck",
+      "Profilemismatch/retiredproof opaqueinitfailure/noexposednativegrant; actualpartialholder retained/norootdelete; NO activationmarker."
+    ],
+    [
+      "native_read_legacy_descriptor_denials",
+      "Legacydispatch/data/issuance Denied; copy_checked alteredkind/slot+2^16/gen+2^32/genmismatch leavesoutsentinel; canonicalcopypositive withinoriginalwindow."
+    ],
+    [
+      "native_read_once_deadline",
+      "Once/repeatNotReady; earlycloseNotReady; original1000ms expiry copy/querydeny, no effect."
+    ],
+    [
+      "native_read_retirement",
+      "ActualState->Gate revoke/fault/TTL beforepausedcopy denies, Bpositive."
+    ],
+    [
+      "native_read_owned_handles",
+      "RealenteredDesktoppause chargedafterTimeout; releaseactualjoinexactrows, no fakehandle."
+    ],
+    [
+      "native_read_counters_domains",
+      "Binding/Origin/Producer MAXexactrepeatExhausted transitions preserveoldreads/joins;32actualpausedentries fill64actualhandles,nextentrynoeffectExhausted,release64uniqueactualjoins; unrelateddomainpositive. No binding16/origin64 saturationclaim."
+    ]
+  ],
+  "scopes": "RootCargo/features/exports/API/gate/status. Desktopwriter native_authority.rs+narrowhostprivateState/entry/lifecycle hooks. Storewriter native_read.rs+narrowmodtag/deny/copy/init. Newassertiontarget/support gate-first, independentreview before RED/handlers. Storageformat unchanged.",
+  "OPEN": "Closed for nine assertion authoring after independent corrected proposal review. No handler/resource authorization. Full Save/Storepreview/task/full18 remains later.",
+  "claims": "Proposalonly noimports/build/tests/resources/sourceimplementation/runtime/device/containment. Priorimmutable.",
+  "predecessor_sha256": "631719cf1e9780c0f967dee5e3ff7bffa6b4c11ec083dbadc5a7ccef155c9aed",
+  "coordinator_decision_sha256": "4abeec13e2e450b31767acb07f06dc05dac33cab0875e4d7f71a55c1e4449d10",
+  "getters": "NativeEntry private producers:[ProducerId;2] are ACTUALspawnedIDs, borrowedgetter survivesTimeout/waitconsumedcall. NativeReadReply privateproducerIds Vec<=2 fromACTUALStoreexecution, emptyifbefore-spawn rejection. Host/Store native_producers boundedVec<=64 constructedonlyfromactualownedrows/domain, NO from_numeric/payloadconstructor ornewcharge. Same-rowreferences mayberecreatedinternally, neveridentityreuse. Hostgettercoverspartialspawnfailure. ImmutableNativecall/time/views notliveverdict; effect/copyrequiresactualguard.",
+  "errors": "Existing DesktopStatus/StoreStatus retained0..11. Wrongpeer/class/readright/nativeidentity/Core/Grant Denied1; malformedcanonical Invalid2; canonicalunsupportedprotocol/op/direction and3/5/7 Unsupported3; retiredinstance/grant/Storeepoch Stale4; MAX/full Exhausted5; repeatedexecute/consumedwait/nonfinishedorconcurrentorpreviousjoin/earlyclose NotReady6; actualdeadline/queryclosed Timeout8; panic/poison Internal11. Conflict/Unknown/Disconnected unusedRead. Descriptorkind/nativewidth/gen/ownership Deniedbeforecopy; livevaliddescriptor offset/outputrange Invalid. Guardlifecheckfirst; descriptordenials runwithinlivewindow. ExhaustiveStatusmapping no transmute. execute registered failure canonicalReadReply2 withsamecorrelation/request_id/status only, allotherdata0; registerwrongpeer actualRustErrStoreStatus no manufacturedwire.",
+  "counters_reachability": {
+    "Binding": "seed_native_counter(Binding) setsnext_binding=u64::MAX underState->Gate; nextFRESHactualUIaapprovedpeer export checked_add BEFORErow returnsExhausted/repeatsticky; rowcountunchanged, oldbindingReadpositive. No16binding saturationclaim.",
+    "Origin": "Setsnext_origin=u64::MAX; nextotherwisevalidstart returnsExhausted BEFORErow/spawn/effect, repeatsticky. ExistingReadcopy inoriginalwindow remainsvalid.",
+    "Producer": "Setsnext_producer=u64::MAX Gate->Roster; nextrealreserve ExhaustedbeforeSpawn. Newlyreservednoholderorigin rollbackonlynewslot; oldrows/actualjoins unaffected.",
+    "64": "32outstandingreadentries ononeactualapprovedinstance supported(noexclusivevolatileendpoint invocationguard). Armoneownednativepause thenstart/awaitACTUALentered perentry;32 actualdispatcher+supervisorpairs=64heldrows. Expiredsupervisors UNJOINED stillcharged. Nextvalidstart Exhausted/no partialspawn/count64/io0 unchanged. Release32pauses, actualopaqueIDs/finishedjoins yield64uniqueproofs/count0. Testcallerthreads notcounted. Proveproducer64 only, notorigin64/binding16 maskedbytighterquota.",
+    "IO": "Read supports4nonIOproducerkinds; StoreIo reserve Unsupported. Actualio0; structuralIOsubset<=2 futurebound, no runtimeIO2claim. Shared64 NOT64+2.",
+    "limits": "Seedactualdefaultoffcontroller ownDomain only. CheckedIDssticky/neverreuse.32heldbarriers+1armed,64origins,typedtrace<=256fixture. Joineddiagnosticlast16; joinedtotal arithmeticerror mustnotpreventACTUALjoin/cleanup. No metadatawrapped=false substitute for failed-effect witnesses."
+  },
+  "locks_and_retention": "DesktopState->Gate->Roster foractualnativeentry/retirement/reservation; StoreRegistry->Object->Gate->Data forcopy andGate->Roster reserve. No Gate->State; Roster NEVERlocksGate whileheld. Join markJoining/takeACTUALis_finished handle underRoster,unlockactualJoinHandle.joinReturned/Panicked thenGate->Roster shortretirement. No locksIO/barrier/join. Originactualentry+1000ms unchanged. Closingexactquery nevermutatesoldoperation/instance. RowheldbyReadOriginal/lease+actualholders; deadline closes/deniescopy butslotrelease onlylastoriginalrefgone+noholders.16historicalbindingsnonevict; NO AuthorityStatebackedge, Dropnotforcedhungthreadjoin.",
+  "fixture_controls": "ExistingUIa realapproval/editor_bindings and actualFixtureController.fault_editor/maintenance/typedChromeRevoke triggerState->Gatehooks. ExistingStorepause_next(endpoint,BeforeReadReply)/PauseToken.wait_until_entered/settled/release callablefornativeRead andactualexecutor invokesbarrierBEFORE finalReadguard/reply. OtherStoremutationpausepoints Unsupported nativeRead. Storeactualretire(endpoint) stillGrantretirement; copychecksactualGrant/epoch. Existingreopen/genericissue_editor/recovery/legacydata deniesnativeCore.",
+  "source_basis": "Sourcegrounded current host e3dfe9f2/Storemod a4cbde65/types906c050d/ArtifactIDL368 canonical1/2/64header. Oldproposal sourcebases preserved; coordinator pinsfullsourceclosure beforeassertions. Optionalfeature direction Store->Desktop only. Existingvolatile andnonnativeStore consumers remain unchanged.",
+  "independent_review_sha256": "ec78ee3b31af54c213fa0cf0dda03eb9aba1d4ad026ffefaa9ac93fc207f9aed",
+  "guard_accessor_decision_sha256": "f219190ea1e036233f3a7e322061b986aa3fa020397957b7131d7c7f4ba7d8b3",
+  "view_binding_semantics": "Check exact nativeAuthority identity and current registeredrow/lifecycle/TTL through THIS existing heldGate guard; NEVER relockGate/usecopiedviewasauthority. WrongAuthority Denied; retired/expiredrow Stale. NoIOwhileheld. Constructor acquiresfirstbindingguard, validatesall1..2rows through view/view_binding and installsallconcretenativegrants under SAMEguard BEFORErelease. Otherconstructor/API/caps/assertions unchanged.",
+  "frozen": true,
+  "base": "66e23653ef849f374a4e33ecbc5f4ed0daa4dda2",
+  "corrected_proposal": {
+    "path": "out/roadmap-coordinator/editor-store-native-read-precursor-corrected-proposal.json",
+    "bytes": 16108,
+    "sha256": "b95b0b0b0a59e4aaa4af2c21d58a32b687aecb57ca703ad7fee2e0722e2a199b"
+  },
+  "corrected_review": {
+    "path": "out/roadmap-coordinator/editor-store-native-read-precursor-corrected-independent-review.json",
+    "bytes": 2072,
+    "sha256": "a9263e0eb3478e909f2ce92da67ced5515c2b1016cceb8449a603d8c4009d1f4"
+  },
+  "initial_review": {
+    "path": "out/roadmap-coordinator/editor-store-native-read-precursor-independent-review.json",
+    "bytes": 11489,
+    "sha256": "ec78ee3b31af54c213fa0cf0dda03eb9aba1d4ad026ffefaa9ac93fc207f9aed"
+  },
+  "source_closure": [
+    {
+      "path": "services/desktop/src/editor_dev/host.rs",
+      "bytes": 115177,
+      "sha256": "e3dfe9f2d962a37e34ffbdf542cd9a2e5fce7007cb803955d190fde16a68218e"
+    },
+    {
+      "path": "services/desktop/src/editor_dev/client.rs",
+      "bytes": 36089,
+      "sha256": "8c9a0f1718ece83dbf74619a6e65797f66928118a0778a094770d91087412720"
+    },
+    {
+      "path": "services/desktop/src/editor_dev/codec.rs",
+      "bytes": 13610,
+      "sha256": "d09fad3e63bee32a38802101cf6afe8df60b4de176be5b9df986b53dc015b93d"
+    },
+    {
+      "path": "services/desktop/src/editor_dev/mod.rs",
+      "bytes": 227,
+      "sha256": "855cbfeaeae761e99d70667d9cc80338ac1c4b485fb1c60390adce2d3355a683"
+    },
+    {
+      "path": "services/desktop/src/lib.rs",
+      "bytes": 178,
+      "sha256": "704d8c43d49c6ec4c03ed0a98cc4defe110e6af60ff2a51b070725d6e95d03b3"
+    },
+    {
+      "path": "services/desktop/Cargo.toml",
+      "bytes": 560,
+      "sha256": "f44dad109b40011545101ff2d806afa332386248a8244ce1a7b0a2638177688d"
+    },
+    {
+      "path": "services/store_service/src/editor_store/mod.rs",
+      "bytes": 120294,
+      "sha256": "a4cbde6543de1a903313602b815c07ddb7f4a077618e3a1c21f830892afb97ac"
+    },
+    {
+      "path": "services/store_service/src/editor_store/storage.rs",
+      "bytes": 20731,
+      "sha256": "da7bf37d3dabe9524dcc707773eea3ebd7ef9d2c91a73fd49acb0cc80b4fd3b6"
+    },
+    {
+      "path": "services/store_service/src/editor_store/codec.rs",
+      "bytes": 5235,
+      "sha256": "5bc8445f7ac74b6444ce8bdd6e8edbf8b4c3d50dcd33784af757362c997a012f"
+    },
+    {
+      "path": "services/store_service/src/editor_store/types.rs",
+      "bytes": 7903,
+      "sha256": "906c050dfe9fba6b44299b88b710efd58c75a6e6ba03ad674667aba4da63fce3"
+    },
+    {
+      "path": "services/store_service/src/lib.rs",
+      "bytes": 1307,
+      "sha256": "132b18a8b80dfa5854bc980c4ca0f41b46af8ac99f5c9224f0566f151deac46d"
+    },
+    {
+      "path": "services/store_service/Cargo.toml",
+      "bytes": 2070,
+      "sha256": "f1051c7eb6c6d0210f877aacae8b50222523541b8a0e1c9598f4999d7a0339cc"
+    },
+    {
+      "path": "artifact_store_schema/src/editor_save.rs",
+      "bytes": 32367,
+      "sha256": "2691ded3b4c7be79f7e25c380c63367e1a5d9151811c931e49c1203745564f85"
+    },
+    {
+      "path": "idl/portals/desktop_artifact_v1.toml",
+      "bytes": 3045,
+      "sha256": "086975e79802cb95502cd7d92593085e8c27fe32a6e804e4cd4547efbd9a7a47"
+    },
+    {
+      "path": "kernel_api/src/generated/desktop_artifact_v1.generated.rs",
+      "bytes": 2368,
+      "sha256": "9aa370c2f452e80487ee142cad4894353123a634722e2027c99afbd81e6f3256"
+    },
+    {
+      "path": "artifact_store_schema/src/lib.rs",
+      "bytes": 3815,
+      "sha256": "6357098f56c5cf649f5d385c660cb798930f0a2750997830e4b742264d14b89a"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "bytes": 384,
+      "sha256": "3b4ef30282d5bb4ec7461cd8419238e9ee206aec15cbe9e99bb95064b4338764"
+    }
+  ],
+  "dispatch": {
+    "assertion_writer": "ui0",
+    "assertion_paths": [
+      "services/store_service/tests/editor_native_read.rs",
+      "services/store_service/tests/editor_native_read_support/mod.rs"
+    ],
+    "desktop_writer": "later explicitly assigned",
+    "desktop_source_paths": [
+      "services/desktop/src/editor_dev/native_authority.rs",
+      "services/desktop/src/editor_dev/host.rs"
+    ],
+    "store_writer": "later explicitly assigned",
+    "store_source_paths": [
+      "services/store_service/src/editor_store/native_read.rs",
+      "services/store_service/src/editor_store/mod.rs"
+    ],
+    "root_owned": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "services/desktop/Cargo.toml",
+      "services/store_service/Cargo.toml",
+      "services/desktop/src/editor_dev/mod.rs",
+      "services/desktop/src/lib.rs",
+      "services/store_service/src/lib.rs",
+      "module declarations/exports inside Store editor_store/mod.rs",
+      "justfile",
+      "tools/foundry/desktop_editor_native_read_gate.py",
+      "Foundry registry",
+      "docs/contracts/editor-native-read-v0.json",
+      "docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md",
+      "CURRENT_STATUS.md",
+      "NEXT_TASKS.md",
+      "CHANGELOG.md",
+      "DECISIONS.md"
+    ],
+    "desktop_feature": "editor_native_read_v0_dev = [desktop_v0_dev, dep:artifact_store_schema]",
+    "store_feature": "editor_native_read_v0_dev = [editor_store_v0_dev, dep:desktop_service, desktop_service/editor_native_read_v0_dev]",
+    "test_target": "editor_native_read",
+    "focused_command": "cargo test -p store_service --no-default-features --features editor_native_read_v0_dev --test editor_native_read -- --test-threads=1",
+    "future_foundry_gate": "foundry-desktop-editor-native-read-ui1-1c-prerequisite",
+    "base_contract_source_pins_scope": "Baseline pre-implementation closure, not a future unchanged-source runtime claim. Existing368IDL/generated messages retained; no new protocol allocation/codegen."
+  },
+  "source_closure_scope": "Baseline affected source/API/wire/toolchain inputs, not a claim of complete transitive build dependency capture. Actual assembled sources and executable gate evidence bind the later implementation. No generated content edits.",
+  "pre_dispatch_source_pin_correction": {
+    "initial": "out/roadmap-coordinator/editor-native-read-initial-freeze-before-wire-source-pins.json",
+    "sha256": "b2c56b9d20d29e89c416452357efa3eb7b2b75a89a559f6dec5c5961f66d3608",
+    "scope": "Before assertion dispatch, record maintained TOML IDL path, existing generated wire, schema exports and pinned toolchain explicitly. No API/behavior/limits/assertion change."
+  }
+}
