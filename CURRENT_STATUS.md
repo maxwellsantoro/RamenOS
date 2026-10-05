@@ -20,8 +20,11 @@ access and NVMe graduation. The dependency-driven queue in `NEXT_TASKS.md` also
 allows S14/S15 contracts, host/replay work, and QEMU implementation to proceed
 without the model comparison or physical qualification. Driver work retains its
 own Reference Vault, Oracle and gate requirements; physical integration requires
-the prepared observation/actuation loop. USB xHCI/HID, the target runtime, and
-the S15 desktop remain future work, not implemented by this scheduling change.
+the prepared observation/actuation loop. The [desktop v0 design](docs/plans/desktop-v0.md)
+is accepted after independent review. Its first executable successor is UI1.0:
+host permission preview and launch lifetime with a real non-rendering witness.
+IDL registration and initial failing assertions precede implementation. USB
+xHCI/HID, the target runtime, editor/compositor and target desktop remain future work.
 
 ## Implemented foundations and their boundaries
 
@@ -72,7 +75,19 @@ observations/descriptors and raw broker access remain broader observations;
 typed host clients and transitive deputy authority remain incompletely bounded.
 Unacknowledged Docker create intents cannot certify cleanup from an empty inventory.
 
-Full A2, real hidden-bank/study releases, provider/token accounting, model
+Portable SW-E accounting now freezes bank/release/context/provider/rate identities
+and a finite three-arm schedule. Strict reports retain failed, unknown,
+over-budget and pending attempts; integer uncached-token estimates cannot certify
+the declared ceiling with missing usage. `just foundry-agent-task-provider-accounting`
+checks ten unit assertions and a deterministic synthetic consumer. It makes no
+provider calls and supplies no billing, attestation or funding authority. Combined
+`foundry-agent-task-evaluator-controls` and `foundry-agent-task-reconciliation`
+passed in an isolated Linux/Docker checkout with the pinned toolchain/image:
+45 retained scripted repair attempts and six interrupted-commit cases, plus
+late-create and abrupt-publication recovery assertions. Reports are retained
+under `out/roadmap-linux/`; these checks do not complete full A2.
+
+Full A2, real hidden-bank/study releases, actual provider supervision/usage capture, model
 comparison, production registration and target task enforcement remain pending.
 The [Agent Task Proof plan](docs/plans/2026-09-16-agent-task-proof.md) defines their
 acceptance and the three separate contrasts. No comparative agent advantage is claimed.

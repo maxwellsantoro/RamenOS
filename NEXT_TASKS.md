@@ -15,9 +15,11 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
-**Now:** dispatch bounded human-interaction planning and remaining SW0 controls
-in parallel. Physical H0–H3 await hardware setup; no live capture or actuation is
-scheduled. The initial packets below need no model calls or physical actuation.
+**Now:** register the accepted UI0 design's first executable host launch contract
+and initial failing assertions, alongside remaining SW0 controls. UI0 design and
+portable synthetic accounting are reviewed; combined Linux evaluator/reconciliation
+integration passed. Physical H0–H3 await hardware setup; no live capture
+or actuation is scheduled. The packets below need no model calls or physical actuation.
 Packet IDs are planning labels, not new slices or evidence of implementation.
 
 The coordinator keeps at most three worker packets active by default, prioritizes
@@ -28,13 +30,13 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI0 / interaction worker | New `docs/plans/desktop-v0.md`; proposed S14/S15/runtime boundary and gate specifications | Existing S8, S10.5 and S12 contracts; one human-operated application | Fix the task, target/host split, loader/runtime choice, input/surface/focus/launch/recovery boundaries, `Lang`/`ObsContract`, failure matrix and ownership split. Coordinator accepts the design and queues executable assertions before implementation; this is design completion only. |
+| UI1.0 / coordinator then interaction worker | Coordinator registers `desktop_session_v1` IDL/bindings and a host launch gate; worker owns exact assigned files under new `services/desktop/` | [Accepted UI0 design](docs/plans/desktop-v0.md), existing typed IPC; real non-rendering host witness | Freeze exact preview/confirmation/status/lifetime wire fields, rights and authenticated fixture route. Write useful launch, denial, cancellation, stale-plan, expiry/revocation and fault/restart assertions before handlers; run the witness against typed enforcing host adapters. This excludes editor, surfaces, Store and target execution; proposed gate names remain unregistered. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Close one named host-client/deputy/unexercised or lifetime gap with real backend probes; preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
-| SW-E / evaluator worker | `tools/agent_task/fixture_bank.py`, `evaluator_session.py`, evaluator controls and their tests/docs; new provider-accounting module if needed | Landed A2.7/A2.8; future comparison evaluator | Add offline, deterministic release/provider-usage accounting and failure assertions with synthetic fixtures. Run `just foundry-agent-task-evaluator-controls` and `just foundry-agent-task-reconciliation`. Actual private bank release and paid runs retain independent operator/funded-work-order controls. |
+| SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |
 
 Check each worker's environment before dispatch. SW-A completion and full SW-E
 integration require Linux/Docker. On macOS without those prerequisites, assign
-UI0, a portable SW-E contract/unit-test subpacket, and an independent reviewer or
+UI1.0 contract preparation, a portable SW-E subpacket, and an independent reviewer or
 prerequisite worker. Keep the Linux acceptance explicitly incomplete; the ready
 queue does not certify that a particular host can run every listed gate.
 

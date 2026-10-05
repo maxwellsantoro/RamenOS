@@ -361,6 +361,10 @@ foundry-agent-task-authority:
 foundry-agent-task-evaluator-controls:
 	bash ./tools/ci/foundry_agent_task_evaluator_controls.sh
 
+# Portable frozen usage plans and retained synthetic provider accounting rows.
+foundry-agent-task-provider-accounting:
+	bash ./tools/ci/foundry_agent_task_provider_accounting.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+- Portable provider accounting for SW0: frozen bank/release/context/provider/rate
+  plans, a three-arm attempt inventory, strict usage rows and integer uncached-token
+  estimates. Failures, unknown counts, budget breaches and pending attempts remain
+  visible; incomplete usage cannot certify the declared ceiling. Added a deterministic
+  synthetic Foundry consumer and consumed its gate in Linux evaluator controls.
+- Independently reviewed desktop v0 design for a keyboard-operated artifact editor,
+  bounded static target runtime, typed authority/lifetimes, protected chrome,
+  uncertain-save recovery and staged host/device/target/persistence assertions.
+  UI1.0 host preview/launch lifetime is the first executable successor; this adds
+  no target desktop or device behavior.
+
 ### Fixed
 - Applied StoreClient timeouts on initial and replacement sockets and bounded
   complete response frames against stalled/trickled replies. Retained clients

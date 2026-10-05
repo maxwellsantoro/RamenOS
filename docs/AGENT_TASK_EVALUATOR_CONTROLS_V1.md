@@ -82,6 +82,67 @@ also retain transcript/cleanup evidence. A deterministic shuffle of unique IDs
 cycles six arm permutations; the 15 development blocks' counts differ by at most
 one. Repeated IDs are rejected pending a cluster-aware study contract.
 
+## Offline study and provider accounting
+
+`provider_accounting.py` supplies a version 1 **accounting plan** and pure offline
+report consumer. `freeze_study(manifest, release, *, fixture_ids, provider, model,
+rate_schedule_id, input_usd_micros_per_million, output_usd_micros_per_million,
+context_policy_sha256, max_input_tokens, max_output_tokens,
+funded_ceiling_usd_micros)` copies a selected pilot/final fixture schedule and
+freezes exactly one attempt per fixture in each RT/LT/LS arm. Attempt IDs are
+unique and deterministic; this list is an accounting order, not a model execution
+order or a counterbalancing implementation. The bank kind/digest, exact existing
+release record, provider/model/rate identity, context-policy digest and numeric
+limits remain part of the plan. Duplicate fixture repeats are denied.
+
+`study_digest(plan)` hashes every plan field into `accounting_study_sha256`.
+This identity is distinct from the release's opaque external `study_sha256`;
+there are no omitted digest fields or circular commitments. The external release
+retains its existing exact purpose, partition, bank digest and public commit
+semantics. Synthetic releases retain their zero commit/study sentinels. The
+accounting plan does not replace a frozen statistical study, independently
+released hidden bank, or funded operator work order.
+
+`validate_study(plan, manifest)` rejects malformed/version-mismatched records,
+changed schedules, duplicate fixtures and bank/release/partition mismatch.
+`accounting_report(plan, manifest, records)` accepts strict version 1 terminal
+attempt records bound to the plan digest, attempt ID, fixture ID and arm. Each
+row contains completed/failed outcome, a failure reason for failed attempts,
+input/output tokens, model call count, visible context bytes and transcript
+SHA-256. Counts and rates are nonnegative integers bounded by `2**63 - 1`;
+boolean, floating-point, negative, oversized and unknown fields are invalid.
+Missing token counters remain `null`, including partial known usage. The records
+are trusted host declarations; transcript identity and context-policy binding do
+not attest provider behavior or enforce the model context.
+
+Reports retain every valid failed row and every observed token-budget violation.
+Duplicate rows and undeclared attempts are denied. Missing scheduled rows produce
+`complete=false` and explicit pending IDs. A zero-call predispatch failure may
+carry known-zero usage; positive model call counts describe conversation calls,
+not an automatic attempt retry. The API performs no calls, retries or omission
+of failed rows. Planned and recorded attempt counts remain separate.
+
+The two frozen rate categories estimate uncached input and output token cost in
+USD micro-units per million tokens. Each attempt rounds the combined known-token
+numerator upward using integer arithmetic. Known partial usage contributes a
+cost lower bound. Any missing attempt or unknown token count makes total cost
+`null` and prevents `ceiling_certified`; unknown usage cannot become zero even
+with zero frozen rates. Observations above token limits or the funded ceiling
+remain explicit budget breaches and prevent certification. Certification means
+only that complete trusted counts satisfy this declared two-category estimate;
+it is not funding authorization or a provider invoice. Cached tokens, tool,
+storage, tax and other fees need a future contract before actual billing claims.
+
+`just foundry-agent-task-provider-accounting` runs portable unit assertions and
+`provider_accounting_gate.py --evidence out/agent-task-provider-accounting`.
+The deterministic consumer uses a temporary synthetic bank and deliberately
+non-executable synthetic validator bytes. It retains successful, failed,
+unknown-usage, over-budget and incomplete schedule cases, source hashes and
+false real-bank/model/provider/full-A2 claim flags. It performs no model or
+network calls and requires no credentials. The Linux evaluator-controls gate
+also consumes these assertions; portable success leaves the combined required
+Linux controls/reconciliation acceptance **INCOMPLETE** until those gates run.
+
 ## Cleanup and evidence limits
 
 Linux process parent/group/start identities track owned observed processes. The

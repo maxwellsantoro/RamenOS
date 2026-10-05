@@ -1184,3 +1184,32 @@ contracts, historical results, and authority boundaries remain in force.
 pending. Early integration may expose missing runtime, driver, or storage work;
 record it as a dependency rather than weakening a gate. This is a scheduling and
 documentation change, not a speed measurement or new OS/hardware readiness claim.
+
+## 2026-10-04 — First desktop consumer and offline usage accounting
+
+Accept the independently reviewed [desktop v0 design](docs/plans/desktop-v0.md)
+as UI0 design completion. Use a bounded Rust ASCII artifact editor, keyboard-only
+trusted launcher/recovery chrome and CPU-rendered shared-memory surfaces for the
+first human task. Choose a static `no_std` x86_64 ELF64 application for target
+execution; its loader, authenticated user-mode traps, private memory and actual
+interrupt deadline are implementation prerequisites. Existing init bytecode and
+host Wasmtime do not satisfy target execution. The compositor owns reserved
+chrome pixels and the confirmation route; an app can still imitate UI inside its
+own region, so no general anti-spoofing claim follows.
+
+Split the first executable host packet (UI1.0) at permission preview, single-use
+confirmation, exact grants and instance lifetime with a real non-rendering
+witness. Editor/surface/Store behavior follows in UI1.1; target and persistence
+joins retain their distinct gates. Register concrete typed fields/rights and
+initial useful/denial/failure assertions before handlers. The accepted design is
+not a desktop implementation, an IDL allocation or an executable gate.
+
+For SW-E, freeze an accounting plan separately from the externally frozen
+comparison study. `accounting_study_sha256` hashes the entire plan, including
+the opaque release study digest, avoiding circular hashes or excluded fields.
+The portable ledger prices two trusted uncached-token categories with integer
+micro-USD estimates and retains failed, unknown, over-budget and pending rows.
+Incomplete usage cannot certify the declared ceiling. This is deterministic
+offline accounting, not a statistical study freeze, provider attestation,
+invoice or authority to spend. Actual provider capture/supervision and independent
+private-bank/funded-run controls remain prerequisites for model collection.
