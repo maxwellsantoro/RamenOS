@@ -376,3 +376,7 @@ foundry-agent-task-reconciliation:
 # Finite issued-right projections and named authority lifetime witnesses.
 foundry-agent-task-requestable-authority:
 	bash ./tools/ci/foundry_agent_task_requestable_authority.sh
+
+# RUN0.0 pure boot pool admission; real firmware handoff remains separately gated.
+foundry-boot-frame-pool-run0-0:
+	bash ./tools/ci/foundry_boot_frame_pool_run0_0.sh

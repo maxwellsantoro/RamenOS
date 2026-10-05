@@ -1259,3 +1259,28 @@ Preserve earlier failed runs. Passing host fixtures do not provide scheduler
 latency guarantees, process containment, native kernel enforcement, real keyboard
 routing, display/editor/Store behavior or target execution. UI1.1 and RUN0 retain
 those separate contracts and evidence joins.
+
+## 2026-10-04 — Validate boot-pool admission before changing firmware ownership
+
+Land an allocation-free numeric selector and its 17 gate-first assertions before
+wiring the legacy UEFI handoff or allocator. Expand the maintained boot map to
+256 descriptors and preserve a private sticky flag on lost insertion. Public
+count changes cannot erase overflow evidence; the selector checks completeness
+and count before indexing. Validate every descriptor, including non-candidates,
+and require all seven retention reasons inside non-usable descriptors. Compare
+complete eligible intervals before clipping to the existing 131072-frame limit,
+with stable lowest-base ties and no descriptor merging or rounding up.
+
+The actual exit result, raw EFI classification, complete retained-object sources
+and CPU mapping observations remain adapter responsibilities. Synthetic stage
+and retention records cannot supply those observations. In particular, a raw
+RAM descriptor and low physical address do not establish readable identity
+mapping for the first page-table dereference. Obtain a bounded Reference Vault/
+Oracle profile before hardware glue, then separately prove actual final-map
+ownership, safe allocation/write/read/reuse and the S8 consumer in QEMU.
+
+Independent review accepted the pure source and strict inventory/evidence gate;
+focused kernel consumers, both target/UEFI builds and affected integration gates
+pass. Keep their claims separate from the earlier strict Linux preflight for
+`a44993e`. No firmware transition, allocator installation, target execution or
+physical-machine claim is added by this prerequisite.

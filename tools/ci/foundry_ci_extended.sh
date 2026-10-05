@@ -9,6 +9,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 bash "$ROOT_DIR/tools/ci/foundry_review_boundaries.sh"
 bash "$ROOT_DIR/tools/ci/foundry_agent_task_suite.sh"
 bash "$ROOT_DIR/tools/ci/foundry_desktop_host_launch_ui1_0.sh"
+bash "$ROOT_DIR/tools/ci/foundry_boot_frame_pool_run0_0.sh"
 
 echo "=== Running S7 security umbrella gate ==="
 "$ROOT_DIR/tools/ci/foundry_s7_all_security.sh"

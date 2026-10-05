@@ -105,6 +105,7 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 - [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization and bounded comparison; scripted foundations landed, model comparison pending
 - [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; first host launch/lifetime consumer implemented; editor/device/target joins pending
 - [Desktop session v1](DESKTOP_SESSION_V1.md) — generated protocol-336 preview/confirmation/lifetime contract and passing default-off Unix host process/wire gate
+- [Boot frame ownership v0](BOOT_FRAME_OWNERSHIP_V0.md) — reviewed pure map/retention admission and passing 17-case gate; actual firmware-exit adapter, initial-access evidence and QEMU allocator proof pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)

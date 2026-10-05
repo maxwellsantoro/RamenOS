@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- RUN0.0 pure boot-pool admission prerequisite: full bounded map validation,
+  conservative seven-reason retention, fixed pool limits and deterministic
+  selection. `BootMemoryMap` now holds 256 descriptors and preserves sticky
+  insertion-overflow evidence. The 17-case Foundry gate, 262 kernel tests,
+  architecture/UEFI builds and affected host/QEMU consumers pass after independent
+  review. Actual firmware-exit collection and allocator integration remain pending.
 - Default-off UI1.0 Unix host launch service and pinned Rust child using generated
   `desktop_session_v1` protocol 336. Permission preview, single-use synthetic
   confirmation, opaque peer authority, redacted denials, monotonic lifetime checks,

@@ -15,9 +15,10 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
-**Now:** freeze UI1.1's editor/surface/Store host contract and the RUN0.0
-post-firmware frame-ownership prerequisite, with executable assertions before
-handlers. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
+**Now:** freeze UI1.1's editor/surface/Store host contract and prepare RUN0.0's
+initial table-access evidence and firmware adapter, with executable assertions
+before handlers. RUN0.0's pure map/retention validator is reviewed and passes;
+the actual ownership transition is still pending. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
 process/wire artifacts are retained. UI0 design, portable accounting and the
 finite named Python-consumer canary are reviewed, with the affected Linux SW0
 gates passing. Physical H0–H3 await hardware setup; no live capture or actuation
@@ -33,7 +34,7 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
 | UI1.1 / coordinator then interaction worker | Coordinator freezes typed editor/input/surface/focus/artifact fields and gates; worker owns exact assigned remaining desktop/editor files | Accepted UI0 and landed UI1.0 host grant/lifetime contract; host artifact editor consumer | Write edit/frame/focus/save/conflict/uncertain-outcome and recovery assertions before implementation. Connect the named real Store consumer separately from fixture legs. Target execution, physical keyboard and persistent restart remain separately gated. |
-| RUN0.0 / coordinator then runtime worker | Coordinator freezes boot map/stage/retention contracts and module/gate registration; worker owns exact assigned allocation-free validator files | Accepted target-runtime design; current UEFI path lacks post-firmware frame ownership | First prove bounded conservative pool validation in pure fixtures. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus the existing S8 consumer in QEMU. An enum or pure selector cannot prove firmware exit or user-mode execution. |
+| RUN0.0 / coordinator then runtime worker | Coordinator freezes Oracle profile, raw-map/retention collection assertions and boot integration; worker owns exact subsequently assigned adapter files | Reviewed [pure admission contract](docs/BOOT_FRAME_OWNERSHIP_V0.md) and passing gate; current UEFI path still lacks post-firmware ownership | Obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus the existing S8 consumer in QEMU. An enum or pure selector cannot prove firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |
 

@@ -21,11 +21,16 @@ allows S14/S15 contracts, host/replay work, and QEMU implementation to proceed
 without the model comparison or physical qualification. Driver work retains its
 own Reference Vault, Oracle and gate requirements; physical integration requires
 the prepared observation/actuation loop. The [desktop v0 design](docs/plans/desktop-v0.md)
-is accepted after independent review. UI1.0 now implements host permission preview and launch lifetime with a real
+is accepted after independent review. UI1.0 now implements host permission preview
+and launch lifetime with a real
 non-rendering Rust witness and generated protocol-336 messages. The default-off
 Unix fixture passed its 17-case Foundry gate on macOS and Linux, retaining actual
 process identity, typed exchanges and cleanup evidence. UI1.1 editor/surface/Store
-integration and RUN0 post-firmware memory ownership are next dependencies. USB
+integration and RUN0 post-firmware memory ownership are next dependencies. RUN0.0's
+pure map/retention admission prerequisite now passes 17 reviewed assertions,
+with sticky insertion-overflow rejection and conservative bounded selection.
+Actual firmware exit, retained-object collection and allocator installation are
+not connected yet. USB
 xHCI/HID, the target runtime, editor/compositor and target desktop remain future work.
 
 ## Implemented foundations and their boundaries
@@ -33,6 +38,7 @@ xHCI/HID, the target runtime, editor/compositor and target desktop remain future
 | Area | Landed behavior | Evidence and limits |
 |------|-----------------|---------------------|
 | Kernel / S0–S8 | x86_64 and aarch64 boot, typed IPC, capabilities, shared-memory mappings, tracing and SPSC ring foundations | Selected target/QEMU paths; fixed-size tables. Capability-table use after SMP transition is deliberately blocked; general SMP/IRQ support remains incomplete |
+| Boot admission / RUN0.0 prerequisite | Allocation-free full-map validation, seven retention reasons, sticky map-overflow denial and bounded deterministic pool selection | `just foundry-boot-frame-pool-run0-0` · [Contract](docs/BOOT_FRAME_OWNERSHIP_V0.md); 17 pure cases, kernel consumer tests/builds and existing S8 integration pass. No actual firmware-exit/collector/allocator or target-runtime proof |
 | Typed interfaces | IDL/codegen, protocol/message IDs, bounded wire contracts | Native contracts are defined in `idl/`; generated syntax alone grants no authority |
 | Desktop / UI1.0 | Host permission preview, single-use synthetic confirmation, exact self-observation grants, real pinned child, expiry/revocation/fault/restart and independent watchdog | `just foundry-desktop-host-launch-ui1-0` · [Contract](docs/DESKTOP_SESSION_V1.md); default-off trusted Unix fixture, 17 cases and retained process/wire evidence. No editor, compositor, Store, target or process-containment proof |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |
@@ -200,3 +206,10 @@ just foundry-org-governance-g0
 SW0 gates above expose their individual fixture scopes. Full `just preflight`
 requires Linux, Python `jsonschema`, Docker/seccomp, and the installed pinned image.
 Physical gates are opt-in and require documented preparation/provenance.
+
+Strict Linux preflight passed for the committed UI1.0/accounting/finite-authority
+batch `a44993e` with the pinned compatibility kernel and Docker image. Its isolated
+checkout matched that revision's tracked sources except two trailing spaces in
+the desktop contract; source/artifact digests and the difference are retained in
+the coordinator checkpoint. This run predates the subsequent RUN0.0 pure changes;
+their focused gates, consumer checks and target builds are recorded separately.
