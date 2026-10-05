@@ -380,6 +380,10 @@ foundry-desktop-editor-host-ui1-1a:
 foundry-editor-save-schema-ui1-1b:
 	bash ./tools/ci/foundry_editor_save_schema_ui1_1b.sh
 
+# Default-off host Store CAS, atomic selection/receipt and joined-writer recovery.
+foundry-desktop-editor-store-ui1-1b:
+	bash ./tools/ci/foundry_desktop_editor_store_ui1_1b.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

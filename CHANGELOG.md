@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- UI1.1b default-off host Store transaction owner using Artifact368, private
+  per-object CAS, atomic selection/receipt journals, bounded admission and actual
+  joined-writer recovery. Seven behavior cases and sixteen evidence assertions
+  pass on macOS and assembled Linux. Retained evidence covers 48 legs, 56 epochs,
+  112 snapshots, original typed exchanges/authorized lease bytes, raw fences and
+  owned-root cleanup; each run completes 131 native Rust decodes with successful
+  exits and reaping. Strict Clippy, default API exclusion and strict Linux
+  preflight pass with the new gate in the extended suite. Closed unsubmitted
+  allocations become Noncommit without fabricated receipts; supported uncertain
+  journal-sync recovery preserves the original permit and backend epoch. The
+  integrated keyboard/editor/Store bridge, actual editor process, device flush,
+  power-loss/target durability and containment remain separate successors.
 - UI1.1b pure save-schema prerequisite: checked payload constructors, portable
   64-byte text and 176-byte receipt codecs, strict bounded canonical JSON, and
   evolving selected-revision replay. Its nine independently reviewed cases pass

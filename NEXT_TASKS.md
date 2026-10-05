@@ -15,15 +15,23 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
-**Now:** implement UI1.1b's Store handler against the seven independently reviewed
-RED assertions and
-the frozen [exact API](docs/DESKTOP_EDITOR_STORE_API_V0.md) and
-[transaction prerequisite](docs/plans/editor-store-transaction-v0.md), and prepare RUN0.0's
-initial table-access evidence and firmware adapter, with executable assertions
-before handlers. The pure save schema prerequisite now passes nine Linux Foundry cases;
-its records grant no IO authority. UI1.1a's 13 volatile in-process editor assertions pass on
-macOS and assembled Linux; Store IO, the integrated task and actual editor
-process remain separate. RUN0.0's pure map/retention validator is reviewed and passes;
+**Now:** freeze UI1.1c's live editor-to-Store admission and shared-data bridge,
+then write its eighteen planned integrated-task assertions and independently
+review their RED evidence before handlers.
+Use the [editor proposal](docs/plans/desktop-editor-v0.md),
+[exact Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md) and
+[transaction contract](docs/plans/editor-store-transaction-v0.md). A copied
+volatile authorization verdict cannot grant Store admission. Freeze bounded
+issuer, lease, ticket and pending-operation capacities, charging, retention and
+overflow rules alongside exact API signatures. Request timeout
+must fence its original operation/source without retiring a still-live instance;
+revocation, expiry and service fault retain their distinct lifetimes. Prepare
+RUN0.0's initial table-access evidence and firmware adapter independently.
+UI1.1b's seven host Store behavior cases and sixteen evidence assertions now pass
+on macOS and assembled Linux, including actual lease/journal decoding, cleanup
+and strict Linux preflight. The nine-case pure save-schema prerequisite grants
+no IO authority by itself. UI1.1a's thirteen volatile editor assertions also pass;
+the integrated task and actual editor process remain separate. RUN0.0's pure map/retention validator is reviewed and passes;
 the actual ownership transition is still pending. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
 process/wire artifacts are retained. UI0 design, portable accounting and the
 finite named Python-consumer canary are reviewed, with the affected Linux SW0
@@ -39,7 +47,7 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI1.1b / coordinator then Store worker | Assertion writer owns schema/service tests; coordinator owns shared exports/features/gates; one Store transaction writer follows reviewed RED | Accepted UI1.1a host editor, reviewed [editor proposal](docs/plans/desktop-editor-v0.md), [Store transaction prerequisite](docs/plans/editor-store-transaction-v0.md), frozen [exact Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md), registered [five wire interfaces](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API/corpus](docs/DESKTOP_EDITOR_HOST_API_V0.md); real host CAS consumer | Pure-schema checks pass their nine-case gate. Exactly seven b assertions have independently reviewed RED evidence; implement private per-object CAS, atomic selection+receipt journal and joined-writer recovery, then independently review and gate the handler. c's integrated task and d's actual editor process retain separate inventories. Gate both sides of irreversible admission and recovery without replay. Target execution, physical keyboard and persistent restart remain separately gated. |
+| UI1.1c / coordinator then bridge and consumer workers | Coordinator freezes exact live authority/data bridge and owns shared exports/features/IDL/gates; assertion writer owns the eighteen-case consumer; one writer per assigned desktop or Store adapter | Accepted UI1.1a volatile editor and UI1.1b actual host CAS gates, [editor proposal](docs/plans/desktop-editor-v0.md), frozen [Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md), [wire interfaces](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API/corpus](docs/DESKTOP_EDITOR_HOST_API_V0.md) | Review and freeze exact signatures, lock order, descriptor lifetime, emission allowlist and bounded authority/recovery capacities with charging, retention and overflow rules before assertion dispatch. Write the first eighteen maintained cases RED, then deliver keyboard edit/frame/save/reopen with live issuer-checked authority, separately stamped volatile controls and original-operation Unknown recovery without replay. Request timeout must preserve the fresh-save positive for a live instance; revoke/expiry/fault must deny unpermitted admission. d's editor PID, physical input and device/target persistence remain separate. |
 | RUN0.0 / coordinator then runtime worker | Coordinator freezes Oracle profile, raw-map/retention collection assertions and boot integration; worker owns exact subsequently assigned adapter files | Reviewed [pure admission contract](docs/BOOT_FRAME_OWNERSHIP_V0.md), passing gate and [Oracle preparation](docs/plans/boot-profile-oracle-v0.md); current UEFI path still lacks post-firmware ownership | Resolve actual relocated-entry capture, freeze the CPU-inspection schema/profile and write RED assertions. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus S8 in QEMU. External debug reads or a pure selector cannot prove guest access, firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |

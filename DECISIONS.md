@@ -1406,3 +1406,50 @@ admission fences subsequent fresh mutation/source issuance; already authorized
 selected reads retain their independent observation rights. Shared identity/time-origin MAX fixtures
 retain their separate healthy-registry controls. This is the bounded default for
 the seven service assertions, not evidence that an ordinary lifetime reached MAX.
+
+## 2026-10-05 — Accept the finite host Store owner and preserve evidence lifetimes
+
+Implement UI1.1b as an explicit, default-off `editor_store_v0_dev` service
+fixture using the existing Artifact368 wire contract. Store owns CAS IO,
+authenticated publication, atomic selection/receipt journals and bounded
+per-object admission; schema records remain data and cannot issue authority.
+Reuse the volatile desktop fixture through a Store test-only dependency, with its
+existing development feature enabled explicitly. It supplies separately stamped
+UI controls and does not integrate desktop save authorization with Store.
+
+Gate the original seven behavior cases and sixteen recording assertions across
+48 fixture legs. The root controller freezes an exact 260-file source manifest,
+binds actual native test identity and fresh nonce, and checks captured authorized
+lease bytes, original epochs, supported joins/fences and explicit TempDir close
+plus absence. A separate native Rust helper decodes captured text, receipts and
+eligible journals; all 131 actual invocations must return successfully and be
+reaped. No artifact PID or deleted fixture path can select execution or cleanup.
+The caller observes the runner's exit as well as its result. The gate is in
+extended Foundry and strict assembled Linux preflight passes.
+
+Closing an allocation without a permit always produces Noncommit state. Without
+a submitted source binding it retains no permit, receipt or successor; closure
+cannot fabricate evidence of an attempted save. A supported directory-sync
+failure after journal rename leaves the original epoch Permitted without a
+receipt. Reopen may establish the committed receipt from that journal, preserving
+the complete allocation/binding/permit, original backend epoch and closure. The
+reader therefore checks the actual temporal sequence, one original Commit,
+recovery-only SaveStatus, unchanged historical counters and no mutation replay.
+The tracked recording contract preserves the original assertion identity as a
+baseline and explicitly records this independently reviewed correction.
+
+On macOS, create the actual fixture beneath
+`/System/Volumes/Data/private/tmp` after checking its ownership/mode, then verify
+the live held root identity and writable native mount prefix before Store
+authority is created. Unsupported layouts fail closed. Linux retains its normal
+temporary-root creation. Observed paths and filesystem strings are never rewritten
+to satisfy an assertion. This is a host fixture requirement, not a containment
+boundary or a portability claim for arbitrary filesystem layouts.
+
+This acceptance covers trusted in-process host CAS and supported joined-owner
+reopen. Actual editor PID, cold-start anti-rollback, device flush, power loss,
+target execution and runtime containment remain unproved. UI1.1c must separately
+freeze a live editor/Store admission bridge; copied volatile verdicts cannot
+authorize a commit. Its request deadline closes the original operation/ticket and
+source, while only actual revoke/TTL/service fault retires instance authority.
+Exact bridge signatures and its eighteen-case consumer remain future work.
