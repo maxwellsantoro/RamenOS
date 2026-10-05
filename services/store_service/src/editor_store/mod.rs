@@ -1,6 +1,8 @@
 //! Default-off, trusted in-process Store-owned transaction fixture.
 //! This is host CAS evidence, not a deployed editor bridge or containment boundary.
 mod codec;
+#[cfg(feature = "editor_native_read_v0_dev")]
+mod native_read;
 mod storage;
 mod types;
 use artifact_store_schema::editor_save::*;
@@ -10,6 +12,8 @@ use kernel_api::{
     generated::desktop_artifact_v1 as a,
     ipc::Envelope,
 };
+#[cfg(feature = "editor_native_read_v0_dev")]
+pub use native_read::*;
 use std::{
     collections::BTreeMap,
     fs,
@@ -70,6 +74,8 @@ impl QuiescedStoreOwner {
     }
 }
 struct Grant {
+    #[cfg(feature = "editor_native_read_v0_dev")]
+    native_read: Option<Arc<native_read::NativeReadGrant>>,
     handle: Handle,
     actor: EditorActorV0,
     object: u64,
@@ -105,6 +111,9 @@ struct Registry {
     instances: BTreeMap<(u64, u64, u64, u64), u64>,
 }
 struct Core {
+    native_only: bool,
+    #[cfg(feature = "editor_native_read_v0_dev")]
+    native_read: Mutex<Option<Arc<native_read::NativeCore>>>,
     root: PathBuf,
     profile: FixtureProfile,
     profile_hash: Hash32,
@@ -941,7 +950,7 @@ impl StoreHost {
         expected_revision: u64,
         bytes: &[u8],
     ) -> Result<ObjectDescriptor, StoreStatus> {
-        if !Arc::ptr_eq(&self.core, &peer.core) {
+        if self.core.native_only || !Arc::ptr_eq(&self.core, &peer.core) {
             return Err(StoreStatus::Denied);
         }
         let grant = &peer.grant;
@@ -1022,7 +1031,7 @@ impl StoreHost {
         descriptor: &ObjectDescriptor,
         write: bool,
     ) -> Result<Arc<Data>, StoreStatus> {
-        if !Arc::ptr_eq(&self.core, &peer.core) {
+        if self.core.native_only || !Arc::ptr_eq(&self.core, &peer.core) {
             return Err(StoreStatus::Denied);
         }
         // Typed descriptors must be canonical before packing: pack() truncates
@@ -1103,6 +1112,9 @@ impl StoreHost {
 }
 impl ReadLease {
     pub fn copy_into(&self, offset: u32, out: &mut [u8]) -> Result<(), StoreStatus> {
+        if self.peer.core.native_only {
+            return Err(StoreStatus::Denied);
+        }
         let object = self.peer.core.object(self.peer.grant.object)?;
         let s = lock(&object.state);
         auth(&self.peer.core, &self.peer.grant, &s)?;
@@ -1123,6 +1135,9 @@ impl ReadLease {
 }
 impl WriteLease {
     pub fn copy_from(&self, offset: u32, input: &[u8]) -> Result<(), StoreStatus> {
+        if self.peer.core.native_only {
+            return Err(StoreStatus::Denied);
+        }
         let object = self.peer.core.object(self.peer.grant.object)?;
         let s = lock(&object.state);
         auth(&self.peer.core, &self.peer.grant, &s)?;
@@ -1257,6 +1272,9 @@ impl StoreHost {
         Ok(reply)
     }
     pub fn dispatch(&self, peer: &EditorPeer, request: &Envelope) -> Result<Envelope, StoreStatus> {
+        if self.core.native_only {
+            return Err(StoreStatus::Denied);
+        }
         let start = Instant::now();
         codec::validate(request)?;
         if !matches!(request.msg_type, 1 | 3 | 5 | 7) {
@@ -1856,6 +1874,17 @@ impl StoreFixture {
         root: &std::path::Path,
         profile: FixtureProfile,
     ) -> Result<(StoreHost, FixtureController), StoreStatus> {
+        let core = Self::prepare_core(root, profile, false)?;
+        Self::provision_core(&core)?;
+        Ok((StoreHost { core: core.clone() }, FixtureController { core }))
+    }
+    // Pure preparation for the native path: it creates the actual owner before
+    // any filesystem effect. Legacy preparation retains its existing preflight.
+    fn prepare_core(
+        root: &std::path::Path,
+        profile: FixtureProfile,
+        native_only: bool,
+    ) -> Result<Arc<Core>, StoreStatus> {
         if !root.is_absolute()
             || root.as_os_str().len() > 4096
             || profile.origin_ms == 0
@@ -1893,15 +1922,19 @@ impl StoreFixture {
             ))?;
             initial.insert(object.object_id, selected);
         }
-        if root.try_exists().map_err(|_| StoreStatus::Invalid)? {
-            return Err(StoreStatus::Invalid);
-        }
-        let parent = root
-            .parent()
-            .ok_or(StoreStatus::Invalid)?
-            .canonicalize()
-            .map_err(|_| StoreStatus::Invalid)?;
-        let root = parent.join(root.file_name().ok_or(StoreStatus::Invalid)?);
+        let root = if native_only {
+            root.to_path_buf()
+        } else {
+            if root.try_exists().map_err(|_| StoreStatus::Invalid)? {
+                return Err(StoreStatus::Invalid);
+            }
+            let parent = root
+                .parent()
+                .ok_or(StoreStatus::Invalid)?
+                .canonicalize()
+                .map_err(|_| StoreStatus::Invalid)?;
+            parent.join(root.file_name().ok_or(StoreStatus::Invalid)?)
+        };
         let profile_hash = storage::hash(
             &serde_json::to_vec(&(
                 &initial,
@@ -1961,6 +1994,9 @@ impl StoreFixture {
             );
         }
         let core = Arc::new(Core {
+            native_only,
+            #[cfg(feature = "editor_native_read_v0_dev")]
+            native_read: Mutex::new(None),
             root,
             profile,
             profile_hash,
@@ -1994,10 +2030,16 @@ impl StoreFixture {
             barriers: Mutex::new(vec![]),
         });
         core.clock.store(core.profile.origin_ms, Ordering::Release);
+        Ok(core)
+    }
+    fn provision_core(core: &Arc<Core>) -> Result<(), StoreStatus> {
         fs::DirBuilder::new()
             .mode(0o700)
             .create(&core.root)
             .map_err(|_| StoreStatus::Unknown)?;
+        Self::provision_objects(core)
+    }
+    fn provision_objects(core: &Arc<Core>) -> Result<(), StoreStatus> {
         for object in core.objects.values() {
             fs::DirBuilder::new()
                 .mode(0o700)
@@ -2053,7 +2095,7 @@ impl StoreFixture {
             }
             persist(&context, false)?;
         }
-        Ok((StoreHost { core: core.clone() }, FixtureController { core }))
+        Ok(())
     }
     pub fn reopen(
         owner: QuiescedStoreOwner,
@@ -2070,6 +2112,9 @@ impl StoreFixture {
         owner: &QuiescedStoreOwner,
     ) -> Result<(StoreHost, FixtureController), StoreStatus> {
         let old = &owner.core;
+        if old.native_only {
+            return Err(StoreStatus::Denied);
+        }
         if !old.closed.load(Ordering::Acquire) || !lock(&old.owned).handles.is_empty() {
             return Err(StoreStatus::NotReady);
         }
@@ -2296,6 +2341,9 @@ impl StoreFixture {
         }
         let old_registry = lock(&old.registry);
         let core = Arc::new(Core {
+            native_only: false,
+            #[cfg(feature = "editor_native_read_v0_dev")]
+            native_read: Mutex::new(None),
             root: old.root.clone(),
             profile: old.profile.clone(),
             profile_hash: old.profile_hash,
@@ -2366,6 +2414,9 @@ impl StoreFixture {
 }
 impl FixtureController {
     pub fn issue_editor(&self, spec: GrantSpec) -> Result<EditorEndpoint, FixtureError> {
+        if self.core.native_only {
+            return Err(FixtureError::new(StoreStatus::Denied));
+        }
         fixture(self.issue(spec, EndpointClass::Artifact, None))
     }
     fn issue(
@@ -2374,6 +2425,9 @@ impl FixtureController {
         class: EndpointClass,
         recovery_op: Option<u64>,
     ) -> Result<EditorEndpoint, StoreStatus> {
+        if self.core.native_only {
+            return Err(StoreStatus::Denied);
+        }
         schema(spec.actor.validate())?;
         if spec.rights == 0 || spec.rights & !7 != 0 || spec.ttl_ms == 0 || spec.ttl_ms > 600000 {
             return Err(StoreStatus::Invalid);
@@ -2419,6 +2473,8 @@ impl FixtureController {
             .ok_or(StoreStatus::Exhausted)?;
         let handle = Core::new_handle(&mut reg, HandleKind::Ipc)?;
         let grant = Arc::new(Grant {
+            #[cfg(feature = "editor_native_read_v0_dev")]
+            native_read: None,
             handle,
             actor: spec.actor.clone(),
             object: object.id,
@@ -2448,6 +2504,9 @@ impl FixtureController {
         object_id: u64,
         operation_id: u64,
     ) -> Result<EditorEndpoint, FixtureError> {
+        if self.core.native_only {
+            return Err(FixtureError::new(StoreStatus::Denied));
+        }
         let object = fixture(self.core.object(object_id))?;
         let generation = {
             let s = lock(&object.state);
@@ -2544,6 +2603,9 @@ impl FixtureController {
     ) -> Result<PauseToken, FixtureError> {
         if !Arc::ptr_eq(&self.core, &endpoint.peer.core) {
             return Err(FixtureError::new(StoreStatus::Denied));
+        }
+        if self.core.native_only && point != PausePoint::BeforeReadReply {
+            return Err(FixtureError::new(StoreStatus::Unsupported));
         }
         let object = fixture(self.core.object(endpoint.peer.grant.object))?;
         {
@@ -2795,6 +2857,11 @@ impl FixtureController {
         })
     }
     pub fn quiesce(&self, timeout_ms: u64) -> Result<QuiescedStoreOwner, FixtureError> {
+        // Native handles live in the shared Desktop roster, not legacy Owned.
+        // This fixture cannot certify their quiescence with a legacy fence.
+        if self.core.native_only {
+            return Err(FixtureError::new(StoreStatus::Denied));
+        }
         if !(1..=2000).contains(&timeout_ms) {
             return Err(FixtureError::new(StoreStatus::Invalid));
         }

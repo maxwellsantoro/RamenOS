@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-05
 **Status:** Active
 
 ## 2026-10-04 — Recover StoreClient transports without replaying uncertain effects
@@ -1487,3 +1487,39 @@ the affected volatile editor and host Store consumers. The original eighteen
 integrated-task cases remain later work after the live Save/shared-data bridge
 is frozen. The API preparation itself establishes no native Read runtime, Save,
 recovery, editor PID, device persistence or target execution.
+
+## 2026-10-05 — Preserve actual NativeRead ownership through aliases and retirement
+
+Expose a same-witness `duplicate_producer(&ProducerId)` operation for legitimate
+Store references to installed Desktop producer rows. It returns another opaque
+reference to the same identity, never a new row, charge, numeric mint or service
+provenance claim. Foreign references are denied and retired rows are unavailable;
+actual unfinished joins remain NotReady. Retired ID aliases retain only weak
+origin references, allowing capacity to return after the real handles and entry
+owner leave. One actual witness owns the shared roster across both services.
+
+When the existing time-origin exhaustion hook advances Desktop time to its maximum,
+retire affected native lifetimes under State-to-Gate before releasing State. A
+retained selected-data copy must observe Stale immediately, without another
+Desktop call. Native Store owners deny the legacy quiescence shortcut because
+an empty legacy roster cannot certify native handle cleanup. Constructor errors
+map unused native Read statuses to Internal while preserving their actual held
+owner and partial Core.
+
+The nine assertions preceded implementation and independently reproduced old
+alias-capacity, time-origin and quiescence behavior failures. Reviewed fixes pass
+on both host platforms. Each NativeRead gate uses a fresh private build target:
+sharing one target between different source snapshots produced inconclusive
+mixed-artifact evidence. Source and binary hashes, actual process birth, exit and
+reaping bind accepted runs; optional fixture exports are not a universal
+transcript consumer. Save admission and the full UI1.1c task remain separate.
+
+The integrated Linux check uses the source candidate's canonical `target/` path,
+normal code generation, imported base Git metadata and the existing pinned S2
+compatibility kernel. These assembly prerequisites do not change OS code. A
+parallel launch-test run reported two NotReady confirmations; its original spawn
+errno was not retained. A subsequent traced run passed all seventeen cases and
+did not reproduce the cause. The accepted strict preflight uses
+`RUST_TEST_THREADS=1`, matching the dedicated launch gate's serialized profile.
+Preserve the failed runs and trace alongside the passing integrated run; do not
+claim that this establishes parallel spawn reliability or a diagnosed OS fix.

@@ -1,6 +1,6 @@
 # Native editor Read prerequisite v0
 
-**Status:** Reviewed contract frozen for gate-first assertion authoring; handlers and runtime acceptance pending.
+**Status:** Implemented default-off host prerequisite; nine reviewed assertions pass on macOS/Linux. See [Current Status](../CURRENT_STATUS.md) for acceptance scope.
 
 The [machine-readable contract](contracts/editor-native-read-v0.json) defines a
 separate, default-off host prerequisite for UI1.1c. An editor peer approved through
@@ -73,6 +73,13 @@ takes the actual handle under the roster lock, releases the lock, performs the
 join, and retires that exact row once. An unfinished, concurrent, or repeated
 join is NotReady. Numeric diagnostic IDs cannot manufacture join proofs. Drop
 does not force a join of a hung thread.
+
+`RegistryWitness::duplicate_producer` checks the actual authority and an installed,
+still-held producer row before returning another opaque reference to that same
+row. It adds no identity or charge. Foreign authority is Denied; a retired row is
+NotReady. Store retains references only to its own actual installed producers.
+Joining either reference retires the actual row once; another reference cannot
+start a concurrent or repeated join.
 
 The fixture permits two selected objects, sixteen historical bindings, and 64
 origins. Identity counters use checked arithmetic, never reuse identities, and

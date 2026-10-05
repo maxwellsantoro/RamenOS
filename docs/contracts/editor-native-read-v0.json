@@ -23,7 +23,8 @@
     "NativeReadCall::request(&self)->Envelope; entered(&self)->Instant; deadline(&self)->Instant; ReadDeadlineGuard::view(&self)->ReadCallView",
     "NativeReadEntry::producer_ids(&self)->[&ProducerId;2]",
     "HostDesktop::native_producers(&self)->Vec<ProducerId>; join_native_finished(&self,&ProducerId)->Result<JoinedProducerProof,Status>; native_producer_counts(&self)->ProducerCounts",
-    "ApprovedReadGuard::view_binding(&self,&ApprovedReadBinding)->Result<ReadBindingView,Status>"
+    "ApprovedReadGuard::view_binding(&self,&ApprovedReadBinding)->Result<ReadBindingView,Status>",
+    "RegistryWitness::duplicate_producer(&self,&ProducerId)->Result<ProducerId,Status>"
   ],
   "Store_opaque": "NativeReadFixture{host,controller,endpoints:Vec<EditorEndpoint>}. NativeReadGrant{witness:Arc<RegistryWitness>,binding:ApprovedReadBinding}. RegisteredRead{inner:Arc<ReadOriginal>}; ReadOriginal{core:Arc<Core>,native:NativeReadCall,grant:Arc<Grant>,binding:Arc<NativeReadGrant>,claimed:AtomicBool}. NativeReadReply{wire:Envelope,selected:Option<NativeSelectedRead>,original:Arc<ReadOriginal>}. NativeSelectedRead{original:Arc<ReadOriginal>,data:Arc<Data>,descriptor:ObjectDescriptor}. Privatefields/constructors, sameoriginal pinned.",
   "init_types": "NativeReadInitFailure private status:StoreStatus,stage:ReadInitStage,held:ReadInitOwner. ReadInitOwner private witness:Option<RegistryWitness>,bindings:Vec<ApprovedReadBinding>,core:Option<Arc<Core>>,panicked:bool,root:ReadRootObservation. ReadInitStage Validate/PrepareCore/CreateRoot/Provision/Expose; ReadRootObservation NotAttempted/AttemptUncertain/ReportedCreated. Public ReadInitObservation same stage/status/panicked/root,root_path:Option<PathBuf>,core_retained:bool; path<=4096 diagnostic.",
@@ -249,5 +250,14 @@
     "initial": "out/roadmap-coordinator/editor-native-read-initial-freeze-before-wire-source-pins.json",
     "sha256": "b2c56b9d20d29e89c416452357efa3eb7b2b75a89a559f6dec5c5961f66d3608",
     "scope": "Before assertion dispatch, record maintained TOML IDL path, existing generated wire, schema exports and pinned toolchain explicitly. No API/behavior/limits/assertion change."
+  },
+  "producer_reference_amendment": {
+    "predecessor_contract_sha256": "ae026a9a67892bea7c3040e9526d7c211b9e8c2e96e9fde468a8a9e545fd1543",
+    "proposal_sha256": "268da8108c9d9e38c3cfe0e16a83a4054fc269efdac8908dd2c406b32111ca25",
+    "independent_proposal_review_sha256": "334c0199fe0c3faf844db33c556bc8888e6637b0335f72a81dc593b37b271c8a",
+    "assertion_review_sha256": "ff1e36b098127694d71c8add868f3497c588d164fe3e36f80787ed0f57a69e98",
+    "final_assertion_pin_review_sha256": "c8a1c9d539d54b86e31a05e3e78261ab46e769c526db9e3b4cec85e79aafecde",
+    "semantics": "Exact private authority and matching actual installed stillheld row id/origin/kind only; foreign Denied, absent/retired NotReady, poison Internal. Joining row may have references but actual join stays NotReady. Private samerow reference only, no Clone/numericmint/newrow/identity/charge/producer/origin/serviceprovenance. Store duplicates only own actual reservation.install token for retention/reply and bounded own getter; it never enumerates arbitrary domain rows. Existing origin retention and real single-flight join remain unchanged.",
+    "status": "Reviewed gate-first amendment; actual amended baseline RED pending independent attribution before helper/use implementation."
   }
 }

@@ -384,6 +384,10 @@ foundry-editor-save-schema-ui1-1b:
 foundry-desktop-editor-store-ui1-1b:
 	bash ./tools/ci/foundry_desktop_editor_store_ui1_1b.sh
 
+# Original Desktop authority and deadline through a trusted host Store Read.
+foundry-desktop-editor-native-read-ui1-1c-prerequisite:
+	python3 ./tools/foundry/desktop_editor_native_read_gate.py
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

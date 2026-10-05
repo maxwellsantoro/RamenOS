@@ -28,7 +28,9 @@ Unix fixture passed its 17-case Foundry gate on macOS and Linux, retaining actua
 process identity, typed exchanges and cleanup evidence. UI1.1a now adds a
 keyboard-driven volatile editor with typed focus and offscreen surfaces.
 UI1.1b now adds a default-off real host Store transaction and joined-owner
-recovery. The integrated keyboard/editor/Store task, actual editor process and
+recovery. The bounded native Read prerequisite connects approved editor authority
+to that Store with live copy checks. The integrated keyboard/editor/Store task,
+actual editor process and
 RUN0 post-firmware memory ownership are next dependencies. RUN0.0's
 pure map/retention admission prerequisite now passes 17 reviewed assertions,
 with sticky insertion-overflow rejection and conservative bounded selection.
@@ -92,12 +94,19 @@ This proves a trusted in-process host CAS fixture using supported fault hooks an
 a retained reopening owner. It does not connect the editor's live save authority
 to Store: UI1.1c must freeze that bridge and deliver the integrated task. A separate
 [native Read API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and its
-[bounded contract](docs/contracts/editor-native-read-v0.json) are independently
-reviewed and frozen for nine gate-first assertions. They specify actual approved
-Desktop authority, an original request deadline, Store grant checks, canonical
-copies and owned joins; the assertions and handlers remain pending. This
-preparation adds no native Read runtime, Save or full UI1.1c acceptance. The
-five reused volatile UI records remain separately stamped. Actual editor PID,
+[bounded contract](docs/contracts/editor-native-read-v0.json) now connect an actual
+approved editor peer to a real host Store Read. Nine reviewed gate-first assertions
+pass on macOS and assembled Linux, with original deadlines, current instance and
+Store grant checks, canonical selected-data copies and actual owned joins. Strict
+Clippy for both services and native API exclusion without the opt-in feature pass.
+The source-bound gate retains its actual test binary, process birth identity,
+original logs, exit and reap evidence. It does not collect optional fixture exports
+or establish a universal transcript validator. Strict integrated Linux preflight
+passes for the same source candidate with
+`RUST_TEST_THREADS=1`, including the affected host/QEMU consumers. This establishes
+the serialized Rust test profile; parallel child-spawn reliability remains
+unproved. Save admission and full UI1.1c remain separate.
+The five reused volatile UI records remain separately stamped. Actual editor PID,
 cold-start anti-rollback, device flush, power-loss durability, target execution and
 runtime containment remain unproved. The Mac fixture requires its verified
 writable Data-volume temporary-directory layout. The API contract and pure gate
@@ -128,6 +137,7 @@ or its timeout, result and descendant-cleanup assertions.
 | Desktop / UI1.0 | Host permission preview, single-use synthetic confirmation, exact self-observation grants, real pinned child, expiry/revocation/fault/restart and independent watchdog | `just foundry-desktop-host-launch-ui1-0` · [Contract](docs/DESKTOP_SESSION_V1.md); default-off trusted Unix fixture, 17 cases and retained process/wire evidence. No editor, compositor, Store, target or process-containment proof |
 | Editor / UI1.1a | Logical keyboard editing, focus and preview approval, offscreen composition, volatile save/receipt and explicit recovery | `just foundry-desktop-editor-host-ui1-1a` · [Contract](docs/DESKTOP_EDITOR_HOST_API_V0.md); default-off trusted in-process fixture, 13 cases and source-bound wire/pixel/receipt evidence on macOS/Linux. Real Store IO, actual editor process, device input and target execution remain separate |
 | Editor Store / UI1.1b | Private host CAS, atomic selection/receipt journal, irreversible admission and original-operation recovery through joined-owner reopen | `just foundry-desktop-editor-store-ui1-1b` · [API](docs/DESKTOP_EDITOR_STORE_API_V0.md) · [Recording contract](docs/contracts/editor-store-recording-v0.json); seven behavior and sixteen evidence cases pass on macOS/Linux, with captured bytes decoded by the native Rust codec. Integrated editor authority, actual editor PID, device/target durability and containment remain separate |
+| Native Read / UI1.1c prerequisite | Approved editor peer, fresh Store Read, original request deadline, live copy authority and shared owned-producer roster | `just foundry-desktop-editor-native-read-ui1-1c-prerequisite` · [API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md); nine host cases on macOS/Linux, strict Clippy and feature exclusion. Integrated Save/task, optional-export transcript validation, editor PID and device/target execution remain separate |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |
 | Semantic State / S10 | Host snapshots, subscriptions/reactor, capability-filtered views; selected QEMU snapshot/IPC paths | Multi-source aggregation and target reactor remain incomplete; default boot/time metadata includes fixtures |
 | Store / S1–S10 | Host CAS, signatures, durable ownership, path/tag queries, read-only projections and typed CoW commits | Full user launch/porting flow and target persistence remain incomplete |

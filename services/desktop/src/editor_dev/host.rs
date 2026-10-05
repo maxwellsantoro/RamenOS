@@ -87,6 +87,8 @@ pub struct HostConfig {
 }
 #[derive(Clone)]
 pub struct HostDesktop {
+    #[cfg(feature = "editor_native_read_v0_dev")]
+    native: Option<Arc<super::native_authority::NativeAuthority>>,
     state: Arc<Mutex<State>>,
     clock: Arc<AtomicU64>,
     counters: Arc<Counters>,
@@ -393,6 +395,8 @@ struct Object {
     data: Data,
 }
 struct State {
+    #[cfg(feature = "editor_native_read_v0_dev")]
+    native: Option<Arc<super::native_authority::NativeAuthority>>,
     config: HostConfig,
     sessions: BTreeMap<u64, Session>,
     instances: BTreeMap<u64, Instance>,
@@ -646,6 +650,10 @@ impl State {
         Ok(())
     }
     fn retire(&mut self, id: u64, state: InstanceState) {
+        #[cfg(feature = "editor_native_read_v0_dev")]
+        if let Some(native) = &self.native {
+            native.retire(id);
+        }
         if let Some(i) = self.instances.get_mut(&id) {
             if matches!(i.state, InstanceState::Starting | InstanceState::Running) {
                 i.state = state;
@@ -674,6 +682,10 @@ impl State {
         }
     }
     fn expire(&mut self, now: u64) {
+        #[cfg(feature = "editor_native_read_v0_dev")]
+        if let Some(native) = &self.native {
+            native.advance(now);
+        }
         let expired: Vec<_> = self
             .instances
             .iter()
@@ -975,7 +987,11 @@ impl HostDesktop {
             return Err(Status::Invalid);
         }
         let host = Self {
+            #[cfg(feature = "editor_native_read_v0_dev")]
+            native: None,
             state: Arc::new(Mutex::new(State {
+                #[cfg(feature = "editor_native_read_v0_dev")]
+                native: None,
                 config,
                 sessions: BTreeMap::new(),
                 instances: BTreeMap::new(),
@@ -3230,6 +3246,10 @@ impl FixtureController {
                         }
                     }
                     ServiceKind::Artifact => {
+                        #[cfg(feature = "editor_native_read_v0_dev")]
+                        if let Some(native) = &s.native {
+                            native.retire_all();
+                        }
                         for session in s.sessions.values() {
                             session.object.inner.lock().unwrap().mutation_retired = true;
                         }
@@ -3343,8 +3363,186 @@ impl FixtureController {
                 }
             }
             CounterKind::ServiceEpoch => s.service_epoch = u64::MAX,
-            CounterKind::TimeOrigin => self.host.clock.store(u64::MAX, Ordering::SeqCst),
+            CounterKind::TimeOrigin => {
+                self.host.clock.store(u64::MAX, Ordering::SeqCst);
+                #[cfg(feature = "editor_native_read_v0_dev")]
+                if s.native.is_some() {
+                    // This supported fixture clock transition must retire actual
+                    // instances and synchronize their Gate before State unlocks.
+                    s.expire(u64::MAX);
+                }
+            }
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "editor_native_read_v0_dev")]
+impl HostDesktop {
+    pub fn new_native_read(
+        config: HostConfig,
+    ) -> Result<(Self, FixtureController, super::RegistryWitness), Status> {
+        let (mut host, _) = Self::new(config)?;
+        let native = super::native_authority::NativeAuthority::new();
+        let witness = native.witness();
+        host.state.lock().map_err(|_| Status::Internal)?.native = Some(native.clone());
+        host.native = Some(native);
+        let controller = FixtureController { host: host.clone() };
+        Ok((host, controller, witness))
+    }
+
+    fn native_authority(&self) -> Result<Arc<super::native_authority::NativeAuthority>, Status> {
+        self.native.clone().ok_or(Status::Unsupported)
+    }
+
+    // Called only with the actual State held. No diagnostic view or caller time
+    // can create the originating peer: endpoint/approval/actor checks use State.
+    fn native_binding_view(
+        &self,
+        state: &State,
+        peer: &PeerContext,
+    ) -> Result<super::ReadBindingView, Status> {
+        if !Arc::ptr_eq(&self.state, &peer.registry) || peer.class != EndpointClass::Artifact {
+            return Err(Status::Denied);
+        }
+        let endpoint = state.auth(peer)?;
+        let session = state.sessions.get(&peer.session).ok_or(Status::Denied)?;
+        let instance = state.instances.get(&peer.instance).ok_or(Status::Stale)?;
+        if instance.session != peer.session
+            || endpoint.resource == 0
+            || endpoint.rights != 7
+            || instance.bindings[3] != peer.endpoint
+            || instance.grants == 0
+        {
+            return Err(Status::Denied);
+        }
+        if endpoint.epoch != state.artifact_epoch
+            || !matches!(
+                instance.state,
+                InstanceState::Starting | InstanceState::Running
+            )
+            || self.clock.load(Ordering::SeqCst) >= instance.expires
+        {
+            return Err(Status::Stale);
+        }
+        let selected = session.object.inner.lock().map_err(|_| Status::Internal)?;
+        if selected.owner != session.owner
+            || selected.session != peer.session
+            || selected.session_generation != session.generation
+            || selected.id != endpoint.resource
+            || selected.live.get(&peer.instance) != Some(&(instance.generation, instance.expires))
+        {
+            return Err(Status::Denied);
+        }
+        Ok(super::ReadBindingView {
+            actor: artifact_store_schema::editor_save::EditorActorV0 {
+                owner_id: session.owner,
+                session_id: peer.session,
+                session_generation: session.generation,
+                instance_id: peer.instance,
+                instance_generation: instance.generation,
+            },
+            object_id: selected.id,
+            object_generation: selected.generation,
+            selected_revision: selected.revision,
+            expires_at_ms: instance.expires,
+            selected_hash: hash(&selected.bytes),
+        })
+    }
+
+    pub fn approved_native_read(
+        &self,
+        peer: &PeerContext,
+        now: u64,
+    ) -> Result<super::ApprovedReadBinding, Status> {
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        let current = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        state.expire(current);
+        let native = state.native.as_ref().ok_or(Status::Unsupported)?;
+        let view = self.native_binding_view(&state, peer)?;
+        // The same Gate is updated by State::retire/expire before State unlocks.
+        native.approve(peer.endpoint, view)
+    }
+
+    pub fn start_native_read(
+        &self,
+        peer: &PeerContext,
+        request: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeReadEntry, Status> {
+        let entered = Instant::now();
+        super::codec::validate_editor_envelope(request)?;
+        if (request.protocol, request.msg_type) != (368, 1) {
+            return Err(Status::Unsupported);
+        }
+        let (native, endpoint) = {
+            let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+            let current = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            state.expire(current);
+            let native = state.native.as_ref().ok_or(Status::Unsupported)?;
+            let view = self.native_binding_view(&state, peer)?;
+            // Canonical fields are a claimed tuple, not authority. Mismatched
+            // tuples deny without revealing another retained actor's lifetime.
+            if request.handle != Handle::unpack(peer.endpoint)
+                || q64(request, 8) != view.actor.session_id
+                || q64(request, 16) != view.actor.session_generation
+                || q64(request, 24) != view.actor.instance_id
+                || q64(request, 32) != view.actor.instance_generation
+            {
+                return Err(Status::Denied);
+            }
+            (native.clone(), peer.endpoint)
+        };
+        // Start rechecks the live row after State unlock; it never acquires State
+        // from Gate and never holds an enforcing lock across either worker wait.
+        native.start(endpoint, *request, entered)
+    }
+
+    pub fn native_producers(&self) -> Vec<super::ProducerId> {
+        self.native_authority()
+            .map(|native| native.producers())
+            .unwrap_or_default()
+    }
+    pub fn join_native_finished(
+        &self,
+        producer: &super::ProducerId,
+    ) -> Result<super::JoinedProducerProof, Status> {
+        self.native_authority()?.witness().join_finished(producer)
+    }
+    pub fn native_producer_counts(&self) -> super::ProducerCounts {
+        self.native_authority()
+            .map(|native| native.witness().producer_counts())
+            .unwrap_or(super::ProducerCounts {
+                held: 0,
+                io: 0,
+                joining: 0,
+                joined_total: 0,
+            })
+    }
+}
+
+#[cfg(feature = "editor_native_read_v0_dev")]
+impl FixtureController {
+    pub fn pause_next_native_read(&self, session: u64) -> Result<super::NativeReadPause, Status> {
+        let state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        if !state.sessions.contains_key(&session) {
+            return Err(Status::Denied);
+        }
+        state
+            .native
+            .as_ref()
+            .ok_or(Status::Unsupported)?
+            .pause(session)
+    }
+    pub fn release_native_read(&self, pause: &super::NativeReadPause) -> Result<(), Status> {
+        self.host.native_authority()?.release(pause)
+    }
+    pub fn seed_native_counter(&self, counter: super::NativeCounter) -> Result<(), Status> {
+        let state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        state
+            .native
+            .as_ref()
+            .ok_or(Status::Unsupported)?
+            .seed(counter)
     }
 }

@@ -3,14 +3,18 @@
 ## [Unreleased]
 
 ### Added
-- Independently reviewed native Read prerequisite API for UI1.1c, with actual
-  opaque Desktop authority, the original request deadline, separate Store grant
-  checks, canonical selected-data copies and bounded owned joins. The contract
-  freezes nine gate-first assertions and a default-off Store-to-Desktop dependency
-  direction. A single held guard validates both final constructor bindings before
-  native grants are exposed. Assertions, RED, handlers and runtime acceptance
-  remain pending; full keyboard Save, recovery and integrated-task acceptance
-  remain successors.
+- Default-off native Read prerequisite for UI1.1c: actual opaque Desktop
+  approval and original calls reach a fresh host Store owner through protocol 368.
+  Nine independently reviewed behavior/denial/failure assertions pass on macOS
+  and assembled Linux after actual RED. Live instance and Store grant checks
+  protect canonical copies; dispatcher/supervisor handles share one charged
+  roster and require actual joins. Strict Clippy for both services and native API
+  exclusion pass. The Foundry gate freezes sources and retains actual binary,
+  process birth, original logs, exit and reap evidence using a fresh build target.
+  Optional fixture exports are not collected. Strict integrated Linux preflight
+  passes with `RUST_TEST_THREADS=1`; live Save, protected Store-current chrome,
+  recovery, the integrated
+  keyboard task, editor PID and device/target execution remain successors.
 - UI1.1b default-off host Store transaction owner using Artifact368, private
   per-object CAS, atomic selection/receipt journals, bounded admission and actual
   joined-writer recovery. Seven behavior cases and sixteen evidence assertions
