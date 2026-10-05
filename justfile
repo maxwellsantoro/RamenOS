@@ -84,6 +84,9 @@ foundry-all-s0-s1-s2:
 foundry-compat-s2:
 	./tools/ci/foundry_compat_s2.sh
 
+foundry-compat-cleanup-s2:
+	bash ./tools/ci/foundry_compat_cleanup_s2.sh
+
 foundry-init-s2-2:
 	./tools/ci/foundry_init_s2_2.sh
 

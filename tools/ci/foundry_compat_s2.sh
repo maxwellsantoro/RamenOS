@@ -110,9 +110,9 @@ fi
 
 assert_log() {
   local log="$1"
-  grep -q "COMPAT_S2: hello" "$log"
-  grep -q "COMPAT_S2: read artifact ok" "$log"
-  grep -q "COMPAT_S2: write blocked ok" "$log"
+  grep -q "COMPAT_S2: hello" "$log" || return 1
+  grep -q "COMPAT_S2: read artifact ok" "$log" || return 1
+  grep -q "COMPAT_S2: write blocked ok" "$log" || return 1
 }
 
 wait_for_log() {
@@ -140,14 +140,96 @@ compat_log_rel="qemu_compat_s2.log"
 log="$installed_root/logs/compat/$compat_log_rel"
 
 # Start store_service (emit-plan requires it via store_service IPC). Modeled on foundry_artifact_s1.sh.
-S2_STORE_SOCKET="$ROOT_DIR/out/compat_s2/store.sock"
+S2_RUN_DIR="$(mktemp -d "$ROOT_DIR/out/compat-s2.XXXXXX")"
+S2_BUILD_JSON="$S2_RUN_DIR/build.jsonl"
+S2_BUILD_LOG="$S2_RUN_DIR/build.stderr.log"
+if ! cargo build -p store_service --bin store_service \
+  -p runtime_supervisor --bin runtime_supervisor --message-format=json \
+  >"$S2_BUILD_JSON" 2>"$S2_BUILD_LOG"; then
+  echo "FOUNDRY_COMPAT_S2: build failed; evidence_dir=$S2_RUN_DIR" >&2
+  cat "$S2_BUILD_LOG" >&2
+  exit 1
+fi
+S2_STORE_BIN="$(python3 "$ROOT_DIR/tools/ci/cargo_artifact.py" "$S2_BUILD_JSON" store_service)"
+S2_SUPERVISOR_BIN="$(python3 "$ROOT_DIR/tools/ci/cargo_artifact.py" "$S2_BUILD_JSON" runtime_supervisor)"
+S2_STORE_SOCKET="$S2_RUN_DIR/store.sock"
 S2_STORE_LOG="$LOG_DIR/store_service_compat_s2.log"
+S2_STORE_PID=""
+S2_SUPERVISOR_PID=""
+
+# Only this shell's recorded running or stopped jobs may receive a signal.
+# No process-name scans, descendant guesses or shared process-group kills.
+owned_running() {
+  local expected="$1" candidate
+  while read -r candidate; do
+    if [[ "$candidate" == "$expected" ]]; then return 0; fi
+  done < <(
+    jobs -pr
+    jobs -ps
+  )
+  return 1
+}
+
+stop_owned() {
+  local owned_pid="$1" label="$2" status=0 forced=0
+  if [[ -z "$owned_pid" ]]; then return 0; fi
+  if owned_running "$owned_pid"; then
+    kill -TERM "$owned_pid" >/dev/null 2>&1 || true
+    for _ in $(seq 1 50); do
+      if ! owned_running "$owned_pid"; then break; fi
+      sleep 0.1
+    done
+    if owned_running "$owned_pid"; then
+      forced=1
+      kill -KILL "$owned_pid" >/dev/null 2>&1 || true
+      for _ in $(seq 1 10); do
+        if ! owned_running "$owned_pid"; then break; fi
+        sleep 0.1
+      done
+    fi
+    if owned_running "$owned_pid"; then
+      echo "FOUNDRY_COMPAT_S2: cleanup UNKNOWN label=$label pid=$owned_pid still_running=true" >&2
+      return 1 # Never perform an unbounded wait or certify descendant cleanup.
+    fi
+  fi
+  if wait "$owned_pid"; then status=0; else status=$?; fi
+  echo "FOUNDRY_COMPAT_S2: ${label}_shutdown_status=$status pid=$owned_pid"
+  if [[ "$forced" == "1" ]]; then
+    echo "FOUNDRY_COMPAT_S2: cleanup UNKNOWN label=$label graceful_deadline_exceeded=true" >&2
+    return 1
+  fi
+  if [[ "$status" == "0" ]] || \
+     [[ "$label" == "supervisor" && "$status" == "130" ]] || \
+     [[ "$label" == "store" && "$status" == "143" ]]; then return 0; fi
+  echo "FOUNDRY_COMPAT_S2: cleanup UNKNOWN label=$label unexpected_status=$status" >&2
+  return 1
+}
+
+finish_owned() {
+  local failed=0
+  stop_owned "$S2_SUPERVISOR_PID" supervisor || failed=1
+  S2_SUPERVISOR_PID=""
+  stop_owned "$S2_STORE_PID" store || failed=1
+  S2_STORE_PID=""
+  return "$failed"
+}
+
+cleanup() {
+  local original_status=$? cleanup_status=0
+  trap - EXIT
+  trap '' INT TERM # Finish bounded cleanup despite another catchable interrupt.
+  finish_owned || cleanup_status=1
+  if [[ "$original_status" != "0" ]]; then exit "$original_status"; fi
+  exit "$cleanup_status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 rm -f "$S2_STORE_SOCKET"
 RAMEN_STORE_DEV_MODE=1 RAMEN_STORE_ACCESS_POLICY=AllowAll RAMEN_STORE_SOCKET="$S2_STORE_SOCKET" RAMEN_STORE_ROOT="$installed_root/artifacts" \
-  cargo run -p store_service >"$S2_STORE_LOG" 2>&1 &
+  "$S2_STORE_BIN" >"$S2_STORE_LOG" 2>&1 &
 S2_STORE_PID=$!
-cleanup_store() { kill "$S2_STORE_PID" >/dev/null 2>&1 || true; wait "$S2_STORE_PID" >/dev/null 2>&1 || true; }
-trap cleanup_store EXIT
 for _ in $(seq 1 100); do [[ -S "$S2_STORE_SOCKET" ]] && break; sleep 0.1; done
 if [[ ! -S "$S2_STORE_SOCKET" ]]; then
   echo "FOUNDRY_COMPAT_S2: store_service socket not ready"; cat "$S2_STORE_LOG"; exit 1
@@ -228,20 +310,22 @@ for disk in capsule.get("artifact_disks", []):
 PY
 
 # Launch via the runtime_supervisor → compat_runner path.
-cargo run -p runtime_supervisor -- \
+mkdir -p "$(dirname "$log")"
+rm -f "$log" # Clear the actual serial-log path, not the unused out/logs path.
+"$S2_SUPERVISOR_BIN" \
   --plan "$plan_path" \
   --installed-root "$installed_root" \
   --store-socket "$S2_STORE_SOCKET" \
   --compat-log-path "$compat_log_rel" >"$sup_log" 2>&1 &
 
-pid=$!
+S2_SUPERVISOR_PID=$!
 if ! wait_for_log "$log" 15; then
-  kill "$pid" >/dev/null 2>&1 || true
-  wait "$pid" >/dev/null 2>&1 || true
-  assert_log "$log"
+  assert_log "$log" || true
+  echo "FOUNDRY_COMPAT_S2: serial markers not ready within 15 seconds" >&2
+  exit 1
 fi
 
-kill "$pid" >/dev/null 2>&1 || true
-wait "$pid" >/dev/null 2>&1 || true
+finish_owned
 
 echo "FOUNDRY_COMPAT_S2: ok"
+echo "FOUNDRY_COMPAT_S2: evidence_dir=$S2_RUN_DIR"

@@ -50,6 +50,17 @@
   no target desktop or device behavior.
 
 ### Fixed
+- Own and bound Store/supervisor teardown in the compatibility gate, enabling
+  SIGTERM child kill/reap and reporting forced or unproved cleanup as `UNKNOWN`.
+  Require all three fresh serial markers independently; missing either of the
+  first two now rejects. Share strict completed-Cargo executable selection with
+  Store S0. Seven Linux private process regressions use actual services and held
+  pidfds, preserving an unrelated process. Real Store/compatibility VM gates and
+  strict Linux preflight pass; no owned QEMU remains after accepted teardown.
+- Coordinate the two fresh executable-script validator test fixtures after
+  reproducing parallel `Command::spawn` failures with `ETXTBSY`. The test-only
+  mutex preserves production code, budgets and every original assertion;
+  thirty ordinary two-test runs pass after independent review.
 - Moved Store S0 smoke-gate compilation before its unchanged ten-second server
   readiness budget. Launch the unique non-test executable from strict successful
   Cargo build output, retaining actual server PID cleanup and all task assertions.

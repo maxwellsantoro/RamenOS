@@ -130,6 +130,11 @@ mod tests {
     use artifact_store_schema::agent_task::ExecutionBudgetV0;
     use kernel_api::agent_task_protocol::*;
     use std::os::unix::fs::PermissionsExt;
+    // Parallel fork/exec can briefly inherit the other fixture's writable script
+    // descriptor before CLOEXEC closes it, making a fresh script ETXTBSY. Keep
+    // these fixture write/launch windows disjoint; supervision stays concurrent
+    // in production, with every timeout and cleanup assertion unchanged.
+    static SCRIPT_PROCESS_FIXTURE: std::sync::Mutex<()> = std::sync::Mutex::new(());
     fn job() -> ValidatorJobV0 {
         ValidatorJobV0 {
             schema_version: 1,
@@ -154,6 +159,7 @@ mod tests {
     }
     #[test]
     fn stalled_worker_input_or_compiler_is_killed_with_owned_descendants() {
+        let _fixture = SCRIPT_PROCESS_FIXTURE.lock().unwrap();
         let (dir, path) = script("sleep 30 &\necho $! > \"$0.pid\"\nwait");
         let start = Instant::now();
         assert_eq!(supervise(&path, &job()).unwrap_err(), STATUS_TIMEOUT);
@@ -176,6 +182,7 @@ mod tests {
     }
     #[test]
     fn oversized_and_forged_worker_results_cannot_validate() {
+        let _fixture = SCRIPT_PROCESS_FIXTURE.lock().unwrap();
         let (_dir, path) = script("cat >/dev/null; printf '%100000s' x");
         assert_eq!(supervise(&path, &job()).unwrap_err(), STATUS_CAPACITY);
         let (_dir, path) = script(

@@ -51,12 +51,19 @@ barriers and live save-admission state prepare the 13 RED assertions.
 Executable editor assertions and handlers remain pending.
 The Oracle packet adds no capture or runtime evidence.
 
-Strict Linux preflight passes for the integrated editor-wire/Store-startup
-revision `a369b18`, including the 17-case boot admission and 17-case existing
-desktop launch gates. Its isolated checkout matched the accepted source exactly.
-The compatibility gate still left an owned QEMU process, stopped by the
-coordinator after verifying its image/log paths; supervisor termination and
-gate cleanup have a separate regression packet in progress.
+Strict Linux preflight passes with the reviewed compatibility cleanup correction,
+including the 17-case boot admission and 17-case existing desktop launch gates.
+The compatibility gate launches built Store/supervisor executables, handles
+SIGTERM through the supervisor's child kill/reap path, and bounds teardown of
+its own jobs. Forced or unproved shutdown fails with `UNKNOWN`. The real Store
+and compatibility VM gates pass with all three serial markers and no remaining
+owned QEMU process. `just foundry-compat-cleanup-s2` adds seven Linux private
+process regressions, including interruption and missing-marker denials, with
+unrelated-process survival checked through held pidfds. These regressions use
+an ordinary process stand-in; they do not supply VM or general containment proof.
+Test-only coordination of freshly written validator scripts also removes a
+reproduced parallel-spawn `ETXTBSY` race without changing production supervision
+or its timeout, result and descendant-cleanup assertions.
 
 ## Implemented foundations and their boundaries
 
