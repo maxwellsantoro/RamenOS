@@ -16,7 +16,10 @@ across restart requires real persistence. These are future acceptance goals;
 ## Ready work front
 
 **Now:** register the accepted UI0 design's first executable host launch contract
-and initial failing assertions, alongside remaining SW0 controls. UI0 design and
+and initial failing assertions, alongside remaining SW0 controls. The SW-A packet, including the finite nine-point
+named Python-consumer canary witness, passed both affected Linux/Docker authority
+gates; broader host/deputy and
+continuous authority work remains. UI0 design and
 portable synthetic accounting are reviewed; combined Linux evaluator/reconciliation
 integration passed. Physical H0–H3 await hardware setup; no live capture
 or actuation is scheduled. The packets below need no model calls or physical actuation.
@@ -31,7 +34,7 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
 | UI1.0 / coordinator then interaction worker | Coordinator registers `desktop_session_v1` IDL/bindings and a host launch gate; worker owns exact assigned files under new `services/desktop/` | [Accepted UI0 design](docs/plans/desktop-v0.md), existing typed IPC; real non-rendering host witness | Freeze exact preview/confirmation/status/lifetime wire fields, rights and authenticated fixture route. Write useful launch, denial, cancellation, stale-plan, expiry/revocation and fault/restart assertions before handlers; run the witness against typed enforcing host adapters. This excludes editor, surfaces, Store and target execution; proposed gate names remain unregistered. |
-| SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Close one named host-client/deputy/unexercised or lifetime gap with real backend probes; preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
+| SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |
 
 Check each worker's environment before dispatch. SW-A completion and full SW-E

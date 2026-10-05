@@ -5,6 +5,8 @@ import argparse
 import base64
 import hashlib
 import json
+import os
+import secrets
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,8 +17,46 @@ from evaluator_session import Session
 from evaluator_controls_gate import private_write, binary_sha
 from lifecycle_ledger import encoded
 from ls_transactions import LinuxShellTask
-from requestable_authority import consume, matrix_summary, CATALOG_HASH, RIGHT_TUPLES
+from requestable_authority import consume, matrix_summary, host_canary_summary, CATALOG_HASH, RIGHT_TUPLES
 from authority_manifest import UNIVERSE, UNIVERSE_HASH
+
+HOST_CANARY_PROBE = """
+import errno
+import hashlib
+import os
+canary_rows = []
+def canary_actor(arm):
+    # This actor is the process actually calling the backend, not its adapter.
+    return dict(role='contained-python-shell-consumer' if arm == 'LS'
+                 else 'trusted-python-evaluator-host-consumer',
+                 pid=os.getpid(), uid=os.getuid(), gid=os.getgid(),
+                 namespaces={kind: os.readlink('/proc/self/ns/' + kind)
+                             for kind in ('mnt', 'pid', 'net')})
+def canary_observation(path, arm, phase):
+    record = dict(schema_version=1, arm=arm, phase=phase, actor=canary_actor(arm),
+                  backend_case={'before_expiry': 'short_read',
+                                'after_expiry': 'expired_first_read',
+                                'after_revocation': 'revoked_renewed_read'}[phase])
+    try:
+        with open(path, 'rb') as stream:
+            data = stream.read(129)
+    except OSError as error:
+        if arm != 'LS' or error.errno not in (errno.ENOENT, errno.EACCES, errno.EPERM):
+            raise
+        record.update(outcome='blocked', content_sha256=None, denial_errno=error.errno)
+    else:
+        if arm == 'LS' or not 0 < len(data) <= 128:
+            raise AssertionError('unmounted canary probe unexpectedly readable or malformed')
+        record.update(outcome='allowed', content_sha256=hashlib.sha256(data).hexdigest(),
+                      denial_errno=None)
+    return record
+"""
+
+# Share the identical probe implementation with the contained LS script.
+_probe_namespace = {}
+exec(HOST_CANARY_PROBE, _probe_namespace)
+canary_observation = _probe_namespace['canary_observation']
+canary_actor = _probe_namespace['canary_actor']
 
 LS_LIFETIME_PROBE = """
 import sys
@@ -24,6 +64,7 @@ fd = None
 direct = []
 def extra(phase):
     global fd
+    canary_rows.append(canary_observation(canary_path, 'LS', phase))
     if phase == 'before_expiry':
         fd = os.open('/inputs/config.json', os.O_RDONLY)
         return
@@ -126,7 +167,7 @@ def check_trace(result, checks, fixture):
     )
 
 
-def run_case(args, arm, fixture, root, kind, masks, policy, descriptions):
+def run_case(args, arm, fixture, root, kind, masks, policy, descriptions, canary_path):
     store = root / "store"
     candidate = root / "candidate"
     if arm == "LS":
@@ -137,11 +178,14 @@ def run_case(args, arm, fixture, root, kind, masks, policy, descriptions):
             + "\n"
             + consumer
             + "\n"
+            + HOST_CANARY_PROBE
+            + "\ncanary_path=" + repr(str(canary_path)) + "\n"
             + LS_LIFETIME_PROBE
             + (
                 "bootstrap=json.loads(Path('/task/bootstrap.json').read_bytes())\n"
                 f"result=consume(shell_call,bootstrap,{kind!r},{masks!r},{policy},extra=extra)\n"
                 "result['direct_lifetime_observations']=direct\n"
+                "result['host_consumer_canary_observations']=canary_rows\n"
                 "Path('/candidate/gate-result.json').write_text(json.dumps(result))\nprint('done')\n"
             )
         )
@@ -215,7 +259,14 @@ def run_case(args, arm, fixture, root, kind, masks, policy, descriptions):
                 checks[request["schema_version"]][1].validate(reply)
                 return reply
 
-            result = consume(call, session.bootstrap, kind, masks, policy)
+            canary_rows = []
+
+            def extra(phase):
+                canary_rows.append(canary_observation(str(canary_path), arm, phase))
+
+            result = consume(call, session.bootstrap, kind, masks, policy,
+                             extra=extra if kind == "lifetime" else None)
+            result["host_consumer_canary_observations"] = canary_rows
             session.finish(
                 "Finite probes complete; ambient and continuous authority remain unknown"
             )
@@ -240,8 +291,18 @@ def main():
     assert {t for tuples in RIGHT_TUPLES.values() for t in tuples} <= set(UNIVERSE)
     reports = {}
     artifacts = {}
+    canary_observations, lifetime_traces = [], {}
     with tempfile.TemporaryDirectory(prefix="ramenos-requestable-") as temporary:
         temp = Path(temporary)
+        canary_root = temp / "unmounted-host-private"
+        canary_root.mkdir(mode=0o700)
+        canary_path = canary_root / secrets.token_hex(16)
+        canary_bytes = ("ramenos-host-consumer-canary:" + secrets.token_hex(32)).encode()
+        private_write(canary_path, canary_bytes)
+        assert canary_root.stat().st_mode & 0o077 == 0
+        assert canary_path.stat().st_mode & 0o077 == 0
+        assert canary_path.stat().st_uid == os.geteuid()
+        canary_sha256 = digest(canary_bytes)
         narrow = temp / "narrow-fixture"
         shutil.copytree(args.fixture, narrow)
         policy_json = json.loads((narrow / "policy.json").read_bytes())
@@ -265,11 +326,31 @@ def main():
                 root.mkdir()
                 fixture = args.fixture if policy == 31 else narrow
                 result, runtime, journal = run_case(
-                    args, arm, fixture, root, kind, masks, policy, descriptions
+                    args, arm, fixture, root, kind, masks, policy, descriptions, canary_path
                 )
                 rows[policy].extend(result["rows"])
+                # Assert the canary is outside every actual inspected worker/
+                # shell bind mount, including validator and broker/task mounts.
+                for run in journal.get("runs", []):
+                    for mount in run.get("mounts", []):
+                        assert not canary_path.resolve().is_relative_to(Path(mount["Source"]).resolve())
+                if kind == "lifetime":
+                    observations = result["host_consumer_canary_observations"]
+                    # Compare the recorded actor with this actual consumer, not
+                    # with the separately launched adapter/broker process.
+                    if arm != "LS":
+                        actual_actor = canary_actor(arm)
+                        assert all(r["actor"] == actual_actor for r in observations)
+                    else:
+                        assert all(r["actor"]["uid"] == r["actor"]["gid"] == 65534
+                                   for r in observations)
+                        assert all(r["actor"]["namespaces"][kind] != os.readlink("/proc/self/ns/" + kind)
+                                   for r in observations for kind in ("mnt", "pid", "net"))
+                    canary_observations.extend(observations)
+                    lifetime_traces[arm] = result["trace"]
                 name = arm.lower() + "-" + str(n)
                 data = encoded(dict(result=result, runtime=runtime, journal=journal))
+                assert canary_bytes not in data and base64.b64encode(canary_bytes) not in data
                 private_write(args.evidence / (name + ".json"), data)
                 artifacts[name + ".json"] = digest(data)
                 cases.append(
@@ -285,6 +366,7 @@ def main():
                 attenuated=matrix_summary(rows[17], 17),
                 cases=cases,
             )
+        canary_projection = host_canary_summary(canary_observations, canary_sha256, lifetime_traces)
         assert reports["RT"]["full"] == reports["LT"]["full"] == reports["LS"]["full"]
         assert (
             reports["RT"]["attenuated"]
@@ -310,6 +392,7 @@ def main():
         catalog_sha256=CATALOG_HASH,
         authority_universe_sha256=UNIVERSE_HASH,
         catalog=RIGHT_TUPLES,
+        host_consumer_file_lifetime=canary_projection,
         arms=reports,
         artifacts_sha256=artifacts,
         binaries_sha256=dict(
@@ -331,9 +414,11 @@ def main():
         model_trial=False,
         target_kernel_enforcement=False,
     )
-    private_write(args.evidence / "report.json", encoded(report))
+    report_bytes = encoded(report)
+    assert canary_bytes not in report_bytes and base64.b64encode(canary_bytes) not in report_bytes
+    private_write(args.evidence / "report.json", report_bytes)
     print(
-        "Requestable authority: PASS 31 subsets x 2 policies x 3 arms; single-right effects and expiry/renewal/revocation points; whole authority unknown"
+        "Requestable authority: PASS 31 subsets x 2 policies x 3 arms; single-right effects, lifetime points and named Python-consumer canary observation; whole authority unknown"
     )
 
 

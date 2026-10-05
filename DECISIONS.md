@@ -1213,3 +1213,23 @@ Incomplete usage cannot certify the declared ceiling. This is deterministic
 offline accounting, not a statistical study freeze, provider attestation,
 invoice or authority to spend. Actual provider capture/supervision and independent
 private-bank/funded-run controls remain prerequisites for model collection.
+
+## 2026-10-04 — Attribute finite host-file authority to the consumer process
+
+Measure one unrelated owner-only canary at three lifetime points for each arm.
+RT/LT observations name the actual trusted Python evaluator/host consumer that
+issues Session calls; LS observations name the contained Python consumer. Actual
+PID/UID/GID and mount/PID/network namespace identities bind those actors. The
+canary lives outside inspected task mounts and retained evidence contains only
+its hash or recognized denial errno.
+
+Bind the accompanying successful and denied reads to the issued/revoked handles,
+exact generations and the same logical resource, including a successful renewed
+read. Independent review found that mismatched handles or resources could otherwise
+attribute an ordinary scope denial to a lifetime transition; negative regressions
+now reject those traces.
+
+This is a finite observation of consumer authority, not adapter or model-interface
+authority. The Linux/Docker gates pass, while whole-authority inclusion, continuous
+lifetime certification, noninterference, target enforcement and full A2 remain
+unproved. It grants no spending or provider-collection authority.

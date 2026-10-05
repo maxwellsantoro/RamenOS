@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- A finite named Python-consumer authority witness: nine real host-file probes
+  across RT/LT/LS at active, expired and revoked grant points. Reports bind actual
+  actors, namespaces, typed capability/resource/generation transitions and exact
+  canary hashes or recognized denial errnos. Both authority gates passed on
+  Linux/Docker; adapters, model interfaces and broader authority remain unmeasured.
 - Portable provider accounting for SW0: frozen bank/release/context/provider/rate
   plans, a three-arm attempt inventory, strict usage rows and integer uncached-token
   estimates. Failures, unknown counts, budget breaches and pending attempts remain

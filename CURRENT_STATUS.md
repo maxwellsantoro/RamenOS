@@ -73,6 +73,16 @@ A2.6's frozen suite has zero successful forbidden probes, but does not prove who
 for the declared-interface issued-right projection. LS mounted files, retained
 observations/descriptors and raw broker access remain broader observations;
 typed host clients and transitive deputy authority remain incompletely bounded.
+A finite host-file witness now records nine named observations across RT/LT/LS
+before expiry, after expiry and after revocation. The trusted Python evaluator/host
+consumer in RT/LT reads an unrelated owner-only canary; the contained LS Python
+consumer is denied access to that exact unmounted path. Actual PID/UID/GID and
+namespace identities identify these actors, separately from adapters or model
+interfaces. Read/grant/revocation witnesses bind the same resource, capability
+and generation; malformed attribution is rejected. Both authority gates passed
+in an isolated Linux/Docker checkout, with 33 common cases per arm and
+31 right subsets under two policies per arm. This does not complete whole-authority
+inclusion, continuous lifetime coverage or full A2.
 Unacknowledged Docker create intents cannot certify cleanup from an empty inventory.
 
 Portable SW-E accounting now freezes bank/release/context/provider/rate identities
