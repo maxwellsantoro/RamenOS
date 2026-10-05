@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed consumer for nine frozen pure editor-save schema assertions."""
+"""Fail-closed consumer for seven frozen pure NativePreview shared-data codec assertions."""
 import argparse
 import hashlib
 import json
@@ -12,32 +12,31 @@ import subprocess
 import tempfile
 import time
 
-GATE = "foundry-editor-save-schema-ui1-1b"
+GATE = 'foundry-editor-native-preview-codec-ui1-1c'
 LIMIT = 1024 * 1024
 REQUIRED = (
-    "editor_save_identity_binding_and_bounds_are_explicit",
-    "editor_text_header_has_exact_le_layout_and_ascii_consumption",
-    "editor_receipt_exact_176_bytes_and_every_bound_identity",
-    "editor_permit_payload_cannot_wrap_successor_or_change_binding",
-    "editor_journal_canonical_digest_and_json_denials",
-    "editor_journal_retains_sixteen_allocation_records_and_rejects_seventeenth",
-    "editor_journal_active_reservation_counts_submitted_and_retired_permits",
-    "editor_journal_selection_and_receipt_are_one_replayed_transition",
-    "editor_journal_counter_identity_and_state_shape_fail_closed",
+    'preview_schema2_golden_layout_and_phases',
+    'preview_schema2_lengths_version_constants_reserved',
+    'preview_schema2_phase_and_identity_denials',
+    'preview_schema2_resource_epoch_expiry_bindings',
+    'preview_schema2_checked_handle_parts',
+    'chrome_current_golden_layout_and_denials',
+    'shared_codec_pure_binding_and_version_boundary',
 )
 FROZEN = {
-    "artifact_store_schema/src/editor_save.rs": "2691ded3b4c7be79f7e25c380c63367e1a5d9151811c931e49c1203745564f85",
-    "artifact_store_schema/src/lib.rs": "c12d228299c4fa1b88729a76ad5d0d3cebd4b458ab3973ea9605eb6af5322491",
-    "artifact_store_schema/tests/editor_save.rs": "c3d7d70264eba5aea1510ade9452505738efd4a4cb3c58353d91b8f4df162c63",
-    "docs/DESKTOP_EDITOR_STORE_API_V0.md": "27d88ca3e1ee3487ff1354af0088e80727aae3df1ca9e74f65b3931667a99c00",
+    'artifact_store_schema/src/editor_save.rs': '2691ded3b4c7be79f7e25c380c63367e1a5d9151811c931e49c1203745564f85',
+    'artifact_store_schema/src/lib.rs': 'c12d228299c4fa1b88729a76ad5d0d3cebd4b458ab3973ea9605eb6af5322491',
+    'artifact_store_schema/src/editor_preview.rs': 'a4047a0730d7bf2f373a3ffd6ae8d3a21f7fe4366422e366907b3c55f745fa8d',
+    'artifact_store_schema/tests/editor_preview_codec.rs': '49b407039ce295fc920f679eef50da0487edb7990572bcdc8afe576acb73852b',
+    'docs/contracts/editor-native-preview-codec-v0.json': '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325a32249',
 }
 CARGO_TEST = ["cargo", "test", "-p", "artifact_store_schema", "--no-default-features",
-              "--features", "std", "--test", "editor_save"]
+              "--features", "std", "--test", "editor_preview_codec"]
 COMMANDS = {
-    "consumer-self-test.log": ["python3", "tools/ci/editor_save_schema_result.py", "--self-test"],
+    "consumer-self-test.log": ["python3", "tools/ci/editor_native_preview_codec_result.py", "--self-test"],
     "no-std.log": ["cargo", "check", "-p", "artifact_store_schema", "--no-default-features"],
     "std-clippy.log": ["cargo", "clippy", "-p", "artifact_store_schema", "--no-default-features",
-                       "--features", "std", "--test", "editor_save", "--", "-D", "warnings"],
+                       "--features", "std", "--test", "editor_preview_codec", "--", "-D", "warnings"],
     "build.jsonl": CARGO_TEST + ["--no-run", "--message-format=json"],
     "cases.log": CARGO_TEST + ["--", "--list"],
     "tests.log": CARGO_TEST + ["--", "--test-threads=1"],
@@ -64,6 +63,11 @@ def text(path):
 
 
 def check_sources():
+    # Root must freeze these two actual source pins after the reviewed codec exists.
+    # None is deliberately not admission: do not derive expected hashes from the checkout.
+    for name, expected in FROZEN.items():
+        require(type(expected) is str and re.fullmatch(r"[0-9a-f]{64}", expected) is not None,
+                "unresolved/noncanonical frozen source pin: " + name)
     for name, expected in FROZEN.items():
         require(sha_file(name) == expected, "frozen source mismatch: " + name)
 
@@ -71,20 +75,20 @@ def check_sources():
 def check_list(path):
     log = text(path)
     listed = re.findall(r"^(.+): (test|benchmark)$", log, re.MULTILINE)
-    require(len(listed) == 9 and {n for n, _ in listed} == set(REQUIRED)
+    require(len(listed) == 7 and {n for n, _ in listed} == set(REQUIRED)
             and all(kind == "test" for _, kind in listed), "wrong/duplicate/extra assertion inventory")
-    require(re.findall(r"^(\d+) tests, (\d+) benchmarks$", log, re.MULTILINE) == [("9", "0")],
+    require(re.findall(r"^(\d+) tests, (\d+) benchmarks$", log, re.MULTILINE) == [("7", "0")],
             "missing/ambiguous list summary")
 
 
 def check_tests(path):
     log = text(path)
     outcomes = re.findall(r"^test (.+) \.\.\. (\S+)$", log, re.MULTILINE)
-    require(len(outcomes) == 9 and {n for n, _ in outcomes} == set(REQUIRED)
+    require(len(outcomes) == 7 and {n for n, _ in outcomes} == set(REQUIRED)
             and all(state == "ok" for _, state in outcomes), "absent/extra/skipped/failed assertions")
-    require(re.findall(r"^running (\d+) tests$", log, re.MULTILINE) == ["9"], "wrong run count")
+    require(re.findall(r"^running (\d+) tests$", log, re.MULTILINE) == ["7"], "wrong run count")
     summaries = re.findall(r"^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out; finished in [0-9.]+s$", log, re.MULTILINE)
-    require(summaries == [("9", "0", "0", "0", "0")], "missing/truncated/ambiguous test summary")
+    require(summaries == [("7", "0", "0", "0", "0")], "missing/truncated/ambiguous test summary")
     return [name for name, _ in outcomes]
 
 
@@ -183,32 +187,35 @@ def result(evidence):
     require(len(finished) == 1 and finished[0].get("success") is True
             and rows[-1].get("reason") == "build-finished", "build failed/truncated")
     binaries = [row for row in rows if row.get("reason") == "compiler-artifact"
-                and row.get("target", {}).get("name") == "editor_save"
+                and row.get("target", {}).get("name") == "editor_preview_codec"
                 and row.get("target", {}).get("kind") == ["test"] and row.get("profile", {}).get("test") is True
-                and row.get("target", {}).get("src_path") == str(Path("artifact_store_schema/tests/editor_save.rs").resolve())
+                and row.get("target", {}).get("src_path") == str(Path("artifact_store_schema/tests/editor_preview_codec.rs").resolve())
                 and "std" in row.get("features", []) and row.get("executable")]
     require(len(binaries) == 1, "missing/ambiguous std acceptance executable")
     binary = Path(binaries[0]["executable"])
     require(binary.is_file() and binary.stat().st_size > 0, "acceptance executable missing/empty")
     sources = set(FROZEN) | {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "artifact_store_schema/Cargo.toml",
-                            "tools/ci/editor_save_schema_result.py", "tools/ci/foundry_editor_save_schema_ui1_1b.sh"}
-    sources.update(str(p) for p in Path("artifact_store_schema/src").rglob("*.rs"))
-    return dict(schema_version=1, gate=GATE, outcome="PASS", scope="pure-editor-save-payload-schema",
+                            "tools/ci/editor_native_preview_codec_result.py", "tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh"}
+    sources.update(str(p) for p in Path("artifact_store_schema").rglob("*.rs"))
+    sources.add("docs/contracts/editor-native-preview-read-v0.json")
+    return dict(schema_version=1, gate=GATE, outcome="PASS", scope="pure-editor-native-preview-data-codec",
                 required_cases=list(REQUIRED), executed_cases=executed, filtered_tests=0,
                 frozen_source_sha256=FROZEN, source_sha256={p: sha_file(p) for p in sorted(sources)},
                 test_executable_sha256=sha_file(binary),
                 command_evidence=records, artifact_sha256={p.name: sha_file(p) for p in sorted(evidence.iterdir())},
                 no_std_warning_count=len(re.findall(r"^warning:", logs["no-std.log"], re.MULTILINE)),
-                claims={name: False for name in ("store_io", "capability_enforcement", "store_transaction_runtime",
-                                                "store_b_gate_accepted", "durable_receipt", "device_backed_io",
+                claims={name: False for name in ("service_authority", "current_clock", "store_io",
+                                                "capability_enforcement", "store_transaction_runtime",
+                                                "store_b_gate_accepted", "save", "durable_receipt",
+                                                "runtime", "actual_oldconsumer_schema2", "device_backed_io",
                                                 "target_kernel", "hostile_containment")})
 
 
 def self_test():
-    listing = "".join(name + ": test\n" for name in REQUIRED) + "\n9 tests, 0 benchmarks\n"
-    testing = "running 9 tests\n" + "".join("test " + name + " ... ok\n" for name in REQUIRED)
-    testing += "\ntest result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n"
-    with tempfile.TemporaryDirectory(prefix="ramen-editor-schema-consumer-") as tmp:
+    listing = "".join(name + ": test\n" for name in REQUIRED) + "\n7 tests, 0 benchmarks\n"
+    testing = "running 7 tests\n" + "".join("test " + name + " ... ok\n" for name in REQUIRED)
+    testing += "\ntest result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n"
+    with tempfile.TemporaryDirectory(prefix="ramen-editor-native-preview-codec-consumer-") as tmp:
         path = Path(tmp) / "fixture.log"
         path.write_text(listing)
         check_list(path)
@@ -219,7 +226,7 @@ def self_test():
                     (listing.replace(REQUIRED[0], REQUIRED[1]), check_list),
                     (testing.replace(" ... ok", " ... ignored", 1), check_tests),
                     (testing.replace(" ... ok", " ... FAILED", 1), check_tests),
-                    (testing.replace("9 passed; 0 failed", "8 passed; 1 failed"), check_tests),
+                    (testing.replace("7 passed; 0 failed", "6 passed; 1 failed"), check_tests),
                     (testing + "test foreign ... ok\n", check_tests)]
         for data, consumer in negative:
             path.unlink(missing_ok=True)

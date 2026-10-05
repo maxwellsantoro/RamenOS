@@ -3,6 +3,55 @@
 **Last Updated:** 2026-10-05
 **Status:** Active
 
+## 2026-10-05 — Land the pure preview codec before native service consumers
+
+Keep the shared 464-byte preview and 248-byte current-status formats in
+`artifact_store_schema::editor_preview`. Checked packing rejects oversized handle
+parts before packing; logical identities keep their full u64 width. Fixed arrays
+and checked byte access support no-std without IO, allocation or authority.
+Seven gate-first assertion families use independent literal golden bytes and
+whole-input denial mutations. The initial missing-module RED demonstrates API
+absence; passing cases demonstrate canonical data behavior, not service effects.
+The old schema1 client guard remains static review evidence.
+
+Register the pure gate in extended Foundry and expand the affected native Read
+source registry to include the new compiled module and contracts. Preserve the
+existing save-schema and Read assertions. Full Linux validation uses the
+serialized Rust test profile and retains its actual dependency lock separately
+from Mac; Cargo.lock is ignored and the source archive alone did not pin it.
+Future source assemblies must explicitly include that input. The first preflight
+failed at an existing sandbox cleanup check. Its partial record confirms container
+creation and removal not confirmed, with invocation and cleanup around ten seconds;
+it does not retain detailed cleanup CLI outcomes. A fresh focused run and subsequent
+complete preflight passed with no source change; this does not diagnose the initial
+failure or establish general cleanup
+reliability. Frozen contract objects retain their creation-stage metadata, while
+CURRENT_STATUS.md records implementation progress.
+
+## 2026-10-05 — Freeze native Store preview Read before the Save bridge
+
+Use a bounded Read-only precursor to connect actual keyboard approval, current
+Store selection and protected chrome before introducing the live Save ledger.
+The [API contract](docs/contracts/editor-native-preview-read-v0.json) retains
+five current cases and the eight planned identities; the Save, recovery and IO2
+legs remain explicit dependencies. This preparation grants no runtime evidence.
+
+Actual accepted input produces opaque one-use tickets. A Selector deadline bounds
+Prepare, and a separate fresh Approval deadline bounds activation and delivery.
+Successful delivery occurs under the Desktop State/Gate lock; subsequent pairing
+borrows the launch holder until same-row Store validation succeeds. Foreign
+denial preserves the rightful holder. Consumed setup expiry alone does not revoke
+an already delivered instance, whose original configured lifetime still applies.
+Each Read additionally retains its original entry deadline.
+
+The [pure codec contract](docs/contracts/editor-native-preview-codec-v0.json)
+defines strict fixed-size shared data separately from the unchanged generated
+352/368 messages. Pure records cannot prove issuer, current epoch, time or IO
+authority. Canonical packed handle widths do not truncate logical generations.
+The existing actor remains non-Copy; the new status record does not alter it.
+The old client's schema guard is static review evidence until an actual consumer
+run establishes more. Gate-first assertions precede codecs and service handlers.
+
 ## 2026-10-04 — Recover StoreClient transports without replaying uncertain effects
 
 Use one socket-configuration path for initial and replacement Store connections.

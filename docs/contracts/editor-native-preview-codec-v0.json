@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "packet": "UI1.1c-native-Store-preview-pure-codec-prerequisite",
+  "status": "FROZEN_PURE_DATA_CONTRACT_NOT_IMPLEMENTED",
+  "frozen": true,
+  "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+  "assertions_authorized": true,
+  "implementation_authorized": false,
+  "resources_authorized": false,
+  "scope": "Pure fixed-size no_std-capable codec prerequisite. Shared schema2 grants464 and current NoSave/Unavailable status248. Records and bytes confer no authority, IO, current epoch, time or publication proof. Existing generated352/368 unchanged.",
+  "precedence": "Use embedded reviewed_proposal with exact coordinator_amendments overriding corresponding Chrome derives and seventh-family evidence scope. All current technical definitions are embedded; scratch pins retain local coordination provenance only.",
+  "reviewed_proposal": {
+    "schema_version": 1,
+    "status": "DRAFT_PURE_SHARED_CODEC_CONTRACT_NOT_FROZEN",
+    "implementation_authorized": false,
+    "assertions_authorized": false,
+    "runtime_authorized": false,
+    "proposal_dependency": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3.json",
+      "bytes": 28112,
+      "sha256": "e03997a80b7f4ecf453ab861e00d727c8ac63800fde9cee9c6897d0022d9e70e"
+    },
+    "source_basis": [
+      {
+        "path": "services/desktop/src/editor_dev/host.rs",
+        "bytes": 123324,
+        "sha256": "dc8941134f8578fc858b1b555f66419d0075844833acd3ed52741d8f3c191783"
+      },
+      {
+        "path": "services/desktop/src/editor_dev/client.rs",
+        "bytes": 36089,
+        "sha256": "8c9a0f1718ece83dbf74619a6e65797f66928118a0778a094770d91087412720"
+      },
+      {
+        "path": "artifact_store_schema/src/editor_save.rs",
+        "bytes": 32367,
+        "sha256": "2691ded3b4c7be79f7e25c380c63367e1a5d9151811c931e49c1203745564f85"
+      },
+      {
+        "path": "artifact_store_schema/src/lib.rs",
+        "bytes": 3815,
+        "sha256": "6357098f56c5cf649f5d385c660cb798930f0a2750997830e4b742264d14b89a"
+      },
+      {
+        "path": "artifact_store_schema/Cargo.toml",
+        "bytes": 933,
+        "sha256": "eebf6c64596142f94829e130eca14c2212d8dc9ddafe1a6b48940877a5da1daa"
+      },
+      {
+        "path": "kernel_api/src/lib.rs",
+        "bytes": 51334,
+        "sha256": "9b531529e25864715e6c3b491ee42d5c7d7f7796c332fd1962cf7ad39bc11918"
+      },
+      {
+        "path": "idl/portals/desktop_editor_session_v1.toml",
+        "bytes": 4711,
+        "sha256": "46899abfc2cb1cbac082092bd4ea0330583f5944607ab12514c912fc3095ea9e"
+      },
+      {
+        "path": "idl/portals/desktop_artifact_v1.toml",
+        "bytes": 3045,
+        "sha256": "086975e79802cb95502cd7d92593085e8c27fe32a6e804e4cd4547efbd9a7a47"
+      }
+    ],
+    "placement": {
+      "module": "artifact_store_schema::editor_preview",
+      "new_source_proposal": "artifact_store_schema/src/editor_preview.rs",
+      "exports": "Root owns pub mod editor_preview in lib.rs; no change to kernel_api or generated352/368.",
+      "dependencies": "core-only fixed-array codecs; existing EditorActorV0/Hash32 records may be reused. No new dependency/IO/kernel internals/Store or Desktop import/authority carrier. Compatible no_std; codecs require no heap, serde, hashing, registry or clock. Plain records confer no authority.",
+      "consumers": "Future NPR Desktop encoder/strict shared-data consumer and Store status producer; old schema1/volatile client remains unchanged and rejects schema2. Gate-first pure assertions precede source; no implementation here."
+    },
+    "constants": {
+      "PREVIEW_SCHEMA_VERSION": 2,
+      "PREVIEW_DATA_LEN": 464,
+      "PREVIEW_RECORD_COUNT": 4,
+      "PREVIEW_CATEGORY_MASK": 63,
+      "CHROME_SCHEMA_VERSION": 1,
+      "CHROME_STATUS_LEN": 248,
+      "MAX_TEXT_LEN": 4096,
+      "SURFACE_WIDTH": 640,
+      "SURFACE_HEIGHT": 480,
+      "SURFACE_STRIDE": 2560,
+      "SURFACE_FORMAT": 1,
+      "INPUT_CAPACITY": 64,
+      "DATA_PROTOCOL_VERSION": 1,
+      "COMPOSED_WIDTH": 640,
+      "COMPOSED_HEIGHT": 568,
+      "APP_TOP": 48,
+      "APP_BOTTOM": 528
+    },
+    "public_types": {
+      "derives": "All following enums/records Clone,Copy,Debug,PartialEq,Eq. Public data fields, no authority constructors/role setters. No repr(C) byte casting or generated shared structures. Serde is unnecessary for this codec prerequisite; binary methods establish canonical data only.",
+      "error": "pub enum EditorPreviewErrorV0 { Length, Version, Reserved, Constants, Phase, Identity, Handle, Resource, Epoch, Expiry, State } ; impl core::fmt::Display; std::error::Error only #[cfg(feature=\"std\")]. Not a protocol Status; service maps it explicitly.",
+      "phase": "pub enum EditorPreviewPhaseV0 { Preview=0, Active=1 } ; not an added wire field. Inferred from co-zero/co-positive instance_id/generation; stored in pure record and verified on encode.",
+      "class": "pub enum EditorPreviewClassV0 { SelfStatus=1, FocusRead=2, Surface=3, StoreRead=4 } ; exact order required in four records.",
+      "record": "pub struct EditorPreviewGrantV0 { pub handle:u64, pub resource_id:u64, pub resource_generation:u64, pub service_epoch:u64, pub expires_at_ms:u64, pub class:EditorPreviewClassV0, pub rights:u32, pub protocol_version:u32, pub reserved:u32 }",
+      "header": "pub struct EditorPreviewDataV0 { pub phase:EditorPreviewPhaseV0, pub schema_version:u32, pub total_len:u32, pub category_mask:u32, pub record_count:u32, pub session_id:u64, pub session_generation:u64, pub instance_id:u64, pub instance_generation:u64, pub selected_object_id:u64, pub selected_object_generation:u64, pub selected_revision:u64, pub policy_revision:u64, pub plan_id:u64, pub preview_revision:u64, pub expires_at_ms:u64, pub desktop_service_epoch:u64, pub application_hash:[u8;32], pub manifest_hash:[u8;32], pub selected_content_hash:[u8;32], pub max_text_len:u32, pub surface_width:u32, pub surface_height:u32, pub surface_stride:u32, pub surface_format:u32, pub input_capacity:u32, pub protocol_version:u32, pub reserved:u32, pub records:[EditorPreviewGrantV0;4] }",
+      "chrome_state": "pub enum EditorPreviewChromeStateV0 { NoSave=0, Unavailable=4 } ; only these two states are constructible/decodable in current module. Values1/2/3/other reject, no fake future state variants.",
+      "chrome": "pub struct EditorPreviewChromeV0 { pub schema_version:u32, pub total_len:u32, pub state:EditorPreviewChromeStateV0, pub reserved:u32, pub actor:EditorActorV0, pub selected_object_id:u64, pub selected_object_generation:u64, pub current_store_epoch:u64, pub original_backend_epoch:u64, pub operation_id:u64, pub source_handle:u64, pub source_generation:u64, pub expected_revision:u64, pub result_revision:u64, pub attachment_version:u64, pub status_version:u64, pub source_content_hash:[u8;32], pub expected_content_hash:[u8;32], pub receipt_sha256:[u8;32], pub source_body_len:u32, pub tail_reserved:u32 }"
+    },
+    "public_API": {
+      "EditorPreviewDataV0": [
+        "pub fn validate(&self)->Result<(),EditorPreviewErrorV0>;",
+        "pub fn validate_for_phase(&self,expected:EditorPreviewPhaseV0)->Result<(),EditorPreviewErrorV0>;",
+        "pub fn encode_le(&self)->Result<[u8;PREVIEW_DATA_LEN],EditorPreviewErrorV0>;",
+        "pub fn decode_le(bytes:&[u8])->Result<Self,EditorPreviewErrorV0>;",
+        "pub fn decode_le_for_phase(bytes:&[u8],expected:EditorPreviewPhaseV0)->Result<Self,EditorPreviewErrorV0>;"
+      ],
+      "EditorPreviewChromeV0": [
+        "pub fn validate(&self)->Result<(),EditorPreviewErrorV0>;",
+        "pub fn encode_le(&self)->Result<[u8;CHROME_STATUS_LEN],EditorPreviewErrorV0>;",
+        "pub fn decode_le(bytes:&[u8])->Result<Self,EditorPreviewErrorV0>;"
+      ],
+      "functions": [
+        "pub fn encode_ipc_reference(index:u32,generation:u64)->Result<u64,EditorPreviewErrorV0>;",
+        "pub fn decode_ipc_reference(raw:u64)->Result<(u32,u64),EditorPreviewErrorV0>;"
+      ],
+      "limits": "No caller-supplied now_ms or Core/Gate/peer in pure API. No allocation, stream, JSON, file/process/materializer methods. Record.validate cannot authorize. Encode starts [0u8;LEN], writes every field explicitly LE, only returns fully validated array; never modifies caller output on Err."
+    },
+    "wire464": [
+      {
+        "offset": 0,
+        "bytes": 16,
+        "fields": "schema_version,total_len,category_mask,record_count each u32LE",
+        "expected": "2,464,63,4"
+      },
+      {
+        "offset": 16,
+        "bytes": 96,
+        "fields": "session_id,session_generation,instance_id,instance_generation,selected_object_id,selected_object_generation,selected_revision,policy_revision,plan_id,preview_revision,expires_at_ms,desktop_service_epoch each u64LE"
+      },
+      {
+        "offset": 112,
+        "bytes": 96,
+        "fields": "application_hash32,manifest_hash32,selected_content_hash32; opaque exact bytes"
+      },
+      {
+        "offset": 208,
+        "bytes": 32,
+        "fields": "max_text_len,surface_width,surface_height,surface_stride,surface_format,input_capacity,protocol_version,reserved each u32LE",
+        "expected": "4096,640,480,2560,1,64,1,0"
+      },
+      {
+        "offset": 240,
+        "bytes": 224,
+        "fields": "four ordered56-byte records:handle/resource_id/resource_generation/service_epoch/expires_at_ms u64LE at+0/+8/+16/+24/+32; class/rights/protocol_version/reserved u32LE at+40/+44/+48/+52",
+        "expected": "classes1,2,3,4; rights1,1,15,1; protocol_version1; reserved0"
+      }
+    ],
+    "validate464": {
+      "header": "Exact slice464; schema2/total464/categorymask63/count4; eight constants exactly fixed. Session/sessiongen/object/objectgen/selectedrev/policy/plan/previewrev/expires/Desktopepoch positive u64. Instance and instancegen BOTH0 for Preview, BOTHpositive for Active; mixed pair Phase. phase field must agree inferred wire phase. Header has NO owner_id; cannot invent an extra actor field. Hashes exact32 opaque, all-zero hash not structurally rejected or claimed preimage.",
+      "preview": "All four endpoint handle fields0. SelfStatus and FocusRead resource_id/resource_generation BOTH0 equal headerinstance0/instancegen0. Surface resource_id/resource_generation BOTH0. StoreRead resource_id/object_generation exactly positive headerselected_object_id/selected_object_generation. Last record Storeepoch positive; first3 same positive desktop_service_epoch. All four expires exactly header positive expires_at_ms. Zero preview resources are deliberate, not invalid actual objects.",
+      "active": "All four handle fields canonical nonzero IPC references. First2 resource_id/resource_generation equal positive headerinstance/instancegen. Surface resource_id/resource_generation both positive (no header surface field; service checks actual reserved surface). Fourthresource exactly headerpositive selectedobject/objectgen. Epoch and expiry equality same as Preview. Class4 actual Store handle/epoch; not a fourth Desktop endpoint. No global raw-handle uniqueness assumption across separate host registries; services enforce actual peer/class/domain identities.",
+      "handle": "IPC kindbyte1 in bits56..63; reservedbits48..55 zero; slotbits32..47; generationbits0..31 nonzero. encode_ipc_reference rejects index>u16MAX or generation0/>u32MAX BEFORE any casts/masking. decode returns exact widened widths, unknownkind/Shmem/Trace/zero/nonzeroreserved reject Handle. Slot0 is canonical (kernel contract permits it); actual registry lookup, not codec, decides allocation. Preview raw0 is allowed ONLY by phase before calling IPC decoder.",
+      "generations": "Logical session/instance/object/surface/resource generations are positive u64 and bound by equality, not arbitrarily equated to IPC handle generation or narrowed32. Descriptor SHM generation==widened canonical handle generation remains separate service/Text descriptor check. Canonical handle helpers cannot bless a typed oversized value previously truncated outside their API.",
+      "epochs": "First3 records epoch==headerdesktop_service_epoch>0, fourthactualStoreepoch>0. Equal numeric Desktop/Store epochs allowed; equality does not identify same issuer. Header lacks a separate Storeepoch field; fourthrecord is sole serialized Storeepoch. No clock/currentepoch evidence from positivity.",
+      "error_order": "Length(slice/header total), Version, Reserved(fields), Constants(mask/count/fixedlimits/rights/protocol), Phase, Identity(header), Handle, Resource, Epoch, Expiry. Tests mutate one independent property. validate_for_phase performs full structural validate then expected phase comparison. Class raw not1..4/order mismatch Constants. Decode rejects extra tail/truncation before indexing; never read beyond bounds."
+    },
+    "wire248": [
+      {
+        "offset": 0,
+        "bytes": 16,
+        "fields": "schema_version,total_len,state,reserved u32LE",
+        "expected": "1,248,0or4,0"
+      },
+      {
+        "offset": 16,
+        "bytes": 40,
+        "fields": "actor.owner_id,session_id,session_generation,instance_id,instance_generation u64LE"
+      },
+      {
+        "offset": 56,
+        "bytes": 88,
+        "fields": "selected_object_id,selected_object_generation,current_store_epoch,original_backend_epoch,operation_id,source_handle,source_generation,expected_revision,result_revision,attachment_version,status_version u64LE"
+      },
+      {
+        "offset": 144,
+        "bytes": 96,
+        "fields": "source_content_hash32,expected_content_hash32,receipt_sha25632"
+      },
+      {
+        "offset": 240,
+        "bytes": 8,
+        "fields": "source_body_len,tail_reserved u32LE",
+        "expected": "0,0"
+      }
+    ],
+    "validate248": {
+      "current": "Exact248; schema1,total248,zeroreserved/tail. Only state0NoSave or4Unavailable. Full actor fiveIDs/generations positive (same shape EditorActorV0), selectedobject/objectgen/currentStoreepoch/attachmentversion/statusversion positive. original_backend_epoch/operation_id/source_handle/source_generation/expected_revision/result_revision/source_body_len ALL0 and all3hasharrays exactly0. No future Unknown/Committed/Noncommit operation/receipt fake.",
+      "phase_scope": "248 is positive reserved/current/retired instance status, never a fabricated pre-instance actor. Earlier permission preview uses464 metadata; service may render selection-preview labels separately. If root requires248 before an instance exists, explicit different actor rule is required; draft does not silently allow actor0.",
+      "errors": "Length thenVersion thenReserved thenState thenIdentity thenState(nonzero forbidden original fields). No timestamps inside248. No claiming Saved/durable receipt, currentclock/currentCore/version ordering from record alone.",
+      "future": "Adding states1/2/3 requires separately reviewed actualSave ledger/status-entry codec amendment; current encoder/decoder both reject even structurally plausible future receipt bindings. V3 deferred5..7 remain pending."
+    },
+    "gate_first_assertion_matrix": [
+      {
+        "name": "preview_schema2_golden_layout_and_phases",
+        "checks": "Independent explicit LE golden464 bytes, not same encoder-generated expected. Valid Preview zeroresources and Active knownIPCparts; encode/decode exactroundtrip; caller expectedphase mismatch Phase. Selectedhash empty-body SHA valid controls, all-zero opaquehash accepted withoutauthority."
+      },
+      {
+        "name": "preview_schema2_lengths_version_constants_reserved",
+        "checks": "Every prefix length0..463 +465tail reject Length; total463/465 Length; schema0/1/3 Version (schema1 not reinterpret); each4/8fixedconstant/count/mask mutation Constants; every header/record reserved nonzero Reserved. Prior valid bytes still encode/decode unchanged."
+      },
+      {
+        "name": "preview_schema2_phase_and_identity_denials",
+        "checks": "Co-zero Previewpositivecontrol/co-positive Activecontrol; mixed instance/gen, any Preview nonzerohandle/resources, Activezerohandle/resources deny exact Phase/Handle/Resource; each requiredheaderID0 Identity. Strictrecord classorder and rights1/1/15/1 mutations Constants, includingoldArtifact7."
+      },
+      {
+        "name": "preview_schema2_resource_epoch_expiry_bindings",
+        "checks": "Each first2 wronginstance/generation Resource; Previewsurfaceonefieldnonzero Resource; ActivemissingpositiveSurface Resource; fourthwrongobject/gen Resource. First3epoch0/mismatch Epoch; fourthepoch0 Epoch; equalitynumericStore/Desktopepoch positiveallowed. Recordexpiry0/mismatch Expiry; headerexpiry0 Identity. Logicalgeneration>u32MAX positive allowed where not rawhandle."
+      },
+      {
+        "name": "preview_schema2_checked_handle_parts",
+        "checks": "Pure encode canonical slot0 and65535,gen1 andu32MAX; rejects slot65536/u32MAX or gen0/u32MAX+1/u64MAX withHandle beforepack. Rawreservedbit/nonIPCkind/zero/gen0 deniedHandle; valid originalreference unchanged. This doesnot recover oversized typedparts alreadytruncated by foreign Handle::pack."
+      },
+      {
+        "name": "chrome_current_golden_layout_and_denials",
+        "checks": "Independent LEgolden248 eachNoSave/Unavailable withsameactor; allprefix0..247+249tail Length, total!=248 Length; schema!=1 Version; bothreserved mutations Reserved; rawstate1/2/3/5/MAX State; eachrequiredidentity/version0 Identity; everyforbiddenoriginalfield/hashbyte/bodylen nonzero State; authenticrecordstillroundtrips."
+      },
+      {
+        "name": "shared_codec_pure_binding_and_old_consumer_boundary",
+        "checks": "Oldvolatileclient schema1 guardrejects2; newcodec rejectsoldschema1. Pure Current248cannotmintfutureSaved. Structurallyvalidforgedactor/hash/timepassesonlydatachecks; separate serviceauthorityfixturesmustreject liveCore/Gate/owner mismatch. Purecodec no borrowedAuthority/clock/IO; existing352/368 codegen unchanged."
+      }
+    ],
+    "service_checks_not_codec": [
+      "Actual nativeconstructor/Core/registeredGrant/peer/Authority/pin/ticket/Active stamp equality and current owner/object/actor/session/generations; foreign denials preserve rightfulrows. Pure data cannot self-enroll/activate/renew.",
+      "Actual originaleventInstant/logicalticket deadline and pin/preview/instance expiration; readcopy original1000ms/current epoch/liveattachment under Object->Gate->Data. Codec validates positive/equal expiry numbers ONLY.",
+      "Actual manifest/application/content SHA equality and Storecurrentselection journal; positive fixedarrayhash not evidence. Service maps class4 realStorehandle/epoch, first3 realDesktopendpoints, private origin toactualscope; no globalrawhandle equality inference.",
+      "Actual composedcurrentversion/lifecycle proof afterraster beforeConsume/publication; pixelclip/trustedroute; NoSave/Unavailable derived from actualCore, not decoded callerrecord. ActualFault realobjectretirement/Bpositive/producerscharged/joins unchanged."
+    ],
+    "open_or_explicit_interpretations": [
+      "464 has no owner_id or headerStoreepoch or headerSurfaceid: purecodec cannotinvent these. Owner/sourceSurface/actualStoreepoch matches retainednativebindings in services.",
+      "Canonicalslot0 allowed by existingkernelHandle contract, despite currentfixtures starting1. No invented logicalgeneration32cap or nonzerohash constraint.",
+      "Chrome248 pre-instance status excluded; earlierpermissionpreview uses464. Rootmustdecide explicit newactorphase only if required."
+    ],
+    "implementation_order": [
+      "Rootindependentfreeze ofpuretypes/layout/errorstatus mapping; exactgolden/denial assertions authored and actualmissingmoduleRED.",
+      "Single schemawriter implements onlypurecodec; rootlibexport/no_std/std strictchecks and registeredpuregate, consumerhelpersreview independently.",
+      "NPRservicewriter consumes strictrecords whileenforcingactualCore/Gate/originalclocks. No futurestates/authoritydefault/receiptwriter added."
+    ],
+    "claims": {
+      "pure_draft_only": true,
+      "assertions_implementation_runtime": false,
+      "service_authority": false,
+      "Core_Gate_attestation": false,
+      "Store_IO_durability": false,
+      "target_device_containment": false
+    }
+  },
+  "coordinator_amendments": {
+    "schema_version": 1,
+    "status": "COORDINATOR_DRAFT_PENDING_INDEPENDENT_REVIEW",
+    "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-preview-shared-codec-contract-draft.json",
+      "bytes": 18367,
+      "sha256": "a59dbcf1fb13d872cfac8604f370100b47fda63ca17c2ea493a379e204a98261"
+    },
+    "precedence": "Override only corresponding derives and seventh assertion-family evidence scope in the embedded proposal. All other types/API/layout/validation/error order/source/dependency/current-scope rules unchanged.",
+    "derives": "Existing EditorActorV0 remains unchanged and is not Copy. EditorPreviewChromeV0 derives Clone,Debug,PartialEq,Eq only. All other new pure enums/records may derive Clone,Copy,Debug,PartialEq,Eq as proposed. No existing actor or schema consumers are changed to satisfy derives.",
+    "matrix_seven": {
+      "name": "shared_codec_pure_binding_and_version_boundary",
+      "pure_assertions": "Newcodec rejects old schema1; current248 rejects future Saved states. Structurally valid changed actor/hash/expiry data passes pure structural validation when all declared equalities remain coherent; these records carry no authority. No borrowed Authority/clock/IO or fabricated capability constructor added to codec.",
+      "old_consumer_evidence": "Existing oldclient schema1 guard remains static source-review evidence only, explicitly no actual oldconsumer schema2 runtime claim. Do not mirror its validator in a new test, fake oldbindings, add a fixture data writer, or alter the oldclient for this pure prerequisite. Actual affected oldconsumer gates are separate integration evidence on service implementation.",
+      "service_dependency": "Five native consumer assertions and actual service implementation must separately test Core/Gate/owner/currentepoch/clock/version/lifecycle mismatches. Purebyte assertions cannot establish those claims."
+    },
+    "implementation_authorized": false,
+    "assertions_authorized": false,
+    "resources_authorized": false
+  },
+  "review_provenance": {
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-preview-shared-codec-contract-draft.json",
+      "bytes": 18367,
+      "sha256": "a59dbcf1fb13d872cfac8604f370100b47fda63ca17c2ea493a379e204a98261"
+    },
+    "amendment": {
+      "path": "out/roadmap-coordinator/editor-native-preview-shared-codec-coordinator-amendment-draft.json",
+      "bytes": 2045,
+      "sha256": "a01796bc5f9c7bfba859f6598895a53920a559468bd5a7760d288abc9ec1bddf"
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-preview-shared-codec-contract-independent-review.json",
+      "bytes": 8670,
+      "sha256": "bfaecc6479806af78ef1283458756e765b76f6f8422f50c84a852158202cb146"
+    }
+  },
+  "native_API_contract": "docs/contracts/editor-native-preview-read-v0.json",
+  "remaining_dependencies": [
+    "Seven independently reviewed gate-first pure assertion families and actual missing-module RED before codec source. API-absence RED is not a runtime behavior proof.",
+    "Single pure codec writer and root module exports/features/gate ownership. No existing EditorActorV0 Copy change.",
+    "Actual NativePreview Core/Gate/owner/currentepoch/lifetime/frame checks and five real native consumer assertions remain separate."
+  ],
+  "claims": {
+    "implemented": false,
+    "gate_passed": false,
+    "service_authority": false,
+    "current_clock": false,
+    "Store_IO": false,
+    "Save": false,
+    "runtime": false
+  }
+}

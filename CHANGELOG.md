@@ -3,6 +3,19 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed native Store preview Read API and pure shared-data
+  contracts for UI1.1c's five Read-only precursor cases. Actual input tickets,
+  current Store selection, one activation row, borrowed launch pairing, original
+  setup deadlines and protected chrome are specified. Schema2's 464-byte grants
+  and current 248-byte NoSave/Unavailable observation have strict pure codec
+  contracts. The seven pure codec assertion families now pass on macOS and
+  Linux after the retained missing-module RED; no-std and strict std Clippy pass.
+  All 122 Mac schema tests and affected save-schema/native Read gates pass.
+  Strict Linux preflight passes with `RUST_TEST_THREADS=1`, using its separately
+  retained dependency resolution. The initial sandbox cleanup failure and fresh
+  passing focused run remain recorded. Five service cases and handlers are still
+  pending; this establishes no NativePreview service, Save, recovery, IO2 or
+  complete eighteen-case task acceptance.
 - Default-off native Read prerequisite for UI1.1c: actual opaque Desktop
   approval and original calls reach a fresh host Store owner through protocol 368.
   Nine independently reviewed behavior/denial/failure assertions pass on macOS

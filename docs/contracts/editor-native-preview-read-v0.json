@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "packet": "UI1.1c-native-Store-preview-Read-prerequisite",
+  "status": "FROZEN_API_AND_LIFECYCLE_PREPARATION_NOT_IMPLEMENTED",
+  "frozen": true,
+  "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+  "implementation_authorized": false,
+  "assertions_authorized": false,
+  "resources_authorized": false,
+  "scope": "Host trusted setup and Read-only Store-current preview prerequisite: planned identities1,2,3,4,8 only. Future Save/recovery/mutation permits/IO2/full18 keyboard task/editor PID/device/target remain separate. This maintained contract records technical API freeze, not a registered gate or runtime acceptance.",
+  "precedence": "Use embedded reviewed_proposal and override its corresponding signatures, lifetimes and observations with embedded coordinator_amendments. Both are exact reviewed technical objects. No scratch artifact must be loaded to determine current API. Scratch pins retain local coordination provenance only.",
+  "reviewed_proposal": {
+    "schema_version": 3,
+    "status": "PROPOSED_NPR_READ1_V3_PENDING_REVIEW_AND_FREEZE",
+    "implementation_authorized": false,
+    "resources_authorized": false,
+    "base": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "predecessor": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v2.json",
+      "bytes": 25559,
+      "sha256": "14e911d0ef1d70a3bc831acd3d49a45dab2fca72cf7ffc803dc25f69e61bf1ae"
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v2-independent-review.json",
+      "bytes": 11754,
+      "sha256": "d4b9e642d6517f6a8ce5b086066899bb9384f770c6ca849b2b5e46f8775182d4"
+    },
+    "scope": {
+      "current": "Read1-only NPR precursor, runnable planned identities1/2/3/4/8. New distinct gate-first assertions required. No eight-case/full18/Save/IO2/mutation permit claim.",
+      "DAG": "Store->Desktop; composition->both; Desktop never imports Store. No generic callback/backend. Default-off separate NPR mode; old UIa13/UIb7/NativeRead9/launch17 unchanged.",
+      "trust": "Source-reviewed privileged fixture enrollment moved once solely into actual Core/init-failure. App/Chrome cannot mint/retain publisher. Shared issuer does not attest malicious trusted setup/Core. Actual Core/Grant/peer/object checks enforce effects; views/labels/IDs never authority.",
+      "amendment": "Replaces V2 current APIs/carriers/activation/lifetimes/schemas/caps/pixels. Bootstrap17/Confirm6;3 actual Desktop endpoints+private origin. Borrowed consuming &mut ticket replaces initial move-by-value. Store-side PairedStoreLaunch avoids Desktop Store dependency."
+    },
+    "types": {
+      "private": "All authority carriers private-field/private-constructor/nonClone/nonserde/no numeric mint. Authority has actual native immutable constructor identity/Gate/shared roster, NO strong State backedge. State retains Arc<Authority>; Weak<State>/pointer identity never upgraded/locked under Gate. SelectionGuard holds actual issuer borrow+MutexGuard<GateState>. Native State registers actual Chrome/session/device owner in Gate.",
+      "holders": "StoreSelectionEnrollment fresh one-shot row; SelectionIssuer claimed row solely actual Core/error; StoreSelectionPin real issuer/pinrow; PendingStoreInstance actual approval/pin/attachment; StoreActivationStamp actual Active row/version; PreviewUiTicket actual Authority/TicketRow; PreviewReadOrigin actual State/Authority/actor/context/Active attachment/actual StoreHandle/object/epoch, no peer getter. Entry/call/guards original query+lifetime. PreparedPreviewStore actual Core/witness/issuer; NativePreviewActivation Core/Grant/stamp; RegisteredPreviewRead Core/Grant/call+atomic once; selected lease actual Data/descriptor/original call.",
+      "carriers": "Desktop StoreLaunch private{confirm_reply:Envelope,bindings:NativePreviewBindings,stamp:StoreActivationStamp}; NativePreviewBindings private{bootstrap:Envelope,self_status:Endpoint,focus_read:Endpoint,surface:Endpoint,artifact_origin:PreviewReadOrigin}; Store PairedStoreLaunch private{desktop:StoreLaunch,endpoint:EditorEndpoint}. Same Active pairing, no consumer rebinding.",
+      "views": "PreviewOwner{owner_id,session_id,session_generation:u64}; StoreObjectEnrollment{owner_id,object_id,object_generation,store_epoch:u64}; StoreCurrentSelection{owner:PreviewOwner,object_id,object_generation,store_epoch,revision:u64,content_hash:[u8;32]}; PinView{current:StoreCurrentSelection,pin_id,pin_generation,expires_at_ms:u64,entered:Instant,deadline:Instant}; PendingView{actor:EditorActorV0,pin:PinView,plan_id,preview_revision,instance_expires_at_ms:u64}; PreviewReadCallView{actor:EditorActorV0,object_id,object_generation,store_epoch,origin_id:u64,entered,deadline:Instant,request:Envelope}. All observations only.",
+      "gate": "Enrollment Fresh/Claimed/Failed; Ticket Available/Taken/Consumed/Superseded/Closed; Pin Live/Consumed/Cancelled/Expired/Retired; Attachment Inactive/Active/Retired. Reverse links allow Gate retirement without State callback.",
+      "Ticket": "PreviewUiTicketKind::{Selector=1,Approval=2}; PreviewUiTicketView{kind:PreviewUiTicketKind,ticket_id,ticket_generation,session_id,session_generation,device_id,device_generation,input_sequence,focus_epoch,plan_id,preview_revision,expires_at_ms:u64,entered:Instant,deadline:Instant}. Private row stores canonical generated request, actual owner/event/release/policy/app/manifest and original clocks. View/request not authority.",
+      "fixture": "PreviewPausePoint::{BeforeActivation=1,BeforeFramePublish=2}; NativePreviewCounter::{Pin=1,AttachmentVersion=2,StatusVersion=3,UiTicket=4,ReadContext=5}; PreviewBarrierView{point:PreviewPausePoint,entered,settled:bool,session,instance,pin:u64}; PreviewCounts{live_pins,pin_rows,inactive,active,retired,retained_view_leases,ticket_rows,live_tickets,read_contexts,query_slots:u32}."
+    },
+    "Desktop_API": {
+      "HostDesktop": [
+        "pub fn new_store_preview_read(config:HostConfig)->Result<(Self,FixtureController,RegistryWitness,StoreSelectionEnrollment),Status>;",
+        "pub fn take_preview_action(&self,chrome:&PeerContext)->Result<PreviewUiTicket,Status>;",
+        "pub fn prepare_store_preview(&self,chrome:&PeerContext,ticket:&mut PreviewUiTicket,pin:&StoreSelectionPin,now_ms:u64)->Result<Envelope,Status>;",
+        "pub fn confirm_store_preview(&self,chrome:&PeerContext,ticket:&mut PreviewUiTicket,now_ms:u64)->Result<PendingStoreInstance,Status>;",
+        "pub fn take_store_launch(&self,chrome:&PeerContext,pending:&PendingStoreInstance,stamp:&StoreActivationStamp,now_ms:u64)->Result<StoreLaunch,NativePreviewDeliveryFailure>;",
+        "pub fn dispatch_store_preview_chrome(&self,chrome:&PeerContext,request:&Envelope,now_ms:u64)->Envelope;",
+        "pub fn begin_preview_read(&self,origin:&PreviewReadOrigin,request:&Envelope,now_ms:u64)->Result<PreviewReadEntry,Status>;"
+      ],
+      "FixtureController": [
+        "pub fn register_store_session(&self,owner:u64,application:[u8;32],manifest:[u8;32],object_id:u64,object_generation:u64,now_ms:u64)->Result<SessionFixture,Status>;",
+        "pub fn pause_next_store_read(&self,session_id:u64)->Result<NativeReadPause,Status>; pub fn release_store_read(&self,pause:&NativeReadPause)->Result<(),Status>;",
+        "pub fn pause_next_store_preview(&self,session_id:u64,point:PreviewPausePoint)->Result<PreviewPause,Status>; pub fn release_store_preview(&self,pause:&PreviewPause)->Result<(),Status>; pub fn seed_preview_counter(&self,counter:NativePreviewCounter)->Result<(),Status>;"
+      ],
+      "StoreSelectionEnrollment": "pub fn claim_for_store_constructor(self)->Result<SelectionIssuer,EnrollmentFailure>; EnrollmentFailure::status(&self)->Status;",
+      "SelectionIssuer": "pub fn lock(&self)->Result<SelectionGuard<'_>,Status>;",
+      "SelectionGuard": [
+        "pub fn enroll_objects(&mut self,objects:&[StoreObjectEnrollment])->Result<(),Status>; pub fn preview_owner(&self,chrome:&PeerContext)->Result<PreviewOwner,Status>;",
+        "pub fn reserve_pin(&mut self,chrome:&PeerContext,current:StoreCurrentSelection,ttl_ms:u64)->Result<StoreSelectionPin,Status>; pub fn view_pin(&self,pin:&StoreSelectionPin)->Result<PinView,Status>; pub fn view_pending(&self,pending:&PendingStoreInstance)->Result<PendingView,Status>;",
+        "pub fn activate_read(&mut self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<StoreActivationStamp,Status>; StoreReadInstallation{store_handle:Handle,object_id,object_generation,store_epoch:u64};",
+        "pub fn retire_source_object(&mut self,object_id:u64)->Result<(),Status>;"
+      ],
+      "PreviewUiTicket": "pub fn view(&self)->PreviewUiTicketView; pub fn request(&self)->&Envelope;",
+      "StoreLaunch": "pub fn confirm_reply(&self)->&Envelope; pub fn bindings(&self)->&NativePreviewBindings; pub fn stamp(&self)->&StoreActivationStamp;",
+      "NativePreviewBindings": "pub fn bootstrap(&self)->&Envelope; pub fn self_status(&self)->&Endpoint; pub fn focus_read(&self)->&Endpoint; pub fn surface(&self)->&Endpoint; pub fn artifact_origin(&self)->&PreviewReadOrigin;",
+      "NativePreviewDeliveryFailure": "pub fn status(&self)->Status; pub fn observation(&self)->DeliveryObservation;",
+      "PreviewReadEntry": "pub fn wait(&self)->Result<PreviewReadCall,Status>; pub fn producer_ids(&self)->[&ProducerId;2]; order DesktopDispatch,DesktopSupervisor.",
+      "PreviewReadCall": "pub fn request(&self)->Envelope; pub fn entered(&self)->Instant; pub fn deadline(&self)->Instant; pub fn admit<'a>(&'a self,witness:&RegistryWitness)->Result<PreviewReadGuard<'a>,Status>; pub fn deadline_guard<'a>(&'a self,witness:&RegistryWitness)->Result<PreviewReadDeadlineGuard<'a>,Status>; pub fn reserve_store_producer(&self,kind:ProducerKind)->Result<ProducerReservation,Status>;",
+      "PreviewReadGuard": "pub fn view(&self)->PreviewReadCallView;",
+      "PreviewReadDeadlineGuard": "pub fn close_query(&mut self)->Result<(),Status>;",
+      "PreviewPause": "pub fn wait_until_entered(&self,timeout_ms:u64)->Result<PreviewBarrierView,Status>; pub fn wait_until_settled(&self,timeout_ms:u64)->Result<PreviewBarrierView,Status>;",
+      "RegistryWitness": "pub fn preview_counts(&self)->Result<PreviewCounts,Status>; existing actual duplicate/join/counts semantics unchanged."
+    },
+    "Store_API": {
+      "StoreFixture": "pub fn prepare_preview_read(root:&Path,profile:FixtureProfile,witness:RegistryWitness,enrollment:StoreSelectionEnrollment)->Result<PreparedPreviewStore,NativePreviewInitFailure>;",
+      "PreparedPreviewStore": "pub fn host(&self)->StoreHost; pub fn controller(&self)->&FixtureController; pub fn pin_selection(&self,chrome:&PeerContext,ttl_ms:u64)->Result<StoreSelectionPin,StoreStatus>; pub fn activate_read(&self,pending:&PendingStoreInstance)->Result<NativePreviewActivation,NativePreviewExposeFailure>;",
+      "NativePreviewInitFailure": "pub fn status(&self)->StoreStatus; pub fn observation(&self)->InitObservation;",
+      "NativePreviewExposeFailure": "pub fn status(&self)->StoreStatus; pub fn observation(&self)->ExposeObservation;",
+      "NativePreviewActivation": "pub fn stamp(&self)->&StoreActivationStamp; pub fn endpoint(&self)->&EditorEndpoint; pub fn pair_launch(&self,launch:StoreLaunch)->Result<PairedStoreLaunch,NativePreviewExposeFailure>;",
+      "PairedStoreLaunch": "pub fn desktop(&self)->&StoreLaunch; pub fn endpoint(&self)->&EditorEndpoint;",
+      "StoreHost": "pub fn register_preview_read(&self,peer:&EditorPeer,call:PreviewReadCall)->Result<RegisteredPreviewRead,StoreStatus>; pub fn execute_preview_read(&self,registered:&RegisteredPreviewRead)->Result<PreviewReadReply,StoreStatus>; pub fn close_preview_read_deadline(&self,registered:&RegisteredPreviewRead)->Result<(),StoreStatus>; pub fn preview_read_producers(&self)->Vec<ProducerId>; pub fn join_preview_read_finished(&self,id:&ProducerId)->Result<JoinedProducerProof,StoreStatus>;",
+      "PreviewReadReply": "pub fn wire(&self)->Envelope; pub fn selected(&self)->Option<&PreviewSelectedRead>; pub fn producer_ids(&self)->&[ProducerId];",
+      "PreviewSelectedRead": "pub fn descriptor(&self)->ObjectDescriptor; pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>; pub fn copy_checked(&self,descriptor:&ObjectDescriptor,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;",
+      "FixtureController": "pub fn fault_preview_object(&self,object_id:u64)->Result<(),FixtureError>;",
+      "Core_private": "fn publish_preview_selection(&self,object:&Object,state:&ObjectState)->Result<(),StoreStatus>; no operation publisher now."
+    },
+    "errors": {
+      "enums": "PreviewInitStage::{Validate,PrepareCore,CreateRoot,Provision,Enroll}; PreviewExposeStage::{Validate,ReserveStoreGrant,PrepareRecord,Activate,Deliver}; PreviewDeliveryStage::{Authorize,Validate,BuildReply,Expose}.",
+      "records": "InitObservation{stage:PreviewInitStage,status:StoreStatus,panicked:bool,root:ReadRootObservation,root_path:Option<PathBuf>,core_retained:bool,issuer_retained:bool}; ExposeObservation{stage:PreviewExposeStage,status:StoreStatus,pending_retained:bool,inactive_store_grant_retained:bool,active:bool}; DeliveryObservation{stage:PreviewDeliveryStage,status:Status,authorized_attempt:bool,active:bool,retired:bool}. Path<=4096, observations only.",
+      "owner": "Actual partial Core/witness/consumed enrollment owned OUTSIDE narrow catch_unwind BEFORE IO. No init workers/partial root delete/reopen. Preexistingroot Internal11 preserves sentinels. Expose error retains actual pending/reservation. Foreign/auth denial leaves rightful rows unchanged, status only/no lifecycle disclosure (observation booleans false); authorized own failure may close exact inactive attempt. Own delivery failure afterActive retires exactActive/reportactive=true, not rollback. Abort/OOM outside.",
+      "status": "Malformed wireInvalid/unsupportedprotocol-opUnsupported; wrongidentity/Core/issuer/class/descriptorDenied; lifecycle-expiryStale; none/repeat/conflictingpin/joinNotReady; capsMAXExhausted; closedqueryTimeout; IO/poison/unwindInternal with actual owners. No Unknown/Conflict/Disconnected constructor result. Registered failure canonical reply2 originalcorr/request/status-only; wrong registration RustErrDenied. DescriptorlengthDenied+sentinelunchanged, validrangeInvalid."
+    },
+    "ticket_rules": {
+      "mint": "ONLY accepted actual native Produce under State->Gate. Fresh unmodified Enter Launcher -> Selector storing actual generated352/1 with request_id=accepted inputsequence, actual Chrome handle/session/gen/application/requested categories63/reserved0. Fresh unmodified Enter current preview AFTER selecting Enter accepted Release -> Approval storing actual generated352/5 inputsequence/plan/revision. Private row binds actual event/device/queuegeneration/focus/policy/app/manifest. No fabricatedrequest/event/callback; NPR never auto-dispatches old volatilePrepare/Confirm. Old Produce13 unchanged.",
+      "take_consume": "Take Available->Taken once; none/superseded/repeatedtake/replayNotReady; expired/lifecycleStale; foreignpointer/Authority/ownerDenied. Actions borrow &mut holder. Authenticate actual peer/State/Authority/owner BEFORE changes; wrongowner/pin/kind/request binding Denied preserves holder/row/pin. Then sameGate checks exact canonical storedrequest/correlation/event/input/devicegen/focus/release/plan/revision/policy/selection. Authorized success consumes row once with effect; repeatNotReady. Authorized stale failure closes only own inactive attempt.",
+      "supersession": "New accepted Selector supersedes own untaken/taken ticket and closes previous inactive pin/pending, never Active grants (requires real Close/Revoke first). Taken superseded row stays charged. Cancel/policy/app/manifest/devicegen/reset/detach/session/servicefault retire own pending tickets/pins/approval State->Gate, returnLauncher. Foreign denial no retirement.",
+      "release": "Producer pressed/modifier separate from delivery/approval; focus suppresses heldkeys until actualRelease. DuplicatePress/unheldReleaseInvalid. SelectingRelease must follow previewcreation; queued/samepressEnter cannotapprove. Reset/overflowReset invalidatescycle/returnsLauncher and is not releaseproof. No phantomrelease/injection.",
+      "clock": "Each actual accepted Produce enteredInstant+checked1000ms and clampedlogicalevent+checked1000ms, earliest pin/preview/instance deadline. now>=expires or Instant>=deadlineStale, never reset on take/actions/activate/deliver. Selector bounds prepare; distinct fresh Approval bounds pending/activation/delivery. Successful instanceTTL anchored actual confirmingevent/config, no delivery reset; consumed request expiry alone does not revoke Active. NewRead originalentry+1000 bounded instanceexpiry.",
+      "drop_caps": "Drop locks only Authority/Gate; closes only own unconsumed row, no State upgrade/backedge/join/Active close. At most1 live action/session2; retained ticketrows16 inclTaken/terminalaliases/pendingrefs. Prune terminal only no real references. Checked IDs, no eviction/reuse; sticky overflow fences fresh admission, retains charged workers/joins."
+    },
+    "activation": {
+      "inactive": "Confirm reserves9checked IDs: instance2+surface2+3DesktopendpointIDs+1privateReadcontextID+1grantsdescriptor, attachment/status versions+schema2 bytes. Store pre-reserves actual tagged Read1Grant/handle/epoch. All inactive: State.auth/editor_bindings/SelfStatus/focus/surface/leases/bootstrap/Read deny early. Existing editor_bindings rejectsNPR. No oldrights7 grants.",
+      "commit": "Finish falliblework BEFORE Registry->sortedObjects->ONEGate. Validate actual Core/profile/issuer/witness/currentobject/selection/epoch/pin/Approval/pending/clocks+complete inactive batches. Install inactive StoreGrant then ONE Inactive->Active flag gates complete3Desktop+origin+Store1. No IO/allocation/callback/State afterlinearization; Desktop drops State/Gate before Store.",
+      "delivery": "Authentic State->Gate take creates actual ConfirmReply352/6 from originalApproval correlation/request and Bootstrap352/17/nativebindings/stamp once. Store pair_launch checks exact same Active/Core/Grant/handle/actor/object/epoch before pairing actual endpoint, once. Foreign denial preserves rightful row; rightful delivery failure may retire its exactActive, never rollback. RepeatNotReady/retiredStale.",
+      "read": "begin_preview_read captures Instant BEFORE validation; accepts canonical generated368/1 alreadyactualStorehandle. State->Gate actual State/Authority/origin/context/Active/actor/object/currentepoch/handle checks. Store repeats ownCore/peer/taggedGrant/issuer/stamp/epoch, atomic once execution; duplicate reply2NotReady zero data. No peer getter/rebinding/callback. Lease Object->Gate->Data repeats originaldeadline/Core/epoch/Active, unchanged sentinel on denial/no writable alias.",
+      "locks": "State->Gate; StoreRegistry->Object(sascending)->Gate; Object->Gate->Data; reservation Gate->Roster/installRosteronly. No Gate->State/Object or State duringStore. No enforcinglocks acrossIO/render/pause/join."
+    },
+    "schemas": {
+      "grant464": "Shared schema2 total464/categorymask63/count4. LE0/4/8/12:u32;16..112 twelveu64 session/sessiongen/instance/instancegen/object/objectgen/selectedrev/policy/plan/previewrev/expires/Desktopepoch;112application32,144manifest32,176actualStoreselectedhash32;208eightu32=4096/640/480/2560/1/64/1/0;240four56B records handle/resource/resourcegen/serviceepoch/expires:u64,class/rights/protocol_version/reserved:u32. Classes1/2/3/4 rights1/1/15/1, lastactualStorehandle+epoch, othersDesktopepoch. Preview instance/gen/fourhandles0 with realobject/resources/selection/epochs; Activecanonicalnonzero. Class4 isNOTDesktopIPCpeer. Decode exactlen/schema/mask/count/LE/zeroreserved/canonical16slot32gen/objectgen/classrights/currentepochs/expiry. Oldschema1 notpromoted; oldclientrejects2.",
+      "control": "Generated352/1,2,5,6,17 and368/1,2 unchanged; typed<=64/canonical88Envelope. Shared464 uses descriptors, not payload/new19. IDL generator has messages only: root maintained typedsharedschema+strict service/schema codec, NO fakegeneratedsharedstruct. Private hostproof not targetwireauthority.",
+      "read": "Existing368/1,2 exact40/40payload. Selected64header+ASCIIbody<=4096/hash/object/revision/length validated. Descriptor object_generation=widenedcanonicalHandlegen; oversized index/gen rejectedbeforepack. Copy original lifetime/Core/attachment underObject->Gate->Data; no authority from data.",
+      "chrome248": "Schema1 total248;0schema/4total/8state/12reserved:u32;16actor fiveu64 to56;56object/64objectgen/72currentStoreepoch/80originalBackendepoch/88operation/96sourceHandle/104sourceGen/112expectedrev/120resultrev/128attachmentVersion/136statusVersion:u64;144sourcehash32/176expectedhash32/208receiptSHA32;240source_body_len/244reserved:u32. All LE initialized, zero reserved. This host observation format is NOT a new allocated wire protocol.",
+      "currentstatus": "NoSave0/Unavailable4 ONLY: actualactor/object/currentStoreepoch/attachment/statusversions positive; originalBackendepoch/op/sourcehandle/gen/expected/result/allhashes/sourcebodylen0. Future1/2/3 unsupported until real Save ledger validator. Sharedtypedcodec contract, not generated wire."
+    },
+    "lifecycle": {
+      "pin": "ActualCoreObject validation capturesInstant before checking current journal; Gate logical=maxactualStore/Desktop/registry. TTL>0<=30000 checked. PreActive earliest originalpin/preview/ticket/instance setup bound, never reset. Auth rejection first unchanged; then actualepoch/object/session retirement/expiry/owncancel beforeconfirmation. CancelbeforeActiveStale; ActivefirstCancelNotReady needing realClose/Revoke. Identicalsameepochpublication idempotent; changedselection/livepinNotReady. No mutation/reopen/epochsetter currentphase.",
+      "caps": "Livepins2,1/object; pinrows16 includingterminalaliases. Retainedinstance/attachment rows16; privateReadcontexts16(one/instance) SEPARATE3actualendpointrows each andqueryslots64/sharedproducers64. Endpoints64/sharedobjects32/historicalviewleases16/sessions2/selected2. Terminal prune only no opaque/lease/pending refs, no eviction or identityreuse.",
+      "MAX": "UiTicket next actualProduce mint; Pin nextactualpin_selection; ReadContext nextconfirmcontextreservation; AttachmentVersion nextconfirminitialversionreservation; StatusVersion nextprivateactualinitial/faultpublication. Checkbeforepartialadmission/grant, stickyfence. Fault staysactual evenversionfailure; no fabricatedSaved/currentframe. ExistingliveRead/joins survive absentactualexpiry/lifecycle. Canonical16slot/32gen checkedbeforepack."
+    },
+    "compositor": {
+      "source": "ActualCore provision/Activerow derivesNoSave; fault_preview_object validates exactCore/Object Registry->Object and setsactualfaulted BEFORE Object->Gate retiresmatchingpins/grants/aliases+derivedUnavailable checkedversion. No status/epoch/fakeclock/restore/reopen/writer or rollback; BsameCoreusable. Real producerschargeduntilactualjoin. Cap/version protection not maliciousCoreattestation.",
+      "pixels": "Existing640x568BGRA; Surface640x480 appcropx0..640,y48..528; protected48top+40bottom=88chrome. Pinnedfont/clipapp/authenticatedfocus-confirmroute. HOST STORE/READ ONLY/NO SAVE; faultUNAVAILABLE+entireappcropblank. Ownerbound terminalfocus_epoch=sequence0; unchangedterminalrepeatNotReady. Lastvalidframe cannotmasqueradecurrent.",
+      "version": "Private snapshot_chrome_locked(actualcompositor)->Result<(ChromeSnapshot,ChromeFrameStamp),Status>; validate_chrome_stamp_locked(&ChromeFrameStamp)->Result<(),Status>. Opaquestamp actualAuthority/attachment/status/epoch/lifetime/framefence. State->Gate snapshot, unlockraster; finalState->Gate validatesstamp+frozenframe and appliesgeneratedConsume+counters/evidence/publication WHILEheld. Changedstatus/lifecycle/overflow deniesoldpixels; no publicdispatchrecursion or checkthenunlock. No lockacrossIO/render/wait."
+    },
+    "executor": {
+      "quota": "ONE64actualroster includes DesktopDispatch/Supervisor,StoreDispatch/Supervisor,structuralStoreIo<=2. ReadIO0/StoreIoUnsupported; no64+2/legacyOwnedescape. Queryslots64/context16 separate. No initworker.",
+      "ownership": "Privateowners reserveboth/spawnbehindstartlatch/installactualJoinHandles BEFORE falliblework. Partialspawn retainsactualinstalledcharges andcancelsonlyunspawnedreservation. Timeout/Drop freeszero. GetteronlyownactualStoreinstalltokens; same-rowduplicate nocharge. Same-domainjoin cleanup notStoreprovenance.",
+      "join": "Roster actualis_finished->markJoining/takehandle->unlockactualjoin->retireexactrowonce. Unfinished/concurrent/retiredNotReady;foreignDenied. ActualStorepairIDs distinctDesktop; no numericmint. 32realpausedDesktoppairs64, nextExhaustednopartialspawn; release64uniquejoins, thenStorepairadds2. Retain/release/join supportedserviceandexternalcallerhandles beforeteardown; no hostilehungthreadcontainment.",
+      "barrier": "Registry33 actualarmed/Weakrows. BeforeActivation/FramePublish synchronous ownedcaller, retainactualexternalcallerJoinHandles separately (nofakeservicepair). Actualentered/settled boundedwaitproof; no State/Object/Gate/Roster lockacrosspause."
+    },
+    "cases": [
+      {
+        "id": 1,
+        "name": "store_preview_current_selection",
+        "runnable": true,
+        "assert": "RealProduce->Selector->Corepin->prepare/copiedschema2/currentStoremetadata/protectedpixels. Foreignowner/issuer/Coredenialpreservesrightful. ActualAobjectfault closesA/pin/data+Unavailableblankframe; BsameCoreactualpairedRead1/2/copy. ImmutableoldRead separatelystamped, no mutation/epoch/permitproof."
+      },
+      {
+        "id": 2,
+        "name": "store_preview_fresh_approval_activation",
+        "runnable": true,
+        "assert": "RealtypedProduce/ticketrequest->pin/prepare->acceptedselectingRelease->freshApprovalrequest->pending; allearly3endpoints/origin/Store/leases/bootstrapdeny. ActualCoreactivate->actualreply6/bootstrap17/schema2/pairedendpoint->actualStorehandlerequestbegin/register/execute/copy/frame. Once/foreign/stale/replay/correlation/actor/Core/epochs1000ms,3/5/7Unsupported. No fabricatedrequest/event."
+      },
+      {
+        "id": 3,
+        "name": "store_preview_pin_cancel_expiry_race",
+        "runnable": true,
+        "assert": "ActualenteredBeforeActivationcallerbarrier: owncancel/policy/reset/devicegen/earliestTTL/faultfirst deniesexposure+Bpositive. ActivefirstCancelNotReady thenrealRevoke stalesaliases. Freshrealroutepositive; ticketDropownonly,foreignmutableticketdenial leavesrightfulproofusable. No locksacrosspause/permit/IOclaim."
+      },
+      {
+        "id": 4,
+        "name": "store_preview_init_and_exposure_failure",
+        "runnable": true,
+        "assert": "WrongprofileDenied/preexistingrootInternal/sentinelunchanged; actualretainedCore/issuer/stage/zerohandles/no spawn/delete/reopen. Owninactivependingthenrightfulretirement exactexpose/deliverygetter+chargedcapacity/noearlyauthority. Foreignfailurepreservesrightfulticket/pin/pending/Active,sameholderpositive. OwnpostActivefailure actualactive+retired notrollback. Actualallhandlesjoined."
+      },
+      {
+        "id": 5,
+        "name": "store_preview_original_status_and_frame_version",
+        "runnable": false,
+        "requires": "ActualSaveentry/source/permit/receipt/statusledger. V2 exactoriginalUnknown->Committedreceipt/Saved+framestatusversion rules preserved. NoSave/clippedappSAVED/readonlyfault controls doNOTsatisfy5."
+      },
+      {
+        "id": 6,
+        "name": "store_preview_original_timeout_and_retirement",
+        "runnable": false,
+        "requires": "ActualSaveorigin/sourceclosure/sharedIO. PreserveprepermitTimeoutfreshSaveSAMEstillliveinstance; postpermitrevokeUnknown/no replay/originalreceipt/ordinarydataretired. Readqueryexpiry+freshRead doesNOTsatisfy6."
+      },
+      {
+        "id": 7,
+        "name": "store_preview_original_recovery_identity",
+        "runnable": false,
+        "requires": "Actualoriginal-onlyrecovery4/newquerydeadline/joinedfenceepochtransfer. Preserveoriginalactor/base/source/op/backendepoch/noCommitreplay/failedreopentoken/unjoinedwriterblocksreplacement. Readonlyrecovery/quiesce/reopenDenied doesNOTsatisfy7."
+      },
+      {
+        "id": 8,
+        "name": "store_preview_caps_versions_and_actual_joins",
+        "runnable": true,
+        "assert": "2realobjectpins/sameobjectNotReady; retain16cancelledpin/tickettokens then17thExhausted/releaseeligibleprune/newcheckedIDs. Context16separate3endpoints/query64. SpecifiedMAXtransitions/nopartialgrant/oldliveRead+joinpositives. Real32pausedpairs64/nextExhausted/earlyNotReady/release64uniquejoins, Storepair2afterspacefree. IO0only,IO2future."
+      }
+    ],
+    "source_sites": [
+      "host.rsProduce1913..2025 NPRbranchmints onlyticket beforeoldvolatileauto-dispatch; oldmodeunchanged. prepare1544/confirm1639/editor_bindings3039 oldimmediategrant path excludedNPR; actualBootstrap17/frame2816 640x568.",
+      "State.auth/focus/surface/lease/editor_bindings/originentry consultactualGateActive; native_authority actualState/Gate/64roster addsboundedticket/pin/context/stamp withoutStatebackedge. StoreactualCore/Grant constructor/provision/register/execute/copy repeatsactualowner/epoch Object->Gate->Data, no rebinding.",
+      "Rootownsmaintainedschema2/strictcodec/features/exports/sharedhooks/gates/IDLifneeded. FutureDesktophost/nativeAuthority andStoreNPRadapter/Corewritersdisjoint. No sourceimplementationpermission here."
+    ],
+    "future_reference": {
+      "only": "Unchanged futureSave validator/table in pinnedV2 status_and_compositor, dependencycases5..7; no currentAPI depends on them. Rights7 needsseparateStore-currentpreview/freshapproval/atomicupgrade.",
+      "excluded": [
+        "full18",
+        "actualsameCoremutationpermitblocking",
+        "actualIO2",
+        "writer/quarantine/reopen",
+        "malicioussetupattestation",
+        "target/device/powerloss/containment"
+      ]
+    },
+    "claims": {
+      "proposal_only": true,
+      "API_frozen": false,
+      "runtime": false,
+      "eight_executable": false,
+      "fullSave": false
+    },
+    "remaining_prerequisites": [
+      "IndependentV3review/rootfreeze; five distinctgate-firstassertions beforehandlers.",
+      "Rootmaintainedtypedsharedschema2/strictcodec beforetests; existingIDLmessagesunchanged.",
+      "ActualSave/status/recovery separatedependency, nofabricatedfixturewriter."
+    ]
+  },
+  "coordinator_amendments": {
+    "schema_version": 1,
+    "status": "COORDINATOR_DRAFT_PENDING_INDEPENDENT_REVIEW",
+    "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3.json",
+      "bytes": 28112,
+      "sha256": "e03997a80b7f4ecf453ab861e00d727c8ac63800fde9cee9c6897d0022d9e70e"
+    },
+    "precedence": "These exact narrow amendments override corresponding V3 pairing API and lifetime ambiguity. All other V3 technical scope, capacities, schemas, lock order and current five cases remain unchanged. No source implementation or resources authorized.",
+    "pairing": {
+      "signature": "pub fn pair_launch(&self,launch:&mut Option<StoreLaunch>)->Result<PairedStoreLaunch,NativePreviewExposeFailure>;",
+      "ownership": "Foreign Authority/Core/owner or stamp mismatch leaves Some and rightful row unchanged. Validate before taking. Only authorized successful pairing takes actual owned launch once into PairedStoreLaunch; repeat None is NotReady. No failure/destructor suppressions or recovery remint. Actual own stale lifecycle remains separately enforced.",
+      "guard_signature": "pub fn match_read_activation(&self,left:&StoreActivationStamp,right:&StoreActivationStamp)->Result<StoreReadActivationView,Status>;",
+      "guard_validation": "Both opaque stamps must refer to actual same Authority/Active attachment row and version, canonical StoreHandle, actor, object/object generation, Store epoch, read context and original instance expiry. Validate current live actual Gate under this already-held SelectionGuard, never compare wrapper struct addresses or accept view fields as authority. Store then compares actual Core/profile/tagged Grant/handle/actor/object/epoch. Wrong Authority or row denied with no rightful retirement; actual retired/expired Stale.",
+      "view": "pub struct StoreReadActivationView { pub actor:EditorActorV0,pub store_handle:Handle,pub object_id:u64,pub object_generation:u64,pub store_epoch:u64,pub read_context_id:u64,pub attachment_version:u64,pub instance_expires_at_ms:u64 }",
+      "view_scope": "Returned fields are diagnostic values, no authority carrier, minted only after held-guard validation. No Store imports in Desktop.",
+      "stamp_alias": "take_store_launch validates borrowed stamp against actual State and Authority Active row, then internally issues a private nonClone stamp alias of that exact actual row/version. NativePreviewActivation retains original owned stamp. No public Clone, serialization or numeric constructor. Same-row identity is validated by match_read_activation, not wrapper pointer equality; no strong State backedge."
+    },
+    "active_lifetime": {
+      "setup": "Each original selector/approval ticket request is event-entry+1000ms, clamped by pin/preview/instance setup expiry. Prepare and activation/delivery must succeed before their corresponding original deadlines. No deadline reset.",
+      "after_delivery": "After successful activation and delivery, consumed pin, preview and ticket setup expiry or Drop alone does not retire Active. Active instance expiry remains anchored to actual confirming event and configuration and is never extended/reset by delivery. Real Close/Revoke/session/service/object fault/current epoch and original instance expiry continue to bound Active authority. Each new Read has original entry+1000ms additionally bounded by that original active instance expiry.",
+      "races": "Until authorized delivery completes, original setup constraints still apply. No surviving grant claim is made for incomplete failed delivery. Actual owner-authorized failure can retire only its own exact Active attempt. Foreign denial preserves rightful attempt.",
+      "staged_requests": "Consumed Selector request deadline bounds successful Prepare only. It does not alone cancel resulting still-live preview/pin after Prepare. Distinct fresh Approval has its own actual event-entry+1000ms deadline for Confirm/activation/delivery, clamped to original pin/preview and configured instance expiry. Pin and preview original lifetimes continue to bound pre-delivery. No deadline reset or inherited consumed Selector deadline into fresh Approval."
+    },
+    "assertion_requirements": [
+      "Case4 passes a real retained Some launch to foreign Core pairing; Denied leaves the same holder and source row intact, then rightful same holder pairs successfully; successful consumption leaves None and repeat NotReady.",
+      "Case2 retains actual Store stamp and returned Desktop alias, checks match under actual owning guard and actual Core/Grant fields; different Authority/row denied without retiring rightful Active.",
+      "Current Read precursor shows request deadline expiry followed by fresh Read on SAME still-live actual instance, then actual original instance expiry/revoke/fault denies aliases. Consumed setup expiry is not a substitute instance retirement."
+    ],
+    "implementation_authorized": false,
+    "resources_authorized": false,
+    "counts_observation": {
+      "signature": "HostDesktop::pub fn preview_counts(&self)->Result<PreviewCounts,Status>;",
+      "semantics": "Return a bounded diagnostic snapshot from this actual host Authority/Gate and existing shared roster, not caller counts or cloned RegistryWitness. Lock State->Gate and Gate->Roster consistently, do not acquire State under Gate. Consumer retains HostDesktop after Store consumes nonClone witness. Counts carry no grant or cross-domain actor authority; trusted host fixture observation only.",
+      "assertions": "Current five cases use retained actual HostDesktop to observe real pin/ticket/context/attachment/query/producer charges, aliases and overflow. Not a manufactured counter callback."
+    },
+    "delivery_linearization": {
+      "boundary": "Successful HostDesktop::take_store_launch under actual State->Gate is the delivery linearization. It validates original Approval/pin/preview setup constraints and current Active instance, checks/installs actual origination context, creates canonical reply/bootstrap/bindings and records private delivered transition before return. Failure exposes no carrier and preserves stated authorized/foreign failure ownership.",
+      "pair_after_delivery": "pair_launch checks an already-delivered same actual Active row, original instance expiry, current epoch and actual Core/Grant, then moves the held launch once. It does not check/reset consumed setup deadlines or add a delivery-state mutation API. After successful take_store_launch, consumed setup expiry alone cannot retire Active. Actual instance/session/service/object lifecycle remains enforced."
+    }
+  },
+  "review_provenance": {
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3.json",
+      "bytes": 28112,
+      "sha256": "e03997a80b7f4ecf453ab861e00d727c8ac63800fde9cee9c6897d0022d9e70e"
+    },
+    "amendment": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-v3-coordinator-amendment-draft.json",
+      "bytes": 6611,
+      "sha256": "a5bc378da44cce0f013548913a655e038e6e8b0725f6103d3d56e73beec9e306"
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3-independent-review.json",
+      "bytes": 15527,
+      "sha256": "11e9bcfa3e5472c02d8cce46ea0717c98d75ffe0e197d0900205c14ce03854cd"
+    }
+  },
+  "remaining_dependencies": [
+    "Separately frozen pure schema2 464-byte grants and 248-byte current-status codec/API plus seven gate-first pure assertion families before codec implementation.",
+    "Five independently reviewed native consumer assertions and actual initial RED before Desktop/Store service handlers.",
+    "Root assigns disjoint writers for Desktop, Store and consumer; root alone owns shared features/exports/IDL/registries/codegen/gates/status/integration.",
+    "Preserve nine native Read and affected13volatile/7Store+16evidence consumers; final integrated Linux preflight required before host milestone acceptance."
+  ],
+  "claims": {
+    "implemented": false,
+    "gate_passed": false,
+    "Save": false,
+    "recovery": false,
+    "IO2": false,
+    "full_UI1_1c": false,
+    "editor_process": false,
+    "target": false,
+    "hardware": false
+  }
+}

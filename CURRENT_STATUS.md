@@ -106,6 +106,24 @@ passes for the same source candidate with
 `RUST_TEST_THREADS=1`, including the affected host/QEMU consumers. This establishes
 the serialized Rust test profile; parallel child-spawn reliability remains
 unproved. Save admission and full UI1.1c remain separate.
+The [native Store preview Read contract](docs/contracts/editor-native-preview-read-v0.json)
+and [pure shared-data codec contract](docs/contracts/editor-native-preview-codec-v0.json)
+are independently reviewed and frozen preparation. They specify actual input
+tickets, current Store selection, one activation row, protected Read-only chrome,
+and five precursor cases. The pure codec now implements schema2's 464-byte
+grants and the 248-byte NoSave/Unavailable observation, with seven independently
+reviewed assertions passing on macOS and Linux after a retained missing-module
+RED. The Mac schema suite passes all 122 tests; the affected save-schema and native
+Read gates remain green. Strict Linux preflight passes with
+`RUST_TEST_THREADS=1`. Mac and Linux used separately retained dependency
+resolutions. An initial preflight sandbox cleanup failure is retained; a fresh
+focused sandbox run and the subsequent complete preflight passed without a source
+change. These bytes grant no authority, Store IO, current-time or publication
+proof. The contract JSON retains its creation-stage preparation snapshot; this
+file owns current implementation status. Native preview service assertions and
+handlers remain pending.
+The eight planned preview identities retain their Save, recovery and IO2
+dependencies, and the original eighteen-case integrated task remains separate.
 The five reused volatile UI records remain separately stamped. Actual editor PID,
 cold-start anti-rollback, device flush, power-loss durability, target execution and
 runtime containment remain unproved. The Mac fixture requires its verified

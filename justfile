@@ -380,6 +380,10 @@ foundry-desktop-editor-host-ui1-1a:
 foundry-editor-save-schema-ui1-1b:
 	bash ./tools/ci/foundry_editor_save_schema_ui1_1b.sh
 
+# Pure NativePreview shared-data codec; no Store IO or authority proof.
+foundry-editor-native-preview-codec-ui1-1c:
+	bash ./tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh
+
 # Default-off host Store CAS, atomic selection/receipt and joined-writer recovery.
 foundry-desktop-editor-store-ui1-1b:
 	bash ./tools/ci/foundry_desktop_editor_store_ui1_1b.sh
