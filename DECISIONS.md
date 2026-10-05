@@ -1350,3 +1350,25 @@ Pin an upstream public-domain ASCII bitmap font without a runtime dependency,
 convert its documented bit order once, and independently prepare old/new crop
 digests and samples before handlers. These are assertion inputs, not rendering
 proof. The 13 gate-first cases and scoped implementations are the next packet.
+
+## 2026-10-05 — Bound the editor Store transaction profile and recovery witnesses
+
+Choose a default-off Store-owned Artifact368 consumer for UI1.1b, with one private
+CAS namespace and one IO writer per selected object. Two sessions selecting the
+same object share admission state; unrelated objects have separate workers. Use
+existing Store publication and ownership helpers within this finite profile.
+Cross-object deduplication, shared-root locking and general quota integration
+remain successors. UI1.1c separately freezes the authoritative live admission
+bridge from the desktop; b does not reuse a copied volatile authorization verdict.
+
+Keep selection and the original receipt in one bounded whole journal. Fenced
+reopen requires a joined supported writer and a private retained owner witness
+covering durable allocations, submitted/permit bindings, transitions, counter
+minima and issued permit/closure state. Preserve all sixteen operation records
+across reopen and durably reserve fresh checked ID ranges before exposure.
+Authenticate bounded pending CAS intents, manifests and ownership against the
+permitted operation or initial provisioning binding before calling helpers that
+automatically recover publications. Corrupt or unauthenticated input cannot gain
+metadata effects through recovery. Exact schema/service signatures and seven
+reviewed RED assertions precede implementation; this design supplies no cold-start
+anti-rollback, device-flush or target persistence evidence.

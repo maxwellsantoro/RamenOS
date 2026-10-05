@@ -62,7 +62,11 @@ frames and original receipts, and checks that the development API is absent by
 default. This establishes no Store IO, editor PID, device, target runtime or
 process containment. Strict Linux preflight passes on the assembled UI1.1a
 revision, including this gate in the extended Foundry suite.
-The Oracle packet adds no capture or runtime evidence.
+The [Store transaction prerequisite](docs/plans/editor-store-transaction-v0.md)
+specifies a default-off Store owner, private per-object CAS, one atomic
+selection/receipt journal and joined-writer recovery. Exact API freeze and seven
+gate-first assertions remain prerequisites to handlers; this proposal adds no
+Store transaction evidence. The Oracle packet adds no capture or runtime evidence.
 
 Strict Linux preflight passes at `a05b0c6` with the reviewed compatibility cleanup correction,
 including the 17-case boot admission and 17-case existing desktop launch gates.

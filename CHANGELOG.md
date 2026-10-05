@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- UI1.1b Store transaction prerequisite with private per-object CAS ownership,
+  one selected-revision/receipt journal, immutable admission permits, retained
+  durable recovery witnesses and prevalidation before automatic CAS recovery.
+  It specifies seven assertions; exact API freeze, RED tests and handlers remain
+  pending. This preparation adds no Store runtime or durability evidence.
 - Default-off UI1.1a volatile in-process artifact editor, with generated typed
   input/focus/surface/session/artifact messages and exact issued rights. Logical
   key input edits bounded ASCII drafts and produces pinned offscreen pixels;
