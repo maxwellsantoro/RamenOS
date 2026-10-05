@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- UI1.1b pure save-schema prerequisite: checked payload constructors, portable
+  64-byte text and 176-byte receipt codecs, strict bounded canonical JSON, and
+  evolving selected-revision replay. Its nine independently reviewed cases pass
+  `just foundry-editor-save-schema-ui1-1b` on Linux; all 115 schema tests pass on
+  macOS. The extended suite includes this pure gate. Store handlers, filesystem
+  transactions, runtime authority and integrated editor save remain separate.
 - Independently reviewed UI1.1b executable API prerequisite: pure records and
   canonical bounded journal, 64-byte text headers and 176-byte receipts, opaque
   Store fixture endpoints, bounded held producers and read-only actual join/fence

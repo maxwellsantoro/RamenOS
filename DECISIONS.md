@@ -1387,3 +1387,22 @@ actual join, alongside at most two object IO workers. Opaque quiescence tokens
 expose bounded diagnostic fence snapshots with actual join identities and retained
 state minima. A checked reserved epoch is distinct from the actual reopened epoch;
 new-owner evidence binds its real journal publication to the prior fence digest.
+
+
+The pure UI1.1b prerequisite implements payload validation before Store handlers.
+Canonical journals use exact declaration order, explicit null options and bounded
+integer arrays; an independent golden fixes that encoding. Typed deserialization
+rejects a seventeenth operation before allocating its payload. Revision validation
+replays each committed base/hash and successor against the evolving selection;
+individually coherent fork and gap records still fail. Schema constructors and
+permit-shaped records are data only and cannot mint runtime authority.
+
+For a valid live context, per-object operation, writer or journal counter
+exhaustion returns Exhausted on repeated mutation/issuance attempts. It does not
+invent endpoint or instance retirement; Stale requires actual lifetime retirement.
+Writer MAX seeding forbids new permits immediately. Draft construction creates
+no permit and may precede the first writer-admission attempt. That failed
+admission fences subsequent fresh mutation/source issuance; already authorized
+selected reads retain their independent observation rights. Shared identity/time-origin MAX fixtures
+retain their separate healthy-registry controls. This is the bounded default for
+the seven service assertions, not evidence that an ordinary lifetime reached MAX.

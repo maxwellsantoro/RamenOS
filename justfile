@@ -376,6 +376,10 @@ foundry-desktop-host-launch-ui1-0:
 foundry-desktop-editor-host-ui1-1a:
 	bash ./tools/ci/foundry_desktop_editor_host_ui1_1a.sh
 
+# Pure editor save records/codecs; no Store IO or runtime admission evidence.
+foundry-editor-save-schema-ui1-1b:
+	bash ./tools/ci/foundry_editor_save_schema_ui1_1b.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

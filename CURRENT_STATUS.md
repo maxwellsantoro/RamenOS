@@ -67,9 +67,15 @@ specifies a default-off Store owner, private per-object CAS, one atomic
 selection/receipt journal and joined-writer recovery. The
 [exact Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md) is independently reviewed
 and frozen: pure records/codecs, opaque fixture authority, bounded admission and
-actual join/fence witnesses prepare seven gate-first assertions. Those assertions
-are in progress; Store handlers await reviewed RED evidence. The contract adds no
-Store transaction evidence. The Oracle packet adds no capture or runtime evidence.
+actual join/fence witnesses prepare seven gate-first assertions. Pure payloads
+and their canonical journal validator now pass the nine-case
+`just foundry-editor-save-schema-ui1-1b` gate on Linux, including strict Clippy
+and a no-default-feature build. All 115 schema tests pass on macOS. These records
+provide no IO or commit authority. The seven service assertions are independently
+reviewed and their RED compile check fails at the missing Store module as expected.
+Store handlers are under implementation and have no accepted execution evidence.
+The API contract and pure gate add no Store transaction evidence. The Oracle
+packet adds no capture or runtime evidence.
 
 Strict Linux preflight passes at `a05b0c6` with the reviewed compatibility cleanup correction,
 including the 17-case boot admission and 17-case existing desktop launch gates.

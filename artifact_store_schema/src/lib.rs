@@ -112,6 +112,7 @@ pub mod block_sector_trace; // S13.4: harness.block sector oracle trace schema
 pub mod claim;
 pub mod crash_context;
 pub mod driver_protocol_trace; // S11.1: Oracle MMIO/PCI trace schema
+pub mod editor_save; // UI1.1b: pure payloads and bounded selection/receipt journal
 pub mod evidence_policy;
 pub mod execution_fabric; // S10.4: Execution fabric contracts
 pub mod graduation;
