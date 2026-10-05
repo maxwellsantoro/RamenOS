@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- Reviewed UI1.1a host API/corpus prerequisite and pinned public-domain font with
+  independently reproduced old/new raster expectations. Exact class/rights,
+  opaque peers, checked leases, observable pause barriers, held-key/fresh-confirm
+  semantics and live save admission prepare the 13 initial RED cases. This adds
+  no editor handler or Store/device/target evidence. Strict Linux preflight for
+  `a369b18` passes; the observed compatibility VM cleanup gap remains explicit.
 - Five canonical desktop-editor IDLs and generated Rust modules for logical input,
   focus, offscreen surfaces, editor sessions and selected artifacts. Independent
   review checked all 43 messages; codegen, IDL lint, `kernel_api` tests/build/lint

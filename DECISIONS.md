@@ -1329,3 +1329,24 @@ Preserve the readiness budget, explicit development mode and task assertions.
 Independent parser regressions and a real cold Linux build with a deliberate
 twelve-second delay verify the boundary. This changes gate reliability, not Store
 runtime authority or target persistence.
+
+## 2026-10-04 — Freeze host editor authority and observable race assertions
+
+Accept the independently reviewed UI1.1a shared API and logical US-key fixture.
+Keep producer pressed/modifier state distinct from focus delivery state: consume
+old-focus releases without forwarding them, and require an actual Enter release
+before a fresh confirmation press. Reserve the concrete surface identity at
+confirmation and backing buffers at Create. Checked copy leases retire every
+writer alias before Present/Consume; they are host registry enforcement.
+
+Freeze explicit endpoint-class/bit/operation meanings and bounded observable
+pause entry/settlement before implementing race tests. Save claims retain live
+per-object admission state, sharing the retirement mutex with permit admission;
+snapshot permissions cannot admit a later effect. Owned live SaveStatus and
+original recovery reads may reconcile Unknown without replay. Retired or foreign
+new requests expose no operation data.
+
+Pin an upstream public-domain ASCII bitmap font without a runtime dependency,
+convert its documented bit order once, and independently prepare old/new crop
+digests and samples before handlers. These are assertion inputs, not rendering
+proof. The 13 gate-first cases and scoped implementations are the next packet.

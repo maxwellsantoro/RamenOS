@@ -1,0 +1,13 @@
+{
+  "upstream_commit": "8e279d2d864e79128e96188a6b9526cfa3fbfef9",
+  "upstream_sha256": "49d8df366296b203ca3211bc0672cf2a762135bf12710735b6292756b19dffd5",
+  "fixture_sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64",
+  "fixture_byte_len": 1536,
+  "glyph_count": 96,
+  "first_codepoint": 32,
+  "last_printable_codepoint": 126,
+  "width": 8,
+  "height": 16,
+  "row_order": "MSB-left; each upstream LSB-left row reversed and repeated twice",
+  "blank_unused_codepoint": 127
+}

@@ -43,8 +43,20 @@ The editor's [wire allocation](docs/DESKTOP_EDITOR_WIRE_V1.md) now has five
 canonical IDLs and generated Rust modules: input 802, focus 832, surface 833,
 editor session 352 and artifact 368. Independent review checked all 43 messages;
 IDL lint, `kernel_api` checks and the existing 17-case launch consumer pass.
-Shared host APIs, executable editor assertions and handlers remain pending.
+The [shared host API](docs/DESKTOP_EDITOR_HOST_API_V0.md) is independently
+reviewed and frozen, with a pinned font and independent old/new raster
+expectations. Producer held state survives focus changes; confirmation requires
+a release and fresh press. Exact rights, checked leases, observable pause
+barriers and live save-admission state prepare the 13 RED assertions.
+Executable editor assertions and handlers remain pending.
 The Oracle packet adds no capture or runtime evidence.
+
+Strict Linux preflight passes for the integrated editor-wire/Store-startup
+revision `a369b18`, including the 17-case boot admission and 17-case existing
+desktop launch gates. Its isolated checkout matched the accepted source exactly.
+The compatibility gate still left an owned QEMU process, stopped by the
+coordinator after verifying its image/log paths; supervisor termination and
+gate cleanup have a separate regression packet in progress.
 
 ## Implemented foundations and their boundaries
 
