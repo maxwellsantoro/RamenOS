@@ -19,6 +19,11 @@ run_codegen --in idl/portals/clipboard_v1.toml --out kernel_api/src/generated/po
 run_codegen --in idl/portals/notifications_v1.toml --out kernel_api/src/generated/portal_notifications.generated.rs
 run_codegen --in idl/portals/screen_capture_v1.toml --out kernel_api/src/generated/portal_screen_capture.generated.rs
 run_codegen --in idl/portals/desktop_session_v1.toml --out kernel_api/src/generated/desktop_session_v1.generated.rs
+run_codegen --in idl/harness/input_v1.toml --out kernel_api/src/generated/input_v1.generated.rs
+run_codegen --in idl/services/desktop_focus_v1.toml --out kernel_api/src/generated/desktop_focus_v1.generated.rs
+run_codegen --in idl/services/desktop_surface_v1.toml --out kernel_api/src/generated/desktop_surface_v1.generated.rs
+run_codegen --in idl/portals/desktop_editor_session_v1.toml --out kernel_api/src/generated/desktop_editor_session_v1.generated.rs
+run_codegen --in idl/portals/desktop_artifact_v1.toml --out kernel_api/src/generated/desktop_artifact_v1.generated.rs
 run_codegen --in idl/harness/domain_manager_v1.toml --out kernel_api/src/generated/domain_manager_v1.generated.rs
 run_codegen --in idl/harness/gpu_quarantine_v1.toml --out kernel_api/src/generated/gpu_quarantine_v1.generated.rs
 run_codegen --in idl/harness/net_v1.toml --out kernel_api/src/generated/net_v1.generated.rs

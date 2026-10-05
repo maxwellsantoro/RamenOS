@@ -106,7 +106,8 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 - [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; first host launch/lifetime consumer implemented; editor/device/target joins pending
 - [Desktop session v1](DESKTOP_SESSION_V1.md) — generated protocol-336 preview/confirmation/lifetime contract and passing default-off Unix host process/wire gate
 - [Boot frame ownership v0](BOOT_FRAME_OWNERSHIP_V0.md) — reviewed pure map/retention admission and passing 17-case gate; actual firmware-exit adapter, initial-access evidence and QEMU allocator proof pending
-- [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets, typed authority and irreversible-save reconciliation; shared allocation and assertions pending
+- [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets, typed authority and irreversible-save reconciliation; shared host APIs and assertions pending
+- [Desktop editor wire v1](DESKTOP_EDITOR_WIRE_V1.md) — five registered canonical IDLs and 43 generated messages; handlers and UI1.1 behavior pending
 - [External boot-profile Oracle v0](plans/boot-profile-oracle-v0.md) — reviewed CPU inspection preparation, bounded actual EFI checkpoints and fixed claim limits; relocated-entry resolution and frozen executable capture still pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)

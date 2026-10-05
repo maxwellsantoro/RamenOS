@@ -1,0 +1,58 @@
+namespace = "portal.desktop_artifact"
+version = "1"
+protocol = 368 # 0x170; incompatible versions require a new protocol ID.
+
+# Canonical UI1.1 contract only; no transaction handler or persistence proof.
+# Payload IDs are references, not owner/role/PID authentication. Envelope.handle
+# resolves an opaque trusted peer and class-specific grant outside the payload.
+# Equal numeric rights in different endpoint classes do not cross-authorize.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# Explicit little-endian codecs require exact lengths and zero reserved/tail
+# bytes; generated repr(C) types neither validate wire bytes nor grant authority.
+# Denials expose only request_id and status; all other reply fields are zero.
+# Selected object comes from the grant, never a selectable path/tag/content ID.
+# Descriptor schema, lengths, generation, owner and freeze state are checked
+# before consuming shared bytes; hashes and object bytes confer no authority.
+
+# Selected READ endpoint only, for this instance's validated read-only object.
+[message.read_selected]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.read_selected_reply]
+msg_type = 2
+fields = ["request_id:u64", "revision:u64", "data_shm:u64", "object_generation:u64", "byte_len:u32", "status:u32"]
+
+# REPLACE endpoint only; reserve a bounded broker-owned operation slot before
+# dispatch. Issuing the fresh nonzero operation ID causes no publication.
+[message.allocate_save_id]
+msg_type = 3
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "expected_revision:u64"]
+
+[message.allocate_save_id_reply]
+msg_type = 4
+fields = ["request_id:u64", "operation_id:u64", "status:u32", "reserved:u32"]
+
+# Peer binds instance/generation; validate and freeze the owned draft snapshot.
+# One immutable commit permit binds the operation and expected revision. No
+# request bypasses that permit; Unknown is reconciled without mutation replay.
+[message.commit]
+msg_type = 5
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "expected_revision:u64", "operation_id:u64", "source_shm:u64", "byte_len:u32", "reserved:u32"]
+
+# Ok requires a verifiable receipt; Unknown has zero receipt handle/length and
+# result revision. Receipt outcomes distinguish commit and definitive noncommit.
+[message.commit_reply]
+msg_type = 6
+fields = ["request_id:u64", "operation_id:u64", "revision:u64", "receipt_shm:u64", "status:u32", "receipt_len:u32"]
+
+# Owned RECEIPT endpoint or owner-bound recovery context on the original
+# operation only; scoped observation, never dispatch/replay or enumeration.
+[message.save_status]
+msg_type = 7
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "operation_id:u64"]
+
+[message.save_status_reply]
+msg_type = 8
+fields = ["request_id:u64", "operation_id:u64", "revision:u64", "receipt_shm:u64", "status:u32", "receipt_len:u32"]

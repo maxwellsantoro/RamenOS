@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Five canonical desktop-editor IDLs and generated Rust modules for logical input,
+  focus, offscreen surfaces, editor sessions and selected artifacts. Independent
+  review checked all 43 messages; codegen, IDL lint, `kernel_api` tests/build/lint
+  and the existing 17-case desktop launch consumer pass. Shared host APIs and
+  UI1.1 behavior remain separate prerequisites.
 - Independently reviewed UI1.1 editor and external boot-profile Oracle preparation
   contracts. Editor packets separate volatile host behavior, atomic Store
   selection/receipt, task integration and actual process execution. Save admission
@@ -39,6 +44,10 @@
   no target desktop or device behavior.
 
 ### Fixed
+- Moved Store S0 smoke-gate compilation before its unchanged ten-second server
+  readiness budget. Launch the unique non-test executable from strict successful
+  Cargo build output, retaining actual server PID cleanup and all task assertions.
+  A real Linux cold build with a deliberate twelve-second build delay passes.
 - Applied StoreClient timeouts on initial and replacement sockets and bounded
   complete response frames against stalled/trickled replies. Retained clients
   reconnect after observable idle closure and discard failed transports without

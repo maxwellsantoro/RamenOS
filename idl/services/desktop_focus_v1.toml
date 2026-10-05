@@ -1,0 +1,33 @@
+namespace = "services.desktop_focus"
+version = "1"
+protocol = 832 # 0x340; incompatible versions require a new protocol ID.
+
+# Canonical UI1.1 contract only; no focus handler or target enforcement proof.
+# Payload IDs are references, not owner/role/PID authentication. Envelope.handle
+# resolves an opaque trusted peer and class-specific grant outside the payload.
+# Equal numeric rights in different endpoint classes do not cross-authorize.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# Explicit little-endian codecs require exact lengths and zero reserved/tail
+# bytes; generated repr(C) types neither validate wire bytes nor grant authority.
+# Denials expose only request_id and status; all other reply fields are zero.
+
+# Registered chrome/focus class only, for a ready surface owned by the instance.
+[message.assign]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "surface_id:u64", "surface_generation:u64"]
+
+[message.assign_reply]
+msg_type = 2
+fields = ["request_id:u64", "focus_epoch:u64", "service_epoch:u64", "status:u32", "reserved:u32"]
+
+# Focused instance only; its separate Editor observe_focus endpoint supplies
+# its epoch without granting assignment. Keys never cross a retired focus epoch.
+[message.poll_keys]
+msg_type = 3
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "focus_epoch:u64"]
+
+# NotReady means no event, with sequence/focus_epoch/usage/phase/modifiers zero.
+[message.poll_keys_reply]
+msg_type = 4
+fields = ["request_id:u64", "sequence:u64", "focus_epoch:u64", "usage:u32", "phase:u32", "modifiers:u32", "status:u32"]

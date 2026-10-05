@@ -1310,3 +1310,22 @@ reads prepare initial-access evidence; they do not execute guest loads/stores or
 prove firmware exit. The actual relocated EFI entry resolution is still a required
 input before capture. Review accepts these as proposed dependency packets, not
 runtime, Store durability or target qualification evidence.
+
+## 2026-10-04 — Register editor wire types and separate build from server readiness
+
+Allocate input 802, focus 832, surface 833, editor session 352 and artifact 368
+according to the reviewed UI1.1 proposal. One writer authored the canonical IDLs;
+the coordinator registered and generated all five modules, and independent
+review checked all 43 messages against their definitions. Keep protocol 336
+unchanged. Generated types prepare consumers but do not enforce codecs or
+authority. Freeze opaque peer/lease APIs, the keyboard corpus and executable
+RED assertions before UI1.1 handlers.
+
+A fresh strict Linux preflight exposed a Store S0 smoke-gate cold-start failure:
+its ten-second readiness budget included compiling the server. Compile
+synchronously, fail closed unless Cargo reports success and exactly one absolute
+non-test server executable, then launch that executable and own its actual PID.
+Preserve the readiness budget, explicit development mode and task assertions.
+Independent parser regressions and a real cold Linux build with a deliberate
+twelve-second delay verify the boundary. This changes gate reliability, not Store
+runtime authority or target persistence.

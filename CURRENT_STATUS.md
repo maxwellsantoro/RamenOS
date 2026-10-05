@@ -39,7 +39,12 @@ are independently reviewed preparation packets. UI1.1 separates the volatile
 in-process editor, real Store transaction, integrated task and actual editor
 process. The Oracle proposal keeps external inspection distinct from guest
 access and requires a reviewed relocated-entry resolution method before capture.
-Neither packet adds handlers, allocated protocols or runtime evidence.
+The editor's [wire allocation](docs/DESKTOP_EDITOR_WIRE_V1.md) now has five
+canonical IDLs and generated Rust modules: input 802, focus 832, surface 833,
+editor session 352 and artifact 368. Independent review checked all 43 messages;
+IDL lint, `kernel_api` checks and the existing 17-case launch consumer pass.
+Shared host APIs, executable editor assertions and handlers remain pending.
+The Oracle packet adds no capture or runtime evidence.
 
 ## Implemented foundations and their boundaries
 
