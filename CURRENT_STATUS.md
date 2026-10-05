@@ -1,8 +1,8 @@
 # Current Status
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-05
 **Status:** Active and authoritative for landed state
-**Current Slice:** S12.4 HIL appliance v0 physical loop
+**Current Slice:** UI1.1 host editor; S12.4 HIL appliance physical loop pending
 **Software Lane:** SW0 foundations through A2.9 implemented; full A2 and comparison pending
 
 RamenOS is public pre-alpha, building toward the everyday OS for humans and AI
@@ -25,13 +25,15 @@ is accepted after independent review. UI1.0 now implements host permission previ
 and launch lifetime with a real
 non-rendering Rust witness and generated protocol-336 messages. The default-off
 Unix fixture passed its 17-case Foundry gate on macOS and Linux, retaining actual
-process identity, typed exchanges and cleanup evidence. UI1.1 editor/surface/Store
-integration and RUN0 post-firmware memory ownership are next dependencies. RUN0.0's
+process identity, typed exchanges and cleanup evidence. UI1.1a now adds a
+keyboard-driven volatile editor with typed focus and offscreen surfaces.
+Real Store transactions, the integrated task, actual editor process and RUN0
+post-firmware memory ownership are next dependencies. RUN0.0's
 pure map/retention admission prerequisite now passes 17 reviewed assertions,
 with sticky insertion-overflow rejection and conservative bounded selection.
 Actual firmware exit, retained-object collection and allocator installation are
 not connected yet. USB
-xHCI/HID, the target runtime, editor/compositor and target desktop remain future work.
+xHCI/HID, the target runtime and target desktop remain future work.
 
 The [UI1.1 editor proposal](docs/plans/desktop-editor-v0.md) and
 [external boot-profile Oracle proposal](docs/plans/boot-profile-oracle-v0.md)
@@ -47,11 +49,22 @@ The [shared host API](docs/DESKTOP_EDITOR_HOST_API_V0.md) is independently
 reviewed and frozen, with a pinned font and independent old/new raster
 expectations. Producer held state survives focus changes; confirmation requires
 a release and fresh press. Exact rights, checked leases, observable pause
-barriers and live save-admission state prepare the 13 RED assertions.
-Executable editor assertions and handlers remain pending.
+barriers and live save-admission state now support 13 executable assertions.
+The default-off in-process Rust editor passes on macOS and the assembled Linux
+checkout: real logical key input changes bounded ASCII drafts and offscreen
+pixels; protected chrome displays `VOLATILE / IN-PROCESS`. Preview confirmation,
+focus changes, surface alias retirement, denial, fault recovery and scoped
+counter exhaustion are exercised through issued contexts. One irreversible
+volatile save permit survives after-admission uncertainty without replay;
+definitively fenced pre-permit timeout permits a fresh explicit `Ctrl+S`.
+The gate retains 34 registry witnesses, canonical exchanges, actual composed
+frames and original receipts, and checks that the development API is absent by
+default. This establishes no Store IO, editor PID, device, target runtime or
+process containment. Strict Linux preflight passes on the assembled UI1.1a
+revision, including this gate in the extended Foundry suite.
 The Oracle packet adds no capture or runtime evidence.
 
-Strict Linux preflight passes with the reviewed compatibility cleanup correction,
+Strict Linux preflight passes at `a05b0c6` with the reviewed compatibility cleanup correction,
 including the 17-case boot admission and 17-case existing desktop launch gates.
 The compatibility gate launches built Store/supervisor executables, handles
 SIGTERM through the supervisor's child kill/reap path, and bounds teardown of
@@ -73,6 +86,7 @@ or its timeout, result and descendant-cleanup assertions.
 | Boot admission / RUN0.0 prerequisite | Allocation-free full-map validation, seven retention reasons, sticky map-overflow denial and bounded deterministic pool selection | `just foundry-boot-frame-pool-run0-0` · [Contract](docs/BOOT_FRAME_OWNERSHIP_V0.md); 17 pure cases, kernel consumer tests/builds and existing S8 integration pass. No actual firmware-exit/collector/allocator or target-runtime proof |
 | Typed interfaces | IDL/codegen, protocol/message IDs, bounded wire contracts | Native contracts are defined in `idl/`; generated syntax alone grants no authority |
 | Desktop / UI1.0 | Host permission preview, single-use synthetic confirmation, exact self-observation grants, real pinned child, expiry/revocation/fault/restart and independent watchdog | `just foundry-desktop-host-launch-ui1-0` · [Contract](docs/DESKTOP_SESSION_V1.md); default-off trusted Unix fixture, 17 cases and retained process/wire evidence. No editor, compositor, Store, target or process-containment proof |
+| Editor / UI1.1a | Logical keyboard editing, focus and preview approval, offscreen composition, volatile save/receipt and explicit recovery | `just foundry-desktop-editor-host-ui1-1a` · [Contract](docs/DESKTOP_EDITOR_HOST_API_V0.md); default-off trusted in-process fixture, 13 cases and source-bound wire/pixel/receipt evidence on macOS/Linux. Real Store IO, actual editor process, device input and target execution remain separate |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |
 | Semantic State / S10 | Host snapshots, subscriptions/reactor, capability-filtered views; selected QEMU snapshot/IPC paths | Multi-source aggregation and target reactor remain incomplete; default boot/time metadata includes fixtures |
 | Store / S1–S10 | Host CAS, signatures, durable ownership, path/tag queries, read-only projections and typed CoW commits | Full user launch/porting flow and target persistence remain incomplete |

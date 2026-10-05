@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- Default-off UI1.1a volatile in-process artifact editor, with generated typed
+  input/focus/surface/session/artifact messages and exact issued rights. Logical
+  key input edits bounded ASCII drafts and produces pinned offscreen pixels;
+  protected chrome marks volatile execution. Thirteen reviewed assertions pass
+  on macOS and assembled Linux, retaining 34 registry records, actual exchanges,
+  frames and receipts; strict Clippy and default API exclusion pass. Revocation,
+  reset, aliases, service recovery and counter exhaustion deny affected authority.
+  Save admission preserves one permitted transition and Unknown without replay;
+  definitive pre-permit timeout fences the original writer and allows a fresh
+  explicit save. Real Store IO, editor PID, device and target evidence remain
+  separate successors. Strict Linux preflight passes with this gate registered
+  in the extended Foundry suite.
 - Reviewed UI1.1a host API/corpus prerequisite and pinned public-domain font with
   independently reproduced old/new raster expectations. Exact class/rights,
   opaque peers, checked leases, observable pause barriers, held-key/fresh-confirm

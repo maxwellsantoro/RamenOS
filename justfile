@@ -372,6 +372,10 @@ foundry-agent-task-provider-accounting:
 foundry-desktop-host-launch-ui1-0:
 	bash ./tools/ci/foundry_desktop_host_launch_ui1_0.sh
 
+# Default-off volatile in-process editor, typed input/focus and offscreen surfaces.
+foundry-desktop-editor-host-ui1-1a:
+	bash ./tools/ci/foundry_desktop_editor_host_ui1_1a.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

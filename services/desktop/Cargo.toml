@@ -17,6 +17,11 @@ path = "src/bin/desktop-launch-witness.rs"
 required-features = ["desktop_v0_dev"]
 
 [[test]]
+name = "editor_host"
+path = "tests/editor_host.rs"
+required-features = ["desktop_v0_dev"]
+
+[[test]]
 name = "launch_lifetime"
 path = "tests/launch_lifetime.rs"
 required-features = ["desktop_v0_dev"]

@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-05
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -15,9 +15,11 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
-**Now:** freeze UI1.1's editor/surface/Store host contract and prepare RUN0.0's
+**Now:** freeze UI1.1b's real Store transaction contract and prepare RUN0.0's
 initial table-access evidence and firmware adapter, with executable assertions
-before handlers. RUN0.0's pure map/retention validator is reviewed and passes;
+before handlers. UI1.1a's 13 volatile in-process editor assertions pass on
+macOS and assembled Linux; Store IO, the integrated task and actual editor
+process remain separate. RUN0.0's pure map/retention validator is reviewed and passes;
 the actual ownership transition is still pending. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
 process/wire artifacts are retained. UI0 design, portable accounting and the
 finite named Python-consumer canary are reviewed, with the affected Linux SW0
@@ -33,7 +35,7 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI1.1 / coordinator then interaction worker | Coordinator registers gates and shared module ownership; assertion worker then disjoint handlers/client workers own exact assigned desktop/editor files | Accepted UI0, landed UI1.0, reviewed [editor proposal](docs/plans/desktop-editor-v0.md), registered [five wire interfaces](docs/DESKTOP_EDITOR_WIRE_V1.md) and reviewed [host API/corpus](docs/DESKTOP_EDITOR_HOST_API_V0.md) with pinned raster expectations; host artifact editor consumer | Write and independently review a's 13 volatile in-process RED assertions before handlers. b's real Store transaction, c's integrated task and d's actual editor process retain separate inventories. Gate both sides of irreversible save admission and recovery without replay. Target execution, physical keyboard and persistent restart remain separately gated. |
+| UI1.1b / coordinator then Store worker | Coordinator freezes shared schema/API, ownership and gates; assertion worker then one assigned Store transaction writer | Accepted UI1.1a host editor, reviewed [editor proposal](docs/plans/desktop-editor-v0.md), registered [five wire interfaces](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API/corpus](docs/DESKTOP_EDITOR_HOST_API_V0.md); real host CAS consumer | Freeze actual Store owner/locking, atomic selection+receipt journal and writer-fencing/reopen contract; independently review exactly seven b RED assertions before handlers. c's integrated task and d's actual editor process retain separate inventories. Gate both sides of irreversible admission and recovery without replay. Target execution, physical keyboard and persistent restart remain separately gated. |
 | RUN0.0 / coordinator then runtime worker | Coordinator freezes Oracle profile, raw-map/retention collection assertions and boot integration; worker owns exact subsequently assigned adapter files | Reviewed [pure admission contract](docs/BOOT_FRAME_OWNERSHIP_V0.md), passing gate and [Oracle preparation](docs/plans/boot-profile-oracle-v0.md); current UEFI path still lacks post-firmware ownership | Resolve actual relocated-entry capture, freeze the CPU-inspection schema/profile and write RED assertions. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus S8 in QEMU. External debug reads or a pure selector cannot prove guest access, firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |
