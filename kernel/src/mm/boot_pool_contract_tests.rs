@@ -155,7 +155,7 @@ fn boot_pool_rejects_zero_unaligned_overflow_and_physical_width() {
         (0x10_0000, 0),
         (0x10_0001, PAGE_SIZE),
         (0x10_0000, PAGE_SIZE + 1),
-        (u64::MAX & !(PAGE_SIZE - 1), PAGE_SIZE),
+        (!(PAGE_SIZE - 1), PAGE_SIZE),
         (MAX_PHYSICAL_END_EXCLUSIVE, PAGE_SIZE),
     ] {
         for kind in [RegionKind::Usable, RegionKind::Reserved] {
@@ -253,7 +253,7 @@ fn boot_pool_rejects_invalid_retained_ranges() {
         (0x1000, 0),
         (0x1001, PAGE_SIZE),
         (0x1000, PAGE_SIZE + 1),
-        (u64::MAX & !(PAGE_SIZE - 1), PAGE_SIZE),
+        (!(PAGE_SIZE - 1), PAGE_SIZE),
         (RETENTION_END_EXCLUSIVE, PAGE_SIZE),
     ] {
         let mut retained = original;

@@ -33,6 +33,14 @@ Actual firmware exit, retained-object collection and allocator installation are
 not connected yet. USB
 xHCI/HID, the target runtime, editor/compositor and target desktop remain future work.
 
+The [UI1.1 editor proposal](docs/plans/desktop-editor-v0.md) and
+[external boot-profile Oracle proposal](docs/plans/boot-profile-oracle-v0.md)
+are independently reviewed preparation packets. UI1.1 separates the volatile
+in-process editor, real Store transaction, integrated task and actual editor
+process. The Oracle proposal keeps external inspection distinct from guest
+access and requires a reviewed relocated-entry resolution method before capture.
+Neither packet adds handlers, allocated protocols or runtime evidence.
+
 ## Implemented foundations and their boundaries
 
 | Area | Landed behavior | Evidence and limits |

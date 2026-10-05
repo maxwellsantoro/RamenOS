@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed UI1.1 editor and external boot-profile Oracle preparation
+  contracts. Editor packets separate volatile host behavior, atomic Store
+  selection/receipt, task integration and actual process execution. Save admission
+  has an explicit irreversible permit and Unknown/quarantine recovery boundary.
+  CPU inspection keeps actual EFI call/return evidence separate from guest access;
+  relocated-entry discovery, profile/schema freeze and executable assertions remain
+  pending. No handler, protocol allocation or capture is added by these plans.
 - RUN0.0 pure boot-pool admission prerequisite: full bounded map validation,
   conservative seven-reason retention, fixed pool limits and deterministic
   selection. `BootMemoryMap` now holds 256 descriptors and preserves sticky

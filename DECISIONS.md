@@ -1284,3 +1284,29 @@ focused kernel consumers, both target/UEFI builds and affected integration gates
 pass. Keep their claims separate from the earlier strict Linux preflight for
 `a44993e`. No firmware transition, allocator installation, target execution or
 physical-machine claim is added by this prerequisite.
+
+## 2026-10-04 — Split editor evidence and order saves against authority retirement
+
+Keep protocol 336's observation-only host witness unchanged. Prepare a separately
+allocated editor contract with four bounded joins: volatile in-process editor,
+real Store-owned selection/receipt transaction, integrated human task, and actual
+host editor process. Registry-checked shared-object leases and a logical keyboard
+corpus provide host boundary evidence; they do not establish raw mapping
+revocation or native controller execution. Freeze the concrete shared contracts
+and exact assertion inventories before dependent handlers.
+
+Independent review found that a watchdog cannot cancel journal rename/fsync
+already in progress. Order one immutable per-object commit permit against
+revocation/deadline under a short state lock before irreversible IO. Without a
+permit, paused work cannot publish. A prior permit can finish only its bound
+original transition, with Unknown and mutation quarantine until receipt
+reconciliation. Do not infer noncommit or automatically retry. Require prior
+writer quiescence and journal validation before service-epoch recovery. Gate both
+sides of this boundary while keeping unrelated objects usable.
+
+The companion Oracle proposal uses a distinct CPU-inspection trace rather than
+forged PCI/MMIO events. External hardware-breakpoint observation and bounded RAM
+reads prepare initial-access evidence; they do not execute guest loads/stores or
+prove firmware exit. The actual relocated EFI entry resolution is still a required
+input before capture. Review accepts these as proposed dependency packets, not
+runtime, Store durability or target qualification evidence.
