@@ -1372,3 +1372,18 @@ automatically recover publications. Corrupt or unauthenticated input cannot gain
 metadata effects through recovery. Exact schema/service signatures and seven
 reviewed RED assertions precede implementation; this design supplies no cold-start
 anti-rollback, device-flush or target persistence evidence.
+
+Freeze the exact UI1.1b schema/service API before assertions. After durable
+Submitted metadata completes, a pre-permit pause releases namespace IO ownership
+while retaining active admission. Sticky timeout closure releases that unpermitted
+admission; a fresh serialized metadata owner persists its bound noncommit and new
+allocation. The old dispatcher cannot publish a stale journal snapshot. One
+open Submitted or unsettled issued permit reserves mutation admission per object.
+Earlier metadata IO pauses still require supported settlement.
+
+Public response completion releases only the endpoint invocation guard. Every
+held dispatcher/supervisor remains charged to the combined 64-producer limit until
+actual join, alongside at most two object IO workers. Opaque quiescence tokens
+expose bounded diagnostic fence snapshots with actual join identities and retained
+state minima. A checked reserved epoch is distinct from the actual reopened epoch;
+new-owner evidence binds its real journal publication to the prior fence digest.

@@ -109,7 +109,8 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 - [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets; volatile host editor implemented, real Store/task/process successors pending
 - [Desktop editor wire v1](DESKTOP_EDITOR_WIRE_V1.md) — five registered canonical IDLs and 43 generated messages consumed by the passing volatile host editor gate
 - [Desktop editor host API v0](DESKTOP_EDITOR_HOST_API_V0.md) — implemented default-off opaque peers/leases, logical keyboard editing, offscreen composition and 13-case gate; no Store/device/target/process-containment evidence
-- [Desktop editor Store transaction v0](plans/editor-store-transaction-v0.md) — bounded UI1.1b prerequisite proposal with Store-owned CAS, one selection/receipt journal and joined-writer recovery; exact API freeze and seven RED assertions precede handlers
+- [Desktop editor Store transaction v0](plans/editor-store-transaction-v0.md) — reviewed UI1.1b prerequisite with Store-owned CAS, one selection/receipt journal and joined-writer recovery; exact API frozen, seven RED assertions precede handlers
+- [Desktop editor Store API v0](DESKTOP_EDITOR_STORE_API_V0.md) — frozen pure schema/codecs, opaque fixture authority, finite admission and actual join/fence evidence; seven service assertions precede Store handlers
 - [External boot-profile Oracle v0](plans/boot-profile-oracle-v0.md) — reviewed CPU inspection preparation, bounded actual EFI checkpoints and fixed claim limits; relocated-entry resolution and frozen executable capture still pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)

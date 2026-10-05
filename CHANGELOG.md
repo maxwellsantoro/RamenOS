@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed UI1.1b executable API prerequisite: pure records and
+  canonical bounded journal, 64-byte text headers and 176-byte receipts, opaque
+  Store fixture endpoints, bounded held producers and read-only actual join/fence
+  snapshots tied to reopened epochs. Seven gate-first cases are being prepared;
+  handlers await reviewed RED. No transaction or durability evidence is added by the API.
 - UI1.1b Store transaction prerequisite with private per-object CAS ownership,
   one selected-revision/receipt journal, immutable admission permits, retained
   durable recovery witnesses and prevalidation before automatic CAS recovery.
