@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- Native preview assertion preparation now freezes genuine inactive-row probes,
+  literal protected pixels, optional producer-authored actor status, own query-ID
+  observations and exact cancellation/bypass/exhaustion statuses. Five default-off
+  assertions are independently reviewed with actual initial API-absence RED. A
+  retained mixed compile failure led to three reviewed typed-handle corrections
+  before the fresh RED. This adds no NativePreview service runtime acceptance.
 - Independently reviewed native Store preview Read API and pure shared-data
   contracts for UI1.1c's five Read-only precursor cases. Actual input tickets,
   current Store selection, one activation row, borrowed launch pairing, original

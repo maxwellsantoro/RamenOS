@@ -120,8 +120,18 @@ resolutions. An initial preflight sandbox cleanup failure is retained; a fresh
 focused sandbox run and the subsequent complete preflight passed without a source
 change. These bytes grant no authority, Store IO, current-time or publication
 proof. The contract JSON retains its creation-stage preparation snapshot; this
-file owns current implementation status. Native preview service assertions and
-handlers remain pending.
+file owns current implementation status. The native preview observation amendment
+is independently reviewed and frozen: genuine inactive rows have privileged
+denial probes, protected pixels have literal font expectations, and an optional
+248-byte record is tied to actual positive-actor frame publication. Pre-instance
+preview remains 464-byte metadata. Own query identities are historical observations;
+actual retained owners and joined producers must prove the two separate 64 limits.
+The default-off test target now has five independently reviewed assertions.
+The retained initial compile proved missing native preview APIs; three unrelated
+typed-handle errors were corrected and independently reviewed before a fresh
+API-absence RED with unchanged captured inputs. This is compile evidence, not
+execution of the five cases. Native preview handlers and runtime acceptance
+remain pending.
 The eight planned preview identities retain their Save, recovery and IO2
 dependencies, and the original eighteen-case integrated task remains separate.
 The five reused volatile UI records remain separately stamped. Actual editor PID,

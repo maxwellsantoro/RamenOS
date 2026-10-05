@@ -7,6 +7,7 @@ edition = "2021"
 default = []
 desktop_v0_dev = ["dep:sha2"]
 editor_native_read_v0_dev = ["desktop_v0_dev", "dep:artifact_store_schema"]
+editor_native_preview_v0_dev = ["editor_native_read_v0_dev"]
 
 [dependencies]
 kernel_api = { path = "../../kernel_api" }

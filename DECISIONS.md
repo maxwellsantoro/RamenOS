@@ -3,6 +3,42 @@
 **Last Updated:** 2026-10-05
 **Status:** Active
 
+## 2026-10-05 — Observe genuine inactive preview rows before activation
+
+Stage the actual inactive Store grant and private Desktop origin before the
+lock-free activation pause, then revalidate under Registry → Object → Gate before
+making the attachment Active. Privileged fixture probes return fixed observations
+from the same production admission helpers; they expose no inactive carrier or
+fabricated call. Unexpected success remains a test failure. The probe must not
+acquire Registry or Object while already holding a SelectionGuard.
+
+Bind literal protected pixels and optional producer-authored 248-byte status to
+the same final frame publication. Pre-instance rendering uses actual 464-byte
+preview metadata and returns no actor status record. Unavailable248 requires a
+genuine confirmed and delivered actor before its real object fault. Reuse the
+existing shared producer roster and actual joins; retain genuine query owners to
+exercise query capacity separately. An own-entry immutable ID getter is historical
+observation only, so tests can check pruning without gaining a witness or issuer.
+
+Ordinary own canonical Prepare/Confirm dispatch in this mode is Unsupported:
+it supplies no opaque ticket. Own inactive Cancel succeeds and retires that
+attempt; Active Cancel is NotReady and does not replace real Revoke. These are
+frozen assertion requirements; handlers and runtime evidence remain pending.
+StatusVersion exhaustion preserves the real object fault and retirement before
+returning the exact Exhausted status/reason; composition is Exhausted and prior
+held reads and chrome observations are Stale.
+
+Review the five executable assertions independently and retain the real initial
+API-absence compile before handlers. Preserve the first mixed failure and its
+three typed-handle corrections separately. The planned five-case host gate uses
+the existing native Read evidence profile: pinned source, actual executable,
+exact serialized outcomes, process birth/reap and bounded logs. Its assertions
+check genuine wire, copied bytes, frames and owned joins in the executable. It
+does not export a complete wire/pixel/lease/barrier/cleanup corpus or establish a
+universal transcript validator. Any stronger exported evidence profile needs
+its own bounded producer/consumer contract; this finite gate does not complete
+Save, recovery, IO2 or the original eighteen-case task.
+
 ## 2026-10-05 — Land the pure preview codec before native service consumers
 
 Keep the shared 464-byte preview and 248-byte current-status formats in

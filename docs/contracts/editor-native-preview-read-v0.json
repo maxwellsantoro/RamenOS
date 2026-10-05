@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "packet": "UI1.1c-native-Store-preview-Read-prerequisite",
-  "status": "FROZEN_API_AND_LIFECYCLE_PREPARATION_NOT_IMPLEMENTED",
+  "status": "FROZEN_READ_PRECURSOR_API_OBSERVATIONS_READY_FOR_ASSERTIONS",
   "frozen": true,
-  "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+  "base_commit": "5b31e52e2d9f104c9ffdf5f87061046dde8b146b",
   "implementation_authorized": false,
-  "assertions_authorized": false,
+  "assertions_authorized": true,
   "resources_authorized": false,
   "scope": "Host trusted setup and Read-only Store-current preview prerequisite: planned identities1,2,3,4,8 only. Future Save/recovery/mutation permits/IO2/full18 keyboard task/editor PID/device/target remain separate. This maintained contract records technical API freeze, not a registered gate or runtime acceptance.",
-  "precedence": "Use embedded reviewed_proposal and override its corresponding signatures, lifetimes and observations with embedded coordinator_amendments. Both are exact reviewed technical objects. No scratch artifact must be loaded to determine current API. Scratch pins retain local coordination provenance only.",
+  "precedence": "Use embedded reviewed_proposal, then coordinator_amendments, then observability_amendments and preinstance_record_clarification overriding their corresponding preparation definitions. All technical definitions are embedded. Original nested status/authority flags are provenance snapshots; this root wrapper freezes current assertion scope only. No service runtime acceptance.",
   "reviewed_proposal": {
     "schema_version": 3,
     "status": "PROPOSED_NPR_READ1_V3_PENDING_REVIEW_AND_FREEZE",
@@ -285,5 +285,370 @@
     "editor_process": false,
     "target": false,
     "hardware": false
+  },
+  "observability_amendments": {
+    "schema_version": 1,
+    "status": "PROPOSED_OBSERVABILITY_AMENDMENT_NOT_FROZEN_NO_IMPLEMENTATION_AUTHORITY",
+    "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "author": "/root/review",
+    "contract": {
+      "path": "docs/contracts/editor-native-preview-read-v0.json",
+      "bytes": 39010,
+      "sha256": "a4fcbd94bbd5a12af6caa92137f4e4376b0ad9c798f1ae655241884e723077a9"
+    },
+    "assertion_plan": {
+      "path": "out/roadmap-coordinator/editor-native-preview-five-assertion-plan.json",
+      "bytes": 31542,
+      "sha256": "2a34ca00db3f53f25b6cfad685b10f09945fdb3abe8ba16cbe60f136302da53a"
+    },
+    "scope": "Only Read1 NativePreview planned cases1,2,3,4,8. Propose privileged fixture/internal-boundary observation, existing shared producer getters, protected pixel constants, actual composed Chrome248 evidence and a legitimate query-row capacity leg. No Save, caller status setter, actual target/device, new editor process, mutation/reopen or resource permission.",
+    "source_basis": [
+      {
+        "path": "services/desktop/src/editor_dev/host.rs",
+        "bytes": 123324,
+        "sha256": "dc8941134f8578fc858b1b555f66419d0075844833acd3ed52741d8f3c191783"
+      },
+      {
+        "path": "services/desktop/src/editor_dev/native_authority.rs",
+        "bytes": 32291,
+        "sha256": "e5578873bc460c262dc412c4036a35f703fde1e4251dd4af0f44dc067cdfc5ed"
+      },
+      {
+        "path": "services/desktop/src/editor_dev/client.rs",
+        "bytes": 36089,
+        "sha256": "8c9a0f1718ece83dbf74619a6e65797f66928118a0778a094770d91087412720"
+      },
+      {
+        "path": "services/store_service/src/editor_store/mod.rs",
+        "bytes": 122925,
+        "sha256": "092d753041d4c9bfd874fa225c86c3b3574076bc44de3097cedb51d429064b20"
+      },
+      {
+        "path": "services/store_service/src/editor_store/native_read.rs",
+        "bytes": 34229,
+        "sha256": "580f8f859810b48b5e70e593d3915ff20f7c24d5aaae919f5de43d68e78aa4a2"
+      },
+      {
+        "path": "idl/portals/desktop_editor_session_v1.toml",
+        "bytes": 4711,
+        "sha256": "46899abfc2cb1cbac082092bd4ea0330583f5944607ab12514c912fc3095ea9e"
+      },
+      {
+        "path": "idl/services/desktop_focus_v1.toml",
+        "bytes": 1799,
+        "sha256": "b19dc96512d121411d664428ce091be5b0f577723ffb11608ca3c79fd1c4d2b2"
+      },
+      {
+        "path": "idl/services/desktop_surface_v1.toml",
+        "bytes": 2696,
+        "sha256": "a7770e0c8c869a8e71544e10e4b0abe9a1aecb137e2e438e846e2c41f7180bed"
+      },
+      {
+        "path": "services/desktop/tests/fixtures/ascii8x16_v0.bin",
+        "bytes": 1536,
+        "sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64"
+      }
+    ],
+    "conflicts_and_minimal_defaults": [
+      {
+        "id": "NPO-1",
+        "source": "Frozen activation.commit/inactive and coordinator delivery_linearization.boundary",
+        "conflict": "BeforeActivation does not currently guarantee an actual installed inactive Store Grant; private original read context is installed at take_store_launch. Pending has no public carriers. Merely inspecting reserved numeric IDs or routing ordinary legacy Store dispatch would not prove actual Inactive Gate enforcement.",
+        "default": "Make the existing preactivation batch explicitly own actual registered inactive three Desktop endpoints, reserved grants shared object and private read context. Actual Core installs its tagged inactive Store Grant and binds that exact private context before entering BeforeActivation pause. All remain Inactive. Release enforcing locks, pause; reacquire Registry\u2192sortedObjects\u2192Gate and fully revalidate before the sole Active flip. Delivery exposes/moves the already-owned context, never remints it."
+      },
+      {
+        "id": "NPO-2",
+        "source": "HostDesktop native_producers/join_native_finished/native_producer_counts host.rs3501-3520",
+        "conflict": "Store consumes the nonClone witness, but retained HostDesktop already has these methods. An unrelated or absent NativeAuthority would make counts uninformative, and zero fallback cannot prove NPR is wired.",
+        "default": "NPR constructor installs exactly one same Arc<NativeAuthority> into HostDesktop and State and returns its actual witness/enrollment. Reuse existing methods unchanged; no second roster or new public counter callback. Counts represent whole shared domain, not Store ownership."
+      },
+      {
+        "id": "NPO-3",
+        "source": "host.rs2815-2844 and draw_label2891-2905",
+        "conflict": "V3 specifies labels/regions but no literal coordinates/colors or independent current goldens.",
+        "default": "Freeze literal pixels below, preserving pinned MSB-left8x16 font, existing BGRA background/white application/ownership indicator and fixed protected rows."
+      },
+      {
+        "id": "NPO-4",
+        "source": "Private compositor snapshot_chrome_locked/validate_chrome_stamp_locked contract only; no public Chrome248 accessor",
+        "conflict": "Pure codec output is not evidence that actual Core-derived compositor status was produced. Returning unrelated manually encoded fixture bytes would make the test circular.",
+        "default": "Privileged diagnostic-only compositor record observation below copies the exact initialized248 bytes actually paired with the last successful NPR frame publication. It is not an app/data-plane lease API or new native protocol. If root requires a new native shared-data lease consumer, freeze that separately; do not claim one here."
+      },
+      {
+        "id": "NPO-5",
+        "source": "native_authority.rs start329-384 checks origin rows64 before producer pair64; prune_origins retains actual strong owners",
+        "conflict": "Thirty-two paused pairs saturate64 producer rows first and cannot independently prove query slot64.",
+        "default": "Use separate fresh fixture: retain64 genuine entries/origin owners while actual pairs complete and are joined between successive begins. Same one Active read context, not64 fake contexts. Query rows remain charged by real retained owners even if original query deadline closes; no synthetic roster bypass. If this cannot be realized under original lifetimes, report64 as structural bound only until a real reachability proof exists."
+      }
+    ],
+    "inactive_staging": {
+      "additional_service_signature": "SelectionGuard::pub fn stage_read_installation(&mut self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<(),Status>;",
+      "ownership": "Only actual private SelectionIssuer held by Core can obtain this guard. StoreReadInstallation remains data, not an enrollment grant. Same actual Core first registers its real tagged Grant/peer/handle, then stages canonical handle/object/generation/epoch into that pending attachment. No consumer issuer getter, tuple mint, status setter or new visible endpoint.",
+      "semantics": "Authorize actual Authority/Core-linked pending/pin/actor/current selected object and setup lifetime under held Gate; same exact already-staged tuple is idempotent, different tuple Denied preserving rightful stage. Establish an actual private retained origin from the already-reserved context and actual staged Store handle exactly once; keep origin/three endpoints/bootstrap descriptor hidden. No Active flag, no delivery or producer spawn.",
+      "activation": "activate_read must require and match the staged immutable installation, same pending/context and actual tagged Grant. BeforeActivation occurs only after Store Grant and private origin are installed Inactive, with Registry/Object/Gate/Roster locks dropped. Reacquire and repeat all actual checks before Active. No IO, allocation, callback or State locking after final Active linearization.",
+      "failures": "Foreign denial changes no row. Own invalid/expired setup Stale can retire only exact owned inactive attempt, with NativePreviewExposeFailure retaining actual pending/inactive Grant and existing stage/owner observations. No rollback claim, silent row loss or unbounded additional rows; reuse already-reserved endpoint/context/grant/attachment/object caps."
+    },
+    "fixed_privileged_probe": {
+      "desktop_signature": "desktop::FixtureController::pub fn probe_inactive_preview(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause,now_ms:u64)->Result<InactiveDesktopProbeObservation,Status>;",
+      "store_signature": "store::FixtureController::pub fn probe_inactive_preview_read(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause)->Result<InactiveStoreProbeObservation,StoreStatus>;",
+      "desktop_observation": "pub struct InactiveDesktopProbeObservation { pub endpoint_requests:[Envelope;3],pub endpoint_replies:[Envelope;3],pub origin_status:Result<(),Status>,pub bootstrap_status:Result<(),Status>,pub grants_lease_status:Result<(),Status> }",
+      "store_observation": "pub struct InactiveStoreProbeObservation { pub grant_status:Result<(),StoreStatus> }",
+      "authority": "Methods exist only in explicit default-off NPR fixture mode, controller privately retains actual owner host/Core. Actual passed Chrome must match exact controller Authority/State/session owner and actual pending; wrong Authority/owner/pending/pause Denied before stage disclosure or row mutation. Views and request handles never authorize.",
+      "pause_race_exclusion": "Actual pause token must be same Authority/session/pin/instance, pointBeforeActivation, entered && !settled && !released. A bounded single probe-in-progress flag on existing barrier owns a short fixture reservation; release_store_preview returnsNotReady while a probe owns it. Claim/check/release flag under barrier lock; drop it before dispatch, never nest barrier mutex with enforcing State/Object/Gate/Roster locks. Already released, concurrent probe, wrong point or nonentered NotReady. RAII clears only its own flag after success/error/unwind; no extra rows/threads/counter identities. It cannot keep arbitrary hung threads contained.",
+      "desktop_actual_attempts": "Internally borrow/temporarily hold actual installed registered three endpoints and private original origin, never construct peer from numeric observation or return a carrier. Build generated352/7 GetStatus,832/3 PollKeys and833/1 Create with actual pending actor/session/focus,640x480/format1/reserved0 and fixed originalApproval correlation as diagnostic queryID. Call the real dispatcher with each actual peer. Store exact canonical actual requests/replies in observation; each expectedNotReady6/status-only. Direct original origin begin_preview_read uses actual canonical368/1 request carrying the staged actual Store handle and actor: expect RustErrNotReady with no producers/query allocation.",
+      "bootstrap_and_lease_attempts": "Use the same private actual pending bootstrap/grants admission helper called by production take_store_launch/lease exposure, before a fake stamp could be needed. Attempt the actual registered grants descriptor/read admission and bootstrap construction; expectErrNotReady and no bytes/handles. This is expressly an internal shared production-helper boundary, not a call to take_store_launch with a fabricated Active stamp.",
+      "store_actual_attempt": "Locate the exact tagged installed Grant via actual Core ownership, immutable stage tuple and actual issuer guard. Invoke the same production Core/Grant/epoch/attachment Gate admission helper used by register/execute/copy; expectNotReady. Do not call legacy generic dispatch (it denies NPR independently), synthesize PreviewReadCall, manufacture an Active stamp or falsely claim full typed registration occurred while origin begin itself correctly denies.",
+      "effect_proof": "Tests compare real HostDesktop preview_counts/shared producer counts and actual Core files/effects before/after; no counts or result supplied by caller. Exact replies remain observable, unexpectedSuccess/data orErrInternal fails the test rather than being normalized into a denial. Foreign-controller test preserves rightful still-paused pending, then rightful probe/release/activation/delivery/copy succeeds. If a buggy inactive origin attempt unexpectedly spawns real workers, its installed handles remain charged to the actual host roster and are retained/released/joined by the normal owned fixture cleanup. They are not discarded, reported joined by Drop, or omitted from effects; no public active carrier is returned.",
+      "retention": "Probe observations contain no opaque carrier, Arc, lease, JoinHandle, grant/reference duplication or public reflection. Fixed3 request/reply pairs and fixed Result fields only; reuse existing exchange256 budget, no new invisible synthetic traces. Internal transient holders are released on exit and never retained as app authority. Any malformed/noninactive call returns error, not a partial successful observation."
+    },
+    "existing_shared_producer_API": {
+      "signatures": [
+        "HostDesktop::pub fn native_producers(&self)->Vec<ProducerId>;",
+        "HostDesktop::pub fn join_native_finished(&self,producer:&ProducerId)->Result<JoinedProducerProof,Status>;",
+        "HostDesktop::pub fn native_producer_counts(&self)->ProducerCounts;"
+      ],
+      "same_authority": "NPR feature enables existing NativeRead module/guard code and constructor sets both private native pointers to exact same Authority used by actual SelectionIssuer and Store witness. State\u2192Gate and Gate\u2192Roster order unchanged. No State acquired under Gate, no strong State backedge.",
+      "meaning": "Host getter enumerates actual installed/joining rows in whole shared domain; counts held/io/joining/joined_total are shared diagnostics. Store own getter and actualReturned pairs alone prove Store spawn ownership. Same-domain join can reap actual Desktop or Store token, not confer Store provenance. Query/context counts remain separate diagnostics.",
+      "tests": "Actual NPR paused pairs64 and returnedunique joins prove wiring; never accept zero fallback as unsupported-mode success. Unfinished/concurrent/retired joinNotReady, foreignDenied, identity aliasuncharged and actual joinonce preserved. IO0; no64+2 escape."
+    },
+    "protected_pixel_freeze": {
+      "font": {
+        "path": "services/desktop/tests/fixtures/ascii8x16_v0.bin",
+        "bytes": 1536,
+        "sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64"
+      },
+      "font_interpretation": "96 ASCII32..127 glyphs,16 rows each,bit128 MSB-left; exact fixture input reviewed, no system font or serviceformatter expected-output dependency.",
+      "dimensions": {
+        "width": 640,
+        "height": 568,
+        "stride": 2560,
+        "format": "BGRA8888",
+        "byte_len": 1454080,
+        "application_rectangle": "x[0,640),y[48,528)",
+        "protected_rectangle": "all x; y[0,48) then[528,568)"
+      },
+      "background_bgra": [
+        224,
+        224,
+        224,
+        255
+      ],
+      "foreground_bgra": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "blank_application_bgra": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "indicator": {
+        "rectangle": "x[8,24),y[8,24)",
+        "border": "x8 or23 or y8 or23",
+        "border_bgra": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "interior_bgra": [
+          0,
+          192,
+          0,
+          255
+        ],
+        "meaning": "Protected owning route indicator, not Saved/available/durable verdict; unchanged on Unavailable."
+      },
+      "labels": [
+        {
+          "ascii": "HOST STORE",
+          "x": 40,
+          "y": 16,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "READ ONLY",
+          "x": 144,
+          "y": 16,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "NO SAVE",
+          "x": 8,
+          "y": 536,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "UNAVAILABLE",
+          "x": 88,
+          "y": 536,
+          "states": [
+            "Unavailable"
+          ]
+        }
+      ],
+      "raster": "Each label glyph writes all8x16 pixels black for setbit else chrome224/alpha255. All labels lie entirely in protected rows and are nonoverlapping. No VOLATILE / IN-PROCESS or DRAFT LOST/SAVE UNKNOWN/Saved inherited in NPR; old volatile compose unchanged.",
+      "static_goldens": {
+        "NoSave": {
+          "protected_bytes": 225280,
+          "protected_sha256": "ed29bf9aa5cce83a0421707f9bc8eecce32086154b9ce9b58c3994fdfb8d5206",
+          "white_app_bytes": 1228800,
+          "white_app_sha256": "f7f3eed6bad2c170eb0bccd6c368b320688a207a59c27321b412dd0774bc4df1",
+          "blank_app_full_frame_sha256": "9026cb19fa72aae4d1c36d397fc353f73f81fcf20649fca2c4d2471cd7a876c6"
+        },
+        "Unavailable": {
+          "protected_bytes": 225280,
+          "protected_sha256": "06c45d415ba0ffa22b05c50daff5cfaf1f5eecc0f7dd6537a1a1ac2f9d6e5621",
+          "white_app_bytes": 1228800,
+          "white_app_sha256": "f7f3eed6bad2c170eb0bccd6c368b320688a207a59c27321b412dd0774bc4df1",
+          "blank_app_full_frame_sha256": "58b89ef26ea3176b5115832c08b6551bf8cc7b8f131184743ee9cc0e14b44faa"
+        }
+      },
+      "golden_scope": "Hashes computed solely as proposed literal expected fixture from pinned font and constants, not by importing/running service/candidate. Protected hash concatenates top then bottom row bytes. NoSave fullframe hash valid only for deliberately all-white app positivecontrol; normal app pixels may differ. Unavailable whole app MUST white, no stale frozen app copied.",
+      "publication": "Actual NoSave/Unavailable derived by actual Core/Gate row, not fixture flag or raw record. Fault terminal frame has positive actual session/retired instance with focus_epoch=sequence=0; unchanged repeatcomposeNotReady. Snapshot/final heldGate version checks remain atomic with Consume/publication; actualBeforeFramePublish supported pause never holds enforcing locks. StatusVersionMAX keeps fault true but no fabricated current record/frame; Exhausted/stale publication denied."
+    },
+    "actual_Chrome248_evidence": {
+      "signature": "desktop::FixtureController::pub fn preview_chrome_observation(&self,compositor:&Endpoint)->Result<PreviewChromeRecordObservation,Status>;",
+      "observation": "pub struct PreviewChromeRecordObservation { pub session_id:u64,pub instance_id:u64,pub focus_epoch:u64,pub sequence:u64,pub attachment_version:u64,pub status_version:u64,pub bytes:[u8;248] }",
+      "source": "During normal NPR compose, canonical codec encodes actual Core-derived ChromeSnapshot once before final publication. Same private ChromeFrameStamp binds bytes, raster/state and actual frame. Store exact bytes with actual frame-publication row under final State\u2192Gate success, not by encoding caller observation later. Fixture getter copies this initialized actual producer record; pure codec may decode it independently in tests.",
+      "authority_and_lifetime": "Only actual own NPR controller/compositor/session context. Foreign registry/session/classDenied with no lifecycle disclosure. No current NPR published frameNotReady. If private stamp no longer current because object/lifecycle/epoch/version changed, Stale; no stale NoSave snapshot replay. After authentic terminalUnavailable publication its positive retired actor/status record remains observable while that terminal version is current. No live app Read restored.",
+      "bounded": "Use already-retained composed frame rows16, store at most248 additional bytes per row; no independent unbounded snapshot cache or viewlease allocation and no public status setter. Repeated evidence reading does not consume frame or reset deadlines/counters. At most16*248=3968 additional retained bytes, charged to existing frame evidence bound.",
+      "scope": "Privileged host diagnostic observation only, explicitly not a new zero-copy native status lease, allocated wire message or production app observation API. Future native data-plane status consumer needs a separate lease/descriptor authority contract if required; this amendment does not claim it.",
+      "tests": "Cases1/2 decode actualNoSave record after actualcompose and independently bind actor/object/Storeepoch/version/zerooriginalfields to actualCore/activation. Case1 faultcomposexpectsstate4+blankcrop; getter over the private last-published record returnsStale afterfault until a new current publication. Already-returned plain record bytes remain immutable historical observation, not a revocable authority carrier. Case3 frameversionbarrier oldpixels denied then newcurrent record/Bpositive. No fake producer bytes or knownhash lookup as actualcopy."
+    },
+    "query_slot_reachability": {
+      "source_basis": "Existing NativeAuthority::start charges one OriginLifetime per genuine entry plus two actual producers. Entry and Call keep real origin strong; Gate prune_origins only prunes dead owners. Actual join removes producer rows without destroying retained entry/call origin. Query rows remain charged until last real entry/call/producer owner drops, not merely request deadline/worker completion.",
+      "proposed_leg": "Fresh own NPR fixture one genuinely Active instance with original configuredTTL30000; one actual private Readcontext. Begin64 distinct canonical actual368/1 requests through actualorigin; retain every returned PreviewReadEntry (and successful Call if wait returns one), wait for actual pair completion with bounded supported waits, join both actualReturned producers before nextbegin. Before eachnext begin producerheld0/io0/joining0; retained actualquery rows grow1..64. No Storeexecute needed for these real Desktop query entries; Storeproducer ownership has its separate positiveleg.",
+      "deadline_scope": "Each original entry preserves actual1000ms deadline and may closeTimeout; never reset it, instanceclock, context or roster. Closed origin still counts only while actual owners retained. Entireleg bounded15s inside original30s instance; if native lifecycle expires or actual join fails tosettle, fail/INCOMPLETE with evidence rather than claim independent querycap saturation. No injected slots, syntheticworker, capseed, fake Authority or doublethreadcharging.",
+      "assertions": "At64 retainedquery owners and producerheld0, nextotherwisevalidbegin returnsExhausted with querycount64 and zero partial producerreservation/spawn; own Active instance and Core selection remain unchanged, observed through actual counts and scoped state. Drop real retainedquery entries/calls, require actualprune by fresh otherwisevalidbegin; freshcheckedoriginID greater/no reuse, actual StoreRead/copy on the new originaldeadline and realpairjoins. Do not require an expired old read to remain usable, or fabricate a fresh read while all query slots are retained.",
+      "central_decision": "Freeze this row-retention meaning and source-review implementation before treating64 as independent runtime saturation. If NPR origin accounting differs or finite leg cannot reach64 honestly, retain64 documentedstructuralcap and explicitly defer dynamic saturation; producer64 proof stillstands. No testknob bypasses either actualcap."
+    },
+    "gate_first_followup": [
+      "Root independently reviews and embeds accepted amendment before UI0 writes five cases.",
+      "Add only the above real observation probes/own production-helper boundary, pixel constants/goldens and honest capacity/evidence wording. Shared maintainer owns APIs/features/exports; disjoint writers afterward only after actual missingAPI RED.",
+      "Source review must verify helpers are shared real enforcers, actualstagepauseordering, sameAuthority wiring, actualproduction248 emission, no carrier exposure and precise protected/frame evidence."
+    ],
+    "performed": "Only source/JSON reads, hash/AST interpretation and offline proposed golden arithmetic from pinnedfont. No maintained edits, imports, builds, tests, runtime, allocation of service resources, Docker/HTTP, gate execution or authority actuation.",
+    "claims": {
+      "proposal_only": true,
+      "frozen": false,
+      "implemented": false,
+      "assertions_run": false,
+      "native_data_plane_status_API": false,
+      "inactive_dispatch_runtime_proved": false,
+      "dynamic_query64_proved": false,
+      "full_UIc_Save_or_target": false
+    }
+  },
+  "preinstance_record_clarification": {
+    "schema_version": 1,
+    "status": "CONSISTENT_NARROW_INTERPRETATION_PENDING_COORDINATOR_FREEZE",
+    "author": "/root/review",
+    "proposal_unchanged": {
+      "path": "out/roadmap-coordinator/editor-native-preview-observability-amendment-proposal.json",
+      "bytes": 24111,
+      "sha256": "b4bbc21c9ac8d4dc80ffe0401961249ef01566099a4131a2823422208a9c1d0d"
+    },
+    "frozen_read_contract": {
+      "path": "docs/contracts/editor-native-preview-read-v0.json",
+      "bytes": 39010,
+      "sha256": "a4fcbd94bbd5a12af6caa92137f4e4376b0ad9c798f1ae655241884e723077a9"
+    },
+    "frozen_codec_contract": {
+      "path": "docs/contracts/editor-native-preview-codec-v0.json",
+      "bytes": 23821,
+      "sha256": "92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325a32249"
+    },
+    "precedence": "Clarifies only observability proposal actual_Chrome248_evidence.source/bounded/tests and pre-instance frame behavior. No relaxed Chrome248 validation or new authority/API.",
+    "interpretation": [
+      "The per-frame stored initialized248-byte record is optional. A pre-instance permission preview has no genuine positive actor and therefore stores no Chrome248 record; only the actual464 preview metadata and permitted preview rendering are available.",
+      "Normal pre-instance compose remains supported. Absence of a positive actor must not invent actor IDs, emit a zero-filled invalid248 record, copy an unrelated actor, or cause ordinary preview rendering to fail merely because the Chrome248 codec cannot encode it.",
+      "FixtureController::preview_chrome_observation on an otherwise authorized own pre-instance frame returnsErr(NotReady), without bytes or descriptor. Foreign owner/registry/class stillDenied before lifecycle disclosure. Absent optional record is not State0 or State4.",
+      "When an actual genuine confirmed positive actor is associated with authentic current NPR frame publication, the optional bytes may be Some only if the full existing codec validation succeeds and actual Core/Gate/version/epoch and frame-publication checks bind that actor. This diagnostic record grants no Active/bootstrap/read authority; inactive/foreign/lifetime enforcement remains unchanged.",
+      "Case1 Unavailable248 proof faults A only after genuine confirmation, activation and authorized delivery/publication. The actual retained retired actor stays positive, fault-derived state4/current versions and white application crop must come from the authentic terminal frame. Getter behavior/version checks remain as proposed.",
+      "A fault before any genuine actor exists can prove actual object/pin/ticket retirement, preview rendering and counts or B noninterference. It cannot prove a248 Unavailable actor record. No test may manufacture a confirmed actor to repair that gap.",
+      "Each frame retains at most one optional248-byte array, so the existing upper bound16*248=3968 remains conservative. None frames still occupy normal frame accounting; no quota, object or lease exception is created."
+    ],
+    "contract_consistency": "This follows frozen codec validate248.phase_scope (positive reserved/current/retired actor; pre-instance excluded) and Read contract currentstatus rules. It narrows an overbroad reading of storing248 for every NPR compose, without altering layouts, states, actor positivity, normal preview rendering, or current five cases.",
+    "performed": "Read/hash and narrow interpretation artifact only; immutable proposal preserved. No maintained/source/test changes, builds, imports, runtime or resources.",
+    "claims": {
+      "clarification_only": true,
+      "contract_changed": false,
+      "implementation_authorized": false,
+      "runtime_evidence": false
+    }
+  },
+  "assertion_registration": {
+    "desktop_feature": "editor_native_preview_v0_dev = [editor_native_read_v0_dev]",
+    "store_feature": "editor_native_preview_v0_dev = [editor_native_read_v0_dev, desktop_service/editor_native_preview_v0_dev]",
+    "test_target": "editor_native_preview_read",
+    "required_features": [
+      "editor_native_preview_v0_dev"
+    ],
+    "test_path": "services/store_service/tests/editor_native_preview_read.rs",
+    "support_path": "services/store_service/tests/editor_native_preview_read_support/mod.rs",
+    "gate": "foundry-editor-native-preview-read-ui1-1c",
+    "case_inventory": [
+      "native_preview_current_selection",
+      "native_preview_fresh_approval_activation",
+      "native_preview_pin_cancel_expiry_race",
+      "native_preview_init_exposure_failure",
+      "native_preview_caps_versions_actual_joins"
+    ],
+    "default_off": true,
+    "assertions_first": true,
+    "original_missing_API_RED_before_handlers": true,
+    "claimed_runnable_cases": 0
+  },
+  "observation_review_provenance": {
+    "observability": {
+      "path": "out/roadmap-coordinator/editor-native-preview-observability-amendment-independent-review.json",
+      "bytes": 9380,
+      "sha256": "8f88362e8fd8970578fa19923dc50c0095eb52188b20f1352a818423cc527cfa"
+    },
+    "preinstance": {
+      "path": "out/roadmap-coordinator/editor-native-preview-preinstance-record-clarification-independent-review.json",
+      "bytes": 3977,
+      "sha256": "66e27e2f3035ce0e33dd77777f31beac531533cfa1ef98122dd833bf0d88b65e"
+    }
+  },
+  "root_implementation_obligations": [
+    "Preserve Registry -> Object -> Gate in Store probe and production admission; never acquire Registry/Object while holding SelectionGuard. No enforcing locks across barriers, IO or raster.",
+    "Probe unexpected admission/error remains observable and fails assertions; cannot normalize into NotReady.",
+    "Pre-instance frame may have no248 record and still renders464 metadata; genuine positiveactor required for published248.",
+    "Query64 saturation must retain actual entry/call owners and actual join records. No cap bypass, fake worker/proof, or extra64+2 roster.",
+    "Same existing native Authority must serve actual producer getters/joins; private setup and diagnostic observations confer no app authority."
+  ],
+  "entry_origin_observation": {
+    "signature": "PreviewReadEntry::pub fn origin_id(&self)->u64;",
+    "source": "Return immutable nonzero checked ID from this actual private query-owner allocation, never request correlation, wrapper address, a diagnostic reconstruction or caller data.",
+    "Lang": "Possession of actual nonClone private PreviewReadEntry issued by own begin_preview_read. No new constructor or public numeric mint.",
+    "ObsContract": "This own historical entry identity only. Plain u64 confers no current authority, clock, issuer, lifecycle, peer/origin carrier or cross-domain reflection. No witness getter, mutation, refresh, grant or rebinding.",
+    "assertion": "Read64 capacity leg retains actual entries and actual original IDs while each pair is joined; after dropping all owners/pruning a genuinely new entry has a strictly greater never-reused checked ID. Actual counter overflow remains sticky and fails closed."
+  },
+  "generic_route_and_cancel_status": {
+    "ordinary_dispatch": "In NPR mode an own authenticated canonical generated352 Prepare or Confirm sent through ordinary HostDesktop::dispatch returns Status::Unsupported and causes no volatile/NPR prepare, ticket consumption, grant, launch or count changes. Foreign identity and malformed wire continue to use their existing precise denial checks; this Unsupported assertion applies to own canonical bypass controls only.",
+    "inactive_cancel": "Own canonical generated352 Cancel through dispatch_store_preview_chrome for its prepared preview/inactive pending returns Status::Ok, retires only the exact own inactive attempt and makes subsequent activation Stale.",
+    "active_cancel": "After actual Active linearization, own Cancel returns Status::NotReady and preserves Active. Actual owner Revoke or actual lifecycle/fault/expiry retires it; Cancel is not an Active revocation backdoor."
+  },
+  "status_version_max_fault_result": {
+    "status": "FROZEN_EXACT_ASSERTION_OUTCOMES_BEFORE_HANDLERS",
+    "source_basis": "Clarifies the accepted StatusVersionMAX fault/publication rule without changing checked-counter admission or actual retirement.",
+    "fault_preview_object": "For an authenticated actual object fault whose required checked StatusVersion increment is exhausted, first preserve the actual fault and retire its matching pins, attachment/grants and aliases; return FixtureError with status StoreStatus::Exhausted and reason FixtureErrorKind::Exhausted. This is publication failure after an actual fault, never rollback or a successful new publication.",
+    "compose_next": "For that authorized own faulted session whose required current-status/frame publication cannot advance StatusVersion, compose_next returns Err(Status::Exhausted). Sticky exhaustion cannot fabricate or publish a current frame/record, or return a stale prior frame as success.",
+    "held_read_and_observation": "Its pre-fault held Read and previously published own chrome observation are stale: actual Read/copy and preview_chrome_observation return their typed Stale denial. No fabricated positive-actor status or fabricated current version is returned.",
+    "authority_and_scope": "Existing foreign/malformed authentication denials retain their exact status and no rightful retirement. Unrelated live Read and actual owned producer joins survive absent their actual expiry or lifecycle retirement. No new getter, counter reset, rollback, injected clock, runtime proof or Save authority."
   }
 }
