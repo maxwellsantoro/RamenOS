@@ -18,6 +18,7 @@ run_codegen --in idl/portals/file_picker_v1.toml --out kernel_api/src/generated/
 run_codegen --in idl/portals/clipboard_v1.toml --out kernel_api/src/generated/portal_clipboard.generated.rs
 run_codegen --in idl/portals/notifications_v1.toml --out kernel_api/src/generated/portal_notifications.generated.rs
 run_codegen --in idl/portals/screen_capture_v1.toml --out kernel_api/src/generated/portal_screen_capture.generated.rs
+run_codegen --in idl/portals/desktop_session_v1.toml --out kernel_api/src/generated/desktop_session_v1.generated.rs
 run_codegen --in idl/harness/domain_manager_v1.toml --out kernel_api/src/generated/domain_manager_v1.generated.rs
 run_codegen --in idl/harness/gpu_quarantine_v1.toml --out kernel_api/src/generated/gpu_quarantine_v1.generated.rs
 run_codegen --in idl/harness/net_v1.toml --out kernel_api/src/generated/net_v1.generated.rs

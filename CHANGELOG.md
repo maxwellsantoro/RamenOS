@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- Default-off UI1.0 Unix host launch service and pinned Rust child using generated
+  `desktop_session_v1` protocol 336. Permission preview, single-use synthetic
+  confirmation, opaque peer authority, redacted denials, monotonic lifetime checks,
+  absolute watchdog, kill/reap cleanup and bounded evidence pass 17 Foundry cases
+  on macOS and Linux. Reports retain process/bootstrap/wire artifacts and source,
+  binary and log digests. Editor, devices, Store and target execution remain pending.
 - A finite named Python-consumer authority witness: nine real host-file probes
   across RT/LT/LS at active, expired and revoked grant points. Reports bind actual
   actors, namespaces, typed capability/resource/generation transitions and exact

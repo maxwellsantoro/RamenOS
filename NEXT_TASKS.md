@@ -15,14 +15,13 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
-**Now:** register the accepted UI0 design's first executable host launch contract
-and initial failing assertions, alongside remaining SW0 controls. The SW-A packet, including the finite nine-point
-named Python-consumer canary witness, passed both affected Linux/Docker authority
-gates; broader host/deputy and
-continuous authority work remains. UI0 design and
-portable synthetic accounting are reviewed; combined Linux evaluator/reconciliation
-integration passed. Physical H0–H3 await hardware setup; no live capture
-or actuation is scheduled. The packets below need no model calls or physical actuation.
+**Now:** freeze UI1.1's editor/surface/Store host contract and the RUN0.0
+post-firmware frame-ownership prerequisite, with executable assertions before
+handlers. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
+process/wire artifacts are retained. UI0 design, portable accounting and the
+finite named Python-consumer canary are reviewed, with the affected Linux SW0
+gates passing. Physical H0–H3 await hardware setup; no live capture or actuation
+is scheduled. These ready packets need no model calls or physical actuation.
 Packet IDs are planning labels, not new slices or evidence of implementation.
 
 The coordinator keeps at most three worker packets active by default, prioritizes
@@ -33,13 +32,14 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI1.0 / coordinator then interaction worker | Coordinator registers `desktop_session_v1` IDL/bindings and a host launch gate; worker owns exact assigned files under new `services/desktop/` | [Accepted UI0 design](docs/plans/desktop-v0.md), existing typed IPC; real non-rendering host witness | Freeze exact preview/confirmation/status/lifetime wire fields, rights and authenticated fixture route. Write useful launch, denial, cancellation, stale-plan, expiry/revocation and fault/restart assertions before handlers; run the witness against typed enforcing host adapters. This excludes editor, surfaces, Store and target execution; proposed gate names remain unregistered. |
+| UI1.1 / coordinator then interaction worker | Coordinator freezes typed editor/input/surface/focus/artifact fields and gates; worker owns exact assigned remaining desktop/editor files | Accepted UI0 and landed UI1.0 host grant/lifetime contract; host artifact editor consumer | Write edit/frame/focus/save/conflict/uncertain-outcome and recovery assertions before implementation. Connect the named real Store consumer separately from fixture legs. Target execution, physical keyboard and persistent restart remain separately gated. |
+| RUN0.0 / coordinator then runtime worker | Coordinator freezes boot map/stage/retention contracts and module/gate registration; worker owns exact assigned allocation-free validator files | Accepted target-runtime design; current UEFI path lacks post-firmware frame ownership | First prove bounded conservative pool validation in pure fixtures. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus the existing S8 consumer in QEMU. An enum or pure selector cannot prove firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |
 
 Check each worker's environment before dispatch. SW-A completion and full SW-E
 integration require Linux/Docker. On macOS without those prerequisites, assign
-UI1.0 contract preparation, a portable SW-E subpacket, and an independent reviewer or
+UI1.1 contract preparation, RUN0.0 pure validation, a portable SW-E subpacket, and an independent reviewer or
 prerequisite worker. Keep the Linux acceptance explicitly incomplete; the ready
 queue does not certify that a particular host can run every listed gate.
 
@@ -58,7 +58,7 @@ before implementation; no S14/S15/target-desktop recipe is claimed to exist.
 
 | Packet / owner | Requires | Consumer, edit boundary and completion |
 |----------------|----------|----------------------------------------|
-| RUN0 / target-runtime worker | UI0's accepted runtime/authority contract and executable denial/failure assertions | One target application. Own only assigned loader/runtime files; integrate kernel glue through the coordinator. Demonstrate target execution, granted access, denial, failure and restart in QEMU; a host Wasmtime or init-bytecode marker is insufficient. |
+| RUN0 / target-runtime worker | RUN0.0 post-firmware ownership proof, UI0's accepted runtime/authority contract and executable denial/failure assertions | One target application. Own only assigned loader/runtime files; integrate kernel glue through the coordinator. Demonstrate target execution, granted access, denial, failure and restart in QEMU; a host Wasmtime or init-bytecode marker is insufficient. |
 | IN0 / input worker | UI0 input contract; selected controller Reference Vault and Oracle `protocol_trace` before device interaction | UI1's input consumer. First capture/validate the dossier, then implement one keyboard path in assigned driver/IDL files. Gate malformed reports, unplug/reset, bounded queues and denied delivery using the declared host/replay/QEMU scope. Physical execution waits for H0/H1. |
 | UI1 / desktop worker | UI0's accepted contracts and executable behavior/failure assertions | One application, compositor/focus and permission/launch/recovery flow. Own assigned service/client files and run a deterministic host consumer against typed interfaces. Input injection is allowed for this host gate; it does not finish IN0 or RUN0. |
 | STORE0 / storage worker | Existing block Vault/Oracle; a bounded device and Store durability contract with failure assertions | Artifact save/reopen. First establish actual QEMU device-backed read/write/flush; then connect the named Store consumer across its IO boundary. Own assigned driver/storage files, preserving schema/IO separation. Embedded-vector success alone cannot satisfy this packet. |

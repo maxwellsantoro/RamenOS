@@ -11,6 +11,7 @@ members = [
   "artifact_store_core",
   "artifact_store_schema",
   "services/portals",
+  "services/desktop", # UI1.0: opt-in typed host preview/launch lifetime
   "services/domain_manager",
   "services/capsule_relay",
   "services/semantic_state",

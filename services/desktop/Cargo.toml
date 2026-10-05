@@ -1,0 +1,22 @@
+[package]
+name = "desktop_service"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+desktop_v0_dev = ["dep:sha2"]
+
+[dependencies]
+kernel_api = { path = "../../kernel_api" }
+sha2 = { version = "0.10", optional = true }
+
+[[bin]]
+name = "desktop-launch-witness"
+path = "src/bin/desktop-launch-witness.rs"
+required-features = ["desktop_v0_dev"]
+
+[[test]]
+name = "launch_lifetime"
+path = "tests/launch_lifetime.rs"
+required-features = ["desktop_v0_dev"]

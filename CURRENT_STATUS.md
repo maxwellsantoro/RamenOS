@@ -21,9 +21,11 @@ allows S14/S15 contracts, host/replay work, and QEMU implementation to proceed
 without the model comparison or physical qualification. Driver work retains its
 own Reference Vault, Oracle and gate requirements; physical integration requires
 the prepared observation/actuation loop. The [desktop v0 design](docs/plans/desktop-v0.md)
-is accepted after independent review. Its first executable successor is UI1.0:
-host permission preview and launch lifetime with a real non-rendering witness.
-IDL registration and initial failing assertions precede implementation. USB
+is accepted after independent review. UI1.0 now implements host permission preview and launch lifetime with a real
+non-rendering Rust witness and generated protocol-336 messages. The default-off
+Unix fixture passed its 17-case Foundry gate on macOS and Linux, retaining actual
+process identity, typed exchanges and cleanup evidence. UI1.1 editor/surface/Store
+integration and RUN0 post-firmware memory ownership are next dependencies. USB
 xHCI/HID, the target runtime, editor/compositor and target desktop remain future work.
 
 ## Implemented foundations and their boundaries
@@ -32,6 +34,7 @@ xHCI/HID, the target runtime, editor/compositor and target desktop remain future
 |------|-----------------|---------------------|
 | Kernel / S0–S8 | x86_64 and aarch64 boot, typed IPC, capabilities, shared-memory mappings, tracing and SPSC ring foundations | Selected target/QEMU paths; fixed-size tables. Capability-table use after SMP transition is deliberately blocked; general SMP/IRQ support remains incomplete |
 | Typed interfaces | IDL/codegen, protocol/message IDs, bounded wire contracts | Native contracts are defined in `idl/`; generated syntax alone grants no authority |
+| Desktop / UI1.0 | Host permission preview, single-use synthetic confirmation, exact self-observation grants, real pinned child, expiry/revocation/fault/restart and independent watchdog | `just foundry-desktop-host-launch-ui1-0` · [Contract](docs/DESKTOP_SESSION_V1.md); default-off trusted Unix fixture, 17 cases and retained process/wire evidence. No editor, compositor, Store, target or process-containment proof |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |
 | Semantic State / S10 | Host snapshots, subscriptions/reactor, capability-filtered views; selected QEMU snapshot/IPC paths | Multi-source aggregation and target reactor remain incomplete; default boot/time metadata includes fixtures |
 | Store / S1–S10 | Host CAS, signatures, durable ownership, path/tag queries, read-only projections and typed CoW commits | Full user launch/porting flow and target persistence remain incomplete |

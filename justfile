@@ -365,6 +365,10 @@ foundry-agent-task-evaluator-controls:
 foundry-agent-task-provider-accounting:
 	bash ./tools/ci/foundry_agent_task_provider_accounting.sh
 
+# Default-off desktop permission-preview, real host launch and lifetime witness.
+foundry-desktop-host-launch-ui1-0:
+	bash ./tools/ci/foundry_desktop_host_launch_ui1_0.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

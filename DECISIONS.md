@@ -1233,3 +1233,29 @@ This is a finite observation of consumer authority, not adapter or model-interfa
 authority. The Linux/Docker gates pass, while whole-authority inclusion, continuous
 lifetime certification, noninterference, target enforcement and full A2 remain
 unproved. It grants no spending or provider-collection authority.
+
+## 2026-10-04 — Execute the first desktop grant/lifetime contract on a host
+
+Register protocol 336 for `portal.desktop_session` version 1 and gate its exact
+17-case inventory before handlers. The `desktop_v0_dev` feature enables a trusted
+Unix host broker, private verified executable snapshot and real Rust witness.
+An opaque per-registry context binds chrome/child endpoint classes to owner,
+session and instance identity. One synthetic Enter event authorizes exactly one
+plan; the child receives only its own observation endpoint.
+
+Separate pipe IO from the Child-owning supervisor and capture the absolute deadline
+before spawn. Kill and reap independently of later service calls. Reserve 16 total
+instance slots, including live children, so all eventual terminal evidence fits
+without eviction; stop and reap at the 64-exchange bound. Clamp controlled time
+under the enforcing lock for expiry and TTL origins. Independent review exposed a
+backward-time confirmation inconsistency, now covered by a failing-then-passing
+regression.
+
+The gate retains actual PID/hash/bootstrap/canonical exchanges and independent
+OS disappearance evidence, with strict named-case and artifact checks. Cache only
+the immutable expected test-witness identity to remove redundant test setup from
+the responsiveness measurement; service-side verification remains independent.
+Preserve earlier failed runs. Passing host fixtures do not provide scheduler
+latency guarantees, process containment, native kernel enforcement, real keyboard
+routing, display/editor/Store behavior or target execution. UI1.1 and RUN0 retain
+those separate contracts and evidence joins.

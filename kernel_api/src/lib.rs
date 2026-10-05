@@ -1090,6 +1090,12 @@ pub mod generated {
     include!("generated/portal_clipboard.generated.rs");
     include!("generated/portal_notifications.generated.rs");
     include!("generated/portal_screen_capture.generated.rs");
+
+    /// Desktop session v1: bounded typed preview/launch/lifetime messages.
+    /// Consumers and caller enforcement remain default-off host development.
+    pub mod desktop_session_v1 {
+        include!("generated/desktop_session_v1.generated.rs");
+    }
     include!("generated/domain_manager_v1.generated.rs");
     include!("generated/gpu_quarantine_v1.generated.rs");
     include!("generated/net_v1.generated.rs");
