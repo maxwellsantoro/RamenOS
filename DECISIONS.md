@@ -1748,3 +1748,56 @@ retain the mixed compiler failure and all reviewed source predecessors. The new
 Foundry gate uses pinned compiler/lock inputs, a fresh private target, all compiled
 schema sources and exact eight native outcomes with actual owned exit/reap.
 Register it without removing existing CI stages or changing their overrides.
+
+
+## 2026-10-06 — Freeze the full native Save task boundary before handlers
+
+Use the independently reviewed [live Save/task API](docs/contracts/editor-native-save-task-v0.json)
+for the original eighteen-case UI1.1c task. Place the concrete Rust composition
+consumer in `apps/artifact_editor`, default-off, depending on both service opt-ins.
+Desktop remains independent of Store. Actual editable state is private to the
+Desktop Gate and advances from genuine typed keys; Store alone owns IO and
+original outcomes. Saved requires receipt, immutable submitted snapshot, current
+draft and actual current frame to join. New edits stay Unsaved while old receipts
+remain Committed. A protected own-session original banner survives retirement
+and unrelated-object launch; mixed allocation/Commit uncertainty displays both.
+
+Reserve additive Artifact 368 ObserveAllocation9/reply10 with exact 32-byte typed
+payloads. SaveStatus7 needs a known operation and cannot safely observe a lost
+Allocate reply. Real retained original execution authority governs the new lookup;
+request IDs are correlation, never enumeration or replay authority. Preserve all
+old 43 messages and shared codecs. The schema2 outcome getter returns NotReady
+for current allocation-only uncertainty rather than inventing a source/receipt.
+IDL/codegen integration follows reviewed assertions and actual missing-API RED.
+
+Capture one CtrlS-wide absolute 1000 ms intent deadline before validation; first
+Allocate and first Commit inherit it. A later observation does not renew mutation
+authority. Use actual shared-roster asynchronous execution and one deadline/result
+slot, independent of polling and IO settlement. Concurrent polls cannot consume
+twice, partial startup retains actual handles, and synchronous execution wraps the
+same claim. Reserve and install IO before issuing the immutable permit; expiry or
+retirement after issue cannot cancel that one transition. Closure and permit use
+Object-to-Gate; held-Gate admission helpers never relock. No enforcing lock spans IO,
+rendering, pause waits or joins.
+
+Use a fixed Save-only profile: three objects/two sessions, 131072 trace exchanges,
+128 total successful composed frames and 16 pending reservations. Existing modes
+keep two objects, 256 exchanges and 16 total frames even when Save is compiled.
+The old 256 trace cannot drive the required 4096-byte keyboard edge. Rendering is
+explicit at meaningful batches; history overflow retains prior evidence. Store
+live data capacity of 32 and durable history capacity of 48 are distinct: prune actual released leases,
+never history. IO2 is inside the combined 64 cap. A third unrelated object under
+fresh approval can demonstrate real global IO denial while two original writers
+remain held, without guessing a stalled object's restart base.
+
+Native fence closes this Core and joins only its actual producers. Prevalidate
+all joined proofs and checked successor epochs before recovery/new-epoch IO;
+update the fenced Gate lineage only after authentic disk readback. Failed reopen
+retains the same owner; old actors/epochs/receipts never rebase. No empty legacy
+roster, cancellation flag or diagnostic boolean establishes quiescence.
+
+This is contract preparation. The assertion author next derives exact source-bound
+case/fixture/epoch/emission counts within finite budgets; independent review and
+real RED precede handlers. Planning gates do not prove the native Save task.
+Actual editor process, target/device/power-loss and containment claims remain
+separate, and the broader roadmap goal stays active.

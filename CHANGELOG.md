@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed live native Save/task API preparation: fresh explicit
+  approval, actual private keyboard draft/render joins, original allocation and
+  Commit observation without mutation replay, asynchronous once-only completion,
+  protected current Saved plus persistent uncertainty banners, shared 64 including
+  IO2 and Core-bound actual joined-owner reopen. Reserve additive Artifact 368
+  messages 9/10 and a bounded Save-only three-object profile while preserving old
+  modes/data/wire. All original eighteen cases remain required; exact executable
+  fixture/evidence inventory is next. S11/S12/S13 and organization governance
+  checks pass on the final Linux docs candidate. No new handlers, IDL/generated
+  types, eighteen-case test bodies, RED, task gate or runtime acceptance yet.
 - Pure native Save codec prerequisite: schema3 grants464 and schema2 original
   outcomes248, checked IPC/SHM references and complete supplied Binding/receipt
   joins. Eight independent assertion families pass on macOS/Linux after reviewed

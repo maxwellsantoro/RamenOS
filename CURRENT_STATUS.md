@@ -201,6 +201,27 @@ the original stages and CI overrides remain. Contract creation-stage JSON flags
 and source pins remain historical provenance. No live Save API, mutation permit,
 Store IO or protected current-draft Saved claim follows from this pure codec.
 The remaining live bridge and original eighteen-case integrated task are pending.
+The independently reviewed [live Save/task API contract](docs/contracts/editor-native-save-task-v0.json)
+now closes the cross-service preparation: fresh Save approval, private keyboard
+draft/render ownership, original-only allocation lookup, immutable permit and
+protected current-draft Saved joins, a shared 64 producer budget including the IO limit of 2,
+and actual Core-bound joined-owner reopen. A separate default-off
+`apps/artifact_editor` consumer is specified with asynchronous once-only Save
+completion; edits and rendering may continue while an original remains pending.
+Own unresolved originals retain protected banners independently of the current
+draft or a fresh unrelated-object launch.
+
+The contract reserves additive Artifact 368 messages 9/10 and a Save-only fixture
+profile with three objects/two sessions, 131072 exchanges, 128 total composed
+frames and 16 pending frames. Existing modes retain their limits and wire bytes;
+the Store shared-data cap of 32 remains separate from 48 durable operation slots.
+Recording ceilings are finite bounds, not observed fixture counts. This is API
+preparation only: no new IDL/generated types, executable eighteen-case assertions,
+RED, Save handlers or task gate are implemented by this milestone. The next
+packet derives and independently reviews the exact assertion/evidence inventory
+before actual RED, codegen and handlers. The required S11/S12/S13 and organization
+governance checks pass on the final Linux documentation candidate. Existing
+runtime code and its 53-stage acceptance scope remain unchanged.
 
 The eight planned preview identities retain their Save, recovery and IO2
 dependencies, and the original eighteen-case integrated task remains separate.
