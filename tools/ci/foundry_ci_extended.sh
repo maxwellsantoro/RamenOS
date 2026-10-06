@@ -14,6 +14,7 @@ bash "$ROOT_DIR/tools/ci/foundry_editor_save_schema_ui1_1b.sh"
 bash "$ROOT_DIR/tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh"
 bash "$ROOT_DIR/tools/ci/foundry_desktop_editor_store_ui1_1b.sh"
 python3 "$ROOT_DIR/tools/foundry/desktop_editor_native_read_gate.py"
+python3 "$ROOT_DIR/tools/foundry/desktop_editor_native_preview_read_gate.py"
 bash "$ROOT_DIR/tools/ci/foundry_boot_frame_pool_run0_0.sh"
 bash "$ROOT_DIR/tools/ci/foundry_compat_cleanup_s2.sh"
 

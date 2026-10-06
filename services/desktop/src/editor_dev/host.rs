@@ -175,6 +175,8 @@ pub struct ReadLease {
     peer: PeerContext,
     descriptor: ObjectDescriptor,
     frozen_sequence: Option<u64>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    _preview_retention: Option<Arc<()>>,
 }
 #[derive(Clone)]
 pub struct WriteLease {
@@ -203,6 +205,8 @@ impl Drop for FrameReservation {
 }
 struct RequestLife {
     ticket: Arc<()>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    entered: Instant,
     deadline: Instant,
     closed: std::sync::atomic::AtomicBool,
 }
@@ -346,6 +350,19 @@ struct Preview {
     approval: bool,
     invalid: bool,
 }
+#[cfg(feature = "editor_native_preview_v0_dev")]
+struct PreinstanceFrameSetup {
+    pin: Arc<super::native_preview::PinLife>,
+    pin_view: super::PinView,
+    plan: u64,
+    revision: u64,
+    object: u64,
+    expires: u64,
+    policy: u64,
+    session_generation: u64,
+    application: [u8; 32],
+    manifest: [u8; 32],
+}
 struct Session {
     owner: u64,
     generation: u64,
@@ -395,6 +412,14 @@ struct Object {
     data: Data,
 }
 struct State {
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    preview_pins: BTreeMap<u64, Arc<super::native_preview::PinLife>>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    preview_instances: BTreeMap<u64, Arc<super::native_preview::AttachmentLife>>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    chrome_records: BTreeMap<u64, super::PreviewChromeRecordObservation>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    terminal_versions: BTreeMap<u64, u64>,
     #[cfg(feature = "editor_native_read_v0_dev")]
     native: Option<Arc<super::native_authority::NativeAuthority>>,
     config: HostConfig,
@@ -650,6 +675,8 @@ impl State {
         Ok(())
     }
     fn retire(&mut self, id: u64, state: InstanceState) {
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        self.preview_instances.remove(&id);
         #[cfg(feature = "editor_native_read_v0_dev")]
         if let Some(native) = &self.native {
             native.retire(id);
@@ -686,6 +713,8 @@ impl State {
         if let Some(native) = &self.native {
             native.advance(now);
         }
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        self.settle_preview_retirements();
         let expired: Vec<_> = self
             .instances
             .iter()
@@ -992,6 +1021,14 @@ impl HostDesktop {
             state: Arc::new(Mutex::new(State {
                 #[cfg(feature = "editor_native_read_v0_dev")]
                 native: None,
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                preview_pins: BTreeMap::new(),
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                preview_instances: BTreeMap::new(),
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                chrome_records: BTreeMap::new(),
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                terminal_versions: BTreeMap::new(),
                 config,
                 sessions: BTreeMap::new(),
                 instances: BTreeMap::new(),
@@ -1044,6 +1081,10 @@ impl HostDesktop {
         q: &Envelope,
         now: u64,
     ) -> Result<EndpointInfo, Status> {
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if self.preview_mode() && !Arc::ptr_eq(&self.state, &peer.registry) {
+            return Err(Status::Denied);
+        }
         self.advance(now);
         let mut s = self.state.lock().unwrap();
         s.expire(self.clock.load(Ordering::SeqCst));
@@ -1089,6 +1130,15 @@ impl HostDesktop {
         let session = s.sessions.get(&sid).ok_or(Status::Denied)?;
         if session.object.inner.lock().unwrap().owner != session.owner {
             return Err(Status::Denied);
+        }
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if e.instance != 0 && s.preview_instances.contains_key(&e.instance) {
+            let native = s.native.as_ref().ok_or(Status::Denied)?;
+            let gate = native.gate.lock().map_err(|_| Status::Internal)?;
+            gate.preview
+                .as_ref()
+                .ok_or(Status::Denied)?
+                .admit_instance(e.instance)?;
         }
         if e.instance != 0 {
             let epoch = if e.class == EndpointClass::Artifact {
@@ -1191,9 +1241,12 @@ impl HostDesktop {
         Ok(s)
     }
     pub fn dispatch(&self, peer: &PeerContext, q: &Envelope, now: u64) -> Envelope {
+        let entered = Instant::now();
         let life = Arc::new(RequestLife {
             ticket: Arc::new(()),
-            deadline: Instant::now() + Duration::from_millis(1000),
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            entered,
+            deadline: entered + Duration::from_millis(1000),
             closed: std::sync::atomic::AtomicBool::new(false),
         });
         let checked = encode_envelope_wire(q).and_then(|b| decode_envelope_wire(&b));
@@ -1201,7 +1254,23 @@ impl HostDesktop {
         let failure = match checked {
             Err(e) => Some(e),
             Ok(_) if q.msg_type.is_multiple_of(2) || q.msg_type == 17 => Some(Status::Unsupported),
-            Ok(_) => self.authorize(peer, q, now).err(),
+            Ok(_) => {
+                let admitted = self.authorize(peer, q, now);
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                if admitted.is_ok()
+                    && self.preview_mode()
+                    && q.protocol == 352
+                    && matches!(q.msg_type, 1 | 5)
+                {
+                    Some(Status::Unsupported)
+                } else {
+                    admitted.err()
+                }
+                #[cfg(not(feature = "editor_native_preview_v0_dev"))]
+                {
+                    admitted.err()
+                }
+            }
         };
         if let Some(error) = failure {
             response = reply(q, peer.class, error);
@@ -1822,7 +1891,12 @@ impl HostDesktop {
                 p.invalid = true;
                 p.approval = false;
             }
-            if session.route != Route::App {
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            if self.preview_mode() {
+                s.retire_preview_setup(sid);
+            }
+            if s.sessions[&sid].route != Route::App {
+                let session = s.sessions.get_mut(&sid).unwrap();
                 session.pending_selector = None;
                 session.reset_pending = false;
                 s.shift_focus(sid, Route::Launcher, None)?;
@@ -1867,7 +1941,12 @@ impl HostDesktop {
                 p.invalid = true;
                 p.approval = false;
             }
-            if session.route != Route::App {
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            if self.preview_mode() {
+                s.retire_preview_setup(sid);
+            }
+            if s.sessions[&sid].route != Route::App {
+                let session = s.sessions.get_mut(&sid).unwrap();
                 session.pending_selector = None;
                 session.reset_pending = false;
                 s.shift_focus(sid, Route::Launcher, None)?;
@@ -1910,6 +1989,11 @@ impl HostDesktop {
                 0
             });
         let route = session.route;
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if self.preview_mode() && route != Route::App && phase == 1 && usage == 40 && mods == 0 {
+            self.mint_preview_ticket_locked(&mut s, sid, q, now, route, life)?;
+            return Ok(reply(q, peer.class, Status::Ok));
+        }
         if phase == 1 && delivery & 1 != 0 && matches!(usage, 41 | 20 | 21) {
             if usage == 41 {
                 s.shift_focus(sid, Route::Launcher, None)?;
@@ -2149,11 +2233,7 @@ impl HostDesktop {
                 put64(&mut r.payload, 8, q64(q, 32));
             }
             7 => {
-                let i = s.instances.get_mut(&id).unwrap();
-                if i.surface.frozen.as_ref().map(|(_, seq, _)| *seq) != Some(q64(q, 24)) {
-                    return Err(Status::Stale);
-                }
-                i.surface.frozen = None;
+                s.consume_frozen(id, q64(q, 24))?;
                 put64(&mut r.payload, 8, q64(q, 24));
             }
             9 => {
@@ -2582,10 +2662,10 @@ impl HostDesktop {
         write: bool,
         mapping: u64,
     ) -> Result<Object, Status> {
-        self.advance(now);
         if !Arc::ptr_eq(&self.state, &peer.registry) {
             return Err(Status::Denied);
         }
+        self.advance(now);
         let allowed = if write {
             matches!(
                 (peer.class, d.kind),
@@ -2625,6 +2705,10 @@ impl HostDesktop {
         {
             return Err(Status::Denied);
         }
+        // Object ownership precedes own lifecycle disclosure: a foreign
+        // preview descriptor must not report the caller's missing/expired pin.
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        self.admit_preview_lease_locked(&s, peer, d)?;
         if o.generation != d.object_generation {
             return Err(Status::Stale);
         }
@@ -2707,6 +2791,8 @@ impl HostDesktop {
             peer: peer.clone(),
             descriptor: *d,
             frozen_sequence: (object.kind == ObjectKind::SurfaceBuffer).then_some(object.operation),
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            _preview_retention: self.retain_preview_lease(d.kind)?,
         })
     }
     pub fn write_lease(
@@ -2729,6 +2815,10 @@ impl HostDesktop {
         Ok(())
     }
     pub fn compose_next(&self, compositor: &Endpoint, now: u64) -> Result<ComposedFrame, Status> {
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if self.preview_mode() {
+            return self.compose_store_preview(compositor, now);
+        }
         self.advance(now);
         if !Arc::ptr_eq(&self.state, &compositor.peer.registry)
             || compositor.peer.class != EndpointClass::Compositor
@@ -3037,6 +3127,10 @@ impl FixtureController {
         })
     }
     pub fn editor_bindings(&self, id: u64) -> Result<EditorBindings, Status> {
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if self.host.preview_mode() {
+            return Err(Status::Denied);
+        }
         let s = self.host.state.lock().unwrap();
         let i = s.instances.get(&id).ok_or(Status::Stale)?;
         if !matches!(i.state, InstanceState::Starting | InstanceState::Running) {
@@ -3074,6 +3168,8 @@ impl FixtureController {
             p.invalid = true;
             p.approval = false;
         }
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        s.retire_preview_setup(sid);
         Ok(())
     }
     pub fn set_application_identity(
@@ -3090,6 +3186,8 @@ impl FixtureController {
             p.invalid = true;
             p.approval = false;
         }
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        s.retire_preview_setup(sid);
         Ok(())
     }
     pub fn set_selected_identity(
@@ -3136,6 +3234,8 @@ impl FixtureController {
             p.approval = false;
         }
         s.endpoints.remove(&key);
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        s.retire_preview_setup(sid);
         Ok(())
     }
     pub fn reattach_keyboard(&self, sid: u64, now: u64) -> Result<(Endpoint, u64), Status> {
@@ -3261,6 +3361,12 @@ impl FixtureController {
             }
         };
         s.service_epoch = epoch;
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if self.host.preview_mode() {
+            if let Some(native) = &s.native {
+                native.retire_all();
+            }
+        }
         if matches!(service, ServiceKind::Artifact) {
             s.artifact_epoch = epoch;
             for session in s.sessions.values() {
@@ -3544,5 +3650,1653 @@ impl FixtureController {
             .as_ref()
             .ok_or(Status::Unsupported)?
             .seed(counter)
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl PeerContext {
+    pub(super) fn matches_preview_owner(
+        &self,
+        owner: &super::PreviewOwner,
+        chrome: u64,
+        state_id: usize,
+    ) -> bool {
+        Arc::as_ptr(&self.registry) as usize == state_id
+            && self.endpoint == chrome
+            && self.class == EndpointClass::Chrome
+            && self.instance == 0
+            && self.session == owner.session_id
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl HostDesktop {
+    pub fn new_store_preview_read(
+        config: HostConfig,
+    ) -> Result<
+        (
+            Self,
+            FixtureController,
+            super::RegistryWitness,
+            super::StoreSelectionEnrollment,
+        ),
+        Status,
+    > {
+        let (host, controller, witness) = Self::new_native_read(config)?;
+        let authority = host.native_authority()?;
+        authority.enable_preview()?;
+        let enrollment = super::StoreSelectionEnrollment { authority };
+        Ok((host, controller, witness, enrollment))
+    }
+    fn preview_mode(&self) -> bool {
+        self.native.as_ref().is_some_and(|a| {
+            a.gate
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .preview
+                .is_some()
+        })
+    }
+    fn preview_chrome_locked(&self, s: &State, peer: &PeerContext) -> Result<(), Status> {
+        if !Arc::ptr_eq(&self.state, &peer.registry)
+            || peer.class != EndpointClass::Chrome
+            || peer.instance != 0
+        {
+            return Err(Status::Denied);
+        }
+        let e = s.auth(peer)?;
+        let session = s.sessions.get(&peer.session).ok_or(Status::Denied)?;
+        if e.class != EndpointClass::Chrome || session.chrome != peer.endpoint {
+            return Err(Status::Denied);
+        }
+        Ok(())
+    }
+    pub fn preview_counts(&self) -> Result<super::PreviewCounts, Status> {
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        state.settle_preview_retirements();
+        self.native_authority()?.witness().preview_counts()
+    }
+    fn mint_preview_ticket_locked(
+        &self,
+        s: &mut State,
+        sid: u64,
+        q: &Envelope,
+        now: u64,
+        route: Route,
+        request: &RequestLife,
+    ) -> Result<(), Status> {
+        use super::native_preview::*;
+        let session = &s.sessions[&sid];
+        let (kind, plan, revision) = if route == Route::Launcher {
+            (PreviewUiTicketKind::Selector, 0, 0)
+        } else {
+            let p = session.preview.as_ref().ok_or(Status::NotReady)?;
+            if p.invalid || !p.release_seen {
+                return Ok(());
+            }
+            (PreviewUiTicketKind::Approval, p.plan, p.revision)
+        };
+        // The accepted Produce's original entry remains authoritative through
+        // validation and State acquisition. Ticket issuance cannot restart it.
+        let entered = request.entered;
+        let deadline = request.deadline;
+        let authority = self.native_authority()?;
+        let mut gate = lock(&authority.gate)?;
+        let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+        let now = now.max(self.clock.load(Ordering::SeqCst)).max(p.now);
+        if request.closed.load(Ordering::SeqCst) || Instant::now() >= deadline {
+            return Err(Status::Timeout);
+        }
+        let expires = now.checked_add(1000).ok_or(Status::Exhausted)?;
+        p.prune();
+        if p.tickets.len() >= 16 {
+            return Err(Status::Exhausted);
+        }
+        let id = p.next_ticket.checked_add(1).ok_or(Status::Exhausted)?;
+        if kind == PreviewUiTicketKind::Selector {
+            p.retire_setup(sid);
+        }
+        for r in p.tickets.values_mut() {
+            if r.view.session_id == sid
+                && matches!(r.state, TicketState::Available | TicketState::Taken)
+            {
+                r.state = TicketState::Closed;
+                r.untaken = None;
+            }
+        }
+        let request = if kind == PreviewUiTicketKind::Selector {
+            editor::PrepareLaunch {
+                request_id: q64(q, 24),
+                session_id: sid,
+                session_generation: session.generation,
+                application_hash: session.application,
+                requested_rights: 63,
+                reserved: 0,
+            }
+            .encode(Handle::unpack(session.chrome))?
+        } else {
+            editor::ConfirmLaunch {
+                request_id: q64(q, 24),
+                session_id: sid,
+                session_generation: session.generation,
+                plan_id: plan,
+                preview_revision: revision,
+            }
+            .encode(Handle::unpack(session.chrome))?
+        };
+        let view = PreviewUiTicketView {
+            kind,
+            ticket_id: id,
+            ticket_generation: id,
+            session_id: sid,
+            session_generation: session.generation,
+            device_id: session.device,
+            device_generation: session.queue_generation,
+            input_sequence: q64(q, 24),
+            focus_epoch: session.focus,
+            plan_id: plan,
+            preview_revision: revision,
+            expires_at_ms: expires,
+            entered,
+            deadline,
+        };
+        let life = Arc::new(TicketLife { id });
+        p.next_ticket = id;
+        p.tickets.insert(
+            id,
+            TicketRow {
+                life: Arc::downgrade(&life),
+                untaken: Some(life),
+                view,
+                request,
+                state: TicketState::Available,
+            },
+        );
+        Ok(())
+    }
+    pub fn take_preview_action(
+        &self,
+        chrome: &PeerContext,
+    ) -> Result<super::PreviewUiTicket, Status> {
+        use super::native_preview::*;
+        let s = self.state.lock().map_err(|_| Status::Internal)?;
+        self.preview_chrome_locked(&s, chrome)?;
+        let authority = self.native_authority()?;
+        let mut gate = lock(&authority.gate)?;
+        let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+        p.prune();
+        let id = p
+            .tickets
+            .iter()
+            .rev()
+            .find(|(_, r)| r.view.session_id == chrome.session && r.state == TicketState::Available)
+            .map(|(&id, _)| id)
+            .ok_or(Status::NotReady)?;
+        let r = p.tickets.get_mut(&id).ok_or(Status::NotReady)?;
+        if p.now >= r.view.expires_at_ms || Instant::now() >= r.view.deadline {
+            r.state = TicketState::Closed;
+            r.untaken = None;
+            return Err(Status::Stale);
+        }
+        let life = r.untaken.take().ok_or(Status::NotReady)?;
+        r.state = TicketState::Taken;
+        Ok(PreviewUiTicket {
+            authority: authority.clone(),
+            life,
+            view: r.view.clone(),
+            request: r.request,
+        })
+    }
+    fn preview_data(
+        s: &State,
+        sid: u64,
+        pin: &super::PinView,
+        plan: u64,
+        revision: u64,
+        expires: u64,
+        active: Option<(u64, u64, u64, u64, [u64; 3], Handle)>,
+    ) -> Result<Vec<u8>, Status> {
+        use artifact_store_schema::editor_preview::*;
+        let session = &s.sessions[&sid];
+        let c = &pin.current;
+        let (id, generation, surface, sg, handles, store) =
+            active.unwrap_or((0, 0, 0, 0, [0; 3], Handle::INVALID));
+        let classes = [
+            EditorPreviewClassV0::SelfStatus,
+            EditorPreviewClassV0::FocusRead,
+            EditorPreviewClassV0::Surface,
+            EditorPreviewClassV0::StoreRead,
+        ];
+        let mut records = [EditorPreviewGrantV0 {
+            handle: 0,
+            resource_id: 0,
+            resource_generation: 0,
+            service_epoch: s.service_epoch,
+            expires_at_ms: expires,
+            class: classes[0],
+            rights: 1,
+            protocol_version: 1,
+            reserved: 0,
+        }; 4];
+        for n in 0..4 {
+            records[n].class = classes[n];
+            records[n].rights = if n == 2 { 15 } else { 1 };
+            records[n].handle = if n < 3 { handles[n] } else { store.pack() };
+            records[n].resource_id = match n {
+                0 | 1 => id,
+                2 => surface,
+                _ => c.object_id,
+            };
+            records[n].resource_generation = match n {
+                0 | 1 => generation,
+                2 => sg,
+                _ => c.object_generation,
+            };
+            if n == 3 {
+                records[n].service_epoch = c.store_epoch;
+            }
+        }
+        let data = EditorPreviewDataV0 {
+            phase: if id == 0 {
+                EditorPreviewPhaseV0::Preview
+            } else {
+                EditorPreviewPhaseV0::Active
+            },
+            schema_version: 2,
+            total_len: 464,
+            category_mask: 63,
+            record_count: 4,
+            session_id: sid,
+            session_generation: session.generation,
+            instance_id: id,
+            instance_generation: generation,
+            selected_object_id: c.object_id,
+            selected_object_generation: c.object_generation,
+            selected_revision: c.revision,
+            policy_revision: session.policy,
+            plan_id: plan,
+            preview_revision: revision,
+            expires_at_ms: expires,
+            desktop_service_epoch: s.service_epoch,
+            application_hash: session.application,
+            manifest_hash: session.manifest,
+            selected_content_hash: c.content_hash,
+            max_text_len: 4096,
+            surface_width: 640,
+            surface_height: 480,
+            surface_stride: 2560,
+            surface_format: 1,
+            input_capacity: 64,
+            protocol_version: 1,
+            reserved: 0,
+            records,
+        };
+        Ok(data.encode_le().map_err(|_| Status::Invalid)?.to_vec())
+    }
+    pub fn prepare_store_preview(
+        &self,
+        chrome: &PeerContext,
+        ticket: &mut super::PreviewUiTicket,
+        pin: &super::StoreSelectionPin,
+        now: u64,
+    ) -> Result<Envelope, Status> {
+        use super::native_preview::*;
+        let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+        self.preview_chrome_locked(&s, chrome)?;
+        let authority = self.native_authority()?;
+        if !same(&authority, &ticket.authority)
+            || !same(&authority, &pin.authority)
+            || ticket.view.session_id != chrome.session
+            || ticket.view.kind != PreviewUiTicketKind::Selector
+        {
+            return Err(Status::Denied);
+        }
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        s.expire(now);
+        let mut gate = lock(&authority.gate)?;
+        let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+        let tr = p.tickets.get(&ticket.life.id).ok_or(Status::NotReady)?;
+        if tr.state == TicketState::Consumed {
+            return Err(Status::NotReady);
+        }
+        if tr.state != TicketState::Taken
+            || now >= tr.view.expires_at_ms
+            || Instant::now() >= tr.view.deadline
+        {
+            return Err(Status::Stale);
+        }
+        let pr = p.pins.get(&pin.life.id).ok_or(Status::Denied)?;
+        if pr.view.current.owner.session_id != chrome.session {
+            return Err(Status::Denied);
+        }
+        if pr.retired || now >= pr.view.expires_at_ms || Instant::now() >= pr.view.deadline {
+            return Err(Status::Stale);
+        }
+        let pv = pr.view.clone();
+        let sid = chrome.session;
+        let session = &s.sessions[&sid];
+        if ticket.view.session_generation != session.generation
+            || ticket.view.device_generation != session.queue_generation
+            || ticket.view.focus_epoch != session.focus
+            || ticket.request.payload[24..56] != session.application
+        {
+            return Err(Status::Stale);
+        }
+        s.reserve_identities(3)?;
+        s.focus_counter.checked_add(1).ok_or(Status::Exhausted)?;
+        if s.objects.len() >= 32 {
+            return Err(Status::Exhausted);
+        }
+        let expires = now
+            .checked_add(s.config.preview_ttl_ms)
+            .ok_or(Status::Exhausted)?
+            .min(pv.expires_at_ms);
+        let plan = s.identity()?;
+        let revision = s.identity()?;
+        let bytes = Self::preview_data(&s, sid, &pv, plan, revision, expires, None)?;
+        if let Some(old) = s.sessions[&sid].preview.as_ref().map(|p| p.object) {
+            s.objects.remove(&old);
+        }
+        let descriptor = s.object(
+            sid,
+            0,
+            ObjectKind::Preview,
+            0,
+            0,
+            Data::Immutable(Arc::new(bytes)),
+        )?;
+        let session = s.sessions.get_mut(&sid).ok_or(Status::Denied)?;
+        session.last_plan = plan;
+        session.preview = Some(Preview {
+            plan,
+            revision,
+            expires,
+            policy: session.policy,
+            application: session.application,
+            manifest: session.manifest,
+            selected_revision: pv.current.revision,
+            selected_hash: pv.current.content_hash,
+            object: descriptor,
+            release_seen: false,
+            selector: Some((40, false)),
+            approval: false,
+            invalid: false,
+        });
+        s.preview_pins.insert(sid, pin.life.clone());
+        s.shift_focus(sid, Route::Preview, None)?;
+        p.tickets
+            .get_mut(&ticket.life.id)
+            .ok_or(Status::NotReady)?
+            .state = TicketState::Consumed;
+        let mut r = reply(&ticket.request, chrome.class, Status::Ok);
+        put64(&mut r.payload, 8, plan);
+        put64(&mut r.payload, 16, revision);
+        put64(&mut r.payload, 24, descriptor);
+        put32(&mut r.payload, 32, 464);
+        put32(&mut r.payload, 40, 63);
+        Ok(r)
+    }
+    pub fn confirm_store_preview(
+        &self,
+        chrome: &PeerContext,
+        ticket: &mut super::PreviewUiTicket,
+        now: u64,
+    ) -> Result<super::PendingStoreInstance, Status> {
+        use super::native_preview::*;
+        let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+        self.preview_chrome_locked(&s, chrome)?;
+        let authority = self.native_authority()?;
+        if !same(&authority, &ticket.authority)
+            || ticket.view.session_id != chrome.session
+            || ticket.view.kind != PreviewUiTicketKind::Approval
+        {
+            return Err(Status::Denied);
+        }
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        s.expire(now);
+        let mut gate = lock(&authority.gate)?;
+        let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+        p.prune();
+        let tr = p.tickets.get(&ticket.life.id).ok_or(Status::NotReady)?;
+        if tr.state == TicketState::Consumed {
+            return Err(Status::NotReady);
+        }
+        if tr.state != TicketState::Taken
+            || now >= tr.view.expires_at_ms
+            || Instant::now() >= tr.view.deadline
+        {
+            return Err(Status::Stale);
+        }
+        let sid = chrome.session;
+        let session = &s.sessions[&sid];
+        let pv = session.preview.as_ref().ok_or(Status::Stale)?;
+        let pin = s.preview_pins.get(&sid).ok_or(Status::Stale)?.clone();
+        let pinrow = p.pins.get(&pin.id).ok_or(Status::Stale)?;
+        if pv.invalid
+            || !pv.release_seen
+            || pv.plan != ticket.view.plan_id
+            || pv.revision != ticket.view.preview_revision
+            || pv.policy != session.policy
+            || pv.application != session.application
+            || pv.manifest != session.manifest
+            || ticket.view.device_generation != session.queue_generation
+            || ticket.view.focus_epoch != session.focus
+            || now >= pv.expires
+            || pinrow.retired
+            || now >= pinrow.view.expires_at_ms
+            || Instant::now() >= pinrow.view.deadline
+        {
+            return Err(Status::Stale);
+        }
+        if p.attachments.len() >= 16
+            || s.instances.len() >= 16
+            || s.endpoints.len() + 3 > 64
+            || s.objects.len() + 1 > 32
+        {
+            return Err(Status::Exhausted);
+        }
+        let version = p.next_attachment.checked_add(1).ok_or(Status::Exhausted)?;
+        let status = p.next_status.checked_add(1).ok_or(Status::Exhausted)?;
+        let context = p.next_context.checked_add(1).ok_or(Status::Exhausted)?;
+        let expires = ticket
+            .view
+            .expires_at_ms
+            .checked_sub(1000)
+            .ok_or(Status::Invalid)?
+            .checked_add(s.config.instance_ttl_ms)
+            .ok_or(Status::Exhausted)?;
+        let plan = pv.plan;
+        let revision = pv.revision;
+        let setup_expires = pv
+            .expires
+            .min(pinrow.view.expires_at_ms)
+            .min(ticket.view.expires_at_ms);
+        let pinview = pinrow.view.clone();
+        let old = pv.object;
+        s.reserve_identities(9)?;
+        let id = s.identity()?;
+        let generation = s.identity()?;
+        let surface = s.identity()?;
+        let surface_generation = s.identity()?;
+        let epoch = s.service_epoch;
+        let endpoints = [
+            s.endpoint(sid, id, EndpointClass::SelfStatus, id, epoch, 1)?,
+            s.endpoint(sid, id, EndpointClass::FocusRead, id, epoch, 1)?,
+            s.endpoint(sid, id, EndpointClass::Surface, surface, epoch, 15)?,
+        ];
+        let _context_identity = s.identity()?;
+        let grants = s.object(
+            sid,
+            id,
+            ObjectKind::Grants,
+            0,
+            0,
+            Data::Immutable(Arc::new(Vec::new())),
+        )?;
+        let life = Arc::new(AttachmentLife {
+            id,
+            pin: pin.id,
+            pin_identity: Arc::downgrade(&pin),
+        });
+        let setup = Arc::new(PendingSetup {
+            _pin: pin.clone(),
+            _ticket: ticket.life.clone(),
+        });
+        let actor = artifact_store_schema::editor_save::EditorActorV0 {
+            owner_id: session_owner(&s, sid)?,
+            session_id: sid,
+            session_generation: s.sessions[&sid].generation,
+            instance_id: id,
+            instance_generation: generation,
+        };
+        p.next_attachment = version;
+        p.next_status = status;
+        p.next_context = context;
+        p.attachments.insert(
+            id,
+            AttachmentRow {
+                life: Arc::downgrade(&life),
+                view: PendingView {
+                    actor,
+                    pin: pinview,
+                    plan_id: plan,
+                    preview_revision: revision,
+                    instance_expires_at_ms: expires,
+                },
+                context,
+                version,
+                status_version: status,
+                installation: None,
+                attempt_started: false,
+                active: false,
+                delivered: false,
+                retired: false,
+                faulted: false,
+                status_exhausted: false,
+                logical_setup_expires: setup_expires,
+                request_deadline: ticket.view.deadline,
+                endpoints,
+                grants,
+                confirm_request: ticket.request,
+            },
+        );
+        p.tickets
+            .get_mut(&ticket.life.id)
+            .ok_or(Status::NotReady)?
+            .state = TicketState::Consumed;
+        s.instances.insert(
+            id,
+            Instance {
+                session: sid,
+                generation,
+                expires,
+                state: InstanceState::Starting,
+                bindings: [endpoints[0], endpoints[1], endpoints[2], 0],
+                grants,
+                surface: Surface {
+                    id: surface,
+                    generation: surface_generation,
+                    buffers: [0; 2],
+                    created: false,
+                    destroyed: false,
+                    sequence: 0,
+                    frozen: None,
+                    epoch,
+                },
+                recovery: false,
+            },
+        );
+        s.preview_instances.insert(id, life.clone());
+        s.objects.remove(&old);
+        s.sessions
+            .get_mut(&sid)
+            .ok_or(Status::Denied)?
+            .preview
+            .as_mut()
+            .ok_or(Status::Stale)?
+            .invalid = true;
+        Ok(PendingStoreInstance {
+            authority: authority.clone(),
+            life,
+            setup,
+        })
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+fn session_owner(s: &State, sid: u64) -> Result<u64, Status> {
+    Ok(s.sessions.get(&sid).ok_or(Status::Denied)?.owner)
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl HostDesktop {
+    fn endpoint_locked(&self, s: &State, key: u64) -> Result<Endpoint, Status> {
+        let e = s.endpoints.get(&key).ok_or(Status::Stale)?;
+        Ok(Endpoint {
+            peer: PeerContext {
+                registry: self.state.clone(),
+                endpoint: key,
+                session: e.session,
+                instance: e.instance,
+                class: e.class,
+            },
+            handle: Handle::unpack(key),
+        })
+    }
+    pub fn take_store_launch(
+        &self,
+        chrome: &PeerContext,
+        pending: &super::PendingStoreInstance,
+        stamp: &super::StoreActivationStamp,
+        now: u64,
+    ) -> Result<super::StoreLaunch, super::NativePreviewDeliveryFailure> {
+        use super::native_preview::*;
+        let mut observation = DeliveryObservation {
+            stage: PreviewDeliveryStage::Authorize,
+            status: Status::Denied,
+            authorized_attempt: false,
+            active: false,
+            retired: false,
+        };
+        let result = (|| {
+            let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+            self.preview_chrome_locked(&s, chrome)?;
+            let authority = self.native_authority()?;
+            if !same(&authority, &pending.authority)
+                || !same(&authority, &stamp.authority)
+                || !Arc::ptr_eq(&pending.life, &stamp.life)
+            {
+                return Err(Status::Denied);
+            }
+            {
+                let g = lock(&authority.gate)?;
+                let p = g.preview.as_ref().ok_or(Status::Denied)?;
+                let r = p.row(&pending.life)?;
+                if r.view.actor.session_id != chrome.session || r.version != stamp.version {
+                    return Err(Status::Denied);
+                }
+            }
+            observation.authorized_attempt = true;
+            observation.stage = PreviewDeliveryStage::Validate;
+            let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            s.expire(now);
+            let mut gate = lock(&authority.gate)?;
+            let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+            let r = p.row(&pending.life)?;
+            observation.active = r.active;
+            let already_delivered = r.delivered;
+            self.admit_preview_bootstrap_locked(&s, p, &pending.life)?;
+            if already_delivered {
+                return Err(Status::NotReady);
+            }
+            let r = p
+                .attachments
+                .get_mut(&pending.life.id)
+                .ok_or(Status::Denied)?;
+            if r.retired
+                || now >= r.view.instance_expires_at_ms
+                || !r.delivered
+                    && (now >= r.logical_setup_expires || Instant::now() >= r.request_deadline)
+            {
+                r.retired = true;
+                observation.retired = true;
+                return Err(Status::Stale);
+            }
+            if !r.active {
+                return Err(Status::NotReady);
+            }
+            if r.delivered {
+                return Err(Status::NotReady);
+            }
+            let installation = r.installation.clone().ok_or(Status::NotReady)?;
+            let id = pending.life.id;
+            let i = s.instances.get(&id).ok_or(Status::Stale)?;
+            let bytes = Self::preview_data(
+                &s,
+                chrome.session,
+                &r.view.pin,
+                r.view.plan_id,
+                r.view.preview_revision,
+                r.view.instance_expires_at_ms,
+                Some((
+                    id,
+                    i.generation,
+                    i.surface.id,
+                    i.surface.generation,
+                    r.endpoints,
+                    installation.store_handle,
+                )),
+            )?;
+            let grants = r.grants;
+            let endpoints = r.endpoints;
+            let generation = i.generation;
+            let expires = r.view.instance_expires_at_ms;
+            let mut confirm = reply(&r.confirm_request, EndpointClass::Chrome, Status::Ok);
+            put64(&mut confirm.payload, 8, r.view.actor.session_generation);
+            put64(&mut confirm.payload, 16, id);
+            put64(&mut confirm.payload, 24, generation);
+            put64(&mut confirm.payload, 32, grants);
+            put32(&mut confirm.payload, 40, 464);
+            let bootstrap = editor::InstanceBootstrap {
+                session_id: chrome.session,
+                session_generation: r.view.actor.session_generation,
+                instance_id: id,
+                instance_generation: generation,
+                grants_shm: grants,
+                grants_len: 464,
+                status: 0,
+            }
+            .encode(Handle::INVALID)?;
+            let bindings = NativePreviewBindings {
+                bootstrap,
+                self_status: self.endpoint_locked(&s, endpoints[0])?,
+                focus_read: self.endpoint_locked(&s, endpoints[1])?,
+                surface: self.endpoint_locked(&s, endpoints[2])?,
+                artifact_origin: PreviewReadOrigin {
+                    authority: authority.clone(),
+                    life: pending.life.clone(),
+                    context: r.context,
+                },
+            };
+            observation.stage = PreviewDeliveryStage::BuildReply;
+            s.objects.get_mut(&grants).ok_or(Status::Stale)?.data =
+                Data::Immutable(Arc::new(bytes));
+            // All fallible construction is complete while the actual State/Gate
+            // retain the same current admission. The visible carrier follows.
+            r.delivered = true;
+            if let Some(pin) = p.pins.get_mut(&pending.life.pin) {
+                pin.consumed = true;
+            }
+            if s.preview_pins
+                .get(&chrome.session)
+                .is_some_and(|pin| pin.id == pending.life.pin)
+            {
+                s.preview_pins.remove(&chrome.session);
+            }
+            let session = s.sessions.get_mut(&chrome.session).ok_or(Status::Stale)?;
+            session.route = Route::App;
+            session.focused = None;
+            session
+                .object
+                .inner
+                .lock()
+                .unwrap()
+                .live
+                .insert(id, (generation, expires));
+            observation.stage = PreviewDeliveryStage::Expose;
+            Ok(StoreLaunch {
+                confirm_reply: confirm,
+                bindings,
+                stamp: StoreActivationStamp {
+                    authority: authority.clone(),
+                    life: pending.life.clone(),
+                    version: stamp.version,
+                },
+            })
+        })();
+        result.map_err(|status| {
+            if observation.authorized_attempt {
+                if let Ok(mut s) = self.state.lock() {
+                    if let Ok(authority) = self.native_authority() {
+                        let retire = {
+                            let mut gate = authority.gate.lock().unwrap_or_else(|p| p.into_inner());
+                            if let Some(p) = gate.preview.as_mut() {
+                                if let Some(row) = p.attachments.get_mut(&pending.life.id) {
+                                    if !row.delivered {
+                                        row.retired = true;
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        };
+                        if retire {
+                            s.retire(pending.life.id, InstanceState::Revoked);
+                            observation.retired = true;
+                        }
+                    }
+                }
+            }
+            observation.status = status;
+            NativePreviewDeliveryFailure { observation }
+        })
+    }
+    pub fn begin_preview_read(
+        &self,
+        origin: &super::PreviewReadOrigin,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::PreviewReadEntry, Status> {
+        use super::native_preview::*;
+        let entered = Instant::now();
+        let authority = self.native_authority()?;
+        if !same(&authority, &origin.authority) {
+            return Err(Status::Denied);
+        }
+        encode_envelope_wire(q).and_then(|b| decode_envelope_wire(&b))?;
+        if q.protocol != 368 || !matches!(q.msg_type, 1 | 3 | 5 | 7) {
+            return Err(Status::Unsupported);
+        }
+        let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+        let context = {
+            let g = lock(&authority.gate)?;
+            let p = g.preview.as_ref().ok_or(Status::Denied)?;
+            let r = p.row(&origin.life)?;
+            let installed = r.installation.as_ref().ok_or(Status::NotReady)?;
+            if q.handle != installed.store_handle
+                || q64(q, 8) != r.view.actor.session_id
+                || q64(q, 16) != r.view.actor.session_generation
+            {
+                return Err(Status::Denied);
+            }
+            if q.msg_type == 1
+                && (q64(q, 24) != r.view.actor.instance_id
+                    || q64(q, 32) != r.view.actor.instance_generation)
+            {
+                return Err(Status::Denied);
+            }
+            if origin.context != r.context {
+                return Err(Status::Denied);
+            }
+            r.context
+        };
+        if q.msg_type != 1 {
+            return Err(Status::Unsupported);
+        }
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        s.expire(now);
+        {
+            let g = lock(&authority.gate)?;
+            let p = g.preview.as_ref().ok_or(Status::Denied)?;
+            p.admit_instance(origin.life.id)?;
+            let r = p.row(&origin.life)?;
+            if !r.delivered {
+                return Err(Status::NotReady);
+            }
+        }
+        // The actual native entry executor repeats Gate admission, reserves the
+        // real pair atomically, installs both handles and preserves its entry time.
+        drop(s);
+        let native = authority.start(context, *q, entered)?;
+        Ok(PreviewReadEntry {
+            native,
+            authority,
+            life: origin.life.clone(),
+        })
+    }
+    pub fn dispatch_store_preview_chrome(
+        &self,
+        chrome: &PeerContext,
+        q: &Envelope,
+        now: u64,
+    ) -> Envelope {
+        use super::native_preview::*;
+        let outcome = (|| {
+            encode_envelope_wire(q).and_then(|b| decode_envelope_wire(&b))?;
+            let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+            self.preview_chrome_locked(&s, chrome)?;
+            if q.handle.pack() != chrome.endpoint
+                || q.protocol != 352
+                || q64(q, 8) != chrome.session
+                || q64(q, 16) != s.sessions[&chrome.session].generation
+            {
+                return Err(Status::Denied);
+            }
+            let authority = self.native_authority()?;
+            let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            s.expire(now);
+            let mut g = lock(&authority.gate)?;
+            let p = g.preview.as_mut().ok_or(Status::Denied)?;
+            if q.msg_type == 3 {
+                let session = &s.sessions[&chrome.session];
+                let preview = session.preview.as_ref().ok_or(Status::Stale)?;
+                // CancelPreview carries only plan_id; the current private
+                // preview owns its revision. Reserved wire tail is not a revision.
+                if preview.plan != q64(q, 24) {
+                    return Err(Status::Denied);
+                }
+                if p.attachments.values().any(|r| {
+                    r.view.actor.session_id == chrome.session
+                        && r.view.plan_id == q64(q, 24)
+                        && r.active
+                        && !r.retired
+                }) {
+                    return Err(Status::NotReady);
+                }
+                p.retire_setup(chrome.session);
+                s.preview_pins.remove(&chrome.session);
+                let session = s.sessions.get_mut(&chrome.session).ok_or(Status::Denied)?;
+                if let Some(preview) = &mut session.preview {
+                    preview.invalid = true;
+                    preview.approval = false;
+                }
+                drop(g);
+                s.settle_preview_retirements();
+                s.shift_focus(chrome.session, Route::Launcher, None)?;
+                Ok(reply(q, chrome.class, Status::Ok))
+            } else if matches!(q.msg_type, 9 | 11) {
+                let id = q64(q, 24);
+                let i = s.instances.get(&id).ok_or(Status::Stale)?;
+                if i.session != chrome.session {
+                    return Err(Status::Denied);
+                }
+                if i.generation != q64(q, 32) {
+                    return Err(Status::Stale);
+                }
+                drop(g);
+                s.retire(id, InstanceState::Revoked);
+                s.shift_focus(chrome.session, Route::Launcher, None)?;
+                Ok(reply(q, chrome.class, Status::Ok))
+            } else {
+                Err(Status::Unsupported)
+            }
+        })();
+        outcome.unwrap_or_else(|status| reply(q, chrome.class, status))
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl FixtureController {
+    pub fn register_store_session(
+        &self,
+        owner: u64,
+        application: [u8; 32],
+        manifest: [u8; 32],
+        object_id: u64,
+        object_generation: u64,
+        now: u64,
+    ) -> Result<SessionFixture, Status> {
+        use super::native_preview::*;
+        if object_id == 0 || object_generation == 0 {
+            return Err(Status::Invalid);
+        }
+        if !self.host.preview_mode() {
+            return Err(Status::Unsupported);
+        }
+        {
+            let authority = self.host.native_authority()?;
+            let g = lock(&authority.gate)?;
+            let p = g.preview.as_ref().ok_or(Status::Denied)?;
+            if p.owners.values().any(|r| r.object == object_id) {
+                return Err(Status::Denied);
+            }
+        }
+        let fixture = self.register_session(owner, application, manifest, b"", now)?;
+        let s = self.host.state.lock().map_err(|_| Status::Internal)?;
+        let authority = self.host.native_authority()?;
+        let mut g = lock(&authority.gate)?;
+        let p = g.preview.as_mut().ok_or(Status::Denied)?;
+        if p.owners.values().any(|r| r.object == object_id) {
+            return Err(Status::Denied);
+        }
+        p.owners.insert(
+            fixture.session_id,
+            OwnerRow {
+                owner: PreviewOwner {
+                    owner_id: owner,
+                    session_id: fixture.session_id,
+                    session_generation: fixture.session_generation,
+                },
+                chrome: fixture.chrome.handle.pack(),
+                state_id: Arc::as_ptr(&self.host.state) as usize,
+                object: object_id,
+                generation: object_generation,
+            },
+        );
+        drop(s);
+        Ok(fixture)
+    }
+    pub fn pause_next_store_read(&self, session: u64) -> Result<super::NativeReadPause, Status> {
+        if !self.host.preview_mode() {
+            return Err(Status::Unsupported);
+        }
+        self.pause_next_native_read(session)
+    }
+    pub fn release_store_read(&self, pause: &super::NativeReadPause) -> Result<(), Status> {
+        self.release_native_read(pause)
+    }
+    pub fn seed_preview_counter(&self, counter: super::NativePreviewCounter) -> Result<(), Status> {
+        use super::native_preview::*;
+        let _s = self.host.state.lock().map_err(|_| Status::Internal)?;
+        let a = self.host.native_authority()?;
+        let mut g = lock(&a.gate)?;
+        let p = g.preview.as_mut().ok_or(Status::Denied)?;
+        match counter {
+            NativePreviewCounter::Pin => p.next_pin = u64::MAX,
+            NativePreviewCounter::AttachmentVersion => p.next_attachment = u64::MAX,
+            NativePreviewCounter::StatusVersion => p.next_status = u64::MAX,
+            NativePreviewCounter::UiTicket => p.next_ticket = u64::MAX,
+            NativePreviewCounter::ReadContext => p.next_context = u64::MAX,
+        }
+        Ok(())
+    }
+    pub fn pause_next_store_preview(
+        &self,
+        session: u64,
+        point: super::PreviewPausePoint,
+    ) -> Result<super::PreviewPause, Status> {
+        use super::native_preview::*;
+        let s = self.host.state.lock().map_err(|_| Status::Internal)?;
+        if !s.sessions.contains_key(&session) {
+            return Err(Status::Denied);
+        }
+        let authority = self.host.native_authority()?;
+        let mut g = lock(&authority.gate)?;
+        let p = g.preview.as_mut().ok_or(Status::Denied)?;
+        p.prune();
+        if p.armed.is_some() {
+            return Err(Status::NotReady);
+        }
+        if p.barriers.len() >= 33 {
+            return Err(Status::Exhausted);
+        }
+        let barrier = PreviewBarrier::new(session, point);
+        p.barriers.push(Arc::downgrade(&barrier));
+        p.armed = Some((session, point, barrier.clone()));
+        Ok(PreviewPause {
+            authority: authority.clone(),
+            barrier,
+        })
+    }
+    pub fn release_store_preview(&self, pause: &super::PreviewPause) -> Result<(), Status> {
+        let a = self.host.native_authority()?;
+        if !super::native_preview::same(&a, &pause.authority) {
+            return Err(Status::Denied);
+        }
+        pause.barrier.release()
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl State {
+    fn retire_preview_setup(&mut self, sid: u64) {
+        if let Some(a) = &self.native {
+            let mut g = a.gate.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some(p) = &mut g.preview {
+                p.retire_setup(sid);
+            }
+        }
+        self.preview_pins.remove(&sid);
+        self.settle_preview_retirements();
+    }
+    fn settle_preview_retirements(&mut self) {
+        let retired = self
+            .native
+            .as_ref()
+            .map(|authority| {
+                let g = authority.gate.lock().unwrap_or_else(|p| p.into_inner());
+                g.preview
+                    .as_ref()
+                    .map(|p| {
+                        p.attachments
+                            .iter()
+                            .filter(|(_, r)| r.retired)
+                            .map(|(&id, _)| id)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        for id in retired {
+            if self.preview_instances.contains_key(&id) {
+                self.retire(id, InstanceState::Revoked);
+            }
+        }
+        // Only actual terminal State ownership is released. Opaque pending,
+        // carriers, leases and held producers continue to keep their rows.
+        if let Some(authority) = &self.native {
+            let mut g = authority.gate.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some(p) = &mut g.preview {
+                self.preview_pins
+                    .retain(|_, pin| p.pins.get(&pin.id).is_some_and(|r| !r.retired));
+                p.prune();
+                self.instances.retain(|id, i| {
+                    matches!(i.state, InstanceState::Starting | InstanceState::Running)
+                        || p.attachments.contains_key(id)
+                });
+            }
+        }
+    }
+}
+impl State {
+    fn consume_frozen(&mut self, id: u64, sequence: u64) -> Result<(), Status> {
+        let i = self.instances.get_mut(&id).ok_or(Status::Stale)?;
+        if i.surface.frozen.as_ref().map(|(_, seq, _)| *seq) != Some(sequence) {
+            return Err(Status::Stale);
+        }
+        i.surface.frozen = None;
+        Ok(())
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl HostDesktop {
+    fn retain_preview_lease(&self, kind: ObjectKind) -> Result<Option<Arc<()>>, Status> {
+        use super::native_preview::*;
+        if !self.preview_mode() || !matches!(kind, ObjectKind::Preview | ObjectKind::Grants) {
+            return Ok(None);
+        }
+        let a = self.native_authority()?;
+        let mut g = lock(&a.gate)?;
+        let p = g.preview.as_mut().ok_or(Status::Denied)?;
+        p.prune();
+        if p.leases.len() >= 16 {
+            return Err(Status::Exhausted);
+        }
+        let life = Arc::new(());
+        p.leases.push(Arc::downgrade(&life));
+        Ok(Some(life))
+    }
+    fn admit_preview_lease_locked(
+        &self,
+        s: &State,
+        peer: &PeerContext,
+        d: &ObjectDescriptor,
+    ) -> Result<(), Status> {
+        use super::native_preview::*;
+        if !self.preview_mode() {
+            return Ok(());
+        }
+        let a = self.native_authority()?;
+        let g = lock(&a.gate)?;
+        let p = g.preview.as_ref().ok_or(Status::Denied)?;
+        if peer.instance != 0 && s.preview_instances.contains_key(&peer.instance) {
+            p.admit_instance(peer.instance)?;
+        }
+        if d.kind == ObjectKind::Preview {
+            let life = s.preview_pins.get(&peer.session).ok_or(Status::Stale)?;
+            let r = p.pins.get(&life.id).ok_or(Status::Stale)?;
+            if r.retired || p.now >= r.view.expires_at_ms || Instant::now() >= r.view.deadline {
+                return Err(Status::Stale);
+            }
+        }
+        Ok(())
+    }
+    fn compose_store_preview(
+        &self,
+        compositor: &Endpoint,
+        now: u64,
+    ) -> Result<ComposedFrame, Status> {
+        use super::native_preview::*;
+        use artifact_store_schema::editor_preview::*;
+        if !Arc::ptr_eq(&self.state, &compositor.peer.registry)
+            || compositor.peer.class != EndpointClass::Compositor
+            || compositor.handle.pack() != compositor.peer.endpoint
+        {
+            return Err(Status::Denied);
+        }
+        self.advance(now);
+        let authority = self.native_authority()?;
+        let (
+            sid,
+            id,
+            focus,
+            sequence,
+            source,
+            font,
+            version,
+            status,
+            unavailable,
+            record,
+            setup,
+            pause,
+        ) = {
+            let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+            s.auth(&compositor.peer)?;
+            let sid = compositor.peer.session;
+            if s.sessions[&sid].compositor != compositor.peer.endpoint {
+                return Err(Status::Denied);
+            }
+            if s.composed_frames + s.pending_frames >= 16 {
+                return Err(Status::Exhausted);
+            }
+            let mut g = lock(&authority.gate)?;
+            let p = g.preview.as_mut().ok_or(Status::Denied)?;
+            let active = p
+                .attachments
+                .iter()
+                .rev()
+                .find(|(_, r)| r.view.actor.session_id == sid && r.delivered)
+                .map(|(&id, _)| id);
+            let (id, focus, sequence, source, version, status, unavailable, record, setup) =
+                if let Some(id) = active {
+                    let r = &p.attachments[&id];
+                    if r.status_exhausted {
+                        return Err(Status::Exhausted);
+                    }
+                    let unavailable = r.faulted;
+                    if r.retired && !unavailable {
+                        return Err(Status::Stale);
+                    }
+                    if unavailable && s.terminal_versions.get(&sid) == Some(&r.status_version) {
+                        return Err(Status::NotReady);
+                    }
+                    let i = s.instances.get(&id).ok_or(Status::Stale)?;
+                    let (focus, sequence, source) = if unavailable {
+                        (0, 0, None)
+                    } else {
+                        p.admit_instance(id)?;
+                        let (_, seq, data) = i.surface.frozen.as_ref().ok_or(Status::NotReady)?;
+                        (s.sessions[&sid].focus, *seq, Some(data.clone()))
+                    };
+                    let c = &r.view.pin.current;
+                    let encoded = EditorPreviewChromeV0 {
+                        schema_version: CHROME_SCHEMA_VERSION,
+                        total_len: 248,
+                        state: if unavailable {
+                            EditorPreviewChromeStateV0::Unavailable
+                        } else {
+                            EditorPreviewChromeStateV0::NoSave
+                        },
+                        reserved: 0,
+                        actor: r.view.actor.clone(),
+                        selected_object_id: c.object_id,
+                        selected_object_generation: c.object_generation,
+                        current_store_epoch: c.store_epoch,
+                        original_backend_epoch: 0,
+                        operation_id: 0,
+                        source_handle: 0,
+                        source_generation: 0,
+                        expected_revision: 0,
+                        result_revision: 0,
+                        attachment_version: r.version,
+                        status_version: r.status_version,
+                        source_content_hash: [0; 32],
+                        expected_content_hash: [0; 32],
+                        receipt_sha256: [0; 32],
+                        source_body_len: 0,
+                        tail_reserved: 0,
+                    }
+                    .encode_le()
+                    .map_err(|_| Status::Invalid)?;
+                    (
+                        id,
+                        focus,
+                        sequence,
+                        source,
+                        r.version,
+                        r.status_version,
+                        unavailable,
+                        Some(encoded),
+                        None,
+                    )
+                } else {
+                    let preview = s.sessions[&sid].preview.as_ref().ok_or(Status::NotReady)?;
+                    let pin = s.preview_pins.get(&sid).ok_or(Status::NotReady)?;
+                    let row = p.pins.get(&pin.id).ok_or(Status::Stale)?;
+                    if preview.invalid
+                        || row.retired
+                        || p.now >= preview.expires
+                        || p.now >= row.view.expires_at_ms
+                        || Instant::now() >= row.view.deadline
+                        || !std::sync::Weak::ptr_eq(&row.life, &Arc::downgrade(pin))
+                    {
+                        return Err(Status::Stale);
+                    }
+                    let session = &s.sessions[&sid];
+                    let setup = PreinstanceFrameSetup {
+                        pin: pin.clone(),
+                        pin_view: row.view.clone(),
+                        plan: preview.plan,
+                        revision: preview.revision,
+                        object: preview.object,
+                        expires: preview.expires,
+                        policy: preview.policy,
+                        session_generation: session.generation,
+                        application: session.application,
+                        manifest: session.manifest,
+                    };
+                    (0, 0, 0, None, 0, 0, false, None, Some(setup))
+                };
+            let pause = if p.armed.as_ref().is_some_and(|(session, point, _)| {
+                *session == sid && *point == PreviewPausePoint::BeforeFramePublish
+            }) {
+                p.armed.take().map(|(_, _, b)| b)
+            } else {
+                None
+            };
+            s.pending_frames += 1;
+            (
+                sid,
+                id,
+                focus,
+                sequence,
+                source,
+                s.config.font_rows,
+                version,
+                status,
+                unavailable,
+                record,
+                setup,
+                pause,
+            )
+        };
+        let mut reservation = FrameReservation {
+            state: self.state.clone(),
+            finished: false,
+        };
+        let _settlement = PreviewSettlement(pause.clone());
+        if let Some(b) = &pause {
+            b.enter_wait(id, 0)?;
+        }
+        let mut pixels = vec![224; 640 * 568 * 4];
+        for pixel in pixels.chunks_exact_mut(4) {
+            pixel[3] = 255;
+        }
+        pixels[48 * 2560..528 * 2560].fill(255);
+        if !unavailable {
+            if let Some(source) = &source {
+                pixels[48 * 2560..528 * 2560].copy_from_slice(source);
+            }
+        }
+        for y in 8..24 {
+            for x in 8..24 {
+                let offset = (y * 640 + x) * 4;
+                pixels[offset..offset + 4].copy_from_slice(
+                    if x == 8 || x == 23 || y == 8 || y == 23 {
+                        &[0, 0, 0, 255]
+                    } else {
+                        &[0, 192, 0, 255]
+                    },
+                );
+            }
+        }
+        draw_label(&mut pixels, &font, b"HOST STORE", 40, 16);
+        draw_label(&mut pixels, &font, b"READ ONLY", 144, 16);
+        draw_label(&mut pixels, &font, b"NO SAVE", 8, 536);
+        if unavailable {
+            draw_label(&mut pixels, &font, b"UNAVAILABLE", 88, 536);
+        }
+        {
+            let mut s = self.state.lock().map_err(|_| Status::Internal)?;
+            s.expire(self.clock.load(Ordering::SeqCst));
+            s.auth(&compositor.peer)?;
+            let g = lock(&authority.gate)?;
+            let p = g.preview.as_ref().ok_or(Status::Denied)?;
+            if id != 0 {
+                let r = p.attachments.get(&id).ok_or(Status::Stale)?;
+                if r.version != version
+                    || r.status_version != status
+                    || r.faulted != unavailable
+                    || r.status_exhausted
+                {
+                    return Err(Status::Stale);
+                }
+                if !unavailable {
+                    p.admit_instance(id)?;
+                    if s.sessions[&sid].focus != focus {
+                        return Err(Status::Stale);
+                    }
+                    let i = &s.instances[&id];
+                    if i.surface.frozen.as_ref().map(|(_, seq, _)| *seq) != Some(sequence)
+                        || i.surface.destroyed
+                    {
+                        return Err(Status::Stale);
+                    }
+                    let q = kernel_api::generated::desktop_surface_v1::Consume {
+                        request_id: sequence,
+                        surface_id: i.surface.id,
+                        surface_generation: i.surface.generation,
+                        sequence,
+                    }
+                    .encode(compositor.handle)?;
+                    if s.exchanges.len() >= 256 {
+                        return Err(Status::Exhausted);
+                    }
+                    s.consume_frozen(id, sequence)?;
+                    let mut r = reply(&q, EndpointClass::Compositor, Status::Ok);
+                    put64(&mut r.payload, 8, sequence);
+                    s.exchanges.push((q, r));
+                } else {
+                    s.terminal_versions.insert(sid, status);
+                }
+                let bytes = record.ok_or(Status::Internal)?;
+                s.chrome_records.insert(
+                    sid,
+                    PreviewChromeRecordObservation {
+                        session_id: sid,
+                        instance_id: id,
+                        focus_epoch: focus,
+                        sequence,
+                        attachment_version: version,
+                        status_version: status,
+                        bytes,
+                    },
+                );
+            } else {
+                // Revalidate the SAME pre-instance snapshot under State->Gate
+                // after rasterization/pause. A replacement pin or preview must
+                // not authorize publication of the older captured frame.
+                let setup = setup.as_ref().ok_or(Status::Internal)?;
+                let session = s.sessions.get(&sid).ok_or(Status::Stale)?;
+                let preview = session.preview.as_ref().ok_or(Status::Stale)?;
+                let pin = s.preview_pins.get(&sid).ok_or(Status::Stale)?;
+                let row = p.pins.get(&setup.pin.id).ok_or(Status::Stale)?;
+                if !Arc::ptr_eq(pin, &setup.pin)
+                    || !std::sync::Weak::ptr_eq(&row.life, &Arc::downgrade(&setup.pin))
+                    || row.view.pin_id != setup.pin_view.pin_id
+                    || row.view.pin_generation != setup.pin_view.pin_generation
+                    || row.view.entered != setup.pin_view.entered
+                    || row.view.deadline != setup.pin_view.deadline
+                    || row.retired
+                    || preview.invalid
+                    || preview.plan != setup.plan
+                    || preview.revision != setup.revision
+                    || preview.object != setup.object
+                    || preview.expires != setup.expires
+                    || preview.policy != setup.policy
+                    || session.policy != setup.policy
+                    || session.generation != setup.session_generation
+                    || session.application != setup.application
+                    || session.manifest != setup.manifest
+                    || p.now >= setup.expires
+                    || p.now >= setup.pin_view.expires_at_ms
+                    || Instant::now() >= setup.pin_view.deadline
+                {
+                    return Err(Status::Stale);
+                }
+            }
+            s.pending_frames -= 1;
+            s.composed_frames += 1;
+            reservation.finished = true;
+        }
+        Ok(ComposedFrame {
+            session_id: sid,
+            instance_id: id,
+            focus_epoch: focus,
+            sequence,
+            bgra: pixels,
+        })
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl FixtureController {
+    pub fn preview_chrome_observation(
+        &self,
+        compositor: &Endpoint,
+    ) -> Result<super::PreviewChromeRecordObservation, Status> {
+        use super::native_preview::*;
+        if !Arc::ptr_eq(&self.host.state, &compositor.peer.registry)
+            || compositor.peer.class != EndpointClass::Compositor
+            || compositor.handle.pack() != compositor.peer.endpoint
+        {
+            return Err(Status::Denied);
+        }
+        let s = self.host.state.lock().map_err(|_| Status::Internal)?;
+        s.auth(&compositor.peer)?;
+        let record = s
+            .chrome_records
+            .get(&compositor.peer.session)
+            .ok_or(Status::NotReady)?;
+        let a = self.host.native_authority()?;
+        let g = lock(&a.gate)?;
+        let p = g.preview.as_ref().ok_or(Status::Denied)?;
+        let row = p
+            .attachments
+            .get(&record.instance_id)
+            .ok_or(Status::Stale)?;
+        if row.version != record.attachment_version
+            || row.status_version != record.status_version
+            || row.status_exhausted
+            || row.retired && !row.faulted
+        {
+            return Err(Status::Stale);
+        }
+        let expected = if row.faulted { 4 } else { 0 };
+        if u32::from_le_bytes(
+            record.bytes[8..12]
+                .try_into()
+                .map_err(|_| Status::Internal)?,
+        ) != expected
+        {
+            return Err(Status::Stale);
+        }
+        Ok(PreviewChromeRecordObservation {
+            session_id: record.session_id,
+            instance_id: record.instance_id,
+            focus_epoch: record.focus_epoch,
+            sequence: record.sequence,
+            attachment_version: record.attachment_version,
+            status_version: record.status_version,
+            bytes: record.bytes,
+        })
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl FixtureController {
+    pub fn probe_inactive_preview(
+        &self,
+        chrome: &PeerContext,
+        pending: &super::PendingStoreInstance,
+        pause: &super::PreviewPause,
+        now: u64,
+    ) -> Result<super::InactiveDesktopProbeObservation, Status> {
+        use super::native_preview::*;
+        use kernel_api::generated::{
+            desktop_artifact_v1 as artifact, desktop_focus_v1 as focus,
+            desktop_surface_v1 as surface,
+        };
+        let authority = self.host.native_authority()?;
+        let (
+            endpoints,
+            origin,
+            descriptor,
+            bootstrap_status,
+            grants_lease_status,
+            actor,
+            correlation,
+            surface_id,
+            surface_generation,
+        ) = {
+            let s = self.host.state.lock().map_err(|_| Status::Internal)?;
+            self.host.preview_chrome_locked(&s, chrome)?;
+            if !same(&authority, &pending.authority) || !same(&authority, &pause.authority) {
+                return Err(Status::Denied);
+            }
+            let g = lock(&authority.gate)?;
+            let p = g.preview.as_ref().ok_or(Status::Denied)?;
+            let r = p.row(&pending.life)?;
+            if r.view.actor.session_id != chrome.session {
+                return Err(Status::Denied);
+            }
+            let installation = r.installation.as_ref().ok_or(Status::NotReady)?;
+            let i = s.instances.get(&pending.life.id).ok_or(Status::Stale)?;
+            let endpoints = [
+                self.host.endpoint_locked(&s, r.endpoints[0])?,
+                self.host.endpoint_locked(&s, r.endpoints[1])?,
+                self.host.endpoint_locked(&s, r.endpoints[2])?,
+            ];
+            let descriptor = ObjectDescriptor {
+                handle: Handle::unpack(r.grants),
+                kind: ObjectKind::Grants,
+                object_generation: Handle::unpack(r.grants).generation,
+                byte_len: 464,
+            };
+            let origin = PreviewReadOrigin {
+                authority: authority.clone(),
+                life: pending.life.clone(),
+                context: r.context,
+            };
+            let admission = p.admit_instance(pending.life.id);
+            let bootstrap_admission =
+                self.host
+                    .admit_preview_bootstrap_locked(&s, p, &pending.life);
+            let _actual_bootstrap_grants = (r.grants, r.endpoints);
+            let _actual_installation = installation;
+            (
+                endpoints,
+                origin,
+                descriptor,
+                bootstrap_admission,
+                admission,
+                r.view.actor.clone(),
+                q64(&r.confirm_request, 0),
+                i.surface.id,
+                i.surface.generation,
+            )
+        };
+        let _hold = pause.probe(pending)?;
+        let requests = [
+            editor::GetStatus {
+                request_id: correlation,
+                session_id: actor.session_id,
+                session_generation: actor.session_generation,
+                instance_id: actor.instance_id,
+                instance_generation: actor.instance_generation,
+            }
+            .encode(endpoints[0].handle)?,
+            focus::PollKeys {
+                request_id: correlation,
+                session_id: actor.session_id,
+                session_generation: actor.session_generation,
+                instance_id: actor.instance_id,
+                instance_generation: actor.instance_generation,
+                focus_epoch: 0,
+            }
+            .encode(endpoints[1].handle)?,
+            surface::Create {
+                request_id: correlation,
+                session_id: actor.session_id,
+                session_generation: actor.session_generation,
+                instance_id: actor.instance_id,
+                instance_generation: actor.instance_generation,
+                width: 640,
+                height: 480,
+                format: 1,
+                reserved: 0,
+            }
+            .encode(endpoints[2].handle)?,
+        ];
+        let replies =
+            std::array::from_fn(|n| self.host.dispatch(&endpoints[n].peer, &requests[n], now));
+        let handle = {
+            let g = lock(&authority.gate)?;
+            g.preview
+                .as_ref()
+                .ok_or(Status::Denied)?
+                .row(&pending.life)?
+                .installation
+                .as_ref()
+                .ok_or(Status::NotReady)?
+                .store_handle
+        };
+        let request = artifact::ReadSelected {
+            request_id: correlation,
+            session_id: actor.session_id,
+            session_generation: actor.session_generation,
+            instance_id: actor.instance_id,
+            instance_generation: actor.instance_generation,
+        }
+        .encode(handle)?;
+        let origin_status = self
+            .host
+            .begin_preview_read(&origin, &request, now)
+            .map(|_entry| ());
+        let actual_lease = self
+            .host
+            .read_lease(&endpoints[0].peer, &descriptor, now)
+            .map(|_lease| ());
+        let _surface_identity = (surface_id, surface_generation);
+        if actual_lease != grants_lease_status {
+            return Err(Status::Internal);
+        }
+        Ok(InactiveDesktopProbeObservation {
+            endpoint_requests: requests,
+            endpoint_replies: replies,
+            origin_status,
+            bootstrap_status,
+            grants_lease_status: actual_lease,
+        })
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl HostDesktop {
+    fn admit_preview_bootstrap_locked(
+        &self,
+        s: &State,
+        p: &super::native_preview::PreviewGate,
+        life: &Arc<super::native_preview::AttachmentLife>,
+    ) -> Result<(), Status> {
+        let r = p.row(life)?;
+        p.admit_instance(life.id)?;
+        let i = s.instances.get(&life.id).ok_or(Status::Stale)?;
+        if i.generation != r.view.actor.instance_generation
+            || i.session != r.view.actor.session_id
+            || i.grants != r.grants
+            || i.bindings[..3] != r.endpoints
+        {
+            return Err(Status::Denied);
+        }
+        let grants = s.objects.get(&r.grants).ok_or(Status::Stale)?;
+        if grants.kind != ObjectKind::Grants
+            || grants.instance != life.id
+            || grants.session != r.view.actor.session_id
+        {
+            return Err(Status::Denied);
+        }
+        Ok(())
     }
 }

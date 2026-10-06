@@ -69,7 +69,7 @@ pub enum NativeCounter {
 }
 
 pub struct RegistryWitness {
-    authority: Arc<NativeAuthority>,
+    pub(super) authority: Arc<NativeAuthority>,
 }
 pub struct ApprovedReadBinding {
     authority: Arc<NativeAuthority>,
@@ -84,15 +84,15 @@ pub struct NativeReadCall {
 }
 pub struct ApprovedReadGuard<'a> {
     binding: &'a ApprovedReadBinding,
-    gate: MutexGuard<'a, GateState>,
+    pub(super) gate: MutexGuard<'a, GateState>,
 }
 pub struct ReadGuard<'a> {
     call: &'a NativeReadCall,
-    gate: MutexGuard<'a, GateState>,
+    pub(super) gate: MutexGuard<'a, GateState>,
 }
 pub struct ReadDeadlineGuard<'a> {
     call: &'a NativeReadCall,
-    gate: MutexGuard<'a, GateState>,
+    pub(super) gate: MutexGuard<'a, GateState>,
 }
 pub struct NativeReadEntry {
     authority: Arc<NativeAuthority>,
@@ -127,7 +127,7 @@ pub struct JoinedProducerProof {
 // synchronizes its lifetime transitions into this Gate before unlocking State.
 pub(super) struct NativeAuthority {
     identity: u64,
-    gate: Mutex<GateState>,
+    pub(super) gate: Mutex<GateState>,
     owned: Mutex<ProducerRoster>,
 }
 struct BindingRow {
@@ -137,6 +137,8 @@ struct BindingRow {
 }
 struct OriginLifetime {
     id: u64,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    _preview_attachment: Option<Arc<super::native_preview::AttachmentLife>>,
 }
 struct OriginRow {
     lifetime: Weak<OriginLifetime>,
@@ -144,8 +146,10 @@ struct OriginRow {
     deadline: Instant,
     closed: bool,
 }
-struct GateState {
-    now_ms: u64,
+pub(super) struct GateState {
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    pub(super) preview: Option<super::native_preview::PreviewGate>,
+    pub(super) now_ms: u64,
     next_binding: u64,
     next_origin: u64,
     bindings: BTreeMap<u64, BindingRow>,
@@ -192,6 +196,10 @@ fn same(a: &Arc<NativeAuthority>, b: &Arc<NativeAuthority>) -> bool {
 impl GateState {
     fn live_binding(&self, id: u64) -> Result<&BindingRow, Status> {
         let row = self.bindings.get(&id).ok_or(Status::Denied)?;
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &self.preview {
+            preview.admit_instance(row.view.actor.instance_id)?;
+        }
         if row.retired || self.now_ms >= row.view.expires_at_ms {
             return Err(Status::Stale);
         }
@@ -235,6 +243,8 @@ impl NativeAuthority {
             // Arc pointer identity; numeric values cannot construct authority.
             identity: identity.as_ptr() as usize as u64,
             gate: Mutex::new(GateState {
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                preview: None,
                 now_ms: 0,
                 next_binding: 0,
                 next_origin: 0,
@@ -261,9 +271,17 @@ impl NativeAuthority {
     pub(super) fn advance(&self, now: u64) {
         let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
         gate.now_ms = gate.now_ms.max(now);
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.expire(now);
+        }
     }
     pub(super) fn retire(&self, instance: u64) {
         let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.retire_instance(instance);
+        }
         for row in gate.bindings.values_mut() {
             if row.view.actor.instance_id == instance {
                 row.retired = true;
@@ -272,6 +290,10 @@ impl NativeAuthority {
     }
     pub(super) fn retire_all(&self) {
         let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.retire_all();
+        }
         for row in gate.bindings.values_mut() {
             row.retired = true;
         }
@@ -360,7 +382,26 @@ impl NativeAuthority {
         if roster.rows.len() > PRODUCERS - 2 {
             return Err(Status::Exhausted);
         }
-        let origin = Arc::new(OriginLifetime { id });
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        let preview_attachment = if let Some(preview) = &gate.preview {
+            let actor = &gate.live_binding(binding)?.view.actor;
+            Some(
+                preview
+                    .attachments
+                    .get(&actor.instance_id)
+                    .ok_or(Status::Stale)?
+                    .life
+                    .upgrade()
+                    .ok_or(Status::Stale)?,
+            )
+        } else {
+            None
+        };
+        let origin = Arc::new(OriginLifetime {
+            id,
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            _preview_attachment: preview_attachment,
+        });
         let first = last - 1;
         roster.next = last;
         for (pid, kind) in [
@@ -961,5 +1002,70 @@ impl NativeReadPause {
     }
     pub fn wait_until_settled(&self, timeout_ms: u64) -> Result<ReadBarrierView, Status> {
         self.wait(timeout_ms, true)
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn enable_preview(&self) -> Result<(), Status> {
+        let mut gate = locked(&self.gate)?;
+        if gate.preview.is_some() {
+            return Err(Status::NotReady);
+        }
+        gate.preview = Some(super::native_preview::PreviewGate::new());
+        Ok(())
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl NativeReadEntry {
+    pub(super) fn query_origin_id(&self) -> u64 {
+        self.origin.id
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl RegistryWitness {
+    pub fn preview_counts(&self) -> Result<super::PreviewCounts, Status> {
+        let mut gate = locked(&self.authority.gate)?;
+        gate.prune_origins();
+        let query_slots = gate.origins.len() as u32;
+        let preview = gate.preview.as_mut().ok_or(Status::Denied)?;
+        preview.prune();
+        let counts = preview.counts(query_slots);
+        let retained: Vec<_> = preview.attachments.keys().copied().collect();
+        gate.bindings
+            .retain(|_, row| retained.contains(&row.view.actor.instance_id));
+        Ok(counts)
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl GateState {
+    pub(super) fn install_preview_binding(
+        &mut self,
+        context: u64,
+        view: ReadBindingView,
+    ) -> Result<(), Status> {
+        if let Some((&id, row)) = self.bindings.iter().find(|(_, r)| r.endpoint == context) {
+            if row.view != view || row.retired {
+                return Err(Status::Denied);
+            }
+            let _retained = id;
+            return Ok(());
+        }
+        if self.bindings.len() >= BINDINGS {
+            return Err(Status::Exhausted);
+        }
+        let id = self.next_binding.checked_add(1).ok_or(Status::Exhausted)?;
+        self.next_binding = id;
+        self.bindings.insert(
+            id,
+            BindingRow {
+                view,
+                endpoint: context,
+                retired: false,
+            },
+        );
+        Ok(())
     }
 }

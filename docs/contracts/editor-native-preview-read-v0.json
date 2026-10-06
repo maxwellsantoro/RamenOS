@@ -8,7 +8,7 @@
   "assertions_authorized": true,
   "resources_authorized": false,
   "scope": "Host trusted setup and Read-only Store-current preview prerequisite: planned identities1,2,3,4,8 only. Future Save/recovery/mutation permits/IO2/full18 keyboard task/editor PID/device/target remain separate. This maintained contract records technical API freeze, not a registered gate or runtime acceptance.",
-  "precedence": "Use embedded reviewed_proposal, then coordinator_amendments, then observability_amendments and preinstance_record_clarification overriding their corresponding preparation definitions. All technical definitions are embedded. Original nested status/authority flags are provenance snapshots; this root wrapper freezes current assertion scope only. No service runtime acceptance.",
+  "precedence": "Use embedded reviewed_proposal, then coordinator_amendments, then observability_amendments and preinstance_record_clarification overriding their corresponding preparation definitions. All technical definitions are embedded. Original nested status/authority flags are provenance snapshots; this root wrapper freezes current assertion scope only. No service runtime acceptance. Later root entry_origin_observation, generic_route_and_cancel_status, status_version_max_fault_result and service_owner_helpers override corresponding earlier definitions; their nested proposal/status/authority fields retain creation provenance. The current trusted service-owner helper API is frozen; its new implementation remains held until the required crossed-witness assertion is reviewed. The later error_pending_retention amendment overrides incomplete error-owner and shared setup/Active lifetime definitions; genuine Pending/error setup aliases remain charged, while delivered paired-only Active/context aliases do not retain dropped setup owners.",
   "reviewed_proposal": {
     "schema_version": 3,
     "status": "PROPOSED_NPR_READ1_V3_PENDING_REVIEW_AND_FREEZE",
@@ -650,5 +650,96 @@
     "compose_next": "For that authorized own faulted session whose required current-status/frame publication cannot advance StatusVersion, compose_next returns Err(Status::Exhausted). Sticky exhaustion cannot fabricate or publish a current frame/record, or return a stale prior frame as success.",
     "held_read_and_observation": "Its pre-fault held Read and previously published own chrome observation are stale: actual Read/copy and preview_chrome_observation return their typed Stale denial. No fabricated positive-actor status or fabricated current version is returned.",
     "authority_and_scope": "Existing foreign/malformed authentication denials retain their exact status and no rightful retirement. Unrelated live Read and actual owned producer joins survive absent their actual expiry or lifecycle retirement. No new getter, counter reset, rollback, injected clock, runtime proof or Save authority."
+  },
+  "service_owner_helpers": {
+    "status": "FROZEN_TRUSTED_HOST_HELPERS_ASSERTION_ADDITION_PENDING",
+    "proposal": {
+      "schema_version": 1,
+      "status": "PROPOSED_SERVICE_OWNER_HELPERS_BEFORE_IMPLEMENTATION",
+      "author": "/root",
+      "base": "485f00966ad0139a6592e039059943b970cccba3",
+      "prior_contract_sha256": "2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c",
+      "scope": "Default-off trusted host Core/issuer helpers only; existing native protocol messages and five consumer case identities unchanged. No caller-minted grant, fake inactive call, new wire interface, State backedge or runtime acceptance.",
+      "signatures": {
+        "SelectionIssuer": [
+          "pub fn validate_witness(&self,witness:&RegistryWitness)->Result<(),Status>;",
+          "pub fn begin_read_activation_attempt(&self,pending:&PendingStoreInstance)->Result<PreviewActivationAttempt,Status>;",
+          "pub fn claim_inactive_read_probe(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause)->Result<InactiveReadProbeReservation,Status>;"
+        ],
+        "PreviewActivationAttempt": [
+          "pub fn wait_before_activation(&self)->Result<(),Status>;",
+          "pub fn finish(self);"
+        ],
+        "SelectionGuard": [
+          "pub fn admit_read_installation(&self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<(),Status>;",
+          "pub fn reserve_pin_started(&mut self,chrome:&PeerContext,current:StoreCurrentSelection,ttl_ms:u64,entered:Instant)->Result<StoreSelectionPin,Status>;"
+        ]
+      },
+      "opaque_helpers": "PreviewActivationAttempt and InactiveReadProbeReservation have private fields/constructors, no Clone/serde/numeric constructor/getter. They retain only actual pending lifetime/optional already-armed barrier or actual probe interlock; no endpoint/origin/call/grant/issuer/witness getter. No new producers, query slots or independent cache. At most one actual attempt per staged attachment and one probe per actual barrier.",
+      "witness_validation": "SelectionIssuer checks actual private Authority Arc identity, NPR mode and its own actually claimed enrollment row against the actual RegistryWitness before Store IO. Equal view fields, labels and IDs never establish identity. Foreign/wrong-mode Denied with no rightful domain mutation; actual own retired lifecycle Stale, lock failure Internal. This is an identity check, not authority minting or malicious-Core attestation. Consumed constructor arguments retain the existing error-owner semantics.",
+      "activation_attempt": "Actual Core first registers its tagged inactive Grant and invokes stage_read_installation on the genuine pending. Only after dropping Registry/Object/Gate can it begin the attempt. Under Gate validate actual issuer/pending lifetime/current stage and take only that pending-owned armed BeforeActivation barrier, then drop Gate before returning. wait_before_activation records actual entered and waits using only that barrier; no enforcing locks held. Retain attempt through final Registry->Object->Gate validation/activation and terminal caller outcome. finish after all guards drop marks only observational settlement; Drop provides the same settlement fallback for error/unwind. No Gate/State/service/IO/grant callback during settlement. No optional barrier means normal checked activation without a synthetic pause. Repeat attempt/wait is NotReady; foreign Denied; actual retired/expired Stale. An armed barrier consumed into the genuine attempt remains tied to the same actual pending and original clocks.",
+      "probe_interlock": "Before Store locks, claim validates actual issuer/registered Chrome identity+owner/pending/staged installation and same own BeforeActivation pause. Drop Gate before claiming barrier mutex; require actual entered, not settled or released, no existing probe. Revalidate actual Gate state only outside barrier mutex if needed; never hold enforcing locks while barrier mutex is held. The RAII reservation holds the existing probe-in-progress bit; release_store_preview returns NotReady while claimed. Core then locks Registry->Object->Gate and invokes its genuine production admission helpers. Drop reservation only after all enforcing guards drop, clearing only its owned bit. Foreign Denied preserves rightful pause/rows; actual own retired/expired Stale; absent stage/entry, wrong phase/released/settled/already claimed NotReady. No actual private Read call or active carrier is fabricated.",
+      "shared_admission": "Under an already held SelectionGuard, authenticate actual same issuer/Authority/pending row and compare canonical actual staged installation fields. Store derives installation from its actual registered tagged Grant and locked Object, never caller observations. Foreign or wrong installation Denied before rightful mutation; actual retired/expired Stale; genuine staged Inactive NotReady; genuine current Active Ok. No side effects or authority returned. The internal actual attachment/Active validator is also used by activation checks and genuine PreviewReadCall::admit/live production admission, so inactive probes execute the same enforcer rather than reconstructing status from view fields. No nested Gate reacquisition, State lookup, callback or holding SelectorGuard then acquiring Registry/Object.",
+      "post_active_rule": "The existing no service/State callback/IO/alloc after final Active rule remains. Only observational completion of the already-owned fixture barrier after terminal activation is permitted; it cannot change admission, a row version, grants or publication.",
+      "assertions_before_helpers": "Existing case2/3 assertions already require genuine entered/settled staging and inactive Core/helper denial. Extend existing case4 (no sixth identity) with two authentic NPR factories carrying deliberately equal numeric profile/session observations: cross the actual witness and enrollment, require Denied/Validate/NotAttempted/no root or producers, preserving unrelated factory state. This denial assertion must be written and independently reviewed before helper implementation. No test should mint a numeric witness or use helper status as a replacement for Core effects.",
+      "claims": {
+        "proposed_only": true,
+        "helpers_implemented": false,
+        "assertions_executed": false,
+        "runtime": false,
+        "new_native_wire": false,
+        "Save": false,
+        "full_UI1_1c": false
+      },
+      "pin_entry_timing": "Store captures its actual local Instant at pin_selection entry, before Registry/Object validation or lock waits, and forwards that unmodified Instant through reserve_pin_started under the actual issuer guard. The helper derives its checked monotonic deadline from this original start; elapsed validation time cannot reset the clock. Preserve existing reserve_pin API as an entry-capturing wrapper. This is a trusted service-owner helper, not caller wire authority or an injectable clock: Store never accepts an external Instant and producer code never derives it from numeric observations. Validate expiry from the original bound before any reservation mutation; an already-expired original start returns Stale with no pin. Checked overflow returns Exhausted. Existing case3 timing/lifecycle assertions retain their identity; inspect their original pin timing coverage before implementation and add a bounded consumer assertion if missing."
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-preview-service-owner-helpers-independent-review.json",
+      "bytes": 5742,
+      "sha256": "f6a5d28153de46d3567501951c05f1ec8bc2f9a079f425f03360f51a4a0ee601"
+    },
+    "coordinator_evidence_limit": "Existing case3 does not establish original local Store pin-entry timing across validation waits. Independent review of the actual fixed pin_selection entry capture and reserve_pin_started forwarding is required; no runtime validation-wait timing claim. Crossed genuine witness/enrollment case4 assertion must be added and independently reviewed before these new helper implementations."
+  },
+  "error_pending_retention": {
+    "status": "FROZEN_COMPLETE_ERROR_OWNER_ASSERTION_ADDITION_PENDING",
+    "proposal": {
+      "schema_version": 2,
+      "status": "PROPOSED_OPAQUE_ERROR_LIFETIME_RETENTION_BEFORE_IMPLEMENTATION",
+      "author": "/root",
+      "prior_contract_sha256": "fbfd17607b06bcee7d846cf232de7ff57285e67dc98e35a7bc4c589acf73c62b",
+      "fixed_store_candidate": {
+        "path": "services/store_service/src/editor_store/native_preview.rs",
+        "bytes": 49694,
+        "sha256": "de0acfff2ae42ac131f6c522c9fa63ce453217e787c29c80036fb93adb1cb43f"
+      },
+      "problem": "Expose failure currently infers pending_retained from a Grant tag. The borrowed caller may drop Pending after attempt.finish consumes its owner; a Grant is not the actual private AttachmentLife. Preserve the already frozen actual error-owner requirement rather than weaken its observation.",
+      "signature": "pub fn SelectionIssuer::retain_pending_for_error(&self,pending:&PendingStoreInstance)->Result<PreviewPendingRetention,Status>;",
+      "opaque_type": "PreviewPendingRetention private fields/constructor, nonClone/nonserde, no getters, no authority operation or conversion. Retain the complete genuine private Pending owner lifetime Arc(s), including actual AttachmentLife and its own required original setup Pin/Ticket references; not only an incomplete attachment alias or a Grant tag. No new row, endpoint, stamp, origin, query, producer, pending alias or cache. All original row/cap bounds remain. Retaining a retired/expired owner never makes it admissible.",
+      "authentication": "Use actual inaccessible issuer/pending Authority Arc identity and the genuine private Pending lifetime Arc(s), never numeric ID/view equality. Foreign Denied before retaining or mutating anything. No Gate/State/Registry/Object lookup is required: genuine same-Authority private Pending owns its actual lifetime even after retirement. Lock poisoning cannot erase ownership or require a fabricated owner. Issuer remains sole trusted Core holder; no malicious-Core attestation.",
+      "effects": "Clone only the actual existing complete Pending lifetime Arc(s), without heap allocation, lock, IO, callback or lifecycle mutation. The retention helper has no custom Drop admission effects; normal actual weak-row pruning occurs through existing enforcers. Bound production use to at most one error-held owner per actual activation attempt; repeated references refer to the same original charged row and cannot escape original expiry/capacity rules.",
+      "store_use": "activate_read obtains this actual holder before the first fallible own validation/Registry operation, retaining it outside the outcome closure. Foreign identity failure has no holder and all lifecycle observation booleans remain false. On actual own failure transfer the holder into the actual NativePreviewExposeFailure; pending_retained derives only from its presence, independently of an installed Grant. The inactive_grant flag derives from actual owned inactive Grant/tag. Existing optional attempt.finish stays unit observational settlement after all guards drop and is independent of the error holder. On success discard only the extra holder; actual caller/stamp/origin ownership and all clocks remain unchanged. No new fallible work or authority mutation after final Active.",
+      "scope": "Activation exposure errors only. Existing foreign/redacted pair_launch failure carries no authorized pending claim and gains no retention helper or public stamp alias. No new native wire API, Save, disk mutation, runtime admission, or universal evidence export.",
+      "assertion_before_implementation": "Extend existing case3 cancellation leg, no sixth identity: genuine staged BeforeActivation caller enters; actual cancellation causes actual Stale exposure error and real caller join/settlement. Before unrelated launch, drop original Pending/Selector/Approval/Pin/pause holders. Retain only actual error; actual Host counts require live_pins0, pin_rows1 and retired attachment1. Drop error, existing eligible weak-row prune yields pin_rows0 and retired0. Then original existing unrelated Store paired reader remains usable and real file bytes unchanged. Exact owner set must be checked independently in final fixed Desktop source; do not fabricate counters/pause/getter or retain a caller setup token. Existing case4 foreign activation denial requires foreign error lifecycle flags false. Independently review assertion before helper implementation.",
+      "evidence_limits": "No current five-case runtime result proves independent pending lifetime retention; source candidate explicitly has this gap. Original Store pin validation-wait timing remains source-review-only. New exact source must pass focused and integrated gate after review.",
+      "claims": {
+        "proposed_only": true,
+        "implemented": false,
+        "assertions_executed": false,
+        "runtime": false
+      },
+      "predecessor": {
+        "path": "out/roadmap-coordinator/editor-native-preview-error-pending-retention-proposal.json",
+        "bytes": 4418,
+        "sha256": "af690ffe3562d514b2bcad3cde434060295992688e2ba2997a4b8e5bea00c2a1",
+        "independent_review_sha256": "d232135494792e585652527552bf6f0eda4f6338a05392e5c89b3e9ea4bba8e4"
+      },
+      "setup_vs_active_ownership": "Shared delivered Active attachment/context/stamp/origin lifetime must not keep consumed setup Pin/Ticket references merely because the actual Pending once shared its attachment. The genuine Pending holder and error retention retain their own original setup refs while alive, including terminal aliases. Separate private ownership accordingly; preserve immutable original checked binding IDs/views/deadlines and original admission checks. No early free of an actual Pin/Ticket/Pending token, global clearing of all aliases, clock reset or changed active authority. This keeps context16 independent of pin/ticket16: case5 retains only delivered paired launches, so those retain context without retaining dropped setup owners. Gate retirement never calls back into State; State-driven cancellation can release its genuine inactive owner, and existing State->Gate paths may reconcile terminal state."
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-preview-error-pending-retention-v2-independent-review.json",
+      "bytes": 5110,
+      "sha256": "5a88d7b2bcf8291730d83ecb9b45106834765324b18f74825ae790b349995eb4"
+    },
+    "evidence_limit": "Normative counts are gate-first expected behavior. Actual State retirement, strong owner set and weak pruning must be reviewed on final fixed producer source and executed; no current count observation or runtime acceptance. New helper implementation held until case3 assertion source is independently reviewed."
   }
 }

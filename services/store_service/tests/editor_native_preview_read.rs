@@ -237,7 +237,7 @@ fn native_preview_fresh_approval_activation() {
         let (protocol, msg, reply, offset) = [(352, 7, 8, 44), (832, 3, 4, 36), (833, 1, 2, 40)][j];
         assert_eq!((q.protocol, q.msg_type), (protocol, msg));
         assert_eq!(ui::u64_at(&q.payload, 0), approval.view().input_sequence);
-        assert_ne!(q.handle, 0);
+        assert_ne!(q.handle, kernel_api::cap::Handle::INVALID);
         status_reply(r, q, reply, offset, Status::NotReady as u32);
     }
     denied(observed.origin_status, Status::NotReady);
@@ -434,10 +434,18 @@ fn native_preview_fresh_approval_activation() {
 fn native_preview_pin_cancel_expiry_race() {
     // Each leg reaches the real staged inactive barrier before the actual
     // lifecycle transition. The external caller is retained and joined.
-    for cause in 0..6 {
+    for cause in 0..7 {
         let mut f = Fixture::new(2);
         let mut selector = f.selector(0, 1);
-        let pin = f.pin(0, if cause == 4 { 10 } else { 30_000 });
+        let ttl = match cause {
+            4 => 10,
+            6 => 500,
+            _ => 30_000,
+        };
+        let pin = f.pin(0, ttl);
+        // External observation only: the real Store pin entry preceded this
+        // return. This clock is never supplied to production or authority.
+        let pin_returned = Instant::now();
         let preview = f.prepare(0, &mut selector, &pin, 1);
         let mut approval = f.approval(0, &preview, 1);
         let pending = Arc::new(f.pending(0, &mut approval, 1));
@@ -460,6 +468,9 @@ fn native_preview_pin_cancel_expiry_race() {
             3 => success(f.c.detach_keyboard(f.drivers[0].s.session_id, 1)),
             4 => success(f.h.maintenance(11)),
             5 => success(f.prepared().controller().fault_preview_object(101)),
+            6 => std::thread::sleep(
+                Duration::from_millis(ttl + 5).saturating_sub(pin_returned.elapsed()),
+            ),
             _ => unreachable!(),
         }
         success(f.c.release_store_preview(&pause));
@@ -474,6 +485,18 @@ fn native_preview_pin_cancel_expiry_race() {
         assert!(success(pause.wait_until_settled(500)).settled);
         assert_eq!(counts(&f.h)[3], 0);
         assert_eq!(files(&f.path), before);
+        // The error must own the complete original setup independently of
+        // caller aliases. These are normative capacity checks, not Drop proof.
+        drop((pending, approval, selector, pin, pause));
+        if cause == 0 {
+            let retained = counts(&f.h);
+            assert_eq!((retained[0], retained[1], retained[4]), (0, 1, 1));
+        }
+        drop(error);
+        if cause == 0 {
+            let pruned = counts(&f.h);
+            assert_eq!((pruned[1], pruned[4]), (0, 0));
+        }
         // Unrelated B remains responsive through actual Core/Grant/Read copy.
         let b = f.launch(1, if cause == 4 { 12 } else { 2 });
         f.positive(1, &b, 50, if cause == 4 { 12 } else { 2 });
@@ -483,7 +506,124 @@ fn native_preview_pin_cancel_expiry_race() {
             f.positive(0, &a, 51, 2);
             drop(a);
         }
-        drop((b, error, pending, approval, selector, pin, pause));
+        drop(b);
+        f.finish();
+    }
+    // Real pin expiry fences a pre-instance frame without a logical advance.
+    {
+        let mut f = Fixture::new(1);
+        let mut selector = f.selector(0, 1);
+        let pin = f.pin(0, 500);
+        let pin_returned = Instant::now();
+        let preview = f.prepare(0, &mut selector, &pin, 1);
+        let metadata = data(
+            &f.preview_bytes(0, &preview, 1),
+            0,
+            EditorPreviewPhaseV0::Preview,
+        );
+        assert_eq!(metadata.plan_id, preview.plan_id);
+        let before = files(&f.path);
+        let pause = f.preview_pause(0, desktop::PreviewPausePoint::BeforeFramePublish);
+        let h = f.h.clone();
+        let compositor = f.drivers[0].s.compositor.clone();
+        let caller = OwnedCaller::new(
+            std::thread::spawn(move || h.compose_next(&compositor, 1)),
+            f.c.clone(),
+            pause.clone(),
+        );
+        let entered = success(pause.wait_until_entered(500));
+        assert!(entered.entered && !entered.settled);
+        assert_eq!(
+            entered.point,
+            desktop::PreviewPausePoint::BeforeFramePublish
+        );
+        denied(
+            f.c.preview_chrome_observation(&f.drivers[0].s.compositor),
+            Status::NotReady,
+        );
+        // Conservatively wait past the actual earlier Store entry+500ms;
+        // no logical maintenance or externally injected Instant is used.
+        std::thread::sleep(Duration::from_millis(505).saturating_sub(pin_returned.elapsed()));
+        success(f.c.release_store_preview(&pause));
+        denied(caller.join(), Status::Stale);
+        assert!(success(pause.wait_until_settled(500)).settled);
+        denied(
+            f.c.preview_chrome_observation(&f.drivers[0].s.compositor),
+            Status::NotReady,
+        );
+        assert_eq!(counts(&f.h)[3], 0);
+        assert_eq!(files(&f.path), before);
+        drop((selector, pin, pause));
+        f.finish();
+    }
+    // A paused pre-instance frame remains bound to its own original preview,
+    // not a later live pin/preview installed by the same authorized session.
+    {
+        let mut f = Fixture::new(1);
+        let mut selector_a = f.selector(0, 1);
+        let pin_a = f.pin(0, 30_000);
+        let preview_a = f.prepare(0, &mut selector_a, &pin_a, 1);
+        let data_a = data(
+            &f.preview_bytes(0, &preview_a, 1),
+            0,
+            EditorPreviewPhaseV0::Preview,
+        );
+        let before = files(&f.path);
+        let pause = f.preview_pause(0, desktop::PreviewPausePoint::BeforeFramePublish);
+        let h = f.h.clone();
+        let compositor = f.drivers[0].s.compositor.clone();
+        let caller = OwnedCaller::new(
+            std::thread::spawn(move || h.compose_next(&compositor, 1)),
+            f.c.clone(),
+            pause.clone(),
+        );
+        let entered = success(pause.wait_until_entered(500));
+        assert!(entered.entered && !entered.settled);
+        assert_eq!(
+            entered.point,
+            desktop::PreviewPausePoint::BeforeFramePublish
+        );
+        cancel(&f, 0, preview_a.plan_id, 1, Status::Ok);
+        // Real producer-held state survives focus/cancel; release the accepted
+        // selecting Enter before the next genuine selector press.
+        f.drivers[0].send(&f.h, 40, 2, 1);
+        let mut selector_b = f.selector(0, 1);
+        let pin_b = f.pin(0, 30_000);
+        let preview_b = f.prepare(0, &mut selector_b, &pin_b, 1);
+        let data_b = data(
+            &f.preview_bytes(0, &preview_b, 1),
+            0,
+            EditorPreviewPhaseV0::Preview,
+        );
+        assert_ne!(data_a.plan_id, data_b.plan_id);
+        assert_ne!(data_a.preview_revision, data_b.preview_revision);
+        assert_eq!(data_b.plan_id, preview_b.plan_id);
+        assert_eq!(data_b.preview_revision, preview_b.preview_revision);
+        assert_eq!(
+            (data_b.session_id, data_b.session_generation),
+            (f.drivers[0].s.session_id, f.drivers[0].s.session_generation),
+        );
+        success(f.c.release_store_preview(&pause));
+        denied(caller.join(), Status::Stale);
+        assert!(success(pause.wait_until_settled(500)).settled);
+        let current = success(f.h.compose_next(&f.drivers[0].s.compositor, 1));
+        assert_eq!(
+            (
+                current.session_id,
+                current.instance_id,
+                current.focus_epoch,
+                current.sequence,
+            ),
+            (data_b.session_id, 0, 0, 0),
+        );
+        frame(&current, false, true);
+        denied(
+            f.c.preview_chrome_observation(&f.drivers[0].s.compositor),
+            Status::NotReady,
+        );
+        assert_eq!(counts(&f.h)[3], 0);
+        assert_eq!(files(&f.path), before);
+        drop((selector_a, pin_a, selector_b, pin_b, pause));
         f.finish();
     }
     // Consumed Selector deadline does not become the fresh Approval deadline.
@@ -636,6 +776,87 @@ fn native_preview_pin_cancel_expiry_race() {
 
 #[test]
 fn native_preview_init_exposure_failure() {
+    // Equal numeric observations cannot substitute for the genuine factory
+    // association of a RegistryWitness and its one-shot enrollment.
+    {
+        let mut rightful = Fixture::new(1);
+        let live = rightful.launch(0, 1);
+        rightful.positive(0, &live, 70, 1);
+        let rightful_files = files(&rightful.path);
+        let rightful_counts = counts(&rightful.h);
+        let (a, ac, aw, ae) = success(desktop::HostDesktop::new_store_preview_read(ui::config(
+            30_000, 30_000,
+        )));
+        let (b, bc, bw, be) = success(desktop::HostDesktop::new_store_preview_read(ui::config(
+            30_000, 30_000,
+        )));
+        let asession = success(ac.register_store_session(1, ui::APP, ui::MANIFEST, 101, 1, 1));
+        let bsession = success(bc.register_store_session(1, ui::APP, ui::MANIFEST, 101, 1, 1));
+        assert_eq!(
+            (asession.session_id, asession.session_generation),
+            (bsession.session_id, bsession.session_generation)
+        );
+        let a_before = counts(&a);
+        let b_before = counts(&b);
+        assert_eq!(a_before, b_before);
+        assert_eq!(a.native_producer_counts().held, 0);
+        assert_eq!(b.native_producer_counts().held, 0);
+        let ar = temporary();
+        let br = temporary();
+        let apath = ar.path().join("owner");
+        let bpath = br.path().join("owner");
+        // Both real constructor paths receive the same legitimate profile,
+        // but each receives the other actual factory's enrollment.
+        let aerror = match store::StoreFixture::prepare_preview_read(&apath, profile(1), aw, be) {
+            Err(e) => e,
+            Ok(_) => panic!("crossed witness/enrollment exposed Store A"),
+        };
+        let berror = match store::StoreFixture::prepare_preview_read(&bpath, profile(1), bw, ae) {
+            Err(e) => e,
+            Ok(_) => panic!("crossed witness/enrollment exposed Store B"),
+        };
+        for error in [&aerror, &berror] {
+            assert_eq!(error.status(), StoreStatus::Denied);
+            let observation = error.observation();
+            assert_eq!(observation.stage, store::PreviewInitStage::Validate);
+            assert_eq!(observation.root, store::ReadRootObservation::NotAttempted);
+            assert!(!observation.panicked);
+        }
+        assert_eq!(counts(&a), a_before);
+        assert_eq!(counts(&b), b_before);
+        assert_eq!(a.native_producer_counts().held, 0);
+        assert_eq!(b.native_producer_counts().held, 0);
+        for path in [&apath, &bpath] {
+            assert_eq!(
+                std::fs::symlink_metadata(path).unwrap_err().kind(),
+                std::io::ErrorKind::NotFound
+            );
+        }
+        assert_eq!(counts(&rightful.h), rightful_counts);
+        assert_eq!(files(&rightful.path), rightful_files);
+        rightful.positive(0, &live, 71, 1);
+        assert_eq!(files(&rightful.path), rightful_files);
+        // Actual failed-init holders remain retained until both observations;
+        // no attempt reclaims or fabricates their consumed opaque carriers.
+        drop((aerror, berror, asession, bsession, ac, bc, a, b));
+        for path in [&apath, &bpath] {
+            assert_eq!(
+                std::fs::symlink_metadata(path).unwrap_err().kind(),
+                std::io::ErrorKind::NotFound
+            );
+        }
+        let outer = [ar.path().to_owned(), br.path().to_owned()];
+        success(ar.close());
+        success(br.close());
+        for path in outer {
+            assert_eq!(
+                std::fs::symlink_metadata(path).unwrap_err().kind(),
+                std::io::ErrorKind::NotFound
+            );
+        }
+        drop(live);
+        rightful.finish();
+    }
     // Preflight identity failure must not initialize a fake ready Store.
     for mismatch in 0..2 {
         let (h, c, witness, enrollment) = success(desktop::HostDesktop::new_store_preview_read(
@@ -776,6 +997,11 @@ fn native_preview_init_exposure_failure() {
             active.stamp(),
             1,
         )));
+        let after_delivery = counts(&f.h);
+        let mut expected_delivery = before;
+        assert_eq!(before[0], 1, "rightful delivery has one live setup pin");
+        expected_delivery[0] = 0;
+        assert_eq!(after_delivery, expected_delivery);
         let original_wire = success(desktop::encode_envelope_wire(
             held.as_ref().unwrap().confirm_reply(),
         ));
@@ -791,7 +1017,7 @@ fn native_preview_init_exposure_failure() {
             )),
             original_wire
         );
-        assert_eq!(counts(&f.h), before);
+        assert_eq!(counts(&f.h), after_delivery);
         let live = success(active.pair_launch(&mut held));
         assert!(held.is_none());
         f.positive(0, &live, 70, 1);

@@ -392,6 +392,10 @@ foundry-desktop-editor-store-ui1-1b:
 foundry-desktop-editor-native-read-ui1-1c-prerequisite:
 	python3 ./tools/foundry/desktop_editor_native_read_gate.py
 
+# Default-off Store-current preview, staged Read authority and protected chrome.
+foundry-editor-native-preview-read-ui1-1c:
+	python3 ./tools/foundry/desktop_editor_native_preview_read_gate.py
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh

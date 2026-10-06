@@ -3,12 +3,23 @@
 ## [Unreleased]
 
 ### Added
+- Default-off native Store preview Read precursor: actual Store-current pins,
+  one-use input approval, same-row activation/delivery, protected Read-only frames
+  and live selected-byte copies. Five independently reviewed cases pass on macOS
+  and Linux with identical source/lock inputs, strict Clippy and feature exclusion;
+  affected NativeRead, volatile editor and Store gates pass.
+  Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`.
+  Original API-absence and 0/5 then 4/1 failures are preserved. Handler fixes and
+  the exact rightful-delivery accounting assertion repair are independently
+  reviewed. Actual binary/process/log evidence is finite host evidence; native
+  Save, recovery, IO2, the complete eighteen-case task and target/device execution
+  remain separate.
 - Native preview assertion preparation now freezes genuine inactive-row probes,
   literal protected pixels, optional producer-authored actor status, own query-ID
   observations and exact cancellation/bypass/exhaustion statuses. Five default-off
   assertions are independently reviewed with actual initial API-absence RED. A
   retained mixed compile failure led to three reviewed typed-handle corrections
-  before the fresh RED. This adds no NativePreview service runtime acceptance.
+  before the fresh RED. That assertion-preparation milestone added no NativePreview service runtime acceptance.
 - Independently reviewed native Store preview Read API and pure shared-data
   contracts for UI1.1c's five Read-only precursor cases. Actual input tickets,
   current Store selection, one activation row, borrowed launch pairing, original
@@ -19,8 +30,8 @@
   All 122 Mac schema tests and affected save-schema/native Read gates pass.
   Strict Linux preflight passes with `RUST_TEST_THREADS=1`, using its separately
   retained dependency resolution. The initial sandbox cleanup failure and fresh
-  passing focused run remain recorded. Five service cases and handlers are still
-  pending; this establishes no NativePreview service, Save, recovery, IO2 or
+  passing focused run remain recorded. At that pure-codec milestone, five service cases and handlers remained
+  pending; the codec establishes no NativePreview service, Save, recovery, IO2 or
   complete eighteen-case task acceptance.
 - Default-off native Read prerequisite for UI1.1c: actual opaque Desktop
   approval and original calls reach a fresh host Store owner through protocol 368.

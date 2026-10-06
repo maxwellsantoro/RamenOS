@@ -1,6 +1,8 @@
 //! Default-off, trusted in-process Store-owned transaction fixture.
 //! This is host CAS evidence, not a deployed editor bridge or containment boundary.
 mod codec;
+#[cfg(feature = "editor_native_preview_v0_dev")]
+mod native_preview;
 #[cfg(feature = "editor_native_read_v0_dev")]
 mod native_read;
 mod storage;
@@ -12,6 +14,8 @@ use kernel_api::{
     generated::desktop_artifact_v1 as a,
     ipc::Envelope,
 };
+#[cfg(feature = "editor_native_preview_v0_dev")]
+pub use native_preview::*;
 #[cfg(feature = "editor_native_read_v0_dev")]
 pub use native_read::*;
 use std::{
@@ -114,6 +118,8 @@ struct Core {
     native_only: bool,
     #[cfg(feature = "editor_native_read_v0_dev")]
     native_read: Mutex<Option<Arc<native_read::NativeCore>>>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    native_preview: Mutex<Option<Arc<native_preview::PreviewCore>>>,
     root: PathBuf,
     profile: FixtureProfile,
     profile_hash: Hash32,
@@ -159,6 +165,8 @@ struct Object {
     state: Mutex<ObjectState>,
 }
 struct ObjectState {
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    preview_faulted: bool,
     journal: EditorSelectionJournalV0,
     durable: EditorSelectionJournalV0,
     prepared: Option<EditorSelectionJournalV0>,
@@ -1967,6 +1975,8 @@ impl StoreFixture {
                     id,
                     root: storage::fixed_root(&root, id),
                     state: Mutex::new(ObjectState {
+                        #[cfg(feature = "editor_native_preview_v0_dev")]
+                        preview_faulted: false,
                         journal: journal.clone(),
                         durable: journal,
                         prepared: None,
@@ -1997,6 +2007,8 @@ impl StoreFixture {
             native_only,
             #[cfg(feature = "editor_native_read_v0_dev")]
             native_read: Mutex::new(None),
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            native_preview: Mutex::new(None),
             root,
             profile,
             profile_hash,
@@ -2313,6 +2325,8 @@ impl StoreFixture {
                     id,
                     root: old_object.root.clone(),
                     state: Mutex::new(ObjectState {
+                        #[cfg(feature = "editor_native_preview_v0_dev")]
+                        preview_faulted: false,
                         journal,
                         durable,
                         prepared: None,
@@ -2344,6 +2358,8 @@ impl StoreFixture {
             native_only: false,
             #[cfg(feature = "editor_native_read_v0_dev")]
             native_read: Mutex::new(None),
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            native_preview: Mutex::new(None),
             root: old.root.clone(),
             profile: old.profile.clone(),
             profile_hash: old.profile_hash,

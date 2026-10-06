@@ -126,12 +126,29 @@ denial probes, protected pixels have literal font expectations, and an optional
 248-byte record is tied to actual positive-actor frame publication. Pre-instance
 preview remains 464-byte metadata. Own query identities are historical observations;
 actual retained owners and joined producers must prove the two separate 64 limits.
-The default-off test target now has five independently reviewed assertions.
-The retained initial compile proved missing native preview APIs; three unrelated
-typed-handle errors were corrected and independently reviewed before a fresh
-API-absence RED with unchanged captured inputs. This is compile evidence, not
-execution of the five cases. Native preview handlers and runtime acceptance
-remain pending.
+The default-off NativePreview Read precursor now implements actual input tickets,
+Store-current pinning, fresh approval, same-row activation/delivery and protected
+Read-only composition. Five independently reviewed source-bound cases pass on
+macOS and Linux through `just foundry-editor-native-preview-read-ui1-1c`, with
+strict Clippy and exclusion from the older NativeRead feature. They check real
+Store copies, inactive/foreign denials, original clocks, paused frame publication,
+retained setup/error owners and separate query/producer capacity with actual joins.
+The two platforms used the identical 278-source manifest and explicitly captured
+Cargo.lock. Affected Mac NativeRead, volatile editor and Store gates pass.
+Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`.
+
+The initial API-absence RED and subsequent 0/5 and 4/1 behavioral failures remain
+preserved. Reviewed handler corrections fixed canonical native error replies,
+Cancel wire validation, foreign lease denial ordering and original pin/Produce
+lifetimes. The 4/1 run also exposed an assertion comparing across rightful delivery;
+its reviewed repair now asserts the exact live-pin 1-to-0 transition with all other
+counts unchanged before checking foreign pairing leaves that delivered state intact.
+The gate retains actual executable, process birth/reap and bounded command logs.
+Wire, pixel, lease and service-thread-join checks are assertions in that pinned
+binary, with no independent exported transcript or per-thread native identity claim.
+Original Produce validation-wait forwarding is source-reviewed; no injected wait
+scenario was run. Contract creation-stage snapshots remain provenance, while this
+file owns implementation status.
 The eight planned preview identities retain their Save, recovery and IO2
 dependencies, and the original eighteen-case integrated task remains separate.
 The five reused volatile UI records remain separately stamped. Actual editor PID,
@@ -166,6 +183,7 @@ or its timeout, result and descendant-cleanup assertions.
 | Editor / UI1.1a | Logical keyboard editing, focus and preview approval, offscreen composition, volatile save/receipt and explicit recovery | `just foundry-desktop-editor-host-ui1-1a` · [Contract](docs/DESKTOP_EDITOR_HOST_API_V0.md); default-off trusted in-process fixture, 13 cases and source-bound wire/pixel/receipt evidence on macOS/Linux. Real Store IO, actual editor process, device input and target execution remain separate |
 | Editor Store / UI1.1b | Private host CAS, atomic selection/receipt journal, irreversible admission and original-operation recovery through joined-owner reopen | `just foundry-desktop-editor-store-ui1-1b` · [API](docs/DESKTOP_EDITOR_STORE_API_V0.md) · [Recording contract](docs/contracts/editor-store-recording-v0.json); seven behavior and sixteen evidence cases pass on macOS/Linux, with captured bytes decoded by the native Rust codec. Integrated editor authority, actual editor PID, device/target durability and containment remain separate |
 | Native Read / UI1.1c prerequisite | Approved editor peer, fresh Store Read, original request deadline, live copy authority and shared owned-producer roster | `just foundry-desktop-editor-native-read-ui1-1c-prerequisite` · [API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md); nine host cases on macOS/Linux, strict Clippy and feature exclusion. Integrated Save/task, optional-export transcript validation, editor PID and device/target execution remain separate |
+| Native preview Read / UI1.1c precursor | Actual Store-current pin, one-use input approval, same-row activation/delivery, protected Read-only frames, live Store reads and retained-owner accounting | `just foundry-editor-native-preview-read-ui1-1c` · [Contract](docs/contracts/editor-native-preview-read-v0.json); five default-off trusted host cases on macOS/Linux, identical source/lock inputs, strict Clippy and feature exclusion. Finite source-bound log assertions; no universal exported transcript, integrated Save/full task, editor PID, target/device or containment proof |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |
 | Semantic State / S10 | Host snapshots, subscriptions/reactor, capability-filtered views; selected QEMU snapshot/IPC paths | Multi-source aggregation and target reactor remain incomplete; default boot/time metadata includes fixtures |
 | Store / S1–S10 | Host CAS, signatures, durable ownership, path/tag queries, read-only projections and typed CoW commits | Full user launch/porting flow and target persistence remain incomplete |

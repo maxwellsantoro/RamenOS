@@ -3,6 +3,53 @@
 **Last Updated:** 2026-10-05
 **Status:** Active
 
+## 2026-10-05 — Integrate the native Store preview Read precursor
+
+Use the existing typed 352/368 controls and schema2 data in an explicit,
+default-off trusted host fixture. Desktop owns actual input/selection/instance
+lifetimes; Store owns IO and its actual inactive Read grant. Pure same-issuer
+witness validation precedes IO. Actual inactive origin/grant probes reserve the
+same enforcing row; activation revalidates Registry → Object → Gate after the
+lock-free pause. Settlement follows guard release and grants no authority.
+
+Capture the original accepted Produce Instant before validation and forward it
+unchanged through the private request lifetime; effective logical time is
+monotonic. Undelivered setup checks the exact original pin identity and real/logical
+bounds. Pre-instance composition captures that same pin/plan/revision/object and
+rechecks it under State → Gate after rasterization or pause. Delivered Active
+uses its original instance lifetime; consumed setup alone cannot retire it.
+Genuine Pending and error holders retain both attachment and separate setup refs.
+Delivered paired/context owners retain no consumed setup refs. Foreign failures
+retain no rightful authority, and all native error replies are canonical redacted
+replies with INVALID handles; legacy reply construction remains unchanged.
+
+Preserve the initial missing-API compile and both behavioral failures. The 0/5 run
+identified native reply, Cancel reserved-field and foreign lease-order defects.
+The corrected 4/1 run exposed a test comparing counts across rightful delivery.
+The reviewed repair explicitly requires live pins 1-to-0 with all other counts
+unchanged, then checks foreign pairing against the delivered snapshot while
+preserving the carrier and its wire bytes. It does not change the handlers.
+
+Register a separate 278-source gate while preserving the older feature-scoped
+272-source NativeRead closure. Eleven actual commands use the reviewed held-child
+runner; the five-case executable and its native birth/exit/reap records, bounded
+logs and source/binary hashes remain retained. Failure command records are emitted
+before outcome acceptance, with coordinator post-checks on failed runs. Assertion
+checks cover wire, bytes, literal pixels, races and actual thread joins in the
+pinned binary; no universal exported transcript or per-thread native identity is
+claimed. The original Produce validation-wait obligation is checked in source,
+without a new injected wait API or exclusive-clock runtime claim.
+
+The Mac and fresh Linux focused runs use identical source and explicit ignored
+Cargo.lock inputs. Bootstrap ignored NativeRunner bindings with normal codegen
+before preflight's initial formatting check; the failed initial assembly attempt
+is preserved, and all five generated files match Mac. No hand-edited generated
+content or OS-code repair supplies that prerequisite.
+Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`.
+Save needs separate native mutation/operation/lease/permit/recovery and combined
+producer/IO contracts plus a real composition consumer. This Read precursor does
+not complete Save, full UI1.1c, editor-process, target/device or containment work.
+
 ## 2026-10-05 — Observe genuine inactive preview rows before activation
 
 Stage the actual inactive Store grant and private Desktop origin before the
