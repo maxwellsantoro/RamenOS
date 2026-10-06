@@ -1,6 +1,6 @@
 # Current Status
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **Status:** Active and authoritative for landed state
 **Current Slice:** UI1.1 host editor; S12.4 HIL appliance physical loop pending
 **Software Lane:** SW0 foundations through A2.9 implemented; full A2 and comparison pending
@@ -25,7 +25,7 @@ with separate exclusion/enabled targets, fresh assertions and retained binaries.
 Early read-only input and umask checks deny unsafe cache setup before compilation.
 Every stage retains actual monotonic timing and exit/reap observations.
 
-Strict integrated Linux `just preflight` passes all 52 stages on the assembled
+The CI optimization integration passed all 52 stages on its assembled
 candidate with `RAMEN_CI_STRICT=1`, `RUST_TEST_THREADS=1`,
 `RAMEN_FOUNDRY_BUILD_CACHE=1`, a private Cargo home and `umask 022`.
 The run took 844.028 seconds and includes the original 36 extended stages,
@@ -183,13 +183,24 @@ Original Produce validation-wait forwarding is source-reviewed; no injected wait
 scenario was run. Contract creation-stage snapshots remain provenance, while this
 file owns implementation status.
 The [pure native Save data contract](docs/contracts/editor-native-save-codec-v0.json)
-is independently reviewed preparation for eight assertion families. It fixes a
-separate schema3 Save grant object and schema2 original Commit outcome record,
-while preserving the existing Read formats, text header, receipt and controls.
-No assertions, initial RED, codec implementation or live Save API have landed
-for this packet. A Committed record describes the original operation; it cannot
-prove that the currently displayed draft is Saved. Live mutation admission,
-protected publication and original-operation recovery remain separate contracts.
+is implemented in a separate schema3 Save grant codec (464 bytes) and schema2
+original Commit outcome codec (248 bytes). Eight independently authored and
+reviewed assertion families pass on macOS and Linux through
+`just foundry-editor-native-save-codec-ui1-1c`, with strict std Clippy and no_std
+checks. Actual missing-module RED preceded implementation; the earlier mixed
+compiler failure and reviewed fixture-loop corrections remain retained. All six
+Active handle pairs are checked for duplicates. Exact original Binding, epoch,
+receipt outcome and 176-byte digest joins are data correlation only.
+
+The new gate freezes all 38 source inputs, builds in a fresh private target, and
+retains the Cargo-selected binary, exact unfiltered list/outcomes, owned child
+exit/reap, and bounded logs. Affected pure Save (nine), Preview (seven), NativeRead
+(nine) and NativePreview (five) gates pass on macOS and in strict Linux preflight.
+The complete canonical inventory now has 37 extended and 53 preflight stages;
+the original stages and CI overrides remain. Contract creation-stage JSON flags
+and source pins remain historical provenance. No live Save API, mutation permit,
+Store IO or protected current-draft Saved claim follows from this pure codec.
+The remaining live bridge and original eighteen-case integrated task are pending.
 
 The eight planned preview identities retain their Save, recovery and IO2
 dependencies, and the original eighteen-case integrated task remains separate.
@@ -224,6 +235,7 @@ or its timeout, result and descendant-cleanup assertions.
 | Desktop / UI1.0 | Host permission preview, single-use synthetic confirmation, exact self-observation grants, real pinned child, expiry/revocation/fault/restart and independent watchdog | `just foundry-desktop-host-launch-ui1-0` · [Contract](docs/DESKTOP_SESSION_V1.md); default-off trusted Unix fixture, 17 cases and retained process/wire evidence. No editor, compositor, Store, target or process-containment proof |
 | Editor / UI1.1a | Logical keyboard editing, focus and preview approval, offscreen composition, volatile save/receipt and explicit recovery | `just foundry-desktop-editor-host-ui1-1a` · [Contract](docs/DESKTOP_EDITOR_HOST_API_V0.md); default-off trusted in-process fixture, 13 cases and source-bound wire/pixel/receipt evidence on macOS/Linux. Real Store IO, actual editor process, device input and target execution remain separate |
 | Editor Store / UI1.1b | Private host CAS, atomic selection/receipt journal, irreversible admission and original-operation recovery through joined-owner reopen | `just foundry-desktop-editor-store-ui1-1b` · [API](docs/DESKTOP_EDITOR_STORE_API_V0.md) · [Recording contract](docs/contracts/editor-store-recording-v0.json); seven behavior and sixteen evidence cases pass on macOS/Linux, with captured bytes decoded by the native Rust codec. Integrated editor authority, actual editor PID, device/target durability and containment remain separate |
+| Native Save data / UI1.1c prerequisite | Versioned Save grants and original Commit outcomes, canonical references and complete supplied Binding/receipt correlation | `just foundry-editor-native-save-codec-ui1-1c` · [Contract](docs/contracts/editor-native-save-codec-v0.json); eight pure host cases on macOS/Linux, strict std Clippy and no_std checks and 53-stage strict Linux preflight. Live mutation, Store IO, current-draft Saved and full task remain separate |
 | Native Read / UI1.1c prerequisite | Approved editor peer, fresh Store Read, original request deadline, live copy authority and shared owned-producer roster | `just foundry-desktop-editor-native-read-ui1-1c-prerequisite` · [API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md); nine host cases on macOS/Linux, strict Clippy and feature exclusion. Integrated Save/task, optional-export transcript validation, editor PID and device/target execution remain separate |
 | Native preview Read / UI1.1c precursor | Actual Store-current pin, one-use input approval, same-row activation/delivery, protected Read-only frames, live Store reads and retained-owner accounting | `just foundry-editor-native-preview-read-ui1-1c` · [Contract](docs/contracts/editor-native-preview-read-v0.json); five default-off trusted host cases on macOS/Linux, identical source/lock inputs, strict Clippy and feature exclusion. Finite source-bound log assertions; no universal exported transcript, integrated Save/full task, editor PID, target/device or containment proof |
 | Native runner / S10 | Host Wasmtime execution, manifests, granted-handle injection and guest deadlines | Host runtime; no complete target userspace loader or Wasmtime environment |

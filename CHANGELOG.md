@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- Pure native Save codec prerequisite: schema3 grants464 and schema2 original
+  outcomes248, checked IPC/SHM references and complete supplied Binding/receipt
+  joins. Eight independent assertion families pass on macOS/Linux after reviewed
+  gate-first source and clean missing-module RED. All six duplicate-handle pairs
+  are covered; the initial mixed inference failure and narrow test repairs remain
+  retained. The fresh-target bounded actual-binary gate joins the complete
+  inventory (37 extended / 53 full stages), preserving affected nine-case Save,
+  seven-case Preview, nine-case NativeRead and five-case NativePreview gates.
+  Strict std Clippy, no_std and complete strict Linux preflight pass. No live Save,
+  mutation admission, Store IO, current-draft Saved or integrated task claim.
 - Independently reviewed Foundry execution profile: exclusive warm developer
   checks; one Cargo-selected codegen executable with unchanged-byte/mtime
   preservation; tracked accepted Cargo.lock and manifest-pinned download caches;

@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **Status:** Active and authoritative for execution order
 
 > [CURRENT_STATUS.md](CURRENT_STATUS.md) records what landed. This file records
@@ -20,12 +20,14 @@ for bounded iteration, then run affected consumers and complete Foundry on a
 fixed candidate. Preserve fresh test/evidence execution when opting into compiler
 reuse; feature-exclusion phases have separate targets.
 
-**Now:** write and independently review the eight assertions for the
-[pure native Save data prerequisite](docs/contracts/editor-native-save-codec-v0.json),
-retain its real missing-API RED, then implement its two versioned codecs. The
-contract is reviewed and frozen; assertions, gate registration and implementation
-remain pending. This bounded packet prepares the remaining live editor/Store Save
-bridge before UI1.1c's original eighteen integrated-task assertions.
+**Now:** freeze the remaining live editor/Store Save bridge and its composition
+consumer before UI1.1c's original eighteen integrated-task assertions. The
+[pure native Save data prerequisite](docs/contracts/editor-native-save-codec-v0.json)
+is implemented: eight reviewed assertions pass on macOS/Linux after actual
+missing-API RED, and `just foundry-editor-native-save-codec-ui1-1c` is registered.
+Preserve its data-only scope, all affected consumers and the complete 53-stage
+strict Linux preflight. Current-draft Saved requires the actual live publisher,
+original receipt, current draft/source and frame owner to join.
 The default-off native Store preview
 Read precursor is implemented: its five reviewed cases and affected consumers
 pass on macOS/Linux through
@@ -83,7 +85,7 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI1.1c / coordinator then bridge and consumer workers | Coordinator owns shared exports/features/IDL/gates; one writer per assigned Desktop or Store adapter. Native Read prerequisite is implemented; pure codec seven-case prerequisite is implemented; five native preview precursor cases pass on macOS/Linux after reviewed assertions and retained RED before the original eighteen-case integrated consumer | Accepted UI1.1a/UI1.1b gates; frozen [native Read API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and [contract](docs/contracts/editor-native-read-v0.json), [editor proposal](docs/plans/desktop-editor-v0.md), [Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md), [wire](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API](docs/DESKTOP_EDITOR_HOST_API_V0.md) | Preserve the passing nine-case Read gate and affected UI1.1a/UI1.1b consumers. Read does not complete UI1.1c. Preserve the passing seven-case pure codec prerequisite. Preserve the passing five-case NativePreview Read gate and its finite host scope. Write/review the frozen eight pure Save data assertions, retain actual missing-API RED and implement the codec prerequisite; its planned gate is not yet registered. Then freeze the remaining live Save bridge before the original eighteen task assertions and keyboard edit/frame/save/reopen. Preserve issuer-checked admission, separately stamped volatile controls and original-operation Unknown recovery without replay. Request timeout preserves fresh Save for a live instance; revoke/expiry/fault denies unpermitted admission. UI1.1d's editor PID and device/target persistence remain separate. |
+| UI1.1c / coordinator then bridge and consumer workers | Coordinator owns shared exports/features/IDL/gates; one writer per assigned Desktop or Store adapter. Native Read prerequisite is implemented; pure codec seven-case prerequisite is implemented; five native preview precursor cases pass on macOS/Linux after reviewed assertions and retained RED before the original eighteen-case integrated consumer | Accepted UI1.1a/UI1.1b gates; frozen [native Read API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and [contract](docs/contracts/editor-native-read-v0.json), [editor proposal](docs/plans/desktop-editor-v0.md), [Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md), [wire](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API](docs/DESKTOP_EDITOR_HOST_API_V0.md) | Preserve the passing nine-case Read gate and affected UI1.1a/UI1.1b consumers. Read does not complete UI1.1c. Preserve the passing seven-case pure codec prerequisite. Preserve the passing five-case NativePreview Read gate and its finite host scope. Preserve the passing eight-case pure Save data gate, reviewed assertions and retained missing-API RED. Freeze the remaining live Save bridge before the original eighteen task assertions and keyboard edit/frame/save/reopen. Preserve issuer-checked admission, separately stamped volatile controls and original-operation Unknown recovery without replay. Request timeout preserves fresh Save for a live instance; revoke/expiry/fault denies unpermitted admission. UI1.1d's editor PID and device/target persistence remain separate. |
 | RUN0.0 / coordinator then runtime worker | Coordinator freezes Oracle profile, raw-map/retention collection assertions and boot integration; worker owns exact subsequently assigned adapter files | Reviewed [pure admission contract](docs/BOOT_FRAME_OWNERSHIP_V0.md), passing gate and [Oracle preparation](docs/plans/boot-profile-oracle-v0.md); current UEFI path still lacks post-firmware ownership | Resolve actual relocated-entry capture, freeze the CPU-inspection schema/profile and write RED assertions. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus S8 in QEMU. External debug reads or a pure selector cannot prove guest access, firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |

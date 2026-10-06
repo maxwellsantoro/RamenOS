@@ -20,7 +20,7 @@ REPO = Path(__file__).absolute().parents[2]
 GATE = 'foundry-editor-native-preview-read-ui1-1c'
 GATE_SOURCE = 'tools/foundry/desktop_editor_native_preview_read_gate.py'
 REGISTRY = 'tools/foundry/editor_native_preview_read_sources_v0.json'
-REGISTRY_SHA = 'b888c7568b36cfbcfd4cc59bbe843ad08f5720d0802e0059f7bd4cf65a2330ed'
+REGISTRY_SHA = '8e2119b03519a8847482c9c98a9694c7d2507ae5aa0dcde75ffd6014530601f2'
 CONTRACT = 'docs/contracts/editor-native-preview-read-v0.json'
 CONTRACT_SHA = '2267e4fe80ac02a8676cfccaa194a8395f70a2926526d829fdcac8b37b6b6252'
 OBSERVED_CONTRACT_SHA = '2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c'
@@ -29,7 +29,7 @@ CODEC_CONTRACT_SHA = '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
 PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
 BASE_REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-BASE_REGISTRY_SHA = '563690fd88f32d4e1e0b96c12039badb6d25e99087e696babe85357c7cc3a9ed'
+BASE_REGISTRY_SHA = 'c8448034f73a7fef2c11fa13046fc2700fcdb8768a3a1c221e1ca0f780d139a8'
 ASSERTION_PINS = {
     'services/store_service/tests/editor_native_preview_read.rs': 'bd011ebebe64ce3ec61d90f7e2d1a747246a8cbaf6cc8d37b25e666247498923',
     'services/store_service/tests/editor_native_preview_read_support/mod.rs': 'cff606f92e6706f629945aa05644a90ffdba4d8920235dcb93e331a224417e62',
@@ -120,7 +120,7 @@ def freeze_sources(h, repo_fd, run):
     baseline_raw, _, baseline_sha = h.source_read(repo_fd, BASE_REGISTRY, 65536, True)
     h.require(baseline_sha == BASE_REGISTRY_SHA, 'existing NativeRead closure pin')
     baseline = registry_paths(h, baseline_raw)
-    h.require(len(baseline) == 276, 'reviewed NativeRead baseline inventory')
+    h.require(len(baseline) == 277, 'reviewed NativeRead baseline inventory')
     required = {GATE_SOURCE, REGISTRY, BASE_REGISTRY, PRIMITIVES, CONTRACT, CODEC_CONTRACT,
                 'services/store_service/Cargo.toml', 'services/desktop/Cargo.toml',
                 'services/desktop/tests/fixtures/ascii8x16_v0.bin',

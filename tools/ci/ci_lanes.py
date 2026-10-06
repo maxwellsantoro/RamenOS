@@ -52,6 +52,7 @@ EXTENDED = (
     shell("desktop-editor-host", "tools/ci/foundry_desktop_editor_host_ui1_1a.sh"),
     shell("editor-save-schema", "tools/ci/foundry_editor_save_schema_ui1_1b.sh"),
     shell("editor-preview-codec", "tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh"),
+    shell("editor-native-save-codec", "tools/ci/foundry_editor_native_save_codec_ui1_1c.sh"),
     shell("desktop-editor-store", "tools/ci/foundry_desktop_editor_store_ui1_1b.sh"),
     Stage("editor-native-read", "host", ("python3", "tools/foundry/desktop_editor_native_read_gate.py")),
     Stage("editor-native-preview", "host", ("python3", "tools/foundry/desktop_editor_native_preview_read_gate.py")),

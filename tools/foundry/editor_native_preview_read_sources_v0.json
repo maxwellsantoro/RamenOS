@@ -12,6 +12,7 @@
     "artifact_store_schema/src/claim.rs",
     "artifact_store_schema/src/crash_context.rs",
     "artifact_store_schema/src/driver_protocol_trace.rs",
+    "artifact_store_schema/src/editor_native_save.rs",
     "artifact_store_schema/src/editor_preview.rs",
     "artifact_store_schema/src/editor_save.rs",
     "artifact_store_schema/src/evidence_policy.rs",

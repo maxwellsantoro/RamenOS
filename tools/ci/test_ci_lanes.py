@@ -30,6 +30,7 @@ EXTENDED_PATHS = (
     "tools/ci/foundry_desktop_editor_host_ui1_1a.sh",
     "tools/ci/foundry_editor_save_schema_ui1_1b.sh",
     "tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh",
+    "tools/ci/foundry_editor_native_save_codec_ui1_1c.sh",
     "tools/ci/foundry_desktop_editor_store_ui1_1b.sh",
     "tools/foundry/desktop_editor_native_read_gate.py",
     "tools/foundry/desktop_editor_native_preview_read_gate.py",
@@ -70,10 +71,10 @@ class LaneTests(unittest.TestCase):
     def test_exact_extended_coverage_order_and_overrides(self):
         stages = self.lanes.extended_plan()
         self.assertEqual(tuple(s.argv[-1] for s in stages), EXTENDED_PATHS)
-        self.assertEqual(len({s.name for s in stages}), 36)
+        self.assertEqual(len({s.name for s in stages}), 37)
         by_path = {s.argv[-1]: s for s in stages}
-        self.assertEqual(dict(by_path[EXTENDED_PATHS[16]].env), {"SKIP_E2E_ASSERTIONS": "1"})
-        self.assertEqual(dict(by_path[EXTENDED_PATHS[25]].env), {"REQUIRE_LIVE_ORACLE_TRACE": "1"})
+        self.assertEqual(dict(by_path[EXTENDED_PATHS[17]].env), {"SKIP_E2E_ASSERTIONS": "1"})
+        self.assertEqual(dict(by_path[EXTENDED_PATHS[26]].env), {"REQUIRE_LIVE_ORACLE_TRACE": "1"})
 
     def test_isolated_lanes_partition_every_authoritative_stage(self):
         quality = self.lanes.lane_plan("quality")
@@ -89,7 +90,7 @@ class LaneTests(unittest.TestCase):
         self.assertCountEqual(paths, EXTENDED_PATHS)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertIn("foundry-umbrella", [s.name for s in qemu])
-        for i in (20, 21, 22, 26, 28, 31, 35):
+        for i in (21, 22, 23, 27, 29, 32, 36):
             self.assertIn(EXTENDED_PATHS[i], [s.argv[-1] for s in qemu])
         self.assertEqual([s.name for s in quality if s.name.startswith("lint-strict-")],
                          [f"lint-strict-{i}" for i in range(1, 7)])
@@ -102,16 +103,16 @@ class LaneTests(unittest.TestCase):
         self.assertEqual(full[0].name, "proof-prerequisites")
         self.assertEqual(full[1].name, "compiler-cache-prerequisites")
         self.assertEqual(full[1].argv, ("python3", "tools/ci/build_cache.py", "--check-inputs"))
-        self.assertEqual(len(full), 52)
+        self.assertEqual(len(full), 53)
         self.assertEqual(full[2:2 + len(self.lanes.quality_plan())], self.lanes.quality_plan())
-        self.assertEqual(full[-36:], self.lanes.extended_plan())
+        self.assertEqual(full[-37:], self.lanes.extended_plan())
         for script, command in (("foundry_preflight.sh", "all"), ("foundry_ci_extended.sh", "extended")):
             source = (ROOT / "tools/ci" / script).read_text()
             self.assertIn(f"ci_lanes.py {command}", source)
             self.assertNotIn("cargo test", source)
 
     def test_stage_runner_serial_environment_and_exit_propagation(self):
-        stages = self.lanes.extended_plan()[16:18]
+        stages = self.lanes.extended_plan()[17:19]
         calls = []
 
         def execute(argv, **kwargs):

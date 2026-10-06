@@ -25,7 +25,7 @@ REQUIRED = (
 )
 FROZEN = {
     'artifact_store_schema/src/editor_save.rs': '2691ded3b4c7be79f7e25c380c63367e1a5d9151811c931e49c1203745564f85',
-    'artifact_store_schema/src/lib.rs': 'c12d228299c4fa1b88729a76ad5d0d3cebd4b458ab3973ea9605eb6af5322491',
+    'artifact_store_schema/src/lib.rs': '32d8948cb8ce92221c2b6d2890677a85d519fd28211a0232c9bda9e7c77770e9',
     'artifact_store_schema/src/editor_preview.rs': 'a4047a0730d7bf2f373a3ffd6ae8d3a21f7fe4366422e366907b3c55f745fa8d',
     'artifact_store_schema/tests/editor_preview_codec.rs': '49b407039ce295fc920f679eef50da0487edb7990572bcdc8afe576acb73852b',
     'docs/contracts/editor-native-preview-codec-v0.json': '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325a32249',

@@ -1726,3 +1726,25 @@ can leave fixture inputs or reused validator executables inaccessible to SW0's
 Docker identity. Retain such failures and restore only owned temporary output
 permissions or regenerate them; do not relax cache validation or change a user's
 global Cargo permissions.
+
+## 2026-10-06 — Preserve pure native Save data as a distinct prerequisite
+
+Implement the independently frozen schema3 464-byte Save grants and schema2
+248-byte original Commit outcomes as fixed-array, no_std-compatible codecs.
+Keep full-width logical counters distinct from packed references, require all
+Active IPC handles to be pairwise distinct, and validate the entire record before
+an expected-phase comparison. Preserve Read codecs and typed control schemas.
+
+Original outcome correlation requires the complete supplied Binding, original
+backend epoch and canonical 176-byte receipt bytes. The currently observed Store
+epoch may differ; a Committed record cannot establish that a current draft is
+Saved. Commit-source-bound Unknown excludes allocation-only uncertainty. Future
+live owners must enforce admission, retained originals, actual publication and
+recovery without replay through a separately frozen contract.
+
+Independent assertion review preceded actual missing-module RED and separate
+implementation. Repair fixture iteration inference before accepting that RED;
+retain the mixed compiler failure and all reviewed source predecessors. The new
+Foundry gate uses pinned compiler/lock inputs, a fresh private target, all compiled
+schema sources and exact eight native outcomes with actual owned exit/reap.
+Register it without removing existing CI stages or changing their overrides.
