@@ -19,6 +19,14 @@ def merge_allowed(changes, os_code, foundry, governance):
             and (foundry == "success" if os_code == "true" else foundry in {"success", "skipped"}))
 
 
+def foundry_allowed(changes, os_code, quality, host, qemu):
+    """Only docs classification permits all lane jobs to skip."""
+    if changes != "success" or os_code not in {"true", "false"}:
+        return False
+    expected = "success" if os_code == "true" else "skipped"
+    return all(result == expected for result in (quality, host, qemu))
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -28,11 +36,18 @@ def main():
     merge = sub.add_parser("merge")
     for name in ["changes", "os_code", "foundry", "governance"]:
         merge.add_argument(name)
+    foundry = sub.add_parser("foundry")
+    for name in ["changes", "os_code", "quality", "host", "qemu"]:
+        foundry.add_argument(name)
     args = parser.parse_args()
     if args.command == "classify":
         raw = subprocess.check_output(["git", "diff", "--no-renames", "--name-only", "-z", args.base, args.head, "--"])
         paths = [p.decode("utf-8", errors="strict") for p in raw.split(b"\0") if p]
         print("true" if requires_foundry(paths) else "false")
+    elif args.command == "foundry":
+        if not foundry_allowed(args.changes, args.os_code, args.quality, args.host, args.qemu):
+            raise SystemExit("foundry: FAIL")
+        print("foundry: PASS")
     elif not merge_allowed(args.changes, args.os_code, args.foundry, args.governance):
         raise SystemExit("merge-gate: FAIL")
     else:

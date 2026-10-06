@@ -23,6 +23,7 @@ parts of that product, with implementation status and evidence recorded separate
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
+| Warm developer checks, complete CI lanes, compiler cache and timing | [Foundry execution profile](FOUNDRY_CI_OPTIMIZATION_V0.md) |
 | Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
 | Coordinator/sub-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
 | Terms and concepts | [Glossary](GLOSSARY.md) |

@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- Independently reviewed Foundry execution profile: exclusive warm developer
+  checks; one Cargo-selected codegen executable with unchanged-byte/mtime
+  preservation; tracked accepted Cargo.lock and manifest-pinned download caches;
+  isolated quality, host/Docker and QEMU CI lanes with a fail-closed stable
+  aggregate; opt-in, source-bound NativeRead/NativePreview compilation caches
+  retaining fresh cases and binaries; and monotonic stage timings. The broker
+  snapshot assertion now uses one actual successful execution. Baseline and all
+  sixteen strict package checks remain. Tooling controls and full strict Linux
+  preflight pass all 52 canonical stages in 844.028 seconds; failed setup runs
+  remain retained. Focused cold/warm command sums improved, without a whole-CI
+  speedup claim. Hosted workflow execution and physical qualification are not
+  established by this host/QEMU packet.
 - Freeze the reviewed pure native Save data prerequisite: separate schema3
   grants464 and schema2 original-outcome248, exact canonical references and
   complete original Binding/receipt links, while preserving Read codecs and

@@ -36,6 +36,7 @@
     "docs/DESKTOP_EDITOR_HOST_API_V0.md",
     "docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md",
     "docs/DESKTOP_EDITOR_STORE_API_V0.md",
+    "docs/FOUNDRY_CI_OPTIMIZATION_V0.md",
     "docs/contracts/editor-native-preview-codec-v0.json",
     "docs/contracts/editor-native-preview-read-v0.json",
     "docs/contracts/editor-native-read-v0.json",
@@ -264,6 +265,8 @@
     "tools/agent_task_adapter/tests/protocol.rs",
     "tools/agent_task_adapter/tests/rt.rs",
     "tools/agent_task_adapter/tests/subscriptions.rs",
+    "tools/ci/build_cache.py",
+    "tools/ci/ci_lanes.py",
     "tools/ci/desktop_editor_result.py",
     "tools/ci/editor_save_schema_result.py",
     "tools/ci/editor_store_result.py",
@@ -271,6 +274,7 @@
     "tools/ci/editor_store_sources_v0.json",
     "tools/ci/foundry_ci_extended.sh",
     "tools/ci/foundry_desktop_editor_store_ui1_1b.sh",
+    "tools/ci/stage_timer.py",
     "tools/foundry/desktop_editor_native_read_gate.py",
     "tools/foundry/editor_native_read_sources_v0.json"
   ]

@@ -20,7 +20,7 @@ REPO = Path(__file__).absolute().parents[2]
 GATE = 'foundry-editor-native-preview-read-ui1-1c'
 GATE_SOURCE = 'tools/foundry/desktop_editor_native_preview_read_gate.py'
 REGISTRY = 'tools/foundry/editor_native_preview_read_sources_v0.json'
-REGISTRY_SHA = 'fabbac5a18ca718ba21f0e0e2ca1edf9ec223a87bfed88d68bacf7ed0ac7840e'
+REGISTRY_SHA = 'b888c7568b36cfbcfd4cc59bbe843ad08f5720d0802e0059f7bd4cf65a2330ed'
 CONTRACT = 'docs/contracts/editor-native-preview-read-v0.json'
 CONTRACT_SHA = '2267e4fe80ac02a8676cfccaa194a8395f70a2926526d829fdcac8b37b6b6252'
 OBSERVED_CONTRACT_SHA = '2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c'
@@ -29,12 +29,15 @@ CODEC_CONTRACT_SHA = '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
 PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
 BASE_REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-BASE_REGISTRY_SHA = '6971d97438e8cab8594e8641ee8bcf26e10a044deaa3d3b32ea7a1fc5ad7d332'
+BASE_REGISTRY_SHA = '563690fd88f32d4e1e0b96c12039badb6d25e99087e696babe85357c7cc3a9ed'
 ASSERTION_PINS = {
     'services/store_service/tests/editor_native_preview_read.rs': 'bd011ebebe64ce3ec61d90f7e2d1a747246a8cbaf6cc8d37b25e666247498923',
     'services/store_service/tests/editor_native_preview_read_support/mod.rs': 'cff606f92e6706f629945aa05644a90ffdba4d8920235dcb93e331a224417e62',
 }  # Independently accepted assertion bytes, never test-reported pins.
 IMPLEMENTATION_PATHS = ['services/desktop/src/editor_dev/host.rs', 'services/desktop/src/editor_dev/mod.rs', 'services/desktop/src/editor_dev/native_authority.rs', 'services/desktop/src/editor_dev/native_preview.rs', 'services/store_service/src/editor_store/mod.rs', 'services/store_service/src/editor_store/native_preview.rs']
+CACHE_HELPER = 'tools/ci/build_cache.py'
+CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
+
 FEATURE = 'editor_native_preview_v0_dev'
 BASE_FEATURE = 'editor_native_read_v0_dev'
 TARGET = 'editor_native_preview_read'
@@ -117,7 +120,7 @@ def freeze_sources(h, repo_fd, run):
     baseline_raw, _, baseline_sha = h.source_read(repo_fd, BASE_REGISTRY, 65536, True)
     h.require(baseline_sha == BASE_REGISTRY_SHA, 'existing NativeRead closure pin')
     baseline = registry_paths(h, baseline_raw)
-    h.require(len(baseline) == 272, 'reviewed NativeRead baseline inventory')
+    h.require(len(baseline) == 276, 'reviewed NativeRead baseline inventory')
     required = {GATE_SOURCE, REGISTRY, BASE_REGISTRY, PRIMITIVES, CONTRACT, CODEC_CONTRACT,
                 'services/store_service/Cargo.toml', 'services/desktop/Cargo.toml',
                 'services/desktop/tests/fixtures/ascii8x16_v0.bin',
@@ -218,6 +221,28 @@ def sanitized_environment(target, h):
     return env
 
 
+def load_build_cache(h, repo_fd, rows):
+    # No path import: execute only held, bounded bytes in the frozen source closure.
+    expected = CACHE_HELPER_SHA
+    h.require(type(expected) is str and re.fullmatch('[0-9a-f]{64}', expected),
+              'compiler cache helper pin unresolved')
+    h.require(any(row['relative_path'] == CACHE_HELPER and row['sha256'] == expected for row in rows),
+              'compiler cache helper absent from independently selected source closure')
+    raw, _, sha = h.source_read(repo_fd, CACHE_HELPER, 65536, True)
+    h.require(sha == expected, 'reviewed compiler cache helper mismatch')
+    import types
+    module = types.ModuleType('native_gate_build_cache')
+    module.__file__ = str(REPO / CACHE_HELPER)
+    exec(compile(raw, module.__file__, 'exec'), module.__dict__)
+    return module
+
+
+def cache_switch(h):
+    value = os.environ.get('RAMEN_FOUNDRY_BUILD_CACHE', '0')
+    h.require(value in ('0', '1'), 'compiler cache opt-in must be 0 or 1')
+    return value == '1'
+
+
 def run_gate():
     require(len(sys.argv) == 1, 'no artifact-selected gate arguments or unittest filters')
     # Resolve all placeholders BEFORE output creation, imports or any children.
@@ -227,6 +252,7 @@ def run_gate():
         pin(value)
     require(type(IMPLEMENTATION_PATHS) is list and bool(IMPLEMENTATION_PATHS),
             'implementation paths not frozen')
+    compiler_cache = None
     repo_fd = os.open(REPO, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
         h = load_primitives(repo_fd)
@@ -252,15 +278,23 @@ def run_gate():
         channel = tomllib.loads(raw.decode('utf8', 'strict'))['toolchain']['channel']
         h.require(type(channel) is str and re.fullmatch(r'nightly-\d{4}-\d{2}-\d{2}', channel), 'pinned toolchain')
         commands = h.OwnedCommand(budget, str(REPO), sanitized_environment(target, h))
-        h.successful(commands.run(['rustc', '+' + channel, '-vV'], 'rustc.log'))
-        h.successful(commands.run(['cargo', '+' + channel, '--version'], 'cargo-version.log'))
+        rustc_profile = h.successful(commands.run(['rustc', '+' + channel, '-vV'], 'rustc.log')).decode('utf8', 'strict')
+        cargo_profile = h.successful(commands.run(['cargo', '+' + channel, '--version'], 'cargo-version.log')).decode('utf8', 'strict')
+        if cache_switch(h):
+            cache_helper = load_build_cache(h, repo_fd, rows)
+            compiler_cache = cache_helper.GateCache(REPO, manifest_sha, rustc_profile, cargo_profile, commands.env)
+        def phase_target(phase, features):
+            selected = compiler_cache.target_for(phase, features) if compiler_cache is not None else target
+            commands.env['CARGO_TARGET_DIR'] = str(selected)
+            return selected
         cargo = ['cargo', '+' + channel]
         exclusions = [
-            feature_exclusion(h, commands, cargo, target, 'desktop_service', 'editor_dev',
+            feature_exclusion(h, commands, cargo, phase_target('exclusion-desktop', [BASE_FEATURE]), 'desktop_service', 'editor_dev',
                               'RegistryWitness', 'StoreSelectionEnrollment'),
-            feature_exclusion(h, commands, cargo, target, 'store_service', 'editor_store',
+            feature_exclusion(h, commands, cargo, phase_target('exclusion-store', [BASE_FEATURE]), 'store_service', 'editor_store',
                               'NativeReadFixture', 'NativePreviewActivation'),
         ]
+        target = phase_target('enabled', [FEATURE])
         built = commands.run(cargo + ['test', '--locked', '--no-default-features', '-p', 'store_service',
                                       '--features', FEATURE, '--test', TARGET, '--no-run', '--message-format=json'],
                              'native-preview-build.log')
@@ -302,12 +336,21 @@ def run_gate():
         # Actual process/log primitives cap eleven commands (structural max16),
         # individual normal logs1MiB/test logs8MiB, aggregate other4MiB + tests16MiB.
         # Result/source are actual admitted bytes, never test-supplied provenance.
+        retained_binary = None
+        if compiler_cache is not None:
+            retained_binary = cache_helper.retain_binary(binary, binary_info, run / 'test-binary')
+            h.unchanged_binary(binary, binary_info)
+            h.check_sources(repo_fd, rows)
+            compiler_cache.check_contexts()
         result = {
             'schema_version': 1, 'status': 'PASS', 'gate': GATE,
             'scope': 'native_store_preview_read_host_fixture',
             'contract_sha256': CONTRACT_SHA, 'codec_contract_sha256': CODEC_CONTRACT_SHA,
             'source_registry_sha256': REGISTRY_SHA, 'source_manifest_sha256': manifest_sha,
             'sources': rows, 'test_binary': binary_info, 'test_process': tested['process'],
+            'retained_test_binary': retained_binary,
+                  'compiler_cache': {'enabled': compiler_cache is not None, 'cached_acceptance': False,
+                               'phases': compiler_cache.records if compiler_cache is not None else []},
             'commands': commands.observations, 'feature_exclusions': exclusions, 'cases': list(CASES),
             'limits': {'commands': 16, 'command_seconds': 600, 'normal_log_bytes': 1048576,
                        'test_log_bytes': 8388608, 'combined_test_log_bytes': 16777216,
@@ -327,6 +370,8 @@ def run_gate():
         print('FOUNDRY_DESKTOP_EDITOR_NATIVE_PREVIEW_READ: PASS scope=host evidence=' + str(evidence))
         return 0
     finally:
+        if compiler_cache is not None:
+            compiler_cache.close()
         os.close(repo_fd)
 
 

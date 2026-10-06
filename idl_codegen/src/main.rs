@@ -131,11 +131,22 @@ fn main() -> Result<()> {
         Lang::C => out,
     };
 
-    if let Some(parent) = args.out.parent() {
-        fs::create_dir_all(parent).ok();
-    }
-    fs::write(&args.out, out).with_context(|| "write output")?;
+    write_if_changed(&args.out, out.as_bytes())?;
     Ok(())
+}
+
+/// Always render first; preserve the existing file only when its bytes match.
+fn write_if_changed(path: &Path, output: &[u8]) -> Result<()> {
+    match fs::read(path) {
+        Ok(existing) if existing == output => return Ok(()),
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).with_context(|| "read existing output"),
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| "create output directory")?;
+    }
+    fs::write(path, output).with_context(|| "write output")
 }
 
 fn infer_lang(out: &Path) -> Lang {

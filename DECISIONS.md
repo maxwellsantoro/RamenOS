@@ -1688,3 +1688,41 @@ did not reproduce the cause. The accepted strict preflight uses
 `RUST_TEST_THREADS=1`, matching the dedicated launch gate's serialized profile.
 Preserve the failed runs and trace alongside the passing integrated run; do not
 claim that this establishes parallel spawn reliability or a diagnosed OS fix.
+
+## 2026-10-05 — Separate warm iteration from complete Foundry acceptance
+
+Use one canonical complete stage inventory for local preflight and isolated
+quality, host/Docker and QEMU CI lanes. Keep the stable required Foundry aggregate
+fail closed on every failed, cancelled or unexpectedly skipped lane. Track the
+already accepted Cargo dependency resolution rather than generating different
+ignored locks per runner. Install only the manifest-pinned toolchain and retain
+actual monotonic stage timings before further consolidation.
+
+Codegen renders every output with one actual Cargo-selected generator executable
+and preserves identical file bytes and mtimes. One successful broker proxy run
+supplies both its exit and snapshot assertion. Baseline and all sixteen strict
+package checks remain: actual pinned Cargo unit graphs for batched tranches 1, 2
+and 6 omit old dependency feature units, so diagnostic equivalence is unproved.
+
+The existing NativeRead fresh-target decision remains the local default. Add an
+explicit opt-in compiler-cache profile with frozen source/toolchain/platform/lock/
+configuration/environment/feature keys, separate exclusion and enabled targets,
+private ownership and exclusive locks. Every Cargo command, probe, test inventory,
+behavior case and fresh evidence check still runs. An abandoned in-flight marker
+denies target reuse; capacity exhaustion is explicit. CI caches compilation only.
+This is trusted host tooling, not hostile cache/compiler attestation or containment.
+
+The warm developer loop intentionally keeps its target across source edits, uses
+Cargo's live rebuild checks, and labels records development rather than acceptance.
+Its feature/profile cache cannot be admitted by a Foundry adapter. The maintained
+[execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md) owns these limits and cleanup.
+No OS API, Save authority, merge authority or hardware claim changes.
+
+Cache configuration and the process umask are checked before expensive suites,
+using the same permission policy as admission and immediately restoring the
+queried mask. A private Cargo home avoids accepting a shared writable config
+ancestor. Complete Linux preflight uses `umask 022`: stricter focused-cache masks
+can leave fixture inputs or reused validator executables inaccessible to SW0's
+Docker identity. Retain such failures and restore only owned temporary output
+permissions or regenerate them; do not relax cache validation or change a user's
+global Cargo permissions.

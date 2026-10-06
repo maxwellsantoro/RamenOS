@@ -1,6 +1,6 @@
 # Development Reference
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-05
 **Status:** Host tooling and operator reference
 
 Start with [Getting Started](GETTING_STARTED.md) for setup and focused gates.
@@ -10,6 +10,21 @@ for landed state and execution order. Store commands below run on the host.
 These tools support the [Vision](../VISION.md) of an everyday OS for humans and
 AI agents. Host commands exercise components of that product; they do not imply
 a complete target desktop or hardware-qualified runtime.
+
+## Fast iteration and complete checks
+
+Use `just dev-check PACKAGE TEST FEATURES` for an exclusive warm host build,
+strict Clippy and selected serialized tests. Features are a comma-separated list;
+`TEST` defaults to `lib`, and default features are disabled. Run `just codegen`
+after checkout and IDL edits. Development records do not replace Foundry gates.
+Run affected consumers and `just preflight` on the fixed integration candidate.
+
+CI separates quality, host/Docker and QEMU jobs on isolated runners, then requires
+all applicable lanes through the stable `foundry` check. Stage timings are retained
+under `out/foundry/timings/`. The host lane explicitly enables an exact-source,
+phase-separated compiler cache while rerunning every acceptance check. Local gates
+keep fresh targets unless `RAMEN_FOUNDRY_BUILD_CACHE=1` is set. See the
+[execution profile](FOUNDRY_CI_OPTIMIZATION_V0.md) for keys, cleanup and claim limits.
 
 ## Hardware and evidence
 

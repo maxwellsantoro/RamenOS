@@ -11,6 +11,39 @@ and evidence boundaries. [NEXT_TASKS.md](NEXT_TASKS.md) owns the next work;
 [CHANGELOG.md](CHANGELOG.md) holds detailed milestone history and
 [DECISIONS.md](DECISIONS.md) holds rationale.
 
+## Foundry development and CI execution
+
+The independently reviewed [execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md)
+adds `just dev-check` with one exclusive persistent compiler target, one-build
+content-stable generation, and a complete canonical Foundry inventory. CI splits
+quality, host/Docker and QEMU work across isolated runners; the stable required
+Foundry aggregate fails closed on failed, cancelled or unexpectedly skipped lanes.
+The accepted dependency resolution is now tracked in `Cargo.lock`; toolchain and
+download caches follow the pinned manifest. NativeRead and NativePreview keep
+fresh targets by default and support explicit, source-bound compilation reuse
+with separate exclusion/enabled targets, fresh assertions and retained binaries.
+Early read-only input and umask checks deny unsafe cache setup before compilation.
+Every stage retains actual monotonic timing and exit/reap observations.
+
+Strict integrated Linux `just preflight` passes all 52 stages on the assembled
+candidate with `RAMEN_CI_STRICT=1`, `RUST_TEST_THREADS=1`,
+`RAMEN_FOUNDRY_BUILD_CACHE=1`, a private Cargo home and `umask 022`.
+The run took 844.028 seconds and includes the original 36 extended stages,
+Docker controls, host consumers, QEMU and storage assertions. Initial permission
+and fixture-access failures remain retained; permission repair affected only
+owned temporary compilation outputs and preserved executable bytes. This is
+host/QEMU evidence, not a kernel fix, physical qualification or release proof.
+
+A measured schema developer check ran 94 library tests on both passes; its
+command-time sum fell from 70.871 seconds cold to 1.238 seconds warm. Independently
+reviewed focused Linux cache runs reran all nine NativeRead and five NativePreview
+cases: command sums fell from 41.590 to 5.697 seconds and 56.784 to 6.412 seconds.
+Those focused measurements precede the final umask-only helper amendment and
+exclude setup and binary retention. Final integration validates the amended
+helper. They do not establish a whole-CI speedup. All sixteen strict package
+checks remain because multi-package Cargo unit graphs changed feature units.
+The hosted workflow is reviewed configuration; a GitHub-hosted run is not claimed.
+
 ## Execution state
 
 The S12.4 physical lane awaits test-hardware setup: first live serial capture,

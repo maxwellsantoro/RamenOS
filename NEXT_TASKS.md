@@ -15,6 +15,11 @@ across restart requires real persistence. These are future acceptance goals;
 
 ## Ready work front
 
+Use the [warm developer loop and CI profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md)
+for bounded iteration, then run affected consumers and complete Foundry on a
+fixed candidate. Preserve fresh test/evidence execution when opting into compiler
+reuse; feature-exclusion phases have separate targets.
+
 **Now:** write and independently review the eight assertions for the
 [pure native Save data prerequisite](docs/contracts/editor-native-save-codec-v0.json),
 retain its real missing-API RED, then implement its two versioned codecs. The

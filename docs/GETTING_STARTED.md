@@ -1,6 +1,6 @@
 # Getting Started with RamenOS
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-05
 **Status:** Active contributor guide
 
 RamenOS is an everyday OS being built for humans and AI agents. It is public
@@ -40,6 +40,10 @@ sudo apt-get install qemu-system-x86 qemu-system-arm ovmf \
 Install rustup and `just` separately if unavailable. Full preflight additionally
 requires Linux evaluator facilities and the configured Docker image. Use focused
 gates on other hosts; a missing prerequisite is not a successful evaluation.
+Use `umask 022` for complete Linux preflight: compiler outputs must not be
+writable by another identity, while SW0 exports must remain readable by the
+configured Docker identity. A stricter mask is supported by the focused compiler
+cache but can make SW0 fixture inputs unreadable.
 
 Verify the toolchain from the repository root:
 
@@ -121,8 +125,9 @@ just s13
 just foundry-org-governance-g0
 ```
 
-For code changes, the standard entry point is `just preflight`. It checks
-prerequisites before formatting, regeneration, lint/build/test tranches, and the
+For a focused edit, use the [warm developer loop](FOUNDRY_CI_OPTIMIZATION_V0.md).
+For code changes, the complete acceptance entry point is `just preflight`. It checks
+prerequisites before regeneration, formatting, lint/build/test tranches, and the
 Foundry suites. Its agent-task suite requires Linux, JSON-schema support, and
 the configured container runtime/image. `INCOMPLETE` reports missing prerequisites
 or evidence; it must not be reported as PASS. Read the specific gate log rather

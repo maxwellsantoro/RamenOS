@@ -34,6 +34,16 @@ clippy-strict-tranche5:
 preflight:
 	bash ./tools/ci/foundry_preflight.sh
 
+# Focused, exclusive warm loop; this is development evidence.
+dev-check package test="lib" features="":
+	python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}}
+
+foundry-ci-optimization:
+	bash ./tools/ci/foundry_ci_optimization.sh
+
+ci-lane lane:
+	python3 tools/ci/ci_lanes.py lane {{quote(lane)}}
+
 build-host: codegen
 	cargo build --workspace --exclude kernel_uefi --exclude kernel_aarch64
 

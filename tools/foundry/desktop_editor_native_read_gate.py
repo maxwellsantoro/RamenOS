@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('native_read_gate_primitives', hel
 h = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(h)
 REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-REGISTRY_SHA = '6971d97438e8cab8594e8641ee8bcf26e10a044deaa3d3b32ea7a1fc5ad7d332'
+REGISTRY_SHA = '563690fd88f32d4e1e0b96c12039badb6d25e99087e696babe85357c7cc3a9ed'
 CONTRACT_SHA = 'b28134e814f25b1b51ee1124509e971fed38b70c6682fe6d79a8baa13512f2bd'
 CASES = (
     'native_read_positive', 'native_read_identity_denials',
@@ -29,6 +29,9 @@ CASES = (
     'native_read_retirement', 'native_read_owned_handles',
     'native_read_counters_domains',
 )
+CACHE_HELPER = 'tools/ci/build_cache.py'
+CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
+
 FEATURE = 'editor_native_read_v0_dev'
 
 
@@ -92,6 +95,28 @@ def default_exclusion(commands, cargo, target, package, feature, namespace, symb
     os.rmdir(probe_dir)
 
 
+def load_build_cache(h, repo_fd, rows):
+    # No path import: execute only held, bounded bytes in the frozen source closure.
+    expected = CACHE_HELPER_SHA
+    h.require(type(expected) is str and re.fullmatch('[0-9a-f]{64}', expected),
+              'compiler cache helper pin unresolved')
+    h.require(any(row['relative_path'] == CACHE_HELPER and row['sha256'] == expected for row in rows),
+              'compiler cache helper absent from independently selected source closure')
+    raw, _, sha = h.source_read(repo_fd, CACHE_HELPER, 65536, True)
+    h.require(sha == expected, 'reviewed compiler cache helper mismatch')
+    import types
+    module = types.ModuleType('native_gate_build_cache')
+    module.__file__ = str(REPO / CACHE_HELPER)
+    exec(compile(raw, module.__file__, 'exec'), module.__dict__)
+    return module
+
+
+def cache_switch(h):
+    value = os.environ.get('RAMEN_FOUNDRY_BUILD_CACHE', '0')
+    h.require(value in ('0', '1'), 'compiler cache opt-in must be 0 or 1')
+    return value == '1'
+
+
 def run_gate():
     h.require(len(sys.argv) == 1, 'gate takes no artifact-selected arguments')
     parent = REPO / 'out/desktop'
@@ -105,6 +130,7 @@ def run_gate():
     h.private_directory(target, create=True)
     repo_fd = os.open(REPO, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
     budget = h.Budget(evidence)
+    compiler_cache = None
     try:
         rows, pin = freeze_sources(repo_fd, run)
         h.check_sources(repo_fd, rows)
@@ -125,11 +151,19 @@ def run_gate():
             env.pop(key, None)
         env['CARGO_TARGET_DIR'] = str(target)
         commands = h.OwnedCommand(budget, str(REPO), env)
-        h.successful(commands.run(['rustc', '+' + channel, '-vV'], 'rustc.log'))
-        h.successful(commands.run(['cargo', '+' + channel, '--version'], 'cargo-version.log'))
+        rustc_profile = h.successful(commands.run(['rustc', '+' + channel, '-vV'], 'rustc.log')).decode('utf8', 'strict')
+        cargo_profile = h.successful(commands.run(['cargo', '+' + channel, '--version'], 'cargo-version.log')).decode('utf8', 'strict')
+        if cache_switch(h):
+            cache_helper = load_build_cache(h, repo_fd, rows)
+            compiler_cache = cache_helper.GateCache(REPO, pin, rustc_profile, cargo_profile, commands.env)
+        def phase_target(phase, features):
+            selected = compiler_cache.target_for(phase, features) if compiler_cache is not None else target
+            commands.env['CARGO_TARGET_DIR'] = str(selected)
+            return selected
         cargo = ['cargo', '+' + channel]
-        default_exclusion(commands, cargo, target, 'desktop_service', 'desktop_v0_dev', 'editor_dev', 'RegistryWitness')
-        default_exclusion(commands, cargo, target, 'store_service', 'editor_store_v0_dev', 'editor_store', 'NativeReadFixture')
+        default_exclusion(commands, cargo, phase_target('exclusion-desktop', ['desktop_v0_dev']), 'desktop_service', 'desktop_v0_dev', 'editor_dev', 'RegistryWitness')
+        default_exclusion(commands, cargo, phase_target('exclusion-store', ['editor_store_v0_dev']), 'store_service', 'editor_store_v0_dev', 'editor_store', 'NativeReadFixture')
+        target = phase_target('enabled', [FEATURE])
         built = commands.run(cargo + ['test', '--locked', '--no-default-features', '-p', 'store_service',
                                       '--features', FEATURE, '--test', 'editor_native_read', '--no-run',
                                       '--message-format=json'], 'native-build.log')
@@ -153,9 +187,18 @@ def run_gate():
                   'nine actual completion')
         h.unchanged_binary(binary, binary_info)
         h.check_sources(repo_fd, rows)
+        retained_binary = None
+        if compiler_cache is not None:
+            retained_binary = cache_helper.retain_binary(binary, binary_info, run / 'test-binary')
+            h.unchanged_binary(binary, binary_info)
+            h.check_sources(repo_fd, rows)
+            compiler_cache.check_contexts()
         result = {'schema_version': 1, 'status': 'PASS', 'scope': 'native_read_host_fixture',
                   'contract_sha256': CONTRACT_SHA, 'source_manifest_sha256': pin, 'sources': rows,
                   'test_binary': binary_info, 'test_process': tested['process'], 'commands': commands.observations,
+                  'retained_test_binary': retained_binary,
+                  'compiler_cache': {'enabled': compiler_cache is not None, 'cached_acceptance': False,
+                                     'phases': compiler_cache.records if compiler_cache is not None else []},
                   'cases': list(CASES), 'claims': {'full_ui1_1c': False, 'save': False, 'device': False,
                                                 'target': False, 'containment': False},
                   'limitations': 'Nine executable assertions and reviewed implementation; no universal transcript consumer. Optional fixture exports are not collected by this gate.'}
@@ -163,6 +206,8 @@ def run_gate():
         print('FOUNDRY_DESKTOP_EDITOR_NATIVE_READ: PASS scope=host evidence=' + str(evidence))
         return 0
     finally:
+        if compiler_cache is not None:
+            compiler_cache.close()
         os.close(repo_fd)
 
 
