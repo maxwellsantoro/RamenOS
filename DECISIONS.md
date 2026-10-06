@@ -3,6 +3,39 @@
 **Last Updated:** 2026-10-05
 **Status:** Active
 
+## 2026-10-05 — Freeze a pure Save data prerequisite before live authority
+
+The current Read grant grammar fixes Artifact rights1, and its current-status
+format denies operation-bearing outcomes. Keep both validators unchanged.
+Prepare separate Save grant schema3 in464 bytes with rights1/1/15/7 and original
+Commit outcome schema2 in248 bytes. Their version distinction does not grant
+mutation authority. Reuse the existing text64, receipt176, typed352/368 controls
+and plain EditorSaveBinding records; do not duplicate operation serialization.
+
+Use a closed outcome grammar: NoSave0, Unknown1, Committed2,
+DefinitiveNoncommit3 and Unavailable4. Unknown in this prerequisite requires a
+complete submitted Commit source, with no result or receipt. Allocation-only
+uncertainty needs its own exact live publisher contract before the Save bridge;
+do not encode it as noncommit or invent a Commit source. Complete Binding
+correlation checks source handle, generation, body length and hash in addition
+to the tuple present in the176-byte receipt. Validate the original backend epoch
+without equating it to a later current Store epoch. Checked successor arithmetic,
+canonical16/32 references and initialized LE output remain pure data checks.
+
+Outcome records name the original operation actor. The current protected frame
+and displayed draft require a separate genuine publisher and snapshot join,
+especially after retirement or recovery. Logical editor draft generation stays
+private and is distinct from SHM generation. Committed data cannot establish that
+a newer displayed draft is Saved. Matching supplied receipts establishes data
+correlation, not permit provenance, durability or current authority.
+
+Freeze eight behavior/denial families as an inventory, then require independently
+reviewed executable assertions and a retained actual API-absence RED before a
+schema implementation worker starts. Gate registration, source closure and
+combined producer/consumer validation follow that handoff. This packet accepts
+no live mutation API, one-shot permit, source closure, combined producer/IO cap,
+original-only recovery, full eighteen-case task or editor process implementation.
+
 ## 2026-10-05 — Integrate the native Store preview Read precursor
 
 Use the existing typed 352/368 controls and schema2 data in an explicit,

@@ -149,6 +149,15 @@ binary, with no independent exported transcript or per-thread native identity cl
 Original Produce validation-wait forwarding is source-reviewed; no injected wait
 scenario was run. Contract creation-stage snapshots remain provenance, while this
 file owns implementation status.
+The [pure native Save data contract](docs/contracts/editor-native-save-codec-v0.json)
+is independently reviewed preparation for eight assertion families. It fixes a
+separate schema3 Save grant object and schema2 original Commit outcome record,
+while preserving the existing Read formats, text header, receipt and controls.
+No assertions, initial RED, codec implementation or live Save API have landed
+for this packet. A Committed record describes the original operation; it cannot
+prove that the currently displayed draft is Saved. Live mutation admission,
+protected publication and original-operation recovery remain separate contracts.
+
 The eight planned preview identities retain their Save, recovery and IO2
 dependencies, and the original eighteen-case integrated task remains separate.
 The five reused volatile UI records remain separately stamped. Actual editor PID,

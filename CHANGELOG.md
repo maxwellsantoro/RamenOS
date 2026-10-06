@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- Freeze the reviewed pure native Save data prerequisite: separate schema3
+  grants464 and schema2 original-outcome248, exact canonical references and
+  complete original Binding/receipt links, while preserving Read codecs and
+  existing text64/receipt176/typed controls. Eight assertion families are planned;
+  no test bodies, RED, implementation, live Save authority or runtime gate are
+  accepted by this preparation packet.
 - Default-off native Store preview Read precursor: actual Store-current pins,
   one-use input approval, same-row activation/delivery, protected Read-only frames
   and live selected-byte copies. Five independently reviewed cases pass on macOS
