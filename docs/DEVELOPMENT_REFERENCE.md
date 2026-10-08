@@ -1,6 +1,6 @@
 # Development Reference
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-08
 **Status:** Host tooling and operator reference
 
 Start with [Getting Started](GETTING_STARTED.md) for setup and focused gates.
@@ -17,9 +17,10 @@ Use `just dev-check PACKAGE TEST FEATURES` for an exclusive warm host build,
 strict Clippy and selected serialized tests. Features are a comma-separated list;
 `TEST` defaults to `lib`, and default features are disabled. Run `just codegen`
 after checkout and IDL edits. Development records do not replace Foundry gates.
-Run affected consumers and `just preflight` on the fixed integration candidate.
+Run affected consumers, then canonical CI lanes or their serial `just preflight`
+equivalent on the fixed integration candidate; do not duplicate both complete runs.
 
-CI separates quality, host/Docker and QEMU jobs on isolated runners, then requires
+CI separates quality, host/Docker, agent-task and QEMU jobs on isolated runners, then requires
 all applicable lanes through the stable `foundry` check. Stage timings are retained
 under `out/foundry/timings/`. The host lane explicitly enables an exact-source,
 phase-separated compiler cache while rerunning every acceptance check. Local gates

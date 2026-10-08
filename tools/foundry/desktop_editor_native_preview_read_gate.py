@@ -20,7 +20,7 @@ REPO = Path(__file__).absolute().parents[2]
 GATE = 'foundry-editor-native-preview-read-ui1-1c'
 GATE_SOURCE = 'tools/foundry/desktop_editor_native_preview_read_gate.py'
 REGISTRY = 'tools/foundry/editor_native_preview_read_sources_v0.json'
-REGISTRY_SHA = '8e2119b03519a8847482c9c98a9694c7d2507ae5aa0dcde75ffd6014530601f2'
+REGISTRY_SHA = '0814e72acf4470e62ac742fe4017a58900a1e201ab7daed351cf63a98731b7b7'
 CONTRACT = 'docs/contracts/editor-native-preview-read-v0.json'
 CONTRACT_SHA = '2267e4fe80ac02a8676cfccaa194a8395f70a2926526d829fdcac8b37b6b6252'
 OBSERVED_CONTRACT_SHA = '2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c'
@@ -29,7 +29,7 @@ CODEC_CONTRACT_SHA = '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
 PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
 BASE_REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-BASE_REGISTRY_SHA = 'c8448034f73a7fef2c11fa13046fc2700fcdb8768a3a1c221e1ca0f780d139a8'
+BASE_REGISTRY_SHA = '67888adceacf5e08d84e6fd0efec4d24832c546bc35dfc49ba422b13e727c24e'
 ASSERTION_PINS = {
     'services/store_service/tests/editor_native_preview_read.rs': 'bd011ebebe64ce3ec61d90f7e2d1a747246a8cbaf6cc8d37b25e666247498923',
     'services/store_service/tests/editor_native_preview_read_support/mod.rs': 'cff606f92e6706f629945aa05644a90ffdba4d8920235dcb93e331a224417e62',
@@ -37,6 +37,9 @@ ASSERTION_PINS = {
 IMPLEMENTATION_PATHS = ['services/desktop/src/editor_dev/host.rs', 'services/desktop/src/editor_dev/mod.rs', 'services/desktop/src/editor_dev/native_authority.rs', 'services/desktop/src/editor_dev/native_preview.rs', 'services/store_service/src/editor_store/mod.rs', 'services/store_service/src/editor_store/native_preview.rs']
 CACHE_HELPER = 'tools/ci/build_cache.py'
 CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
+
+INVENTORY_HELPER = 'tools/ci/editor_source_inventory.py'
+INVENTORY_HELPER_SHA = 'b13e7bda229678467e31ecea01577d341b30a8e1c19aa276e43937bdf9974639'
 
 FEATURE = 'editor_native_preview_v0_dev'
 BASE_FEATURE = 'editor_native_read_v0_dev'
@@ -113,6 +116,16 @@ def registry_paths(h, raw):
     return paths
 
 
+def load_source_inventory(h, repo_fd):
+    raw, _, sha = h.source_read(repo_fd, INVENTORY_HELPER, 65536, True)
+    h.require(sha == INVENTORY_HELPER_SHA, 'reviewed source inventory adapter pin')
+    import types
+    module = types.ModuleType('native_gate_source_inventory')
+    module.__file__ = INVENTORY_HELPER
+    exec(compile(raw, INVENTORY_HELPER, 'exec'), module.__dict__)
+    return module
+
+
 def freeze_sources(h, repo_fd, run):
     raw, _, sha = h.source_read(repo_fd, REGISTRY, 65536, True)
     h.require(sha == pin(REGISTRY_SHA), 'independently frozen NPR source registry')
@@ -120,7 +133,6 @@ def freeze_sources(h, repo_fd, run):
     baseline_raw, _, baseline_sha = h.source_read(repo_fd, BASE_REGISTRY, 65536, True)
     h.require(baseline_sha == BASE_REGISTRY_SHA, 'existing NativeRead closure pin')
     baseline = registry_paths(h, baseline_raw)
-    h.require(len(baseline) == 277, 'reviewed NativeRead baseline inventory')
     required = {GATE_SOURCE, REGISTRY, BASE_REGISTRY, PRIMITIVES, CONTRACT, CODEC_CONTRACT,
                 'services/store_service/Cargo.toml', 'services/desktop/Cargo.toml',
                 'services/desktop/tests/fixtures/ascii8x16_v0.bin',
@@ -135,14 +147,22 @@ def freeze_sources(h, repo_fd, run):
         h.relative_parts(name)
     required.update(IMPLEMENTATION_PATHS)
     h.require((set(baseline) | required) <= set(paths), 'closure omitted baseline/new affected source')
+    inventory = load_source_inventory(h, repo_fd)
+    closure = inventory.validate(h, repo_fd, paths)
     rows = []
     for name in paths:
         _, size, sha = h.source_read(repo_fd, name)
+        if name == INVENTORY_HELPER:
+            h.require(sha == INVENTORY_HELPER_SHA, 'captured source admission adapter pin')
+        if name == inventory.COLLECTOR:
+            h.require(sha == inventory.COLLECTOR_SHA, 'captured transitive collector pin')
         if name in ASSERTION_PINS:
             h.require(sha == pin(ASSERTION_PINS[name]), 'final accepted assertion source pin')
         row = {'relative_path': name, 'byte_len': size, 'sha256': sha}
         h.require(len(h.compact(row)) <= 512 and len(rows) < 1024, 'source rows before growth')
         rows.append(row)
+    h.require(inventory.validate(h, repo_fd, paths) == closure,
+              'transitive compilation input set changed while captured')
     encoded = h.compact(rows)
     h.require(len(encoded) <= 524288, 'actual source manifest byte bound')
     path = run / 'source-manifest.json'

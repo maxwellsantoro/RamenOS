@@ -5,7 +5,7 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Public pre-alpha, active development
 
 RamenOS is a modern, post-Unix operating system being built for **humans and AI
@@ -25,14 +25,36 @@ screen scraping or fragile command-output parsing for core control. OS Core,
 Foundry, and the Store are the three pillars supporting this product.
 
 Read the [Vision](VISION.md) for the destination. The project is public pre-alpha:
-substantial kernel and host components exist, while the integrated desktop,
-target runtime, and broader hardware qualification remain work. The Agent Task
+substantial kernel and host components exist, including a scripted in-process
+editor/Store task. The actual editor process, target desktop/runtime, and broader
+hardware qualification remain work. The Agent Task
 Proof below tests one part of the vision; comparative agent benefits remain
 unproved.
 
 Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
-## Run the useful host task proof
+## Run the human host task proof
+
+The scripted editor proof launches through a permission preview, reads a selected
+artifact, processes injected logical keyboard input, edits bounded text, renders
+offscreen frames, saves through the real host Store and exercises joined-owner
+reopen and original-outcome recovery. Install the prerequisites in
+[Getting Started](docs/GETTING_STARTED.md), run `just codegen`, then:
+
+```bash
+just foundry-desktop-editor-task-ui1-1c
+```
+
+This runs the eighteen original task assertions and validates complete source-bound
+recordings under `out/desktop/native-task-source.*/run/`; it is not an interactive desktop.
+The gate enables a default-off trusted in-process fixture. It supplies no actual
+editor child, USB input, target persistence or general containment evidence.
+October 8 review identified additional ownership/focus/timeout regressions now
+prioritized in [Next Tasks](NEXT_TASKS.md#ready-work-front); the earlier green proof
+does not cover those scenarios. [Current Status](CURRENT_STATUS.md) records the
+accepted scope, limitations and next process/target boundaries.
+
+## Run the useful agent host task proof
 
 A **scripted, host-only proof works today**: read a scoped configuration, stage an
 immutable repair, run the pinned WASM validator, commit the artifact, deny an
@@ -92,6 +114,7 @@ advantage arising from the RamenOS kernel.
 | Component | Landed behavior | Execution boundary |
 |-----------|-----------------|--------------------|
 | Kernel | x86_64 and aarch64 boot; typed IPC; capabilities; shared memory; tracing | QEMU target paths; single-threaded capability-table prototype; SMP use is deliberately blocked |
+| Host desktop/editor | Permission/launch, logical keyboard editing, offscreen frames, typed Store Save/reopen and shared editor core | Default-off trusted in-process proof; review repairs, real editor child, device input and target desktop pending |
 | Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Native interfaces are IDL-defined; project policy forbids ioctl-style escape hatches |
 | Native WASM runner | Wasmtime execution, granted-handle injection, missing-capability rejection | Host runtime, not Wasmtime running on the target |
 | Semantic State | Snapshot contracts, subscriptions, capability-filtered host views | Host reactor plus selected QEMU snapshot/IPC bridges; default snapshot metadata still contains placeholders |

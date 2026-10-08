@@ -1,11 +1,22 @@
 # RISKS
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Active
 
 These risks are evaluated against the [Vision](VISION.md) of an everyday,
 post-Unix OS for humans and AI agents. Mitigations are plans or bounded controls;
 landed behavior and evidence remain in [Current Status](CURRENT_STATUS.md).
+
+## Host editor transition reliability
+
+October 8 external review of merged `d3a95551`, followed by independent static
+inspection, identifies pending-reply reclamation, abandoned surface acquisitions,
+render-time focus authority and definitive pre-admission Save state gaps. The
+review reports runtime reproductions; the current optimization packet does not
+rerun or repair them. JournalSync staging/reopen additionally needs a focused
+reproducer. Existing finite green gates do not cover these transitions.
+[Next Tasks](NEXT_TASKS.md#ready-work-front) owns the repair and regression sequence;
+[Current Status](CURRENT_STATUS.md) bounds the default-off trusted host scope.
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:

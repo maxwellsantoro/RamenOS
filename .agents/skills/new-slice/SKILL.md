@@ -1,11 +1,9 @@
 ---
 name: new-slice
 description: Scaffold a new vertical slice with Foundry gate, IDL spec, and implementation stub
-disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-Scaffold the slice requested in $ARGUMENTS. Read the status/task pair, `AGENTS.md`,
+Scaffold the requested slice. Read the status/task pair, `AGENTS.md`,
 the relevant `SLICES.md` definition, and `docs/research/SLICE_NAMESPACING.md`.
 Extend an allocated slice when that is the requested work; do not invent a new
 slice or queue merely to split a task among agents.

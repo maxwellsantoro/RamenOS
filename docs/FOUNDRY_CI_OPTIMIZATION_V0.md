@@ -1,6 +1,6 @@
 # Foundry development and CI execution profile v0
 
-**Date:** 2026-10-05
+**Date:** 2026-10-08
 **Scope:** Host tooling and CI orchestration; no OS authority or hardware graduation
 
 This profile supports the ready editor and runtime packets in
@@ -108,6 +108,41 @@ Environment values
 are not copied. An unproved reap is recorded as cleanup uncertainty and fails;
 post-kill waiting is bounded. These records are instrumentation, never substitute PASS receipts.
 
+## Source admission and change classification
+
+The inexpensive path covers ordinary Markdown prose and JSON/YAML governance
+packets under `docs/org/`. Before that exemption, executable contracts under
+`docs/contracts/`, fixtures in any source directory, unknown structured inputs
+outside `docs/org/`, and the reviewed execution-consumed Markdown inventory
+require Foundry. Classification uses changed paths, so deleting an input has the
+same requirement as modifying it. `CONSTITUTION.md` has a contract source pin;
+`NEXT_TASKS.md` and `EVIDENCE_LEVELS.md` carry HIL appliance gate assertions, and
+the virtio reference-vault READMEs are gate prerequisites. These documents require
+Foundry. `CURRENT_STATUS.md` remains prose and is checked by governance. Policy
+regressions audit literal OS gate document references, root document names,
+source registries and contract source pins for new Markdown inputs.
+
+NativeRead and NativePreview retain their historical source inventories and add
+the unchanged NativeSave task collector's conservative dependency closure. That
+collector follows transitive local path dependencies, workspace manifests, IDLs,
+Rust sources under `src/tests/examples` and literal includes, including
+`desktop_editor_core` and its fixtures. The adapter follows the same bounded dependency roots, excluding metadata-only
+workspace members, and checks explicit Cargo `lib/bin/test/bench/example` paths; a target outside the collector's source set
+is rejected. Supporting another source layout requires a reviewed collector
+change, not merely adding an unexamined path to the registry. It also covers the native application and Save prerequisites; this is
+a conservative source identity, not Cargo's exact feature-unit graph. The held,
+byte-pinned collector and admission adapter validate the closure before and after
+capture. A newly extracted crate, new include or missing dependency fails closed
+until its registry is independently reviewed. The strengthened manifest feeds
+the existing compiler-cache key; changed dependency bytes change its digest.
+
+`test_editor_source_inventory.py` exercises the actual two source-freezing
+functions in disposable copies. It verifies core and included-fixture mutation,
+an omitted future transitive crate, missing includes, explicit Cargo target
+layouts, and registration in the existing quality tooling gate. These are source-admission tests, not runtime
+Read/Preview outcomes. Gate assertions, runtime test counts, feature exclusion
+probes and deadlines are unchanged.
+
 ## Opt-in acceptance compiler cache
 
 NativeRead and NativePreview default to the existing fresh-target profile. Setting
@@ -164,8 +199,36 @@ any future consolidation must preserve those configurations and checks rather
 than infer equivalence from similar command flags.
 
 Use focused checks during editing, then affected consumer gates and one complete
-integrated preflight on a fixed candidate. Mac host checks cannot certify the
-Linux/Docker/QEMU profile. The four-lane configuration is a scheduling change;
-no measured GitHub-hosted speedup is established by serial stage timings or
-mocked tooling controls. Cached builds, planning documents and timing estimates
-supply no metal, release, full UI1.1c or live Save evidence.
+canonical lane set or its serial preflight equivalent on a fixed candidate. Mac host checks cannot certify the
+Linux/Docker/QEMU profile. The four-lane configuration has executed successfully on GitHub: the reviewed
+pre-merge source and post-merge run
+[37730644587](https://github.com/maxwellsantoro/RamenOS/actions/runs/37730644587)
+passed all eight jobs. In that post-merge run, job durations were host 820 s,
+quality 309 s, agent 337 s and QEMU 292 s; creation to final completion was 845 s.
+These observations identify the host lane as this run's critical path, but there
+is no controlled before/after hosted speedup measurement. The largest host
+stages in its uploaded timing records were:
+
+| Host stage | Elapsed seconds |
+| --- | ---: |
+| `desktop-editor-task` | 143.025 |
+| `review-boundaries` | 106.148 |
+| `editor-native-preview` | 82.683 |
+| `compat-cleanup` | 72.827 |
+| `editor-native-read` | 67.226 |
+| `desktop-editor-store` | 66.827 |
+
+The retained 64 stage records are actual command durations, including bootstrap
+work repeated by the lanes; they are not 64 distinct canonical preflight stages.
+Profile compilation versus runtime inside these host stages before selecting the
+next bounded optimization. Preserve feature configurations and fresh runtime
+evidence before consolidating compilation or assertions.
+
+The current development loop already reuses compiler state across edits; the
+acceptance caches deliberately bind a frozen source identity. Keep those loops
+separate. Re-run affected checks after a change or failure, then reserve one
+integrated candidate run with joined producers and fixed source bytes. Additional
+unmodified repetitions need a concrete unresolved concern. Cached builds,
+planning documents and timing estimates supply no metal, release, target editor,
+or process-isolation evidence. The scripted host editor proof and its remaining
+reliability repair work are described in the authoritative status/task pair.

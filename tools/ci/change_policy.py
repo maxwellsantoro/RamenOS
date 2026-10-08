@@ -4,12 +4,48 @@ from pathlib import PurePosixPath
 import subprocess
 
 
+# These Markdown documents are byte-pinned inputs or content assertions of OS
+# gates, rather than prose-only references. Keep this list path-based: a deleted
+# input must still require Foundry. test_review_boundaries audits gate references
+# and reviewed source registries so a new executable document cannot evade it.
+EXECUTABLE_DOCUMENTS = frozenset({
+    'CONSTITUTION.md',
+    'EVIDENCE_LEVELS.md',
+    'NEXT_TASKS.md',
+    'docs/BOOT_FRAME_OWNERSHIP_V0.md',
+    'docs/DESKTOP_EDITOR_HOST_API_V0.md',
+    'docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md',
+    'docs/DESKTOP_EDITOR_STORE_API_V0.md',
+    'docs/DESKTOP_EDITOR_WIRE_V1.md',
+    'docs/DESKTOP_SESSION_V1.md',
+    'docs/FOUNDRY_CI_OPTIMIZATION_V0.md',
+    'docs/HARDWARE_STRATEGY.md',
+    'docs/HIL_APPLIANCE_EVIDENCE_V0.md',
+    'docs/plans/2026-02-20-s11-driver-factory-mvp.md',
+    'docs/plans/2026-06-17-s10-5-1-broker-kernel-bridge.md',
+    'docs/plans/2026-06-17-s10-5-2-qemu-ipc-bridge.md',
+    'docs/plans/2026-06-17-s10-5-host-to-target-integration.md',
+    'docs/plans/2026-06-21-s12-golden-machine-design.md',
+    'docs/plans/2026-06-21-s13-persistent-storage-design.md',
+    'docs/plans/2026-06-22-hil-appliance-controller.md',
+    'docs/plans/desktop-editor-v0.md',
+    'docs/plans/editor-store-transaction-v0.md',
+    'docs/plans/posix_runner_remaining_risks.md',
+    'drivers/reference_vaults/virtio-blk/README.md',
+    'drivers/reference_vaults/virtio-net/README.md',
+})
+
+
 def requires_foundry(paths):
     def documentation(path):
         p = PurePosixPath(path)
-        # Org packets are checked by the mandatory governance job.
+        if (path in EXECUTABLE_DOCUMENTS
+                or path.startswith('docs/contracts/') or 'fixtures' in p.parts):
+            return False
+        # Only genuine org packet locations get the structured-data exemption.
+        # Unknown JSON/YAML elsewhere defaults to Foundry, including new inputs.
         return ((p.suffix == ".md" and not path.startswith(".github/"))
-                or (path.startswith("docs/") and p.suffix in {".yaml", ".yml", ".json"}))
+                or (path.startswith("docs/org/") and p.suffix in {".yaml", ".yml", ".json"}))
     return any(not documentation(path) for path in paths)
 
 

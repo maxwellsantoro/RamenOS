@@ -1,6 +1,6 @@
 # Platform Overview
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Architecture reference with explicit implementation boundaries
 
 RamenOS is a Rust-first, post-Unix OS being built for humans and AI agents,
@@ -220,7 +220,7 @@ backend effects. A0/A1 foundations and bounded A2 controls are implemented;
 A2 conformance, model comparison, and target integration remain pending. Host
 proofs do not establish a target-native environment or universal noninterference.
 
-### 2.7 Human interaction and desktop — Target architecture
+### 2.7 Human interaction and desktop — Partial
 
 Humans should be able to launch applications, manage permissions, inspect
 system state, and recover from failures through an approachable desktop. Core
@@ -228,9 +228,13 @@ human interaction remains usable without an AI model. Optional agent assistance
 operates under explicit policy and grants, with understandable authority and
 results; model interpretation never replaces enforcement.
 
-S14 supplies typed keyboard/pointer input on the reference hardware. S15 plans
-a native compositor, focus and input routing, application surfaces, and recovery
-gates. These are future integration steps, not a landed desktop. Human usability
+**Landed host scope:** the default-off trusted in-process editor uses typed logical
+keyboard/focus/surfaces and actual Store Save/reopen, with shared pure edit/raster
+adapters. Current review repairs precede the actual editor-process successor.
+
+**Target architecture:** S14 supplies device-backed keyboard/pointer input; S15
+joins native compositor, focus/input routing, application surfaces and recovery
+with an actual target runtime. These device/target integrations remain future work. Human usability
 and responsiveness need separate validation from the Agent Task Proof. See
 [Next Tasks](NEXT_TASKS.md) for prerequisites and [Vision](VISION.md) for the product goals.
 

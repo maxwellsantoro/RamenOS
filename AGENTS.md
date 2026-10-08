@@ -50,6 +50,8 @@ and their evidence.
 
 1. Select a ready packet from the authoritative status/task pair and read its contract.
 2. **Gate-first:** write behavior, denial, and failure assertions before implementation.
+   Include the next successful operation after cancellation, rejection, or recovery;
+   a terminal error alone does not prove the resource remains usable.
 3. Define new native interfaces in `idl/harness/`, `idl/portals/`, or `idl/services/`.
 4. Run `just codegen`; never hand-edit `*.generated.rs` or any `generated/` content.
 5. Implement the smallest path across the intended boundary and run affected gates.
@@ -68,6 +70,9 @@ and owns integration. Name one writer for shared registries, generated outputs,
 gate evidence; independent review precedes integration. Use separate worktrees
 when needed for source or test-output isolation, not as a substitute for ownership.
 Keep work bounded by ready dependencies, worker capacity, and review capacity.
+Prefer short batches that remove critical-path dependencies; integrate reviewed
+packets as they finish. Do not start dependent implementation against an unfrozen
+contract or expand concurrency while completed work waits for review.
 
 ## Code guardrails
 
@@ -101,6 +106,11 @@ and affected consumer/integration gates before handoff. Resolve commands from
 `just s11`, `just s12`, `just s13`, and `just foundry-org-governance-g0` green;
 run `just hil-appliance` for appliance docs/contracts. Serialize gates that share
 fixed output paths or hardware; the coordinator runs the final integrated checks.
+Do not run full preflight after each edit. Use the scoped developer loop in
+[the CI execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md), reuse focused
+evidence only when its tested source, inputs and environment remain unchanged,
+and run fresh affected integration assertions on the assembled revision. Compiler
+cache reuse never permits assertion/result reuse across changed inputs.
 
 Full preflight requires Linux, Python `jsonschema`, Docker with builtin seccomp,
 and the already installed pinned image. Missing prerequisites produce `INCOMPLETE`.
@@ -111,11 +121,13 @@ and S2 inputs are in [Getting Started](docs/GETTING_STARTED.md) and
 ## PR and authority boundaries
 
 - The path-scoped **`merge-gate`** requires `org-governance` for docs/org-only PRs
-  and successful `foundry` for OS-code PRs. Markdown outside `.github/` and
-  JSON/YAML packets under `docs/` qualify for the docs/org path; tooling, workflows,
-  and `justfile` require Foundry. Classification errors fail closed.
+  and successful `foundry` for OS-code PRs. Resolve executable classification from
+  `tools/ci/change_policy.py`; a documentation suffix does not establish that a
+  file is prose. Executable contracts, tooling, workflows and `justfile` need
+  affected Foundry evidence. Classification errors fail closed.
 - Open PRs as **`ramen-implementer[bot]` (A2)**. A **different identity (A3)**
-  approves and merges. Drop `GH_TOKEN` before switching to the human reviewer.
+  approves and merges. Drop `GH_TOKEN` and `GITHUB_TOKEN`, then verify the authorized
+  A3 identity before switching to human review.
   Follow [the implementer-bot guide](docs/org/RAMEN_IMPLEMENTER_BOT.md) for credentials
   and exact commands; this file grants no approval, merge, or release authority.
 - RamenOrg work uses bounded `WorkOrderV0`, `HandoffPacketV0`, and `BoardVoteV0`

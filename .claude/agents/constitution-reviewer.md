@@ -22,6 +22,8 @@ review, not A3 approval or merge authority.
 6. New behavior has a real consumer and prewritten failure/denial assertions.
    Driver behavior derives from its Reference Vault and Oracle traces. Review
    affected-consumer recovery and shared resources before claiming modularity.
+   Follow ownership through pending replies and abandoned acquisitions; verify
+   a successful next operation after definitive rejection, cancellation or recovery.
 7. Claims match the actual host, replay, simulation, QEMU or physical evidence.
    A scaffold, successful codegen, or component gate is not integrated readiness.
 
