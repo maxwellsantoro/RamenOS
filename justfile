@@ -343,7 +343,7 @@ foundry-agent-task-protocol-a1-0:
 	bash ./tools/ci/foundry_agent_task_protocol_a1_0.sh
 
 # Opt-in host service proof; the gate enables its development features explicitly.
-foundry-agent-task-proof-rt:
+foundry-agent-task-proof-rt: codegen
 	bash ./tools/ci/foundry_agent_task_proof_rt.sh
 
 # Requires Linux + Docker and the locally installed pinned image; never skips.

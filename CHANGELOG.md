@@ -417,6 +417,8 @@
   readiness budget. Launch the unique non-test executable from strict successful
   Cargo build output, retaining actual server PID cleanup and all task assertions.
   A real Linux cold build with a deliberate twelve-second build delay passes.
+- Made the host task-proof entrypoint generate its IDL bindings before building
+  the validator worker, so a clean checkout does not depend on an earlier gate.
 - Applied StoreClient timeouts on initial and replacement sockets and bounded
   complete response frames against stalled/trickled replies. Retained clients
   reconnect after observable idle closure and discard failed transports without
