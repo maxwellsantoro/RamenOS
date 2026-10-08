@@ -398,6 +398,16 @@ foundry-editor-native-preview-codec-ui1-1c:
 foundry-editor-native-save-codec-ui1-1c:
 	bash ./tools/ci/foundry_editor_native_save_codec_ui1_1c.sh
 
+# UI1.1d pure editing/raster and typed process data; no child or Save authority.
+# Workspace tests also discover these assertions in the unchanged complete CI inventory.
+foundry-editor-core-ui1-1d-prerequisite:
+	cargo test --locked -p kernel_api --test editor_process_generated -- --test-threads=1
+	cargo test --locked -p desktop_editor_core --no-default-features --tests -- --test-threads=1
+
+# Four default-off adapter preservation assertions; explicit required-feature targets.
+foundry-editor-adapter-migration-ui1-1d:
+	bash ./tools/ci/foundry_editor_adapter_migration_ui1_1d.sh
+
 # Default-off host Store CAS, atomic selection/receipt and joined-writer recovery.
 foundry-desktop-editor-store-ui1-1b:
 	bash ./tools/ci/foundry_desktop_editor_store_ui1_1b.sh
@@ -409,6 +419,10 @@ foundry-desktop-editor-native-read-ui1-1c-prerequisite:
 # Default-off Store-current preview, staged Read authority and protected chrome.
 foundry-editor-native-preview-read-ui1-1c:
 	python3 ./tools/foundry/desktop_editor_native_preview_read_gate.py
+
+# Original eighteen-case task with complete source-bound native recordings.
+foundry-desktop-editor-task-ui1-1c:
+	bash ./tools/ci/foundry_desktop_editor_task_ui1_1c.sh
 
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:

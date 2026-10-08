@@ -5,6 +5,8 @@ mod codec;
 mod native_preview;
 #[cfg(feature = "editor_native_read_v0_dev")]
 mod native_read;
+#[cfg(feature = "editor_native_save_v0_dev")]
+mod native_save;
 mod storage;
 mod types;
 use artifact_store_schema::editor_save::*;
@@ -18,6 +20,59 @@ use kernel_api::{
 pub use native_preview::*;
 #[cfg(feature = "editor_native_read_v0_dev")]
 pub use native_read::*;
+#[cfg(feature = "editor_native_save_v0_dev")]
+pub use native_save::*;
+#[cfg(feature = "editor_native_read_v0_dev")]
+pub struct NativeSelectedRead {
+    owner: NativeSelectedOwner,
+}
+#[cfg(feature = "editor_native_read_v0_dev")]
+enum NativeSelectedOwner {
+    Read(native_read::NativeReadSelectedRead),
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    Save(native_save::NativeSaveSelectedRead),
+}
+#[cfg(feature = "editor_native_read_v0_dev")]
+impl NativeSelectedRead {
+    fn from_read(owner: native_read::NativeReadSelectedRead) -> Self {
+        Self {
+            owner: NativeSelectedOwner::Read(owner),
+        }
+    }
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    fn from_save(owner: native_save::NativeSaveSelectedRead) -> Self {
+        Self {
+            owner: NativeSelectedOwner::Save(owner),
+        }
+    }
+    pub fn descriptor(&self) -> ObjectDescriptor {
+        match &self.owner {
+            NativeSelectedOwner::Read(owner) => owner.descriptor(),
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            NativeSelectedOwner::Save(owner) => owner.descriptor(),
+        }
+    }
+    pub fn copy_into(&self, offset: u32, out: &mut [u8]) -> Result<(), StoreStatus> {
+        match &self.owner {
+            NativeSelectedOwner::Read(owner) => owner.copy_into(offset, out),
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            NativeSelectedOwner::Save(owner) => owner.copy_into(offset, out),
+        }
+    }
+    pub fn copy_checked(
+        &self,
+        descriptor: &ObjectDescriptor,
+        offset: u32,
+        out: &mut [u8],
+    ) -> Result<(), StoreStatus> {
+        match &self.owner {
+            NativeSelectedOwner::Read(owner) => owner.copy_checked(descriptor, offset, out),
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            NativeSelectedOwner::Save(owner) => owner.copy_checked(descriptor, offset, out),
+        }
+    }
+}
+
 use std::{
     collections::BTreeMap,
     fs,
@@ -115,6 +170,8 @@ struct Registry {
     instances: BTreeMap<(u64, u64, u64, u64), u64>,
 }
 struct Core {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    native_save: Mutex<Option<Arc<native_save::SaveCore>>>,
     native_only: bool,
     #[cfg(feature = "editor_native_read_v0_dev")]
     native_read: Mutex<Option<Arc<native_read::NativeCore>>>,
@@ -182,6 +239,7 @@ struct ObjectState {
     allocation_fenced: bool,
     mutation_fenced: bool,
     io_worker: Option<u64>,
+    io_reserving: bool,
     runtime: BTreeMap<u64, RuntimeOperation>,
     dispatches: u32,
     permits: u32,
@@ -268,6 +326,8 @@ impl StoreCommitPermit {
     }
 }
 struct Request {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    native_save: Option<Arc<native_save::NativeRequest>>,
     producer: u64,
     grant: Arc<Grant>,
     wire: Envelope,
@@ -329,8 +389,12 @@ fn empty_reply(request: &Envelope, status: StoreStatus) -> Envelope {
         1 => (40, 36),
         3 => (24, 16),
         5 | 7 => (40, 32),
+        9 => (32, 24),
         _ => (0, 0),
     };
+    if request.msg_type == 9 {
+        reply.handle = Handle::INVALID;
+    }
     reply.payload_len = len;
     reply.payload[offset..offset + 4].copy_from_slice(&(status as u32).to_le_bytes());
     reply
@@ -349,6 +413,17 @@ fn auth(core: &Arc<Core>, grant: &Arc<Grant>, state: &ObjectState) -> Result<(),
         return Err(StoreStatus::Stale);
     }
     Ok(())
+}
+fn request_auth(
+    core: &Arc<Core>,
+    request: &Request,
+    state: &ObjectState,
+) -> Result<(), StoreStatus> {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    if let Some(native) = &request.native_save {
+        return native.authorize(state);
+    }
+    auth(core, &request.grant, state)
 }
 fn validate_actor(grant: &Grant, request: &Envelope) -> Result<(), StoreStatus> {
     if u64_at(&request.payload, 8) != grant.actor.session_id
@@ -394,6 +469,9 @@ fn records(
     Ok(())
 }
 fn active(s: &ObjectState) -> bool {
+    if s.io_reserving {
+        return true;
+    }
     s.journal.operations.as_slice().iter().any(|r| {
         (r.state == EditorOperationStateV0::Submitted && r.closure == EditorClosureV0::None)
             || r.state == EditorOperationStateV0::Permitted
@@ -475,7 +553,7 @@ impl storage::Observer for Context {
         };
         let mut d = lock(&self.core.diagnostics);
         let needed = if simulated { 1 } else { 2 };
-        if d.exhausted || d.io.len() + d.reserved + needed > 1024 {
+        if d.exhausted || d.io.len() + d.reserved + needed > self.core.io_trace_limit() {
             d.exhausted = true;
             return Err(StoreStatus::Exhausted);
         }
@@ -540,10 +618,15 @@ impl storage::Observer for Context {
             let bars = lock(&self.core.barriers);
             bars.iter()
                 .find(|b| {
-                    b.object == self.object.id
-                        && b.endpoint == endpoint
-                        && b.point == point
-                        && !lock(&b.state).snapshot.entered
+                    b.object == self.object.id && b.endpoint == endpoint && b.point == point && {
+                        let state = lock(&b.state);
+                        !state.snapshot.entered
+                            && !state.snapshot.settled
+                            && self.request.as_ref().is_none_or(|request| {
+                                state.snapshot.request_id == 0
+                                    || state.snapshot.request_id == u64_at(&request.wire.payload, 0)
+                            })
+                    }
                 })
                 .cloned()
         };
@@ -614,22 +697,23 @@ impl Drop for WorkerExit {
         self.core.finished(self.producer);
     }
 }
-struct ExchangeReservation<'a> {
-    core: &'a Core,
+struct ExchangeReservation {
+    core: Arc<Core>,
 }
-impl Drop for ExchangeReservation<'_> {
+impl Drop for ExchangeReservation {
     fn drop(&mut self) {
         lock(&self.core.diagnostics).exchange_reservations -= 1;
     }
 }
 impl Core {
-    fn reserve_exchange(&self) -> Result<ExchangeReservation<'_>, StoreStatus> {
+    fn reserve_exchange(self: &Arc<Self>) -> Result<ExchangeReservation, StoreStatus> {
         let mut d = lock(&self.diagnostics);
-        if d.exhausted || d.exchanges.len() + d.exchange_reservations >= 256 {
+        if d.exhausted || d.exchanges.len() + d.exchange_reservations >= self.exchange_trace_limit()
+        {
             return Err(StoreStatus::Exhausted);
         }
         d.exchange_reservations += 1;
-        Ok(ExchangeReservation { core: self })
+        Ok(ExchangeReservation { core: self.clone() })
     }
     fn object(&self, id: u64) -> Result<Arc<Object>, StoreStatus> {
         self.objects.get(&id).cloned().ok_or(StoreStatus::Denied)
@@ -645,6 +729,36 @@ impl Core {
             index: id as u32,
             generation: 1,
         })
+    }
+    // Preview and allocation share the same private checked identity rule.
+    // Native Save Data generations advance with this unrecycled allocation ID;
+    // IPC and all unattached modes retain their existing generation policy.
+    fn next_data_handle(&self, registry: &Registry) -> Result<Handle, StoreStatus> {
+        let id = registry.next_identity;
+        if !(1..=65535).contains(&id) {
+            return Err(StoreStatus::Exhausted);
+        }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let generation = if lock(&self.native_save).is_some() {
+            id
+        } else {
+            1
+        };
+        #[cfg(not(feature = "editor_native_save_v0_dev"))]
+        let generation = 1;
+        Ok(Handle {
+            kind: HandleKind::Shmem,
+            index: id as u32,
+            generation,
+        })
+    }
+    fn new_data_handle(&self, registry: &mut Registry) -> Result<Handle, StoreStatus> {
+        let handle = self.next_data_handle(registry)?;
+        registry.next_identity = registry
+            .next_identity
+            .checked_add(1)
+            .ok_or(StoreStatus::Exhausted)?;
+        Ok(handle)
     }
     fn reserve_producer(
         &self,
@@ -692,6 +806,23 @@ impl Core {
         self.owned_changed.notify_all();
     }
     fn finished(&self, id: u64) {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if lock(&self.native_save).is_some() {
+            let metadata = lock(&self.owned)
+                .handles
+                .get(&id)
+                .filter(|p| matches!(p.kind, ProducerKind::Dispatcher))
+                .map(|p| (p.object, p.request));
+            if let Some((object, request)) = metadata {
+                for barrier in lock(&self.barriers).iter().filter(|b| b.object == object) {
+                    let mut state = lock(&barrier.state);
+                    if request != 0 && state.snapshot.request_id == request {
+                        state.snapshot.settled = true;
+                        barrier.changed.notify_all();
+                    }
+                }
+            }
+        }
         let barrier = lock(&self.owned)
             .handles
             .get(&id)
@@ -762,6 +893,10 @@ impl Core {
         writer: u64,
         job: impl FnOnce(Context) -> Result<T, StoreStatus> + Send + 'static,
     ) -> Result<T, StoreStatus> {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(native) = &request.native_save {
+            return native.run_io(core, object, request, operation, writer, job);
+        }
         let producer = {
             let mut s = lock(&object.state);
             if s.io_worker.is_some() {
@@ -825,7 +960,7 @@ impl Core {
         start: Instant,
     ) -> Result<(), StoreStatus> {
         let mut d = lock(&self.diagnostics);
-        if d.exhausted || d.exchanges.len() >= 256 {
+        if d.exhausted || d.exchanges.len() >= self.exchange_trace_limit() {
             d.exhausted = true;
             return Err(StoreStatus::Exhausted);
         }
@@ -858,8 +993,14 @@ impl Core {
         if life.is_some_and(|r| r.closed.load(Ordering::Acquire) || Instant::now() >= r.deadline) {
             return Err(StoreStatus::Timeout);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let fresh_selected =
+            kind == SharedObjectKind::SelectedText && lock(&core.native_save).is_some();
+        #[cfg(not(feature = "editor_native_save_v0_dev"))]
+        let fresh_selected = false;
         if let Some(existing) = reg.data.values().find(|data| {
-            data.alive.load(Ordering::Acquire)
+            !fresh_selected
+                && data.alive.load(Ordering::Acquire)
                 && data.actor == grant.actor
                 && data.object == grant.object
                 && data.kind == kind
@@ -873,10 +1014,14 @@ impl Core {
                 byte_len: lock(&existing.state).bytes.len() as u32,
             });
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if lock(&core.native_save).is_some() {
+            reg.data.retain(|_, row| Arc::strong_count(row) > 1);
+        }
         if reg.data.len() >= 32 {
             return Err(StoreStatus::Exhausted);
         }
-        let handle = Self::new_handle(&mut reg, HandleKind::Shmem)?;
+        let handle = core.new_data_handle(&mut reg)?;
         let len = bytes.len() as u32;
         reg.data.insert(
             handle.pack(),
@@ -903,6 +1048,103 @@ impl Core {
         })
     }
 }
+impl Core {
+    fn exchange_trace_limit(&self) -> usize {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if lock(&self.native_save).is_some() {
+            return 131072;
+        }
+        256
+    }
+    fn io_trace_limit(&self) -> usize {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if lock(&self.native_save).is_some() {
+            return 65536;
+        }
+        1024
+    }
+}
+// Shared read-only validation for reopen and authentic original reconciliation.
+// Callers hold no enforcement locks while checking actual journal/CAS bytes.
+fn read_validated_selection(
+    object: &Object,
+    profile: &FixtureProfile,
+    runtime: &EditorSelectionJournalV0,
+    durable: &EditorSelectionJournalV0,
+    permits: &[EditorCommitPermitV0],
+) -> Result<(EditorSelectionJournalV0, storage::Consumed), StoreStatus> {
+    let expected = schema(durable.digest())?;
+    let metadata = fs::symlink_metadata(&object.root).map_err(|_| StoreStatus::Unknown)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(StoreStatus::Unknown);
+    }
+    let journal = storage::read_journal(&object.root)?;
+    if journal.owner_id != durable.owner_id
+        || journal.selected_object_id != object.id
+        || journal.selected_generation != durable.selected_generation
+        || journal.initial != durable.initial
+        || journal.signing_policy_hash != durable.signing_policy_hash
+        || journal.service_epoch < durable.service_epoch
+        || journal.operation_high_water < runtime.operation_high_water
+        || journal.writer_high_water < runtime.writer_high_water
+        || journal.transition_sequence < durable.transition_sequence
+        || (journal.transition_sequence == durable.transition_sequence
+            && schema(journal.digest())? != expected)
+    {
+        return Err(StoreStatus::Unknown);
+    }
+    for known in durable.operations.as_slice() {
+        let got = journal
+            .operations
+            .as_slice()
+            .iter()
+            .find(|r| r.allocation.operation_id == known.allocation.operation_id)
+            .ok_or(StoreStatus::Unknown)?;
+        if got.allocation != known.allocation
+            || got.allocated_service_epoch != known.allocated_service_epoch
+            || known
+                .binding
+                .as_ref()
+                .is_some_and(|b| got.binding.as_ref() != Some(b))
+            || known.submitted_service_epoch.is_some()
+                && got.submitted_service_epoch != known.submitted_service_epoch
+            || known
+                .permit
+                .as_ref()
+                .is_some_and(|p| got.permit.as_ref() != Some(p))
+            || known
+                .receipt
+                .as_ref()
+                .is_some_and(|r| got.receipt.as_ref() != Some(r))
+            || known
+                .successor
+                .as_ref()
+                .is_some_and(|r| got.successor.as_ref() != Some(r))
+        {
+            return Err(StoreStatus::Unknown);
+        }
+    }
+    for row in journal.operations.as_slice() {
+        let known = runtime
+            .operations
+            .as_slice()
+            .iter()
+            .find(|r| r.allocation.operation_id == row.allocation.operation_id)
+            .ok_or(StoreStatus::Unknown)?;
+        if row.allocation != known.allocation
+            || row
+                .binding
+                .as_ref()
+                .is_some_and(|b| known.binding.as_ref() != Some(b))
+            || row.permit.as_ref().is_some_and(|p| !permits.contains(p))
+        {
+            return Err(StoreStatus::Unknown);
+        }
+    }
+    storage::preflight(&object.root.join("cas"), profile, &journal, permits)?;
+    let consumed = storage::consume(&object.root.join("cas"), profile, &journal.current)?;
+    Ok((journal, consumed))
+}
 fn install_journal(s: &mut ObjectState, journal: EditorSelectionJournalV0, digest: Hash32) {
     let old = s.journal.operations.as_slice().to_vec();
     s.durable = journal.clone();
@@ -925,6 +1167,19 @@ fn install_journal(s: &mut ObjectState, journal: EditorSelectionJournalV0, diges
 fn persist(context: &Context, selection: bool) -> Result<(), StoreStatus> {
     let j = {
         let mut s = lock(&context.object.state);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(request) = context.request.as_ref().filter(|r| r.native_save.is_some()) {
+            let permitted = s
+                .runtime
+                .get(&context.operation)
+                .is_some_and(|r| r.permitted.is_some());
+            if !permitted {
+                request_auth(&context.core, request, &s)?;
+                if request.closed.load(Ordering::Acquire) || Instant::now() >= request.deadline {
+                    return Err(StoreStatus::Timeout);
+                }
+            }
+        }
         settle_unpermitted(&mut s)?;
         next_journal(&s)?
     };
@@ -1009,7 +1264,7 @@ impl StoreHost {
         if reg.data.len() - previous.len() >= 32 {
             return Err(StoreStatus::Exhausted);
         }
-        let handle = Core::new_handle(&mut reg, HandleKind::Shmem)?;
+        let handle = self.core.new_data_handle(&mut reg)?;
         for data in previous {
             data.alive.store(false, Ordering::Release);
             lock(&data.state).writable = false;
@@ -1329,6 +1584,8 @@ impl StoreHost {
                         }
                     };
                     let ticket = Arc::new(Request {
+                        #[cfg(feature = "editor_native_save_v0_dev")]
+                        native_save: None,
                         producer: id,
                         grant: grant.clone(),
                         wire: *request,
@@ -1487,7 +1744,7 @@ impl StoreHost {
         let object = self.core.object(request.grant.object)?;
         let (selected, bytes) = {
             let s = lock(&object.state);
-            auth(&self.core, &request.grant, &s)?;
+            request_auth(&self.core, request, &s)?;
             (s.journal.current.clone(), s.bytes.clone())
         };
         let header = schema(EditorTextHeaderV0::try_new(
@@ -1539,7 +1796,7 @@ impl StoreHost {
             storage::Observer::pause(&context, PausePoint::BeforeAllocationJournal)?;
             let operation = {
                 let mut s = lock(&context.object.state);
-                auth(&core, &r.grant, &s)?;
+                request_auth(&core, &r, &s)?;
                 if r.closed.load(Ordering::Acquire) || Instant::now() >= r.deadline {
                     return Err(StoreStatus::Timeout);
                 }
@@ -1586,6 +1843,10 @@ impl StoreHost {
                         receipt: None,
                     })
                 })?;
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                if let Some(native) = &r.native_save {
+                    native.record_allocation(&s, operation)?;
+                }
                 s.runtime.insert(
                     operation,
                     RuntimeOperation {
@@ -1604,13 +1865,19 @@ impl StoreHost {
             persist(&context, false)?;
             Ok(operation)
         })?;
-        a::AllocateSaveIdReply {
+        let wire = a::AllocateSaveIdReply {
             request_id: u64_at(&request.wire.payload, 0),
             operation_id: op,
             status: 0,
             reserved: 0,
         }
-        .encode(request.grant.handle)
+        .encode(request.grant.handle)?;
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(native) = &request.native_save {
+            let mut state = lock(&object.state);
+            native.publish_allocation(&mut state, op, &wire)?;
+        }
+        Ok(wire)
     }
     fn commit(&self, request: &Arc<Request>) -> Result<Envelope, StoreStatus> {
         let operation = op_of(&request.wire);
@@ -1622,7 +1889,7 @@ impl StoreHost {
             .ok_or(StoreStatus::Denied)?;
         let bytes = {
             let mut s = lock(&object.state);
-            auth(&self.core, &request.grant, &s)?;
+            request_auth(&self.core, request, &s)?;
             if s.mutation_fenced {
                 return Err(StoreStatus::Exhausted);
             }
@@ -1647,6 +1914,20 @@ impl StoreHost {
             if !rt.dispatched {
                 rt.dispatched = true;
                 s.dispatches += 1;
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                if let Some(native) = &request.native_save {
+                    native.mark_dispatch()?;
+                }
+            }
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            let mut native_gate = request
+                .native_save
+                .as_ref()
+                .map(|native| native.gate())
+                .transpose()?;
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if let (Some(native), Some(gate)) = (&request.native_save, native_gate.as_mut()) {
+                native.admit_held(gate)?;
             }
             let mut data = lock(&source.state);
             if data.frozen || !data.writable {
@@ -1677,6 +1958,20 @@ impl StoreHost {
             if request.closed.load(Ordering::Acquire) || Instant::now() >= request.deadline {
                 return Err(StoreStatus::Timeout);
             }
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if let (Some(native), Some(gate)) = (&request.native_save, native_gate.as_mut()) {
+                native.seal(
+                    gate,
+                    &binding,
+                    &data.bytes,
+                    ObjectDescriptor {
+                        handle: source.handle,
+                        kind: source.kind,
+                        object_generation: source.handle.generation,
+                        byte_len: data.bytes.len() as u32,
+                    },
+                )?;
+            }
             data.frozen = true;
             data.writable = false;
             let bytes = data.bytes[64..].to_vec();
@@ -1698,6 +1993,19 @@ impl StoreHost {
         });
         if let Err(error) = submitted {
             let mut s = lock(&object.state);
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if request.native_save.is_some() {
+                native_save::close_unpermitted(
+                    &self.core,
+                    &object,
+                    &mut s,
+                    operation,
+                    EditorClosureV0::Deadline,
+                );
+            } else {
+                close_operation(&mut s, operation, EditorClosureV0::Deadline);
+            }
+            #[cfg(not(feature = "editor_native_save_v0_dev"))]
             close_operation(&mut s, operation, EditorClosureV0::Deadline);
             return Err(error);
         }
@@ -1712,7 +2020,7 @@ impl StoreHost {
         storage::Observer::pause(&context, PausePoint::BeforeCommitPermit)?;
         {
             let mut s = lock(&object.state);
-            auth(&self.core, &request.grant, &s)?;
+            request_auth(&self.core, request, &s)?;
             if request.closed.load(Ordering::Acquire) || Instant::now() >= request.deadline {
                 close_operation(&mut s, operation, EditorClosureV0::Deadline);
                 return Err(StoreStatus::Timeout);
@@ -1729,7 +2037,7 @@ impl StoreHost {
             move |mut context| {
                 let permit = {
                     let mut s = lock(&context.object.state);
-                    auth(&core, &r.grant, &s)?;
+                    request_auth(&core, &r, &s)?;
                     if r.closed.load(Ordering::Acquire) || Instant::now() >= r.deadline {
                         close_operation(&mut s, operation, EditorClosureV0::Deadline);
                         return Err(StoreStatus::Timeout);
@@ -1777,10 +2085,24 @@ impl StoreHost {
                             return Err(StoreStatus::Exhausted);
                         }
                     };
+                    #[cfg(feature = "editor_native_save_v0_dev")]
+                    let mut native_gate = r
+                        .native_save
+                        .as_ref()
+                        .map(|native| native.gate())
+                        .transpose()?;
+                    #[cfg(feature = "editor_native_save_v0_dev")]
+                    if let (Some(native), Some(gate)) = (&r.native_save, native_gate.as_mut()) {
+                        native.issue_permit(gate, &permit.binding)?;
+                    }
                     s.admission_epoch = admission;
                     s.permits += 1;
                     s.quarantine = true;
                     s.runtime.get_mut(&operation).unwrap().permitted = Some(permit.clone());
+                    #[cfg(feature = "editor_native_save_v0_dev")]
+                    if let (Some(native), Some(gate)) = (&r.native_save, native_gate.as_mut()) {
+                        native.publish_permitted(gate)?;
+                    }
                     records(&mut s, |rows| {
                         rows[index].permit = Some(permit.clone());
                         rows[index].state = EditorOperationStateV0::Permitted;
@@ -1846,6 +2168,10 @@ impl StoreHost {
                     s.bytes = consumed.bytes;
                     s.owner_hash = consumed.owner_hash;
                     s.quarantine = false;
+                    #[cfg(feature = "editor_native_save_v0_dev")]
+                    if let Some(native) = &r.native_save {
+                        native.publish_current(&s)?;
+                    }
                 }
                 storage::Observer::pause(&context, PausePoint::AfterAcknowledgement)?;
                 Ok(receipt)
@@ -1893,11 +2219,19 @@ impl StoreFixture {
         profile: FixtureProfile,
         native_only: bool,
     ) -> Result<Arc<Core>, StoreStatus> {
+        Self::prepare_core_bounded(root, profile, native_only, 2)
+    }
+    fn prepare_core_bounded(
+        root: &std::path::Path,
+        profile: FixtureProfile,
+        native_only: bool,
+        object_limit: usize,
+    ) -> Result<Arc<Core>, StoreStatus> {
         if !root.is_absolute()
             || root.as_os_str().len() > 4096
             || profile.origin_ms == 0
             || profile.initial_objects.is_empty()
-            || profile.initial_objects.len() > 2
+            || profile.initial_objects.len() > object_limit
             || profile.fixture_key_id.is_empty()
             || profile.fixture_key_id.len() > 64
             || !profile
@@ -1992,6 +2326,7 @@ impl StoreFixture {
                         allocation_fenced: false,
                         mutation_fenced: false,
                         io_worker: None,
+                        io_reserving: false,
                         runtime: BTreeMap::new(),
                         dispatches: 0,
                         permits: 0,
@@ -2004,6 +2339,8 @@ impl StoreFixture {
             );
         }
         let core = Arc::new(Core {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            native_save: Mutex::new(None),
             native_only,
             #[cfg(feature = "editor_native_read_v0_dev")]
             native_read: Mutex::new(None),
@@ -2123,8 +2460,14 @@ impl StoreFixture {
     fn reopen_inner(
         owner: &QuiescedStoreOwner,
     ) -> Result<(StoreHost, FixtureController), StoreStatus> {
+        Self::reopen_inner_mode(owner, false)
+    }
+    fn reopen_inner_mode(
+        owner: &QuiescedStoreOwner,
+        native_save_mode: bool,
+    ) -> Result<(StoreHost, FixtureController), StoreStatus> {
         let old = &owner.core;
-        if old.native_only {
+        if old.native_only && !native_save_mode {
             return Err(StoreStatus::Denied);
         }
         if !old.closed.load(Ordering::Acquire) || !lock(&old.owned).handles.is_empty() {
@@ -2147,83 +2490,14 @@ impl StoreFixture {
                 .filter(|j| j.transition_sequence >= s.durable.transition_sequence)
                 .unwrap_or(&s.durable)
                 .clone();
-            let expected = schema(durable.digest())?;
             let permits = s
                 .runtime
                 .values()
                 .filter_map(|r| r.permitted.clone())
                 .collect::<Vec<_>>();
             drop(s);
-            let metadata = fs::symlink_metadata(&object.root).map_err(|_| StoreStatus::Unknown)?;
-            if !metadata.is_dir() || metadata.file_type().is_symlink() {
-                return Err(StoreStatus::Unknown);
-            }
-            let journal = storage::read_journal(&object.root)?;
-            if journal.owner_id != durable.owner_id
-                || journal.selected_object_id != object.id
-                || journal.selected_generation != durable.selected_generation
-                || journal.initial != durable.initial
-                || journal.signing_policy_hash != durable.signing_policy_hash
-                || journal.service_epoch < durable.service_epoch
-                || journal.operation_high_water < runtime.operation_high_water
-                || journal.writer_high_water < runtime.writer_high_water
-                || journal.transition_sequence < durable.transition_sequence
-                || (journal.transition_sequence == durable.transition_sequence
-                    && schema(journal.digest())? != expected)
-            {
-                return Err(StoreStatus::Unknown);
-            }
-            for known in durable.operations.as_slice() {
-                let got = journal
-                    .operations
-                    .as_slice()
-                    .iter()
-                    .find(|r| r.allocation.operation_id == known.allocation.operation_id)
-                    .ok_or(StoreStatus::Unknown)?;
-                if got.allocation != known.allocation
-                    || got.allocated_service_epoch != known.allocated_service_epoch
-                    || known
-                        .binding
-                        .as_ref()
-                        .is_some_and(|b| got.binding.as_ref() != Some(b))
-                    || known.submitted_service_epoch.is_some()
-                        && got.submitted_service_epoch != known.submitted_service_epoch
-                    || known
-                        .permit
-                        .as_ref()
-                        .is_some_and(|p| got.permit.as_ref() != Some(p))
-                    || known
-                        .receipt
-                        .as_ref()
-                        .is_some_and(|r| got.receipt.as_ref() != Some(r))
-                    || known
-                        .successor
-                        .as_ref()
-                        .is_some_and(|r| got.successor.as_ref() != Some(r))
-                {
-                    return Err(StoreStatus::Unknown);
-                }
-            }
-            for row in journal.operations.as_slice() {
-                let known = runtime
-                    .operations
-                    .as_slice()
-                    .iter()
-                    .find(|r| r.allocation.operation_id == row.allocation.operation_id)
-                    .ok_or(StoreStatus::Unknown)?;
-                if row.allocation != known.allocation
-                    || row
-                        .binding
-                        .as_ref()
-                        .is_some_and(|b| known.binding.as_ref() != Some(b))
-                    || row.permit.as_ref().is_some_and(|p| !permits.contains(p))
-                {
-                    return Err(StoreStatus::Unknown);
-                }
-            }
-            storage::preflight(&object.root.join("cas"), &old.profile, &journal, &permits)?;
-            let consumed =
-                storage::consume(&object.root.join("cas"), &old.profile, &journal.current)?;
+            let (journal, consumed) =
+                read_validated_selection(object, &old.profile, &runtime, &durable, &permits)?;
             let epoch = owner
                 .snapshot
                 .objects
@@ -2342,6 +2616,7 @@ impl StoreFixture {
                         allocation_fenced: old_state.allocation_fenced,
                         mutation_fenced: old_state.mutation_fenced,
                         io_worker: None,
+                        io_reserving: false,
                         runtime: runtime_ops,
                         dispatches: old_state.dispatches,
                         permits: old_state.permits,
@@ -2355,7 +2630,13 @@ impl StoreFixture {
         }
         let old_registry = lock(&old.registry);
         let core = Arc::new(Core {
-            native_only: false,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            native_save: Mutex::new(if native_save_mode {
+                lock(&old.native_save).clone()
+            } else {
+                None
+            }),
+            native_only: native_save_mode,
             #[cfg(feature = "editor_native_read_v0_dev")]
             native_read: Mutex::new(None),
             #[cfg(feature = "editor_native_preview_v0_dev")]
@@ -2551,6 +2832,8 @@ impl FixtureController {
         let objects = self.core.objects.values().collect::<Vec<_>>();
         let mut states = objects.iter().map(|o| lock(&o.state)).collect::<Vec<_>>();
         let now = self.core.clock.load(Ordering::Acquire).max(observed_ms);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let now = fixture(self.core.observe_native_save_time(now))?;
         self.core.clock.store(now, Ordering::Release);
         for s in &mut states {
             let expired = s
@@ -2804,6 +3087,15 @@ impl FixtureController {
                     .count() as u32,
             )
         };
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let native_counts = lock(&self.core.native_save)
+            .as_ref()
+            .map(|attachment| attachment.witness.producer_counts());
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let (held, active) = native_counts.map_or((held, active), |counts| {
+            let held = counts.held.saturating_sub(counts.io);
+            (held, counts.active_non_io)
+        });
         let mut objects = Vec::new();
         let mut operation_counts = Vec::new();
         let mut active_io = 0;
@@ -2837,6 +3129,10 @@ impl FixtureController {
             });
         }
         let (exchanges, io_events) = {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if let Some(counts) = native_counts {
+                active_io = counts.active_io;
+            }
             let d = lock(&self.core.diagnostics);
             (d.exchanges.clone(), d.io.clone())
         };

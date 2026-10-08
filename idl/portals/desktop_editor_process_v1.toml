@@ -1,0 +1,39 @@
+# UI1.1d process controls; docs/contracts/editor-process-v0.json owns enforcement.
+# Data fields are references, never sender/process/Save authority.
+# Explicit LE encoding and stateless validation belong to desktop_editor_core::wire.
+# Generated structs alone establish no credential, capability, FD, or Save authority.
+namespace = "portal.desktop_editor_process"
+version = "1"
+protocol = 384
+
+[message.bootstrap]
+msg_type = 1
+fields = ["request_id:u64", "channel_generation:u64", "document_binding_id:u64", "offer_id:u64", "selected_text_len:u32", "width:u32", "height:u32", "stride:u32", "reserved:bytes16"]
+
+[message.deliver_input]
+msg_type = 2
+fields = ["request_id:u64", "channel_generation:u64", "input_sequence:u64", "focus_epoch:u64", "focus_service_epoch:u64", "offer_id:u64", "usage:u32", "phase:u32", "modifiers:u32", "flags:u32"]
+
+[message.input_ack]
+msg_type = 3
+fields = ["request_id:u64", "channel_generation:u64", "input_sequence:u64", "text_generation:u64", "view_generation:u64", "flags:u32", "status:u32", "reserved:bytes16"]
+
+[message.stop]
+msg_type = 4
+fields = ["request_id:u64", "channel_generation:u64", "reason:u32", "reserved:bytes44"]
+
+[message.publish]
+msg_type = 5
+fields = ["request_id:u64", "channel_generation:u64", "input_sequence:u64", "publication_sequence:u64", "text_generation:u64", "view_generation:u64", "offer_id:u64", "text_state_len:u32", "surface_len:u32"]
+
+[message.publish_ack]
+msg_type = 6
+fields = ["request_id:u64", "channel_generation:u64", "publication_sequence:u64", "input_sequence:u64", "status:u32", "reserved:bytes28"]
+
+[message.receipt_notice]
+msg_type = 7
+fields = ["request_id:u64", "channel_generation:u64", "capture_input_sequence:u64", "operation_id:u64", "committed_revision:u64", "capture_text_generation:u64", "outcome:u32", "phase:u32", "reserved:bytes8"]
+
+[message.request_publication]
+msg_type = 8
+fields = ["request_id:u64", "channel_generation:u64", "last_input_sequence:u64", "offer_id:u64", "expected_text_generation:u64", "expected_view_generation:u64", "flags:u32", "reserved:bytes12"]

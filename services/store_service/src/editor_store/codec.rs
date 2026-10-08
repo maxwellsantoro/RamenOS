@@ -1,4 +1,4 @@
-//! Explicit eight-message Artifact368 codec; generated layout is not validation.
+//! Explicit ten-message Artifact368 codec; generated layout is not validation.
 use super::StoreStatus;
 use kernel_api::{
     cap::{Handle, HandleKind},
@@ -47,6 +47,8 @@ message!(Commit,5,56,{request_id,session_id,session_generation,expected_revision
 message!(CommitReply,6,40,{request_id,operation_id,revision,receipt_shm,status,receipt_len});
 message!(SaveStatus,7,32,{request_id,session_id,session_generation,operation_id});
 message!(SaveStatusReply,8,40,{request_id,operation_id,revision,receipt_shm,status,receipt_len});
+message!(ObserveAllocation,9,32,{request_id,session_id,session_generation,original_allocate_request_id});
+message!(ObserveAllocationReply,10,32,{request_id,original_allocate_request_id,operation_id,status,reserved});
 pub(super) fn validate(env: &Envelope) -> Result<(), StoreStatus> {
     if env.protocol != 368 {
         return Err(StoreStatus::Unsupported);
@@ -60,6 +62,8 @@ pub(super) fn validate(env: &Envelope) -> Result<(), StoreStatus> {
         6 => (40, None, Some(32)),
         7 => (32, None, None),
         8 => (40, None, Some(32)),
+        9 => (32, None, None),
+        10 => (32, Some(28), Some(24)),
         _ => return Err(StoreStatus::Unsupported),
     };
     if env.payload_len != len

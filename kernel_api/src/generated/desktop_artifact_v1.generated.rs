@@ -55,6 +55,29 @@ pub struct CommitReply {
     pub receipt_len: u32,
 }
 
+pub const MSG_DESKTOP_ARTIFACT_V1_OBSERVE_ALLOCATION: u32 = 9;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ObserveAllocation {
+    pub request_id: u64,
+    pub session_id: u64,
+    pub session_generation: u64,
+    pub original_allocate_request_id: u64,
+}
+
+pub const MSG_DESKTOP_ARTIFACT_V1_OBSERVE_ALLOCATION_REPLY: u32 = 10;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ObserveAllocationReply {
+    pub request_id: u64,
+    pub original_allocate_request_id: u64,
+    pub operation_id: u64,
+    pub status: u32,
+    pub reserved: u32,
+}
+
 pub const MSG_DESKTOP_ARTIFACT_V1_READ_SELECTED: u32 = 1;
 
 #[repr(C)]

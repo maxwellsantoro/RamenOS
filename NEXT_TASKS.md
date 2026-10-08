@@ -7,11 +7,11 @@
 > what to execute next. [ROADMAP.md](ROADMAP.md) is directional, not operational.
 
 This queue serves the [Vision](VISION.md): an everyday, post-Unix OS for humans
-and AI agents. The next integrated product task is keyboard-driven application
-launch, permission preview, artifact editing and failure recovery, delivered
-first with host contracts, then QEMU, then qualified reference hardware. Saving
-across restart requires real persistence. These are future acceptance goals;
-[Current Status](CURRENT_STATUS.md) records what actually works today.
+and AI agents. After the accepted trusted in-process editor task, the next product
+boundary is the actual Linux editor child, followed by target/QEMU and qualified
+reference hardware. Target saving across restart requires actual target persistence.
+These later boundaries remain acceptance goals; [Current Status](CURRENT_STATUS.md)
+records the current host behavior and its limits.
 
 ## Ready work front
 
@@ -20,20 +20,75 @@ for bounded iteration, then run affected consumers and complete Foundry on a
 fixed candidate. Preserve fresh test/evidence execution when opting into compiler
 reuse; feature-exclusion phases have separate targets.
 
-**Now:** write UI1.1c's original eighteen integrated-task assertions against the
-independently frozen [live Save/task API contract](docs/contracts/editor-native-save-task-v0.json).
-Derive exact fixture/epoch/row/file counts from executable source within its finite
-recording budgets, independently review that inventory and every assertion, and
-retain actual missing-API RED before handlers. Coordinator owns the additive
-Artifact 368 messages 9/10, codegen, application/workspace wiring, registries and
-gates; assign disjoint Desktop/Store writers only after these dependencies clear.
+**Now:** complete all thirty UI1.1d process assertion families and ownership-safe
+runtime staging before dependent carrier/child/Save implementation.
+
+**Accepted adapter preservation.** Final macOS adapter4 and the unchanged
+pure-core26/quality checks have independent actual-outcome reviews. CI62 Python
+and seven Rust controls pass, including the missing-stage RED/GREEN control.
+Fresh strict Linux55 passes on runtime source snapshot
+`86c3ac3e20743cafe47604e69276396d3c8ada0c99517d3ff7d8ffe1202bc694`,
+with original13/18, strict3, complete Reader93, all actual exits/reaps and stable
+source/S2 inputs. Raw result
+`f9342ae11a4d1187ec733fb4ad6647cd5ad21204732212b89c739aa4291fa760`
+and independent review
+`d266a33e9baf5078e704f5c40b7d9e2f6c4a99c89893ee1638b99d15151ed0e8`
+bind this acceptance. Existing agent-task evidence remains limited to offline
+synthetic provider accounting; Linux provider controls/reconciliation remain
+INCOMPLETE. Required planning checks on the four-document successor will be recorded
+separately from this runtime snapshot.
+
+Shared-core adapter preservation is accepted. Preserve
+the [process contract](docs/contracts/editor-process-v0.json),
+[API inventory](docs/DESKTOP_EDITOR_PROCESS_API_V0.md) and
+[process plan](docs/plans/editor-process-v0.md), complete seven-field adapter state
+transfer, legacy/native policies and native detached-scratch admission before
+owner commit. Preserve all four supplemental selected/nonzero-scroll and actual
+owner-MAX assertions with explicit default-off feature commands. Final Task217
+source admission and original13/18/Reader93 remain mandatory; source inclusion and
+pure-core26 do not prove child authority.
+
+The next process packet completes all thirty executable assertion families and
+ownership-safe runtime staging before dependent carrier/child/Save handlers.
+Private cleanup-v5 is independently source-reviewed preparation only. Genuine
+constructor/setup, Read/reopen, consuming-join bounds/non-unwinding owner return,
+Save-pause panic and uncertain parent-death controls remain required. Retain actual
+owners and charges when quiescence is unproved, preserve original cleanup
+deadlines, and never infer child reap from watchdog parent death. Actual child
+execution, authenticated channels, sealed publications and retained original Save
+owners after child death remain pending. Target/QEMU ports, HIL and hosted CI
+performance measurement remain separate; adapter preservation establishes no
+process runtime or containment acceptance.
+
+The three private process smoke assertions have actual missing-process-API compiler
+RED but remain partial. Independently review the complete finite behavior, denial
+and failure assertions before dependent implementation. A PID, copied bootstrap or
+Rust thread join cannot supply child authority. Coordinator owns shared integration
+and final checks. The user has already authorized roadmap implementation and
+test/CI findings; these source and evidence dependencies are integration boundaries,
+not another user approval. RUN0.0
+[source-derived preparation](docs/plans/run0-relocated-entry-preparation-v0.md)
+remains independent; actual capture and collector/profile freeze are pending.
+
+For the accepted adapter successor, preserve all55 local/39 extended stages,
+including the deliberate supplemental host insert and exact original54/38
+subsequence. Preserve bootstrap, source/lock finally checks, fresh outcomes,
+bounded timing/failure artifacts, conditional private Cargo-home admission and
+cache/feature isolation. Require quality, host, agent and QEMU results in that
+order; failed classification, cancelled, missing or unknown results deny
+acceptance, including docs-only paths. The new explicit-required-feature host-only
+control has actual missing-stage RED against the old inventory, followed by
+fresh reviewed62 Python/seven Rust and complete Linux55 PASS results. Historical61-Python/
+seven-Rust and canonical54 acceptance remain true for their source snapshots.
+Hosted scheduling/cache measurement remains future work; no whole-CI speedup is
+established.
 
 The
 [pure native Save data prerequisite](docs/contracts/editor-native-save-codec-v0.json)
 is implemented: eight reviewed assertions pass on macOS/Linux after actual
 missing-API RED, and `just foundry-editor-native-save-codec-ui1-1c` is registered.
-Preserve its data-only scope, all affected consumers and the complete 53-stage
-strict Linux preflight. Current-draft Saved requires the actual live publisher,
+Preserve its data-only scope and all affected consumers within the complete
+54-stage strict Linux preflight; the earlier pure-codec acceptance had 53 stages. Current-draft Saved requires the actual live publisher,
 original receipt, current draft/source and frame owner to join.
 The default-off native Store preview
 Read precursor is implemented: its five reviewed cases and affected consumers
@@ -49,7 +104,8 @@ outcomes248 with Commit-source-bound Unknown, Committed and DefinitiveNoncommit,
 plus NoSave/Unavailable. It preserves old Read data, text64, receipt176 and typed
 controls. The codec supplies no live grant, permit, current draft or IO evidence.
 The live contract now separately specifies allocation-only uncertainty and the
-actual protected publisher; these remain unimplemented.
+actual protected publisher; the live path is now accepted only within the
+trusted in-process UI1.1c host scope.
 
 The frozen Save contract separates explicitly approved mutation from Read1 and
 historical approval identity from each mutable operation base. It defines actual
@@ -61,17 +117,18 @@ EditorClient remains a separately stamped control. Preserve all original eightee
 requirements, actual allowed witnesses and denial/failure effects. Three objects
 allow a genuine third-object IO2 denial while two permitted writers remain held;
 the new bounded profile does not alter existing modes. Reviewed assertion source
-must establish exact recording counts before implementation; documentation alone
-does not satisfy the task.
+has established its exact inventory and finite upper bounds; actual complete
+recordings must continue to match it. Documentation alone does not satisfy the task.
 The [native Read prerequisite](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and
 [pure preview codec](docs/contracts/editor-native-preview-codec-v0.json) remain
 implemented with nine and seven reviewed assertion families respectively. Save
 admission, original-operation recovery and the complete keyboard task now have
-the shared API contract; assertions, handlers and consumer implementation remain.
+the shared API contract, reviewed handlers and accepted integrated host
+consumer. Actual child execution and target runtime remain separate.
 Use the [editor proposal](docs/plans/desktop-editor-v0.md),
 [exact Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md) and
 [transaction contract](docs/plans/editor-store-transaction-v0.md). A copied
-volatile authorization verdict cannot grant Store admission. Freeze bounded
+volatile authorization verdict cannot grant Store admission. Preserve bounded
 issuer, lease, ticket and pending-operation capacities, charging, retention and
 overflow rules alongside exact API signatures. Request timeout
 must fence its original operation/source without retiring a still-live instance;
@@ -81,7 +138,7 @@ UI1.1b's seven host Store behavior cases and sixteen evidence assertions now pas
 on macOS and assembled Linux, including actual lease/journal decoding, cleanup
 and strict Linux preflight. The nine-case pure save-schema prerequisite grants
 no IO authority by itself. UI1.1a's thirteen volatile editor assertions also pass;
-the integrated task and actual editor process remain separate. RUN0.0's pure map/retention validator is reviewed and passes;
+the integrated host task is accepted; actual editor process evidence remains separate. RUN0.0's pure map/retention validator is reviewed and passes;
 the actual ownership transition is still pending. UI1.0's real host launch/lifetime gate passed on macOS and Linux; its
 process/wire artifacts are retained. UI0 design, portable accounting and the
 finite named Python-consumer canary are reviewed, with the affected Linux SW0
@@ -97,7 +154,8 @@ Follow [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for ownership and handoffs.
 
 | Packet / initial owner | Bounded edit scope | Prerequisite and consumer | Completion / gate |
 |------------------------|--------------------|---------------------------|-------------------|
-| UI1.1c / coordinator then bridge and consumer workers | Coordinator owns shared exports/features/IDL/gates; one writer per assigned Desktop or Store adapter. Native Read prerequisite is implemented; pure codec seven-case prerequisite is implemented; five native preview precursor cases pass on macOS/Linux after reviewed assertions and retained RED before the original eighteen-case integrated consumer | Accepted UI1.1a/UI1.1b gates; frozen [native Read API](docs/DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and [contract](docs/contracts/editor-native-read-v0.json), [editor proposal](docs/plans/desktop-editor-v0.md), [Store API](docs/DESKTOP_EDITOR_STORE_API_V0.md), [wire](docs/DESKTOP_EDITOR_WIRE_V1.md) and [host API](docs/DESKTOP_EDITOR_HOST_API_V0.md) | Preserve the passing nine-case Read gate and affected UI1.1a/UI1.1b consumers. Read does not complete UI1.1c. Preserve the passing seven-case pure codec prerequisite. Preserve the passing five-case NativePreview Read gate and its finite host scope. Preserve the passing eight-case pure Save data gate, reviewed assertions and retained missing-API RED. Use the independently frozen live Save/task API; write and review the exact original eighteen assertions plus fixture/epoch/evidence inventory, retain actual RED, then implement keyboard edit/frame/save/reopen. Preserve issuer-checked admission, separately stamped volatile controls and original-operation Unknown recovery without replay. Request timeout preserves fresh Save for a live instance; revoke/expiry/fault denies unpermitted admission. UI1.1d's editor PID and device/target persistence remain separate. |
+| CI4lane measurement / coordinator and tooling reviewer | Measurement/design against adopted lane/policy/workflow and source-bound cache contracts; no coverage removal | Accepted adapter successor establishes55/39 on its reviewed source; historical54 evidence remains source-scoped | Preserve local55/extended39 and exact original54/38 subsequence, argv/env/bootstrap, four-result fail-closed aggregate, fresh outcomes, source/lock finally checks and artifact retention. Measure actual hosted scheduling/cache activation before any speedup claim. |
+| UI1.1d / coordinator plus independent contract reviewer | Complete thirty executable process assertion families and ownership-safe runtime staging; Root owns shared IDL/generated/gates/registries | Accepted shared-core adapter milestone with final Mac4/core26/quality, CI62/Rust7 and independently reviewed Linux55; frozen process and live Save contracts | Independently review full finite behavior/denial/failure coverage and original missing-API RED before handlers. Exercise uncertain-owner cleanup; then implement authentic child/channel authority, sealed publications, private adoption and original Save retention without replay. No target, device or containment acceptance from host evidence. |
 | RUN0.0 / coordinator then runtime worker | Coordinator freezes Oracle profile, raw-map/retention collection assertions and boot integration; worker owns exact subsequently assigned adapter files | Reviewed [pure admission contract](docs/BOOT_FRAME_OWNERSHIP_V0.md), passing gate and [Oracle preparation](docs/plans/boot-profile-oracle-v0.md); current UEFI path still lacks post-firmware ownership | Resolve actual relocated-entry capture, freeze the CPU-inspection schema/profile and write RED assertions. Then obtain initial table-access evidence, derive complete retained ranges, use the actual final firmware-exit map and prove allocation/write/read/reuse plus S8 in QEMU. External debug reads or a pure selector cannot prove guest access, firmware exit or user-mode execution. |
 | SW-A / authority worker | `tools/agent_task/authority_*`, `requestable_authority*`, corresponding tests and authority contract docs | Landed A2.6/A2.9; three-arm authority report | Choose a remaining host-client/deputy/unexercised or continuous-lifetime gap with real backend probes; do not repeat the landed nine-point named Python-consumer canary or LS retained-descriptor probes. Preserve remaining unknowns. Run `just foundry-agent-task-authority` and `just foundry-agent-task-requestable-authority` plus affected consumer gates on Linux/Docker. A finite addition is not full A2. |
 | SW-E / evaluator worker | Exact assigned evaluator/session/accounting files and their tests/docs | Reviewed portable accounting and combined Linux gates; landed A2.7/A2.8; future comparison evaluator | Bind actual provider usage/context capture to frozen plans under deterministic failure fixtures. Portable `just foundry-agent-task-provider-accounting` and combined Linux evaluator/reconciliation pass; actual private bank release and paid runs retain independent operator/funded-work-order controls. |

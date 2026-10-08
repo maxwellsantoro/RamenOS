@@ -1117,6 +1117,11 @@ pub mod generated {
         include!("generated/desktop_editor_session_v1.generated.rs");
     }
 
+    /// UI1.1d process control data. Authentication and lifetime checks belong to consumers.
+    pub mod desktop_editor_process_v1 {
+        include!("generated/desktop_editor_process_v1.generated.rs");
+    }
+
     /// UI1.1 selected-artifact deputy contract. Store handlers remain pending.
     pub mod desktop_artifact_v1 {
         include!("generated/desktop_artifact_v1.generated.rs");

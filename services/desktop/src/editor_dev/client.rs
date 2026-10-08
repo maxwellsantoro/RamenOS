@@ -5,6 +5,9 @@ use super::{
     decode_envelope_wire, encode_envelope_wire,
 };
 use crate::dev::Status;
+use desktop_editor_core::{
+    EditError, EditorHint, EditorModel, EditorSnapshot, FontRows, InitialView, ResetPolicy,
+};
 use kernel_api::{
     cap::{Handle, HandleKind},
     generated::{
@@ -14,13 +17,10 @@ use kernel_api::{
 };
 use sha2::{Digest, Sha256};
 
-const LIMIT: usize = 4096;
-const WIDTH: usize = 640;
-const HEIGHT: usize = 480;
-const STRIDE: usize = WIDTH * 4;
-const BUFFER_LEN: usize = STRIDE * HEIGHT;
-const COLS: usize = 80;
-const ROWS: usize = 30;
+const WIDTH: usize = desktop_editor_core::WIDTH;
+const HEIGHT: usize = desktop_editor_core::HEIGHT;
+const STRIDE: usize = desktop_editor_core::STRIDE;
+const BUFFER_LEN: usize = desktop_editor_core::FRAME_BYTES;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SaveState {
@@ -88,6 +88,61 @@ pub struct EditorClient {
     focus_epoch: u64,
     key_sequence: u64,
     pending: Option<PendingSave>,
+}
+
+// Pure model errors never authorize a host effect or relax an owner counter.
+fn edit_status(error: EditError) -> Status {
+    match error {
+        EditError::UnsupportedKey => Status::Unsupported,
+        EditError::CounterExhausted => Status::Exhausted,
+        EditError::BodyTooLong
+        | EditError::InvalidAscii
+        | EditError::InvalidSnapshot
+        | EditError::InvalidModifiers
+        | EditError::InvalidBufferLength => Status::Invalid,
+    }
+}
+
+fn draft_model(
+    draft: &DraftSnapshot,
+    selection_anchor: Option<usize>,
+    preferred_column: Option<usize>,
+    text_generation: u64,
+) -> Result<EditorModel, Status> {
+    EditorModel::from_snapshot(EditorSnapshot {
+        bytes: draft.bytes.clone(),
+        cursor: draft.cursor,
+        selection: draft.selection,
+        first_visible_line: draft.first_visible_line,
+        selection_anchor,
+        preferred_column,
+        text_generation,
+    })
+    .map_err(edit_status)
+}
+
+fn accept_model(
+    draft: &mut DraftSnapshot,
+    selection_anchor: &mut Option<usize>,
+    preferred_column: &mut Option<usize>,
+    text_generation: &mut u64,
+    snapshot: EditorSnapshot,
+) {
+    draft.bytes = snapshot.bytes;
+    draft.cursor = snapshot.cursor;
+    draft.selection = snapshot.selection;
+    draft.first_visible_line = snapshot.first_visible_line;
+    *selection_anchor = snapshot.selection_anchor;
+    *preferred_column = snapshot.preferred_column;
+    *text_generation = snapshot.text_generation;
+}
+
+fn raster_model(model: EditorModel, font: &FontRows) -> Result<Vec<u8>, Status> {
+    let mut pixels = vec![0; BUFFER_LEN];
+    model
+        .rasterize_bgra(font, &mut pixels)
+        .map_err(edit_status)?;
+    Ok(pixels)
 }
 
 fn hash(bytes: &[u8]) -> [u8; 32] {
@@ -319,27 +374,30 @@ impl EditorClient {
             ObjectKind::SurfaceBuffer,
             BUFFER_LEN as u32,
         )?;
-        let bytes = text[64..].to_vec();
-        let cursor = bytes.len();
+        // The authenticated legacy Read starts at generation zero with its
+        // cursor visible. Save confirmation remains owned by this adapter.
+        let model = EditorModel::from_selected_ascii(&text[64..], 0, InitialView::CursorVisible)
+            .map_err(edit_status)?
+            .snapshot();
         let font = host.font_rows();
-        let mut client = Self {
+        let client = Self {
             host,
             bindings,
             bootstrap: boot,
             font,
             draft: DraftSnapshot {
-                bytes,
-                cursor,
-                selection: None,
-                first_visible_line: 0,
+                bytes: model.bytes,
+                cursor: model.cursor,
+                selection: model.selection,
+                first_visible_line: model.first_visible_line,
                 confirmed_revision: initial_revision,
                 save: SaveState::Saved {
                     revision: initial_revision,
                 },
             },
-            selection_anchor: None,
-            preferred_column: None,
-            draft_generation: 0,
+            selection_anchor: model.selection_anchor,
+            preferred_column: model.preferred_column,
+            draft_generation: model.text_generation,
             confirmed_hash: schema_hash(&text, 24),
             selected_object,
             selected_generation,
@@ -355,7 +413,6 @@ impl EditorClient {
             key_sequence: 0,
             pending: None,
         };
-        client.scroll_to_cursor();
         Ok(client)
     }
 
@@ -394,7 +451,7 @@ impl EditorClient {
         if self.focus_epoch != observed.focus_epoch {
             self.focus_epoch = observed.focus_epoch;
             self.key_sequence = 0;
-            self.preferred_column = None;
+            self.reset_navigation()?;
         }
         let request_id = self.request_id()?;
         let key: focus::PollKeysReply = call(
@@ -429,7 +486,7 @@ impl EditorClient {
         self.key_sequence = key.sequence;
         let generation = self.draft_generation;
         if key.phase == 3 {
-            self.preferred_column = None;
+            self.reset_navigation()?;
         } else if key.phase == 1 {
             self.press(key.usage, key.modifiers, now_ms)?;
         }
@@ -441,324 +498,51 @@ impl EditorClient {
         })
     }
 
-    fn press(&mut self, usage: u32, modifiers: u32, now: u64) -> Result<(), Status> {
-        if matches!(usage, 224 | 225) {
-            return Ok(());
-        }
-        if modifiers & 1 != 0 {
-            return match usage {
-                4 => {
-                    self.selection_anchor = Some(0);
-                    self.draft.cursor = self.draft.bytes.len();
-                    self.draft.selection = if self.draft.bytes.is_empty() {
-                        None
-                    } else {
-                        Some((0, self.draft.bytes.len()))
-                    };
-                    self.preferred_column = None;
-                    self.scroll_to_cursor();
-                    Ok(())
-                }
-                22 => self.save(now),
-                _ => Err(Status::Unsupported),
-            };
-        }
-        let shift = modifiers & 2 != 0;
-        if matches!(usage, 74 | 77 | 79..=82) {
-            return self.move_cursor(usage, shift);
-        }
-        if usage == 41 {
-            return Ok(());
-        }
-        if usage == 42 {
-            let (start, end) = self
-                .draft
-                .selection
-                .unwrap_or((self.draft.cursor.saturating_sub(1), self.draft.cursor));
-            return self.replace(start, end, &[]);
-        }
-        let byte = match usage {
-            4..=29 => b'a' + (usage - 4) as u8 - if shift { 32 } else { 0 },
-            30..=39 => {
-                if shift {
-                    b"!@#$%^&*()"[(usage - 30) as usize]
-                } else {
-                    b"1234567890"[(usage - 30) as usize]
-                }
-            }
-            40 => b'\n',
-            43 => b'\t',
-            44 => b' ',
-            45 => {
-                if shift {
-                    b'_'
-                } else {
-                    b'-'
-                }
-            }
-            46 => {
-                if shift {
-                    b'+'
-                } else {
-                    b'='
-                }
-            }
-            47 => {
-                if shift {
-                    b'{'
-                } else {
-                    b'['
-                }
-            }
-            48 => {
-                if shift {
-                    b'}'
-                } else {
-                    b']'
-                }
-            }
-            49 => {
-                if shift {
-                    b'|'
-                } else {
-                    b'\\'
-                }
-            }
-            51 => {
-                if shift {
-                    b':'
-                } else {
-                    b';'
-                }
-            }
-            52 => {
-                if shift {
-                    b'"'
-                } else {
-                    b'\''
-                }
-            }
-            53 => {
-                if shift {
-                    b'~'
-                } else {
-                    b'`'
-                }
-            }
-            54 => {
-                if shift {
-                    b'<'
-                } else {
-                    b','
-                }
-            }
-            55 => {
-                if shift {
-                    b'>'
-                } else {
-                    b'.'
-                }
-            }
-            56 => {
-                if shift {
-                    b'?'
-                } else {
-                    b'/'
-                }
-            }
-            _ => return Err(Status::Unsupported),
-        };
-        let (start, end) = self
-            .draft
-            .selection
-            .unwrap_or((self.draft.cursor, self.draft.cursor));
-        self.replace(start, end, &[byte])
+    fn model(&self) -> Result<EditorModel, Status> {
+        draft_model(
+            &self.draft,
+            self.selection_anchor,
+            self.preferred_column,
+            self.draft_generation,
+        )
     }
 
-    fn replace(&mut self, start: usize, end: usize, bytes: &[u8]) -> Result<(), Status> {
-        let length = self.draft.bytes.len() - (end - start) + bytes.len();
-        if length > LIMIT {
+    fn accept_model(&mut self, snapshot: EditorSnapshot) {
+        accept_model(
+            &mut self.draft,
+            &mut self.selection_anchor,
+            &mut self.preferred_column,
+            &mut self.draft_generation,
+            snapshot,
+        );
+    }
+
+    fn reset_navigation(&mut self) -> Result<(), Status> {
+        let mut model = self.model()?;
+        model.reset_navigation(ResetPolicy::ClearPreferredColumn);
+        self.accept_model(model.snapshot());
+        Ok(())
+    }
+
+    fn press(&mut self, usage: u32, modifiers: u32, now: u64) -> Result<(), Status> {
+        let mut model = self.model()?;
+        let effect = model.apply_key(usage, modifiers).map_err(edit_status)?;
+        if effect.overflow_rejected {
             return Err(Status::Exhausted);
         }
-        let changed = self.draft.bytes[start..end] != *bytes;
-        let next_generation = if changed {
-            self.draft_generation
-                .checked_add(1)
-                .ok_or(Status::Exhausted)?
-        } else {
-            self.draft_generation
-        };
-        self.draft.bytes.splice(start..end, bytes.iter().copied());
-        self.draft.cursor = start + bytes.len();
-        self.draft.selection = None;
-        self.selection_anchor = None;
-        self.preferred_column = None;
-        self.draft_generation = next_generation;
-        if changed && self.pending.is_none() {
+        if effect.hint == EditorHint::SaveRequested {
+            // A data-only hint enters the original authenticated Save path.
+            return self.save(now);
+        }
+        self.accept_model(model.snapshot());
+        if effect.text_changed && self.pending.is_none() {
             self.draft.save = SaveState::Unsaved;
         }
-        self.scroll_to_cursor();
         Ok(())
     }
 
-    fn move_cursor(&mut self, usage: u32, shift: bool) -> Result<(), Status> {
-        let cursor = self.draft.cursor;
-        let line_start = self.draft.bytes[..cursor]
-            .iter()
-            .rposition(|b| *b == b'\n')
-            .map_or(0, |i| i + 1);
-        let line_end = self.draft.bytes[cursor..]
-            .iter()
-            .position(|b| *b == b'\n')
-            .map_or(self.draft.bytes.len(), |i| cursor + i);
-        let target = match usage {
-            74 => line_start,
-            77 => line_end,
-            79 => {
-                if !shift {
-                    self.draft
-                        .selection
-                        .map_or((cursor + 1).min(self.draft.bytes.len()), |(_, end)| end)
-                } else {
-                    (cursor + 1).min(self.draft.bytes.len())
-                }
-            }
-            80 => {
-                if !shift {
-                    self.draft
-                        .selection
-                        .map_or(cursor.saturating_sub(1), |(start, _)| start)
-                } else {
-                    cursor.saturating_sub(1)
-                }
-            }
-            81 | 82 => {
-                let column = *self.preferred_column.get_or_insert(cursor - line_start);
-                if usage == 82 {
-                    if line_start == 0 {
-                        cursor.min(column)
-                    } else {
-                        let end = line_start - 1;
-                        let start = self.draft.bytes[..end]
-                            .iter()
-                            .rposition(|b| *b == b'\n')
-                            .map_or(0, |i| i + 1);
-                        start + column.min(end - start)
-                    }
-                } else if line_end == self.draft.bytes.len() {
-                    cursor
-                } else {
-                    let start = line_end + 1;
-                    let end = self.draft.bytes[start..]
-                        .iter()
-                        .position(|b| *b == b'\n')
-                        .map_or(self.draft.bytes.len(), |i| start + i);
-                    start + column.min(end - start)
-                }
-            }
-            _ => return Err(Status::Unsupported),
-        };
-        if !matches!(usage, 81 | 82) {
-            self.preferred_column = None;
-        }
-        if shift {
-            let anchor = *self.selection_anchor.get_or_insert(cursor);
-            self.draft.selection = if anchor == target {
-                None
-            } else {
-                Some((anchor.min(target), anchor.max(target)))
-            };
-        } else {
-            self.selection_anchor = None;
-            self.draft.selection = None;
-        }
-        self.draft.cursor = target;
-        self.scroll_to_cursor();
-        Ok(())
-    }
-
-    fn positions(&self) -> Vec<(usize, usize)> {
-        let mut result = Vec::with_capacity(self.draft.bytes.len() + 1);
-        let (mut row, mut column) = (0, 0);
-        for b in &self.draft.bytes {
-            result.push((row, column));
-            if *b == b'\n' {
-                row += 1;
-                column = 0;
-            } else {
-                column += if *b == b'\t' { 4 - column % 4 } else { 1 };
-                row += column / COLS;
-                column %= COLS;
-            }
-        }
-        result.push((row, column));
-        result
-    }
-    fn scroll_to_cursor(&mut self) {
-        let row = self.positions()[self.draft.cursor].0;
-        if row < self.draft.first_visible_line {
-            self.draft.first_visible_line = row;
-        } else if row >= self.draft.first_visible_line + ROWS {
-            self.draft.first_visible_line = row + 1 - ROWS;
-        }
-    }
-    fn cell(pixels: &mut [u8], row: usize, column: usize, color: [u8; 4]) {
-        if row >= ROWS || column >= COLS {
-            return;
-        }
-        for y in row * 16..row * 16 + 16 {
-            for x in column * 8..column * 8 + 8 {
-                pixels[y * STRIDE + x * 4..y * STRIDE + x * 4 + 4].copy_from_slice(&color);
-            }
-        }
-    }
-    fn raster(&self) -> Vec<u8> {
-        let mut pixels = vec![255; BUFFER_LEN];
-        let positions = self.positions();
-        let first = self.draft.first_visible_line;
-        for (i, b) in self.draft.bytes.iter().enumerate() {
-            let (row, column) = positions[i];
-            if row < first || row >= first + ROWS {
-                continue;
-            }
-            let visible = row - first;
-            if self
-                .draft
-                .selection
-                .is_some_and(|(start, end)| i >= start && i < end)
-            {
-                let cells = if *b == b'\t' { 4 - column % 4 } else { 1 };
-                for dx in 0..cells {
-                    Self::cell(
-                        &mut pixels,
-                        visible + (column + dx) / COLS,
-                        (column + dx) % COLS,
-                        [255, 192, 128, 255],
-                    );
-                }
-            }
-            if !(32..=126).contains(b) {
-                continue;
-            }
-            for y in 0..16 {
-                for x in 0..8 {
-                    if self.font[*b as usize - 32][y] & (128 >> x) != 0 {
-                        let o = (visible * 16 + y) * STRIDE + (column * 8 + x) * 4;
-                        pixels[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
-                    }
-                }
-            }
-        }
-        let (row, column) = positions[self.draft.cursor];
-        if row >= first && row < first + ROWS {
-            for y in (row - first) * 16..(row - first) * 16 + 16 {
-                for x in column * 8..column * 8 + 2 {
-                    let o = y * STRIDE + x * 4;
-                    pixels[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
-                }
-            }
-        }
-        pixels
+    fn raster(&self) -> Result<Vec<u8>, Status> {
+        raster_model(self.model()?, &self.font)
     }
 
     pub fn render(&mut self, now_ms: u64) -> Result<u64, Status> {
@@ -797,7 +581,7 @@ impl EditorClient {
             acquired.mapping_generation,
             now_ms,
         )?;
-        lease.copy_from(0, &self.raster(), now_ms)?;
+        lease.copy_from(0, &self.raster()?, now_ms)?;
         let request_id = self.request_id()?;
         let presented: surface::PresentReply = call(
             &self.host,
@@ -1052,5 +836,85 @@ impl EditorClient {
         }
         self.pending = None;
         Ok(())
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+pub(super) struct NativeTextEditor {
+    pub(super) draft: DraftSnapshot,
+    pub(super) selection_anchor: Option<usize>,
+    pub(super) preferred_column: Option<usize>,
+    pub(super) draft_generation: u64,
+    font: [[u8; 16]; 96],
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeTextEditor {
+    pub(super) fn from_native(
+        v: &super::NativeEditorObservation,
+        anchor: Option<usize>,
+        column: Option<usize>,
+        font: [[u8; 16]; 96],
+    ) -> Result<Self, Status> {
+        let text = Self {
+            draft: DraftSnapshot {
+                bytes: v.bytes.clone(),
+                cursor: v.cursor as usize,
+                selection: v.selection.map(|(a, b)| (a as usize, b as usize)),
+                first_visible_line: v.first_visible_line as usize,
+                confirmed_revision: v.confirmed_revision,
+                save: SaveState::Unsaved,
+            },
+            selection_anchor: anchor,
+            preferred_column: column,
+            draft_generation: v.text_generation,
+            font,
+        };
+        // Preserve all seven fields of the genuine owner snapshot. Native Read
+        // initialization (generation one, top view) remains in its real owner;
+        // continuing edits never reconstruct or reset that state from the body.
+        text.model()?;
+        Ok(text)
+    }
+
+    fn model(&self) -> Result<EditorModel, Status> {
+        draft_model(
+            &self.draft,
+            self.selection_anchor,
+            self.preferred_column,
+            self.draft_generation,
+        )
+    }
+
+    fn accept_model(&mut self, snapshot: EditorSnapshot) {
+        accept_model(
+            &mut self.draft,
+            &mut self.selection_anchor,
+            &mut self.preferred_column,
+            &mut self.draft_generation,
+            snapshot,
+        );
+    }
+
+    // False is an accepted key whose insertion exceeds the text length bound;
+    // it leaves the detached scratch untouched. Counter exhaustion is an error.
+    pub(super) fn press(&mut self, usage: u32, modifiers: u32) -> Result<bool, Status> {
+        let mut model = self.model()?;
+        let effect = model.apply_key(usage, modifiers).map_err(edit_status)?;
+        if effect.hint == EditorHint::SaveRequested {
+            // Only the genuine host CtrlS branch can mint a NativeSaveIntent.
+            return Err(Status::Unsupported);
+        }
+        if effect.overflow_rejected {
+            return Ok(false);
+        }
+        self.accept_model(model.snapshot());
+        if effect.text_changed {
+            self.draft.save = SaveState::Unsaved;
+        }
+        Ok(true)
+    }
+
+    pub(super) fn raster(&self) -> Result<Vec<u8>, Status> {
+        raster_model(self.model()?, &self.font)
     }
 }

@@ -657,7 +657,17 @@ impl SelectionGuard<'_> {
         self.gate.preview.as_ref().ok_or(Status::Denied)
     }
     pub fn enroll_objects(&mut self, objects: &[StoreObjectEnrollment]) -> Result<(), Status> {
-        if objects.is_empty() || objects.len() > 2 {
+        let save_mode = {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            {
+                self.gate.save.is_some()
+            }
+            #[cfg(not(feature = "editor_native_save_v0_dev"))]
+            {
+                false
+            }
+        };
+        if objects.is_empty() || objects.len() > if save_mode { 3 } else { 2 } {
             return Err(Status::Invalid);
         }
         let p = self.gate.preview.as_mut().ok_or(Status::Denied)?;
@@ -672,8 +682,8 @@ impl SelectionGuard<'_> {
                 || o.store_epoch == 0
                 || !p.owners.values().any(|r| {
                     r.owner.owner_id == o.owner_id
-                        && r.object == o.object_id
-                        && r.generation == o.object_generation
+                        && (save_mode
+                            || r.object == o.object_id && r.generation == o.object_generation)
                 })
                 || checked.insert(o.object_id, o.clone()).is_some()
             {
@@ -711,7 +721,21 @@ impl SelectionGuard<'_> {
         entered: Instant,
     ) -> Result<StoreSelectionPin, Status> {
         let owner = self.preview_owner(chrome)?;
-        if current.owner != owner {
+        self.reserve_owned_pin(&owner, current, ttl_ms, self.gate.now_ms, entered)
+    }
+    pub(super) fn reserve_owned_pin(
+        &mut self,
+        owner: &PreviewOwner,
+        current: StoreCurrentSelection,
+        ttl_ms: u64,
+        now_ms: u64,
+        entered: Instant,
+    ) -> Result<StoreSelectionPin, Status> {
+        let p = self.preview()?;
+        if !p.owners.values().any(|r| &r.owner == owner) || p.retired {
+            return Err(Status::Denied);
+        }
+        if &current.owner != owner {
             return Err(Status::Denied);
         }
         if !(1..=30000).contains(&ttl_ms) {
@@ -723,6 +747,10 @@ impl SelectionGuard<'_> {
         if Instant::now() >= deadline {
             return Err(Status::Stale);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let save_mode = self.gate.save.is_some();
+        #[cfg(not(feature = "editor_native_save_v0_dev"))]
+        let save_mode = false;
         let p = self.gate.preview.as_mut().ok_or(Status::Denied)?;
         p.prune();
         let o = p.objects.get(&current.object_id).ok_or(Status::Denied)?;
@@ -736,9 +764,10 @@ impl SelectionGuard<'_> {
         {
             return Err(Status::Denied);
         }
-        if p.pins
-            .values()
-            .any(|r| r.view.current.object_id == current.object_id && !r.retired && !r.consumed)
+        if !save_mode
+            && p.pins
+                .values()
+                .any(|r| r.view.current.object_id == current.object_id && !r.retired && !r.consumed)
         {
             return Err(Status::NotReady);
         }
@@ -747,12 +776,16 @@ impl SelectionGuard<'_> {
                 .values()
                 .filter(|r| !r.retired && !r.consumed)
                 .count()
-                >= 2
+                >= if save_mode { 16 } else { 2 }
         {
             return Err(Status::Exhausted);
         }
         let id = p.next_pin.checked_add(1).ok_or(Status::Exhausted)?;
-        let expires = p.now.checked_add(ttl_ms).ok_or(Status::Exhausted)?;
+        let expires = p
+            .now
+            .max(now_ms)
+            .checked_add(ttl_ms)
+            .ok_or(Status::Exhausted)?;
         let life = Arc::new(PinLife { id });
         p.next_pin = id;
         p.pins.insert(

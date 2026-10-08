@@ -130,6 +130,8 @@ pub(super) fn layout(protocol: u32, kind: u32) -> Option<(usize, Option<usize>)>
         (368, 6) => Some((40, None)),
         (368, 7) => Some((32, None)),
         (368, 8) => Some((40, None)),
+        (368, 9) => Some((32, None)),
+        (368, 10) => Some((32, Some(28))),
         _ => None,
     }
 }
@@ -157,6 +159,7 @@ fn status_offset(protocol: u32, kind: u32) -> Option<usize> {
         (368, 4) => Some(16),
         (368, 6) => Some(32),
         (368, 8) => Some(32),
+        (368, 10) => Some(24),
         _ => None,
     }
 }
@@ -267,3 +270,5 @@ message!(desktop_artifact_v1, Commit, 368, 5, 56, {request_id, session_id, sessi
 message!(desktop_artifact_v1, CommitReply, 368, 6, 40, {request_id, operation_id, revision, receipt_shm, status, receipt_len});
 message!(desktop_artifact_v1, SaveStatus, 368, 7, 32, {request_id, session_id, session_generation, operation_id});
 message!(desktop_artifact_v1, SaveStatusReply, 368, 8, 40, {request_id, operation_id, revision, receipt_shm, status, receipt_len});
+message!(desktop_artifact_v1, ObserveAllocation, 368, 9, 32, {request_id, session_id, session_generation, original_allocate_request_id});
+message!(desktop_artifact_v1, ObserveAllocationReply, 368, 10, 32, {request_id, original_allocate_request_id, operation_id, status, reserved});

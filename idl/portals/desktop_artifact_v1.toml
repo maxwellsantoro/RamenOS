@@ -56,3 +56,16 @@ fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "operati
 [message.save_status_reply]
 msg_type = 8
 fields = ["request_id:u64", "operation_id:u64", "revision:u64", "receipt_shm:u64", "status:u32", "receipt_len:u32"]
+
+# Observe only this retained original allocation; never allocate, replay, or
+# enumerate. The numeric original request ID is correlation, not authority.
+# Validate actual original owner/Core/actor/object/epoch before returning data.
+[message.observe_allocation]
+msg_type = 9
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "original_allocate_request_id:u64"]
+
+# Ok returns the actual original allocation; Unknown retains its original
+# correlation with operation0. Ordinary denial redacts original/operation.
+[message.observe_allocation_reply]
+msg_type = 10
+fields = ["request_id:u64", "original_allocate_request_id:u64", "operation_id:u64", "status:u32", "reserved:u32"]

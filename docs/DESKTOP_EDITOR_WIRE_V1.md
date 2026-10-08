@@ -1,9 +1,12 @@
 # Desktop editor wire v1: coordinator allocation
 
 **Status:** Independently reviewed canonical IDLs and generated Rust bindings
-registered. All 43 messages pass cross-interface lint and affected `kernel_api`
-and existing desktop-launch consumer checks. Shared host APIs and UI1.1 behavior
-assertions remain pending; these definitions do not implement the proposed task.
+registered. The original 43-message allocation passed cross-interface lint,
+`kernel_api` and the existing desktop-launch consumer checks. The native Save
+candidate adds Artifact messages 9/10, bringing the canonical inventory to 45;
+generation, lint and both bare-metal API target checks pass. Existing Artifact
+messages 1–8 retain their bytes. Integrated Save/task runtime acceptance remains
+pending; these definitions alone do not implement the task.
 
 **Base:** `c1e7f8d0d60062ea21872480fcc1aeacec45e8fc`.
 
@@ -46,7 +49,7 @@ their final `u32` fields; no implicit padding is a wire format.
 | Focus | 1 `assign`, 2 `assign_reply`, 3 `poll_keys`, 4 `poll_keys_reply` |
 | Surface | 1 `create`, 2 `create_reply`, 3 `acquire`, 4 `acquire_reply`, 5 `present`, 6 `present_reply`, 7 `consume`, 8 `consume_reply`, 9 `destroy`, 10 `destroy_reply` |
 | Editor | 1 `prepare_launch`, 2 `prepare_launch_reply`, 3 `cancel_preview`, 4 `cancel_preview_reply`, 5 `confirm_launch`, 6 `confirm_launch_reply`, 7 `get_status`, 8 `get_status_reply`, 9 `close_instance`, 10 `close_instance_reply`, 11 `revoke_instance`, 12 `revoke_instance_reply`, 13 `prepare_restart`, 14 `prepare_restart_reply`, 15 `observe_focus`, 16 `observe_focus_reply`, 17 `instance_bootstrap` |
-| Artifact | 1 `read_selected`, 2 `read_selected_reply`, 3 `allocate_save_id`, 4 `allocate_save_id_reply`, 5 `commit`, 6 `commit_reply`, 7 `save_status`, 8 `save_status_reply` |
+| Artifact | 1 `read_selected`, 2 `read_selected_reply`, 3 `allocate_save_id`, 4 `allocate_save_id_reply`, 5 `commit`, 6 `commit_reply`, 7 `save_status`, 8 `save_status_reply`, 9 `observe_allocation`, 10 `observe_allocation_reply` |
 
 Expand proposal abbreviations consistently:
 
@@ -69,6 +72,15 @@ reuses the prepare reply's 48-byte shape. Bootstrap is service-to-client only
 and has the proposal's exact 48-byte fields; it is not an accepted request.
 `observe_focus` belongs to the Editor protocol's own observation endpoint, not
 the Focus assignment endpoint. It grants no focus control.
+
+Artifact `observe_allocation` is a 32-byte original-only lookup: request, session,
+session generation and original Allocate request IDs are four `u64` fields.
+Its 32-byte reply contains request, original Allocate request and operation IDs
+followed by status and reserved `u32` fields. Status is at byte 24 and reserved
+at byte 28. A lookup observes the authentic original; it grants no allocation,
+source write, Commit replay or renewed deadline. The
+[live Save/task contract](contracts/editor-native-save-task-v0.json) owns its
+opaque-owner admission and definitive absence requirements.
 
 ## Status and authority boundary
 

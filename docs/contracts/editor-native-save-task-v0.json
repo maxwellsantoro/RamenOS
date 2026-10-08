@@ -521,8 +521,8 @@
     "finite_budgets": {
       "case_count": 18,
       "max_scenario_instances": 128,
-      "max_artifact_files": 2048,
-      "max_directory_entries": 4096,
+      "max_artifact_files": 40960,
+      "max_directory_entries": 41115,
       "max_case_records_bytes": 134217728,
       "max_aggregate_json_bytes": 536870912,
       "max_all_case_artifact_bytes": 2147483648,
@@ -533,9 +533,12 @@
       "max_native_process_log_bytes": 67108864,
       "max_retained_binary_bytes": 536870912,
       "max_gate_process_namespace_bytes": 1073741824,
-      "max_composed_frame_bytes": 1454080
+      "max_composed_frame_bytes": 1454080,
+      "max_raw_files_per_scenario": 2048,
+      "max_trusted_source_inventory_bytes": 1048576,
+      "max_native_base_fence_serialization_bytes": 1048576
     },
-    "filesystem": "Owned fresh output directory only; max4096 directory entries includes directories+files. Exactly registered relative paths, no symlinks/special/hard-linked files, no unexpected entries or unchecked recursive enumeration. Inspect type/size/path depth<=8 and relative name bytes<=256 before read/allocate. Bound raw files by their narrower codecs: text<=4160, receipt176, journal<=131072, appframe1228800, composedframe1454080. Outer32MiB file ceiling cannot widen those. All2GiB case bytes include JSON, raw input/wire/frame/journal/blob/fence artifacts; separately bounded process namespace1GiB includes selectedbinary<=512MiB and each owned log<=64MiB. Required actual evidence cannot be dropped or sampled to fit.",
+    "filesystem": "Owned fresh output directory only; max41115 directory entries includes directories+files. Exactly registered relative paths, no symlinks/special/hard-linked files, no unexpected entries or unchecked recursive enumeration. Inspect type/size/path depth<=8 and relative name bytes<=256 before read/allocate. Bound raw files by their narrower codecs: text<=4160, receipt176, journal<=131072, appframe1228800, composedframe1454080. Outer32MiB file ceiling cannot widen those. All2GiB case bytes include JSON, raw input/wire/frame/journal/blob/fence artifacts; separately bounded process namespace1GiB includes selectedbinary<=512MiB and each owned log<=64MiB. Required actual evidence cannot be dropped or sampled to fit.",
     "budget_semantics": "These are hard recording upper bounds checked before growth/copy/exposure, not claimed fixture counts. The assertion author must return an exact closed fixture/epoch/IO/event/file inventory derived from real case source, bounded by these ceilings. Coordinator freezes and independently reviews that inventory and source pins before handlers; changes require reviewed contract/inventory amendments. Required witness cannot be silently truncated to fit a budget.",
     "shared_64_reachability": "Actual fixture saturates combined64 (IO2 inside) without an earlier origin/query/ticket cap masking it. Reserve/install/timeout/settle/join observations refer to genuine same-roster rows; timeouts do not free actual handles. Queries64 are separately bounded and not producer evidence.",
     "affected_gates": [
@@ -553,7 +556,8 @@
       "just s13",
       "just foundry-org-governance-g0"
     ],
-    "outputs": "Serialize fixed out/ paths. Root runs final assembled checks and retains evidence before reuse. No fabricated per-thread/PID/provenance or copied marker; actual in-process threads do not establish a separate editor process."
+    "outputs": "Serialize fixed out/ paths. Root runs final assembled checks and retains evidence before reuse. No fabricated per-thread/PID/provenance or copied marker; actual in-process threads do not establish a separate editor process.",
+    "inventory_count_definition": "Before handlers, freeze the exact source-fixed scenario identifiers, deterministic fixture/loop/Core-transition counts, required event classes and identity joins, and raw-file kind/path templates with checked ordinals and per-scenario multiplicity bounds. Scheduling-dependent producer, capture, IO and file rows are not invented as a fixed observed count: retain every actual row without sampling and emit a complete runtime inventory whose exact paths, lengths, hashes, counts and relationships are checked against those source-derived constraints. Raw templates may instantiate only actual recorded Core/capture/frame/file identities; runtime records cannot select code, commands, authority or unregistered paths. Failed reopen is not a new active Core. This clarifies counts only; every original18 requirement, fixed deterministic count, exact complete output match, pre-growth budget and missing-API RED requirement remains."
   },
   "claim_boundary": "Contract preparation is not executable assertions, RED, handler runtime, full18 acceptance or Store Save evidence. Later accepted runtime scope is trusted host in-process typed composition and named real host IO only. It establishes no distinct editor PID, hostile process containment, physical input, target execution, device flush, power-loss durability, cold-start antirollback, metal graduation, everyday readiness or release authority.",
   "planned_idl_addition": {
@@ -606,10 +610,13 @@
     "live_sessions": 2,
     "durable_operations_per_object": 16,
     "durable_operations_total": 48,
-    "legacy_unchanged": "Old volatile/native Read/native preview modes preserve256 exchange and16 totalframe caps and two-object profiles even when Save feature is compiled. Fresh bounded NativeSaveFixtureProfile permits1..3 actual objects; old FixtureProfile validation still permits1..2.",
+    "legacy_unchanged": "Old volatile/native Read/native preview modes preserve256 exchange and16 totalframe caps and two-object profiles even when Save feature is compiled. Fresh bounded NativeSaveFixtureProfile permits1..3 actual objects; old FixtureProfile validation still permits1..2. Save-only Store trace131072 and IO ledger65536 are fixed construction-mode limits; legacy Store exchange256/IO1024 remain unchanged even when the Save feature is compiled.",
     "frame_rules": "Total history128 is distinct from pending16 or heldbuffer quota. Successful frame delivery consumes totalhistory charge; Drop does not refund it. Consumer step consumes genuine keys and edits; render is explicit after meaningful batches, not4096mandatoryframes. Current Saved still requires a fresh actual private frame join. History/trace overflow is sticky within the affected fixture; retain prior evidence and no silent eviction.",
     "io2_denial_fixture": "Actual A+B permitted writers pausedIO; retire A ordinary instance while retaining originalUnknown/permit. Explicit fresh approval/newinstance for unrelatedC in same owner session leaves originalA unresolved and does not guess A restartbase. Actual C Read positive then first Allocate metadataIO is deniedExhausted while two real IO rows remain held. Three objects, two sessions, no fake role/third session. Same-object is independently NotReady; only same-object mutation is quarantined.",
-    "original_retention": "Selecting unrelatedC cannot erase originalA or mint a fresh A base. Own original operation history remains16/object and48/domain; current document lastoutcome1 is a view, never non-evicted originalhistory. Separate actual intent/snapshot/source caps may be lower and cannot be misreported as tested48 capacity."
+    "original_retention": "Selecting unrelatedC cannot erase originalA or mint a fresh A base. Own original operation history remains16/object and48/domain; current document lastoutcome1 is a view, never non-evicted originalhistory. Separate actual intent/snapshot/source caps may be lower and cannot be misreported as tested48 capacity.",
+    "store_trace_exchanges_total": 131072,
+    "store_io_ledger_records_total": 65536,
+    "store_actual_artifact_captures_total": 256
   },
   "rust_desktop_api": {
     "construction_and_approval": [
@@ -715,8 +722,12 @@
       "SaveGateGuard::snapshot_for_intent<'a>(&self,intent:&'a NativeSaveIntent)->Result<&'a NativeDraftSnapshot,Status>",
       "SaveGateGuard::close_original(&mut self,call:&NativeSaveCall)->Result<(),Status>",
       "RegistryWitness::verify_join_for(&self,id:&ProducerId,proof:&JoinedProducerProof)->Result<NativeJoinObservation,Status>",
+      "HostDesktop::native_join_observation(&self,proof:&JoinedProducerProof)->Result<NativeJoinObservation,Status> // Save-only actual own-authority diagnostic projection",
       "SaveGateGuard::validate_fenced_reenrollment(&self,objects:&[StoreObjectEnrollment],proofs:&[JoinedProducerProof])->Result<(),Status>",
-      "SaveGateGuard::reenroll_fenced_objects(&mut self,objects:&[StoreObjectEnrollment],current:&[StoreCurrentSelection],proofs:&[JoinedProducerProof])->Result<(),Status>"
+      "SaveGateGuard::reenroll_fenced_objects(&mut self,objects:&[StoreObjectEnrollment],current:&[StoreCurrentSelection],proofs:&[JoinedProducerProof])->Result<(),Status>",
+      "SaveGateGuard::publish_original_delivery(&mut self,claim:&NativeExecutionClaim,outcome:NativeSaveDeliveryOutcome<'_>)->Result<(),Status>",
+      "SaveIssuer::retain_joined_proof(&self,proof:&JoinedProducerProof)->Result<JoinedProducerProof,Status>",
+      "SaveGateGuard::admit_bound_source(&self,source:&BoundNativeSource)->Result<(),Status>"
     ],
     "fixture_observation_and_failure_controls": [
       "pub enum NativeSaveCounter { Intent, Document, TextGeneration, ViewVersion, FrameJoin, StatusVersion, SourceBinding, OriginalRecord }",
@@ -726,7 +737,7 @@
       "FixtureController::release_native_save(&self,pause:&NativeSavePause)->Result<(),Status>",
       "NativeSavePause::wait_until_entered(&self,timeout_ms:u64)->Result<NativeSaveBarrierView,Status>",
       "NativeSavePause::wait_until_settled(&self,timeout_ms:u64)->Result<NativeSaveBarrierView,Status>",
-      "pub enum NativeSavePausePoint { BeforeActivation, BeforeKeyDelivery, BeforePresentFreeze, BeforeFramePublish }",
+      "pub enum NativeSavePausePoint { BeforeActivation, BeforeKeyDelivery, BeforePresentFreeze, BeforeFramePublish, BeforeEntryAdmission }",
       "pub struct NativeSaveBarrierView { pub entered:bool, pub settled:bool, pub session:u64, pub instance:u64, pub pin:u64, pub point:NativeSavePausePoint }"
     ]
   },
@@ -748,9 +759,10 @@
     "NativeSaveDeliveryStage": "pub enum NativeSaveDeliveryStage { Authorize, Validate, BuildReply, Expose }",
     "NativeSaveDeliveryObservation": "pub struct NativeSaveDeliveryObservation { pub stage:NativeSaveDeliveryStage, pub status:Status, pub authorized_attempt:bool, pub active:bool, pub retired:bool, pub pending_retained:bool, pub launch_retained:bool, pub bootstrap_delivered:bool, pub confirm_delivered:bool }",
     "InactiveSaveDesktopObservation": "pub struct InactiveSaveDesktopObservation { pub endpoint_requests:[Envelope;3], pub endpoint_replies:[Envelope;3], pub origin_status:Result<(),Status>, pub bootstrap_status:Result<(),Status>, pub grants_lease_status:Result<(),Status> }",
-    "NativeJoinObservation": "pub struct NativeJoinObservation { pub producer_id:u64, pub origin_id:u64, pub kind:ProducerKind, pub outcome:JoinOutcome }",
+    "NativeJoinObservation": "pub struct NativeJoinObservation { pub producer_id:u64, pub producer_generation:u64, pub origin_id:u64, pub kind:ProducerKind, pub native_pid:u32, pub rust_thread_id:String, pub outcome:JoinOutcome } // diagnostic only; thread ID UTF8<=64 bytes",
     "NativePendingOriginalPhase": "pub enum NativePendingOriginalPhase { AllocationUnknown, CommitUnknown }",
-    "NativePendingOriginalObservation": "pub struct NativePendingOriginalObservation { pub original_actor:EditorActorV0, pub object_id:u64, pub object_generation:u64, pub intent_id:u64, pub operation_id:Option<u64>, pub original_backend_epoch:u64, pub phase:NativePendingOriginalPhase }"
+    "NativePendingOriginalObservation": "pub struct NativePendingOriginalObservation { pub original_actor:EditorActorV0, pub object_id:u64, pub object_generation:u64, pub intent_id:u64, pub operation_id:Option<u64>, pub original_backend_epoch:u64, pub phase:NativePendingOriginalPhase }",
+    "NativeSaveDeliveryOutcome": "pub enum NativeSaveDeliveryOutcome<'a> { ReplyLost, AllocateRejected { wire:&'a Envelope }, NoAllocation { joined:&'a [JoinedProducerProof] } }"
   },
   "desktop_opaque_rules": {
     "types": [
@@ -866,7 +878,7 @@
       "original_ticket_rows_domain": 96
     }
   },
-  "store_rust_api": "// Normative Rust2021 signature surface only; bodies/constructors remain private.\n// Existing EditorActorV0, SelectedArtifactV0, EditorSaveAllocationV0,\n// EditorSaveBindingV0, ObjectDescriptor, Envelope and StoreStatus reused.\n// Desktop-defined opaque types, names aligned with Desktop proposer:\n// NativeSaveEnrollment, SaveIssuer, SaveSelectionPin, PendingSaveInstance,\n// SaveActivationStamp, NativeSaveBindings, DesktopSaveLaunch, SaveOrigin,\n// NativeSaveIntent, NativeDraftSnapshot, BoundNativeSource, NativeSaveCall,\n// NativeSaveEntry, NativeSaveGuard, NativeSaveOriginalGuard, SaveGateGuard.\n// These are concrete actual-owner proofs, never caller traits or callbacks.\n\npub struct NativeSaveFixtureProfile {\n pub origin_ms:u64, pub initial_objects:Vec<InitialObject>,\n pub fixture_signing_seed:[u8;32], pub fixture_key_id:String,\n} // native Save only: 1..=3 objects, each ASCII<=4096, max2 actual Desktop sessions\n\npub struct PreparedNativeSaveStore { /* private actual host/controller/Core/issuer */ }\npub struct NativeSaveInitFailure { /* private real witness/issuer/Core/root owners */ }\npub struct NativeSaveExposeFailure { /* private complete pending/setup/tag/Core owners */ }\npub struct NativeSaveActivation { /* private actual Core/Grant/tag/owned stamp */ }\npub struct PairedNativeSaveLaunch { /* private Desktop carrier + actual Store endpoint */ }\npub struct NativeAllocatedOperation { /* private original ticket/record/delivered claim */ }\npub struct NativeDraftSource { /* private real Data/intent/snapshot/allocation/bound proof */ }\npub struct NativeDraftWriteLease { /* private actual source/Core/Grant/intent */ }\npub struct NativeSelectedRead { /* private immutable bytes + live selected-read query */ }\npub struct NativeReceiptRead { /* private original binding + actual lookup authority */ }\npub struct RegisteredNativeSave { /* private claimed-once original call/Core/Grant */ }\npub struct NativeSaveReply { /* private actual wire, leases, original/publisher owners */ }\npub struct OriginalNativeSave { /* private actual one execution ticket and Core lineage */ }\npub struct NativeSaveRecovery { /* private original-only lookup owner; no mutation */ }\npub struct QuiescedNativeSaveOwner { /* nonClone actual Core/issuer/inventory/minima */ }\npub struct NativeSaveReopenFailure { pub error: FixtureError, pub owner: QuiescedNativeSaveOwner }\n\nimpl StoreFixture {\n pub fn prepare_native_save(root:&Path, profile:NativeSaveFixtureProfile,\n   witness:RegistryWitness, enrollment:NativeSaveEnrollment)\n   -> Result<PreparedNativeSaveStore,NativeSaveInitFailure>;\n pub fn reopen_native_save(owner:QuiescedNativeSaveOwner)\n   -> Result<PreparedNativeSaveStore,NativeSaveReopenFailure>;\n}\nimpl PreparedNativeSaveStore {\n pub fn host(&self)->&StoreHost;\n pub fn controller(&self)->&FixtureController;\n pub fn pin_selection(&self, chrome:&PeerContext, object:u64, ttl_ms:u64)\n   -> Result<SaveSelectionPin,StoreStatus>; // captures Instant before validation\n pub fn activate_save(&self,pending:&PendingSaveInstance)\n   -> Result<NativeSaveActivation,NativeSaveExposeFailure>;\n}\nimpl NativeSaveActivation {\n pub fn pair_launch(&self,launch:&mut Option<DesktopSaveLaunch>)\n   -> Result<PairedNativeSaveLaunch,NativeSaveExposeFailure>;\n}\nimpl PairedNativeSaveLaunch {\n pub fn desktop(&self)->&DesktopSaveLaunch;\n pub fn endpoint(&self)->&EditorEndpoint;\n}\nimpl StoreHost {\n pub fn register_native_save(&self, endpoint:&EditorEndpoint, call:NativeSaveCall)\n   -> Result<RegisteredNativeSave,NativeSaveRegistrationFailure>;\n pub fn execute_native_save(&self, original:&RegisteredNativeSave)\n   -> Result<NativeSaveReply,StoreStatus>; // once, actual typed368 control\n pub fn source_for_intent(&self, endpoint:&EditorEndpoint,\n   allocation:&NativeAllocatedOperation, intent:&NativeSaveIntent)\n   -> Result<NativeDraftSource,StoreStatus>; // no caller body/hash/generation\n pub fn selected_lease(&self, query:&RegisteredNativeSave, descriptor:&ObjectDescriptor)\n   -> Result<NativeSelectedRead,StoreStatus>;\n pub fn receipt_lease(&self, query:&RegisteredNativeSave, descriptor:&ObjectDescriptor)\n   -> Result<NativeReceiptRead,StoreStatus>;\n pub fn observe_original(&self, lookup:NativeSaveCall, original:&OriginalNativeSave)\n   -> Result<NativeOriginalReply,NativeSaveRegistrationFailure>;\n pub fn recover_original(&self, lookup:NativeSaveCall, owner:&NativeSaveRecovery)\n   -> Result<NativeOriginalReply,NativeSaveRegistrationFailure>;\n pub fn native_save_producers(&self)->Result<Vec<ProducerId>,StoreStatus>;\n pub fn join_native_save_finished(&self,id:&ProducerId)\n   -> Result<JoinedProducerProof,StoreStatus>;\n}\nimpl RegisteredNativeSave {\n pub fn original(&self)->&OriginalNativeSave; // real owner exists before execution/Err\n}\nimpl OriginalNativeSave {\n pub fn observation_origin(&self)->&OriginalRecoveryOrigin;\n}\nimpl NativeSaveRecovery { pub fn origin(&self)->&OriginalRecoveryOrigin; }\nimpl NativeSaveReply {\n pub fn wire(&self)->&Envelope;\n pub fn producers(&self)->&[ProducerId];\n pub fn selected(&self)->Option<&NativeSelectedRead>;\n pub fn take_editor(&mut self)->Result<NativeEditor,StoreStatus>; // once-only actual Core initialization\n pub fn receipt(&self)->Option<&NativeReceiptRead>;\n pub fn allocation(&self)->Option<&NativeAllocatedOperation>;\n pub fn original(&self)->&OriginalNativeSave;\n pub fn into_parts(self)->NativeSaveReplyParts;\n}\nimpl NativeAllocatedOperation {\n pub fn observation(&self)->EditorSaveAllocationV0; // historical data, not claim minting\n}\nimpl NativeDraftSource {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn bound(&self)->&BoundNativeSource;\n pub fn write_lease(&self)->Result<NativeDraftWriteLease,StoreStatus>;\n}\nimpl NativeDraftWriteLease {\n pub fn copy_from(&self,offset:u32,input:&[u8])->Result<(),StoreStatus>;\n}\nimpl NativeSelectedRead {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;\n}\nimpl NativeReceiptRead {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;\n}\n// Closed observable outcomes. Values cannot construct the opaque owners above.\npub enum NativeOriginalObservation {\n AllocationPending, // no operation/source/receipt claim, content dispatch count0\n NoAllocation,     // actual owned completion+joins and validated no-allocation proof\n AllocationRetained { allocation:EditorSaveAllocationV0, commit_dispatched:bool },\n CommitPending { binding:EditorSaveBindingV0 },\n Receipt { binding:EditorSaveBindingV0, receipt:NativeReceiptRead },\n}\npub struct NativeOriginalReply { /* original exact wire/observation + actual lookup IDs */ }\nimpl NativeOriginalReply {\n pub fn wire(&self)->&Envelope; // actual lookup9/10 or7/8 correlation\n pub fn original_wire(&self)->Option<&Envelope>;\n pub fn allocation(&self)->Option<&NativeAllocatedOperation>; // actual once-delivery claim\n pub fn take_allocation(&mut self)->Option<NativeAllocatedOperation>;\n pub fn observation(&self)->&NativeOriginalObservation;\n pub fn producers(&self)->&[ProducerId];\n}\nimpl FixtureController {\n pub fn recovery_for_original(&self,chrome:&PeerContext,original:&OriginalNativeSave)\n   -> Result<NativeSaveRecovery,StoreStatus>;\n pub fn pause_native_save(&self,endpoint:&EditorEndpoint,point:PausePoint)\n   -> Result<PauseToken,FixtureError>;\n pub fn drop_next_native_reply(&self,endpoint:&EditorEndpoint)->Result<(),FixtureError>;\n pub fn quiesce_native_save(&self,timeout_ms:u64)\n   -> Result<QuiescedNativeSaveOwner,FixtureError>;\n // Existing advance_time/seed_counter/fail_next_io/stop_at_phase/release/evidence reused,\n // with native-specific admission/ownership enforced rather than native_only bypass.\n}\nimpl QuiescedNativeSaveOwner {\n pub fn fence_snapshot(&self)->NativeSaveFenceSnapshot; // diagnostic, not token minting\n}\nimpl NativeSaveInitFailure { pub fn status(&self)->StoreStatus; pub fn observation(&self)->NativeSaveInitObservation; }\nimpl NativeSaveExposeFailure { pub fn status(&self)->StoreStatus; pub fn observation(&self)->NativeSaveExposeObservation; }\npub struct NativeSaveRegistrationFailure { /* actual consumed call/Core + held producers */ }\nimpl NativeSaveRegistrationFailure {\n pub fn status(&self)->StoreStatus;\n pub fn call(&self)->&NativeSaveCall;\n pub fn original(&self)->Option<&OriginalNativeSave>;\n pub fn producers(&self)->&[ProducerId];\n}\n\n\n// Closed move-out carrier lets the real editor retain original on all paths.\npub type NativeSaveInitObservation = InitObservation;\npub type NativeSaveExposeObservation = ExposeObservation;\npub struct NativeSaveReplyParts {\n pub wire:Envelope, pub original:OriginalNativeSave,\n pub allocation:Option<NativeAllocatedOperation>, pub selected:Option<NativeSelectedRead>,\n pub receipt:Option<NativeReceiptRead>, pub editor:Option<NativeEditor>,\n pub producers:Vec<ProducerId>,\n}\n\n// Exact closed diagnostic-only fields. Vec bounds checked before iteration.\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum OriginalTicketKind { Allocate, Commit }\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum OriginalTicketCompletion { Pending, JoinedReturned, JoinedPanicked }\npub struct OriginalTicketObservation {\n pub original_request:[u8;88], pub origin_id:u64, pub intent_id:u64,\n pub kind:OriginalTicketKind, pub actor:EditorActorV0,\n pub object_id:u64, pub original_epoch:u64,\n pub allocation:Option<EditorSaveAllocationV0>, pub binding:Option<EditorSaveBindingV0>,\n pub closed:bool, pub commit_dispatched:bool, pub completion:OriginalTicketCompletion,\n}\npub struct NativeSaveFenceSnapshot {\n pub schema_version:u32, // 1\n pub base:FenceSnapshot, // <=3 objects; held service+IO <=64 total; IO<=2\n pub original_tickets:Vec<OriginalTicketObservation>, // <=96, no body/stack trace\n}\npub use desktop_service::editor_dev::NativeJoinObservation; // actual roster owner defines it\n\nimpl FixtureController { pub fn probe_inactive_native_save(&self,chrome:&PeerContext,pending:&PendingSaveInstance,pause:&NativeSavePause)->Result<InactiveSaveStoreObservation,StoreStatus>; }\npub struct InactiveSaveStoreObservation { pub grant_status:Result<(),StoreStatus> }\nimpl StoreHost { pub fn start_native_save(&self,original:&RegisteredNativeSave)->Result<NativeSaveExecution,StoreStatus>; }\npub struct NativeSaveExecution { /* private actual original, ready slot and charged producer owners */ }\nimpl NativeSaveExecution { pub fn poll_once(&self)->Result<Option<NativeSaveReply>,StoreStatus>; }\n",
+  "store_rust_api": "// Normative Rust2021 signature surface only; bodies/constructors remain private.\n// Existing EditorActorV0, SelectedArtifactV0, EditorSaveAllocationV0,\n// EditorSaveBindingV0, ObjectDescriptor, Envelope and StoreStatus reused.\n// Desktop-defined opaque types, names aligned with Desktop proposer:\n// NativeSaveEnrollment, SaveIssuer, SaveSelectionPin, PendingSaveInstance,\n// SaveActivationStamp, NativeSaveBindings, DesktopSaveLaunch, SaveOrigin,\n// NativeSaveIntent, NativeDraftSnapshot, BoundNativeSource, NativeSaveCall,\n// NativeSaveEntry, NativeSaveGuard, NativeSaveOriginalGuard, SaveGateGuard.\n// These are concrete actual-owner proofs, never caller traits or callbacks.\n\npub struct NativeSaveFixtureProfile {\n pub origin_ms:u64, pub initial_objects:Vec<InitialObject>,\n pub fixture_signing_seed:[u8;32], pub fixture_key_id:String,\n} // native Save only: 1..=3 objects, each ASCII<=4096, max2 actual Desktop sessions\n\npub struct PreparedNativeSaveStore { /* private actual host/controller/Core/issuer */ }\npub struct NativeSaveInitFailure { /* private real witness/issuer/Core/root owners */ }\npub struct NativeSaveExposeFailure { /* private complete pending/setup/tag/Core owners */ }\npub struct NativeSaveActivation { /* private actual Core/Grant/tag/owned stamp */ }\npub struct PairedNativeSaveLaunch { /* private Desktop carrier + actual Store endpoint */ }\npub struct NativeAllocatedOperation { /* private original ticket/record/delivered claim */ }\npub struct NativeDraftSource { /* private real Data/intent/snapshot/allocation/bound proof */ }\npub struct NativeDraftWriteLease { /* private actual source/Core/Grant/intent */ }\npub struct NativeSelectedRead { /* private immutable bytes + live selected-read query */ }\npub struct NativeReceiptRead { /* private original binding + actual lookup authority */ }\npub struct RegisteredNativeSave { /* private claimed-once original call/Core/Grant */ }\npub struct NativeSaveReply { /* private actual wire, leases, original/publisher owners */ }\npub struct OriginalNativeSave { /* private actual one execution ticket and Core lineage */ }\npub struct NativeSaveRecovery { /* private original-only lookup owner; no mutation */ }\npub struct QuiescedNativeSaveOwner { /* nonClone actual Core/issuer/inventory/minima */ }\npub struct NativeSaveReopenFailure { pub error: FixtureError, pub owner: QuiescedNativeSaveOwner }\n\nimpl StoreFixture {\n pub fn prepare_native_save(root:&Path, profile:NativeSaveFixtureProfile,\n   witness:RegistryWitness, enrollment:NativeSaveEnrollment)\n   -> Result<PreparedNativeSaveStore,NativeSaveInitFailure>;\n pub fn reopen_native_save(owner:QuiescedNativeSaveOwner)\n   -> Result<PreparedNativeSaveStore,NativeSaveReopenFailure>;\n}\nimpl PreparedNativeSaveStore {\n pub fn host(&self)->&StoreHost;\n pub fn controller(&self)->&FixtureController;\n pub fn pin_selection(&self, chrome:&PeerContext, object:u64, ttl_ms:u64)\n   -> Result<SaveSelectionPin,StoreStatus>; // captures Instant before validation\n pub fn activate_save(&self,pending:&PendingSaveInstance)\n   -> Result<NativeSaveActivation,NativeSaveExposeFailure>;\n}\nimpl NativeSaveActivation {\n pub fn pair_launch(&self,launch:&mut Option<DesktopSaveLaunch>)\n   -> Result<PairedNativeSaveLaunch,NativeSaveExposeFailure>;\n}\nimpl PairedNativeSaveLaunch {\n pub fn desktop(&self)->&DesktopSaveLaunch;\n pub fn endpoint(&self)->&EditorEndpoint;\n}\nimpl StoreHost {\n pub fn register_native_save(&self, endpoint:&EditorEndpoint, call:NativeSaveCall)\n   -> Result<RegisteredNativeSave,NativeSaveRegistrationFailure>;\n pub fn execute_native_save(&self, original:&RegisteredNativeSave)\n   -> Result<NativeSaveReply,StoreStatus>; // once, actual typed368 control\n pub fn source_for_intent(&self, endpoint:&EditorEndpoint,\n   allocation:&NativeAllocatedOperation, intent:&NativeSaveIntent)\n   -> Result<NativeDraftSource,StoreStatus>; // no caller body/hash/generation\n pub fn selected_lease(&self, query:&RegisteredNativeSave, descriptor:&ObjectDescriptor)\n   -> Result<NativeSelectedRead,StoreStatus>;\n pub fn receipt_lease(&self, query:&RegisteredNativeSave, descriptor:&ObjectDescriptor)\n   -> Result<NativeReceiptRead,StoreStatus>;\n pub fn observe_original(&self, lookup:NativeSaveCall, original:&OriginalNativeSave)\n   -> Result<NativeOriginalReply,NativeSaveRegistrationFailure>;\n pub fn recover_original(&self, lookup:NativeSaveCall, owner:&NativeSaveRecovery)\n   -> Result<NativeOriginalReply,NativeSaveRegistrationFailure>;\n pub fn native_save_producers(&self)->Result<Vec<ProducerId>,StoreStatus>;\n pub fn join_native_save_finished(&self,id:&ProducerId)\n   -> Result<JoinedProducerProof,StoreStatus>;\n}\nimpl RegisteredNativeSave {\n pub fn original(&self)->&OriginalNativeSave; // real owner exists before execution/Err\n}\nimpl OriginalNativeSave {\n pub fn observation_origin(&self)->&OriginalRecoveryOrigin;\n}\nimpl NativeSaveRecovery { pub fn origin(&self)->&OriginalRecoveryOrigin; }\nimpl NativeSaveReply {\n pub fn wire(&self)->&Envelope;\n pub fn producers(&self)->&[ProducerId];\n pub fn selected(&self)->Option<&NativeSelectedRead>;\n pub fn take_editor(&mut self)->Result<NativeEditor,StoreStatus>; // once-only actual Core initialization\n pub fn receipt(&self)->Option<&NativeReceiptRead>;\n pub fn allocation(&self)->Option<&NativeAllocatedOperation>;\n pub fn original(&self)->&OriginalNativeSave;\n pub fn into_parts(self)->NativeSaveReplyParts;\n}\nimpl NativeAllocatedOperation {\n pub fn observation(&self)->EditorSaveAllocationV0; // historical data, not claim minting\n}\nimpl NativeDraftSource {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn bound(&self)->&BoundNativeSource;\n pub fn write_lease(&self)->Result<NativeDraftWriteLease,StoreStatus>;\n}\nimpl NativeDraftWriteLease {\n pub fn copy_from(&self,offset:u32,input:&[u8])->Result<(),StoreStatus>;\n}\nimpl NativeSelectedRead {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;\n}\nimpl NativeReceiptRead {\n pub fn descriptor(&self)->ObjectDescriptor;\n pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;\n}\n// Closed observable outcomes. Values cannot construct the opaque owners above.\npub enum NativeOriginalObservation {\n AllocationPending, // no operation/source/receipt claim, content dispatch count0\n NoAllocation,     // actual owned completion+joins and validated no-allocation proof\n AllocationRetained { allocation:EditorSaveAllocationV0, commit_dispatched:bool },\n CommitPending { binding:EditorSaveBindingV0 },\n Receipt { binding:EditorSaveBindingV0, receipt:NativeReceiptRead },\n}\npub struct NativeOriginalReply { /* original exact wire/observation + actual lookup IDs */ }\nimpl NativeOriginalReply {\n pub fn wire(&self)->&Envelope; // actual lookup9/10 or7/8 correlation\n pub fn original_wire(&self)->Option<&Envelope>;\n pub fn allocation(&self)->Option<&NativeAllocatedOperation>; // actual once-delivery claim\n pub fn take_allocation(&mut self)->Option<NativeAllocatedOperation>;\n pub fn observation(&self)->&NativeOriginalObservation;\n pub fn producers(&self)->&[ProducerId];\n}\nimpl FixtureController {\n pub fn recovery_for_original(&self,chrome:&PeerContext,original:&OriginalNativeSave)\n   -> Result<NativeSaveRecovery,StoreStatus>;\n pub fn pause_native_save(&self,endpoint:&EditorEndpoint,point:PausePoint)\n   -> Result<PauseToken,FixtureError>;\n pub fn drop_next_native_reply(&self,endpoint:&EditorEndpoint)->Result<(),FixtureError>;\n pub fn quiesce_native_save(&self,timeout_ms:u64)\n   -> Result<QuiescedNativeSaveOwner,FixtureError>;\n // Existing advance_time/seed_counter/fail_next_io/stop_at_phase/release/evidence reused,\n // with native-specific admission/ownership enforced rather than native_only bypass.\n}\nimpl QuiescedNativeSaveOwner {\n pub fn fence_snapshot(&self)->NativeSaveFenceSnapshot; // diagnostic, not token minting\n}\nimpl NativeSaveInitFailure { pub fn status(&self)->StoreStatus; pub fn observation(&self)->NativeSaveInitObservation; }\nimpl NativeSaveExposeFailure { pub fn status(&self)->StoreStatus; pub fn observation(&self)->NativeSaveExposeObservation; }\npub struct NativeSaveRegistrationFailure { /* actual consumed call/Core + held producers */ }\nimpl NativeSaveRegistrationFailure {\n pub fn status(&self)->StoreStatus;\n pub fn call(&self)->&NativeSaveCall;\n pub fn original(&self)->Option<&OriginalNativeSave>;\n pub fn producers(&self)->&[ProducerId];\n}\n\n\n// Closed move-out carrier lets the real editor retain original on all paths.\npub type NativeSaveInitObservation = InitObservation;\npub type NativeSaveExposeObservation = ExposeObservation;\npub struct NativeSaveReplyParts {\n pub wire:Envelope, pub original:OriginalNativeSave,\n pub allocation:Option<NativeAllocatedOperation>, pub selected:Option<NativeSelectedRead>,\n pub receipt:Option<NativeReceiptRead>, pub editor:Option<NativeEditor>,\n pub producers:Vec<ProducerId>,\n}\n\n// Exact closed diagnostic-only fields. Vec bounds checked before iteration.\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum OriginalTicketKind { Allocate, Commit }\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum OriginalTicketCompletion { Pending, JoinedReturned, JoinedPanicked }\npub struct OriginalTicketObservation {\n pub original_request:[u8;88], pub origin_id:u64, pub intent_id:u64,\n pub kind:OriginalTicketKind, pub actor:EditorActorV0,\n pub object_id:u64, pub original_epoch:u64,\n pub allocation:Option<EditorSaveAllocationV0>, pub binding:Option<EditorSaveBindingV0>,\n pub closed:bool, pub commit_dispatched:bool, pub completion:OriginalTicketCompletion,\n}\npub struct NativeSaveFenceSnapshot {\n pub schema_version:u32, // 1\n pub base:FenceSnapshot, // <=3 objects; held service+IO <=64 total; IO<=2\n pub original_tickets:Vec<OriginalTicketObservation>, // <=96, no body/stack trace\n}\npub use desktop_service::editor_dev::NativeJoinObservation; // actual roster owner defines it\n\nimpl FixtureController { pub fn probe_inactive_native_save(&self,chrome:&PeerContext,pending:&PendingSaveInstance,pause:&NativeSavePause)->Result<InactiveSaveStoreObservation,StoreStatus>; }\npub struct InactiveSaveStoreObservation { pub grant_status:Result<(),StoreStatus> }\nimpl StoreHost { pub fn start_native_save(&self,original:&RegisteredNativeSave)->Result<NativeSaveExecution,StoreStatus>; }\npub struct NativeSaveExecution { /* private actual original, ready slot and charged producer owners */ }\nimpl NativeSaveExecution { pub fn poll_once(&self)->Result<Option<NativeSaveReply>,StoreStatus>; }\n\n// Trusted failure injection requires the actual still-exclusive fenced owner.\nimpl StoreFixture { pub fn corrupt_native_fenced(owner:&mut QuiescedNativeSaveOwner,object:u64,fault:StorageFault)->Result<(),FixtureError>; }\n\n// Trusted read-only fixture recording; these values cannot construct native owners.\npub enum NativeSaveArtifactKind { SelectedTextCopy, DraftSourceFreeze, ReceiptCopy }\npub struct NativeSaveArtifactCapture {\n pub capture_id:u64, pub kind:NativeSaveArtifactKind, pub actor:EditorActorV0,\n pub object_id:u64, pub object_generation:u64, pub original_backend_epoch:u64,\n pub original_request:[u8;88], pub original_reply:Option<[u8;88]>,\n pub capture_request:[u8;88], pub capture_reply:Option<[u8;88]>,\n pub operation_id:Option<u64>, pub intent_id:Option<u64>,\n pub descriptor:ObjectDescriptor, pub bytes:Vec<u8>,\n}\nimpl FixtureController { pub fn native_save_artifacts(&self)->Result<Vec<NativeSaveArtifactCapture>,FixtureError>; }\n",
   "store_state_machine": [
     [
       "ApprovedSave",
@@ -1021,6 +1033,353 @@
     "fence_scope": "Whole Store Core fence intentionally closes all objects/grants in that Core; it never closes or joins another Core merely because they share the same authority/roster. A-stall/B-unrelated noninterference is tested before deliberate whole-Core shutdown. Every captured ID/proof is matched to this actual private Core association; historical numeric rows cannot certify current joins.",
     "reenrollment_after_fence": "Initial enroll_objects never overwrites an enrolled namespace. validate_fenced_reenrollment takes the exact1..3 previously enrolled object/owner/generation set, each epoch checked old+1, and actual JoinedProducerProofs for every captured Core-associated producer; same private issuer/scope must already be fenced with no owned live reservations/handles. It validates every bound/epoch/counter/proof before new-epoch or auto-recovery IO. Core fence closes new observations as well as mutations, so no new own producer can invalidate this check; another Core remains independent. After bounded authenticated complete namespace recovery and actual new-epoch journal publication/readback, reenroll_fenced_objects repeats that same held-Gate check, validates current owner/object/gen/epoch/revision/hash, and atomically updates only this fenced issuer lineage once. Old grants/pins/origins/docs stay retired, original actors/epochs/receipts unchanged. Fresh approval is required. Failure preserves the same Core-bound token and closed namespace, including any uncertain already-started epoch IO; no fresh grants or second namespace owner. Successful reenrollment cannot be called twice or by public diagnostic values.",
     "bounded_aliases": "NonClone opaque holders may have legitimate internal references to one actual issued lifetime, charged once by real rows until all required aliases leave. Existing authorized copied plaintext/snapshot bytes may remain as bounded observations after retirement; no new service lease access or authority is implied. NativeSaveExecution adds no new unbounded registry: one ready slot per original/query within existing64/96/48 domains. Query64 saturation uses retained real calls without forcing64 source leases through the32 cap. Source/receipt pruning preserves complete historical bindings/receipt/intent identity and16-perobject durable history.",
-    "assertion_dispatch": "Exact18 names and behavior/denial/failure requirements are frozen here. Before implementation, assertion author derives exact fixture/epoch/row/file counts and bound-safe emission schema from executable source, returns actual gates/exclusion checks and missing-API RED; independent reviewer checks that source/inventory and valid allowed witnesses. No guessed fixture count or docs-only success is acceptance. Root registers all compiled-source closures after reviewed codegen and retains every current53 CI stage; planned runtime task adds coverage rather than removing gates."
+    "assertion_dispatch": "Exact18 names and behavior/denial/failure requirements are frozen here. Before implementation, assertion author derives the exact source-fixed inventory and complete-runtime multiplicity rules defined by recording_and_gate_obligations.inventory_count_definition, with bound-safe emission schema from executable source, returns actual gates/exclusion checks and missing-API RED; independent reviewer checks that source/inventory and valid allowed witnesses. No guessed fixture count or docs-only success is acceptance. Root registers all compiled-source closures after reviewed codegen and retains every current53 CI stage; planned runtime task adds coverage rather than removing gates.",
+    "owned_selection_for_fresh_approval": "Save-mode register_store_session establishes the authentic owner/session/application/manifest and initial owned object, not a one-object Save authorization. The same private Core enrolls1..3 object/owner/generation tuples. pin_selection(chrome,object,ttl) accepts only an object actually enrolled in that Core with matching owner/session authority, reads actual current selection under Core locks, and issues the real pin. Existing Selector PrepareLaunch contains application/mask but no object-ID field; prepare_save_preview binds the genuine session-scoped Selector ticket to that real pin and displays exact object/generation/revision/hash in schema3 preview. Confirm requires a fresh genuine release/Enter on that exact preview; a pin or requested numeric object alone grants nothing. Fresh C103 with the same owner as retired A101 is therefore reachable through actual input+pin+preview+approval without changing old A original history. A foreign owner/Core pin remains Denied; legacy Read single-object registration behavior stays unchanged.",
+    "entry_admission_pause": "NativeSavePausePoint::BeforeEntryAdmission is Save-mode-only. pause_next_native_save(session,point) arms exactly the next actual begin_save_* entry in that session; at most32 held barriers. The new entry captures its original deadline, reserves and installs its actual Desktop dispatcher/supervisor pair before the dispatcher signals entered and waits immediately before enforcing Gate admission. The independent supervisor publishes the fixed-deadline result while the dispatcher is paused. Release cannot renew entry/intent deadlines; expired original produces no late call/permit/IO. Actual installed rows, including a finished supervisor, remain charged until actual joined handles; dropping entry/barrier or timeout cannot free them. Arm then begin consumes the one armed slot, permitting32 authentic retained entry pairs to saturate shared64 without Store data/query/ticket caps masking the producer limit. No fake handles or application threads count as service producers. Old NativeRead pause and legacy point semantics remain unchanged.",
+    "actual_join_metadata": "NativeJoinObservation adds actual producer_generation, native_pid and rust_thread_id from the genuine producer row/held JoinHandle before that handle is consumed by join. native_pid is std::process::id() of the process owning the actual thread, not an OS thread ID; rust_thread_id is the bounded Debug form of that actual handle.thread().id(), never the test caller/current thread or a public supplied string. Producer IDs are monotonic checked, never recycled; each actual issued row has generation1, retained in its private proof. The opaque JoinedProducerProof retains these metadata plus actual origin/kind/outcome after row removal, and verify_join_for matches same private authority/id/origin/kind/generation before returning a diagnostic projection. Store maps that verified actual projection into existing ProducerFence fields, with Core association/request/object and actual completed_join/outcome; public projection cannot certify joins or reopen. Reserved but never-installed rows have no handle metadata and cannot mint completed-join proofs.",
+    "native_fenced_failure_injection": "StoreFixture::corrupt_native_fenced requires a mutable borrow of the actual still-exclusive QuiescedNativeSaveOwner and an object genuinely in its captured1..3 namespace. It revalidates fenced Core identity and zero owned live reservations/handles before using the existing fourteen StorageFault scenarios; wrong object/owner or repeated/open owner fails without disk mutation. This trusted failure hook does not issue grants, alter actor/generation/epoch counters, fabricate receipts/proofs, or substitute for authentic disk recovery. Reopen success/failure still consumes/returns the same real owner. Corrupted raw fixture files are recorded through bounded nofollow reads; an intentionally injected symlink is observed as a link/type failure and never traversed or exported as an artifact symlink. Artifact outputs retain their no-symlink invariant.",
+    "store_diagnostic_capacity": "Fixed Save construction uses Store exchange history131072 and actual IO ledger65536 records; old modes retain256/1024. Charge/check before growth, no truncation, sampling, history eviction or post-growth acceptance. These capacities are finite upper bounds, not observed event counts. Forty-eight real Allocate+Commit operation histories can exceed legacy IO1024; proving genuine96 original mutation tickets requires their actual completed Allocate+Commit executions, independently derived complete event inventory, immutable old bindings/receipts and durable sixteen-per-object limit. Filling only Allocate rows proves neither96 original tickets nor Commit history. All real records/rawfiles remain within the already-frozen per-case and aggregate recording ceilings.",
+    "actual_app_chain_artifacts": "The trusted Store FixtureController exposes only a bounded read-only historical projection native_save_artifacts, with at most256 complete capture rows per actual Core; each Text64 raw buffer<=4160, each receipt exactly176. It has no caller-selected operation/object, issuer, live lease, app backend or status publisher. Private actual producers append at legitimate successful full NativeSelectedRead copy (offset0/full descriptor length), actual validated/sealed source freeze before permit, and legitimate successful full NativeReceiptRead copy (offset0/176). Initial read includes its actual text64/header/body; source uses the exact real frozen Data wire buffer, not reencoded ObjectEvidence. Receipt uses actual copied immutable lease bytes. Rows retain checked monotonic capture ID, actual original actor/object/generation/backend epoch, genuine original request/reply if already available, actual capture request/reply if already available, immutable operation/intent association and actual descriptor. Source freeze capture_reply isNone until that transition has really replied; no future/guessed wire. Original and observation request IDs remain distinct for recovered receipts. Copy bytes are historical observations only and cannot initialize docs, bind sources, publish Saved, create original authority or bypass retired service admission. A getter after retirement may expose already captured bounded historical bytes but never rereads a revoked lease. Wrong/partial/denied copies do not manufacture a full capture. Reserve capture ID/row/byte budget before growth, full copy exposure or source permit; exhaustion returnsExhausted without changing output or issuing permit and retains prior complete rows. No sampling, truncation, eviction or repeated-capture coalescing. Existing modes do not capture or gain authority merely from compiling Save. The integrated app leg must correlate these producer-captured raw artifacts to its genuine input, current private draft/frame, typed originals and actual Store disk transitions. Separate direct-native keyboard/control legs remain explicitly labeled enforcement witnesses and cannot be misattributed to the app original chain.",
+    "protected_pixel_profile": {
+      "font": {
+        "path": "services/desktop/tests/fixtures/ascii8x16_v0.bin",
+        "byte_len": 1536,
+        "sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64"
+      },
+      "protected_background_bgra": [
+        224,
+        224,
+        224,
+        255
+      ],
+      "glyph_foreground_bgra": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "host_fixture_indicator": {
+        "bounds_half_open": [
+          8,
+          8,
+          24,
+          24
+        ],
+        "border_bgra": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "interior_bgra": [
+          0,
+          192,
+          0,
+          255
+        ],
+        "meaning": "Existing host fixture marker, never Saved/permission/runtime containment evidence."
+      },
+      "title": {
+        "literal": "HOST STORE",
+        "x": 40,
+        "y": 8
+      },
+      "pending_banner": {
+        "x": 8,
+        "y": 24,
+        "none": "",
+        "commit_only": "SAVE UNKNOWN",
+        "allocation_only": "ALLOCATION UNKNOWN",
+        "mixed": "SAVE UNKNOWN | ALLOCATION UNKNOWN"
+      },
+      "current_label": {
+        "x": 8,
+        "y": 536,
+        "phase_literals": {
+          "Loaded": "LOADED",
+          "Unsaved": "UNSAVED",
+          "AllocationPending": "SAVING",
+          "AllocationUnknown": "UNSAVED",
+          "Saving": "SAVING",
+          "Unknown": "UNSAVED",
+          "Saved": "SAVED",
+          "Conflict": "CONFLICT",
+          "Unavailable": "UNAVAILABLE"
+        }
+      },
+      "raster": "Exact8x16 pinned glyph cells; set-bit black, clear-bit protected background, never service-produced expected formatter. Entireprotectedchrome/status bytes and explicit absent-unknown controls are independently expected from these literals. Apparea y48..527 retains exact owned application crop. Unknown originals always retain separatebanner; current UNSAVED literal never erases their class/outcome. Old volatile/Read chrome stays unchanged."
+    },
+    "native_counter_boundaries": {
+      "seed": "seed_native_save_counter sets only the named next checked counter to u64::MAX; no actor/epoch/document rebase, current state setter, grant or fabricated row. Its next checked transition must reject before increment/effect. Each independent overflow fixture initializes allowed witnesses first and preserves their actual owners.",
+      "table": [
+        {
+          "counter": "Intent",
+          "seed_boundary": "Immediately before genuine accepted CtrlS is consumed by step_native_editor on an already initialized live editor.",
+          "next_action": "HostDesktop::step_native_editor",
+          "exact_error": "Status::Exhausted; NativeArtifactEditor::step maps Desktop(Status::Exhausted).",
+          "unchanged": "No intent/snapshot/original/Allocate/Commit/source/permit created. Existing document body/cursor/selection/text-generation/view and stored bytes preserved; genuine queued CtrlS may be consumed, never replayed.",
+          "allowed": "Existing live typed Read and old receipt observations remain available; later ordinary text edits use their independent counters."
+        },
+        {
+          "counter": "Document",
+          "seed_boundary": "Before the authentic first native bootstrap Read initializes a private document for a newly approved instance; existing live editors are initialized before seeding.",
+          "next_action": "StoreHost::execute_native_save on that registered authentic initial Read",
+          "exact_error": "StoreStatus::Exhausted Rust execution error; NativeArtifactEditor::open maps Store(StoreStatus::Exhausted).",
+          "unchanged": "No NativeEditor/document row or handle is exposed; take_editor cannot invent one. Read original/control producers are real and retained/joinable, but no durable mutation ticket, source, allocation, permit or disk transition occurs.",
+          "allowed": "Subsequent selected Read queries on existing initialized live instances and original receipt lookup do not allocate a new document. Only authentic first bootstrap Read initializes once; later reads never overwrite/reset an existing edited document or create another editor handle."
+        },
+        {
+          "counter": "TextGeneration",
+          "seed_boundary": "Immediately before one genuine accepted text-inserting key is consumed by step_native_editor on a live document.",
+          "next_action": "HostDesktop::step_native_editor",
+          "exact_error": "Status::Exhausted; NativeArtifactEditor::step maps Desktop(Status::Exhausted).",
+          "unchanged": "Preserve exact body, cursor, selection, scroll, text generation, view version, existing frame join and current stored selection. No intent, source or mutation. The failed key may be consumed but never partially applies.",
+          "allowed": "Existing typed Read/receipt queries and a genuine view-only cursor action use independent counters."
+        },
+        {
+          "counter": "ViewVersion",
+          "seed_boundary": "Immediately before one genuine accepted view-only cursor-left key on a document whose cursor is positive.",
+          "next_action": "HostDesktop::step_native_editor",
+          "exact_error": "Status::Exhausted; NativeArtifactEditor::step maps Desktop(Status::Exhausted).",
+          "unchanged": "Preserve body/cursor/selection/scroll/text generation/view and prior frame join; no render, intent or mutation starts. Consuming the failed input cannot partly move the cursor.",
+          "allowed": "Existing typed Read and receipt queries remain valid. Do not use another text edit as a positive control because text edits also need a new view version."
+        },
+        {
+          "counter": "FrameJoin",
+          "seed_boundary": "Before the next explicit native render, after any genuine document edit has already completed.",
+          "next_action": "HostDesktop::render_native_editor",
+          "exact_error": "Status::Exhausted; NativeArtifactEditor::render maps Desktop(Status::Exhausted).",
+          "unchanged": "Fail before Surface Create/Acquire/Present or new frame reservation/join; preserve prior published pixels/frame evidence, document state and Store bytes/counters. No half-installed frame join or Saved claim.",
+          "allowed": "Existing typed Read/receipt lookup and genuine text/view edits with independent counters remain valid."
+        },
+        {
+          "counter": "StatusVersion",
+          "seed_boundary": "After a valid native render has queued a real owned frozen frame, immediately before its protected compositor publication.",
+          "next_action": "HostDesktop::compose_native_save",
+          "exact_error": "Status::Exhausted; subsequent current save_chrome_observation/save_chrome_record return Status::Exhausted for that exhausted publication scope.",
+          "unchanged": "No new composed frame/status version or new current Saved record is published. Retain prior complete pixel/status evidence as historical only and retain the queued real frame charge; do not expose an old record as current. Existing document/Store bytes unchanged.",
+          "allowed": "Existing typed Store Read and authentic original receipt lookup remain available. Authority retirement/fault always closes grants even if status is exhausted; a display counter never prevents security retirement or erases original uncertainty."
+        },
+        {
+          "counter": "SourceBinding",
+          "seed_boundary": "After authentic Allocate succeeded for a genuine CtrlS intent, before obtaining its actual draft source.",
+          "next_action": "StoreHost::source_for_intent",
+          "exact_error": "StoreStatus::Exhausted Rust source-construction error.",
+          "unchanged": "No new bound source/data row/write lease/Commit permit; retain the real allocated operation and its original identity/history. Allocation is not reclassified absent, and no Commit dispatch/replay occurs. Prior Store selected bytes and receipts remain valid.",
+          "allowed": "Authentic existing selected Read and receipt queries, plus original allocation observation, remain valid; they do not create source bindings."
+        },
+        {
+          "counter": "OriginalRecord",
+          "seed_boundary": "After an authentic mutating Allocate entry produced its real NativeSaveCall, immediately before Store registration.",
+          "next_action": "StoreHost::register_native_save for that Allocate call",
+          "exact_error": "NativeSaveRegistrationFailure::status()==StoreStatus::Exhausted and original()==None.",
+          "unchanged": "No new durable mutation original/ticket, execution claim/Store dispatch/IO/operation allocation/permit/disk transition. Failure retains the consumed actual call and its real Desktop entry producer owners for eventual actual joins.",
+          "allowed": "Nonmutating Read/SaveStatus/original lookup uses query64 and does not allocate a durable mutation-original record; existing receipts and selected bytes remain observable through authentic rights."
+        }
+      ],
+      "scope": "Exact Save-mode gate-first rejection boundaries; old NativeCounter/PreviewCounter/Store CounterKind controls retain their own separate tables. Every actual installed producer/call remains charged until joined, even on these Rust errors. No arbitrary Err acceptance, no clipping/wrapping/saturating IDs, and no display limit may prevent authority closure."
+    },
+    "host_join_projection": "Save-only native_join_observation accepts only the actual opaque JoinedProducerProof returned by this HostDesktop shared Authority. It verifies the same private authority/scope, producer identity, origin, kind and generation through the own private witness before returning NativeJoinObservation. Metadata comes from the actual held JoinHandle and actual completed join, retained inside the proof after the live roster row is removed; native_pid is the actual process ID and rust_thread_id the actual held JoinHandle.thread().id debug value. A foreign/mismatched proof is Denied without effects. This read-only projection installs/reserves no producer, grants no authority, consumes no fixture counter, and accepts no numeric substitute, diagnostic observation or caller metadata. It does not clone/export RegistryWitness or allow external proof ingestion; Core fencing and original proof association rules remain unchanged. Older NativeRead control evidence remains its real ID/outcome shape.",
+    "native_save_pause_choreography": "Trusted FixtureController::pause_native_save retains the existing one-unsettled-barrier-per-object rule except for one native-Save-only exact ordered pair: BeforeSelectionRename and AfterSelectionRename on the same actual live native endpoint/object for one next Commit. Both are staged before that Commit starts; the genuine BeforeSelectionRename observer runs only for selection publication after the complete Permitted predecessor has been published, and release of that actual first barrier lets the same execution reach the staged AfterSelectionRename barrier. The pair is diagnostic/failure-fixture interlock, never client authority or scheduler inference. A duplicate phase, third unsettled barrier or any other same-object unsettled phase combination returns FixtureError with NotReady and adds no barrier, producer, grant, IO or mutation. Existing barrier ownership and entered/settled/release/stop/fence rules and global64 barrier cap remain; exhaustion of that existing table still returns Exhausted. Existing legacy pause_next and NativeRead/Preview behavior are unchanged. Old or foreign endpoint rejection and authentic exclusive-owner cleanup remain required. Source assertions must exercise duplicate/third denial without changed barrier/IO/resource state and retain the actual same-execution predecessor/current raw snapshots; no fabricated journal from ObjectEvidence and no release/rearm race.",
+    "producer_id_diagnostic_seam": {
+      "schema_version": 1,
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_DIAGNOSTIC_SEAM",
+      "path": "services/desktop/src/editor_dev/native_authority.rs",
+      "feature": "editor_native_save_v0_dev",
+      "type": "ProducerId",
+      "signature": "pub fn producer_id(&self) -> u64",
+      "purpose": "Fill existing actual dispatcher request/barrier/OperationClosureWitness metadata before execution and eventual authentic join; do not fabricate local IDs or parse Debug.",
+      "request_authority_Lang": "Caller already owns or borrows this genuine opaque reserved/installed ProducerId token. No numeric argument, table search, foreign token, constructor, clone, admission or join is added. Existing install/join continues to require actual same-Authority token ownership.",
+      "observable_authority_ObsContract": "Only this token immutable actual historical row ID. The number is correlation only; it does not establish row liveness, existence in a current table, producer completion, an original-operation capability, quota ownership or a joined proof. No other token/Core/domain metadata is returned.",
+      "implementation": "Feature-gated read of the private immutable token id field. No state mutation, allocation, counter, charge, release, callback, lookup or signaling. Existing Read-only API stays unchanged.",
+      "affected_assertions": "Existing original18 genuine dispatcher/original-request/barrier/closure/producer/fence crosslinks require real IDs and opaque real joins; numeric coincidence must never substitute for those.",
+      "boundary": "Default-off trusted host fixture diagnostic only, not a new target/native syscall, capability grant, numeric join/mint or containment/noninterference claim.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/producer-id-seam-independent-review/review.json",
+        "byte_len": 3042,
+        "sha256": "645eeb0445b64dd119c11234e084b076f1fc3d3263f51abaa56c8bcd31d652a0"
+      }
+    },
+    "original_delivery_publication": {
+      "schema_version": 1,
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_CLOSED_CORE_PUBLICATION",
+      "predecessor_reply_loss_seam_sha256": "b9095e2fb7634aff62197ff6f924cbb783d8d96451af5bbd7324abc75e7ddef0",
+      "predecessor_accepted_review_sha256": "0daa4e2f886d611e76dc76842c23ac19b2a8d07f9787309b49bc0d97ef38bffb",
+      "signature": "SaveGateGuard::publish_original_delivery(&mut self,claim:&NativeExecutionClaim,outcome:NativeSaveDeliveryOutcome<'_>)->Result<(),Status>",
+      "closed_type": "pub enum NativeSaveDeliveryOutcome<'a> { ReplyLost, AllocateRejected { wire:&'a Envelope }, NoAllocation { joined:&'a [JoinedProducerProof] }, AllocatedSourceRejected }",
+      "need": "Both writers found exact existing original18 paths missing a Core-only publication primitive: immediate actual lost result before deadline, concrete known Allocate rejection, and authentic NoAllocation after compact original live call has been released. Do not abuse old clocks or rename/fake known statuses.",
+      "request_authority_Lang": "Same actual SaveIssuer Gate guard and own once-installed immutable original NativeExecutionClaim; verify private Authority, issuer/Core attachment, exact original identity/claim pointer, actor/object/generation/epoch/intent and mutation request kind3/5. No public claim constructor, client editor setter, artifact callback, numeric proof substitute, target/syscall/IDL endpoint or caller body. NoAllocation additionally requires actual opaque joined proofs for every actual installed producer belonging to this original (entry/dispatch/supervisor/IO if any); foreign/missing/duplicate proof denies without publication.",
+      "reply_lost": "Exact accepted b909 conservative semantics: only actual Core suppressed/unobserved result path. Marks own original delivery uncertainty and protected own-session banner, no invented source/op/receipt/noncommit. Real original deadline/permit/IO/charges remain unchanged. An already legitimately published full176 receipt remains resolved and cannot be erased by loss. Existing publish_permitted remains Saving.",
+      "allocate_rejected": "Allocate3 only, actual canonical original reply4/correlation/HandleINVALID/op0 and exact owned definitive rejection. Before publication Core must have closed this exact original under Object->Gate and established no allocation publication, no in-flight mutating IO and no late publisher; ambiguous/lost/error-without-noeffect-proof uses ReplyLost instead. Gate validates closed original/absent allocation+permit+receipt, real wire/status/direction/reserved/tail; Unknown/Disconnected/NotReady are not definitive. Publishes Conflict for actualConflict7, otherwiseUnsaved; clears only own intent uncertainty. No fabricated noncommit receipt or operation. No joins or producer charges are inferred from a response.",
+      "no_allocation": "Allocate3 only. Actual Core first obtains every original installed owner join and validates actual canonical same-object journal absence; corrupt/missing/unvalidated journal is not proof. Gate checks complete own private issued/installed producer inventory against genuine same-origin JoinedProducerProofs, no currently held original reservation/handle, and no published allocation/permit/receipt. Clears own uncertainty and marksUnsaved, retaining original identity/history; no epoch/clock renewal, source/mutation/permit/replay/grant revival. A complete proof set may not be reconstructed from IDs/diagnostics.",
+      "producer_inventory": "Desktop may retain a Save-only private per-original inventory of genuine installed producer IDs at actual install, bounded64 before insertion and separate from live ownership charges. Genuine canceled uninstalled reservations are not fake joined threads. Reserve each real entry/store execution/IO group only once; historical metadata contains no handle/query/source alias. Existing oldRead/Preview roster behavior remains unchanged.",
+      "positive_resolution": "Existing publish_allocation on actual same original delivery/lookup must clear uncertainty even on identical-positive early-return; after original deadline it publishes Unsaved/knownRetainedNoCommit, never renews firstCommit rights. Actual full176 receipt copy/lookup uses existing publish_receipt/fullBinding/current/frame checks, preserves newer-edit Unsaved, clears onlyownCommitUnknown.",
+      "scope": "Default-off trusted host Core publisher only. Frozen original18 assertions/recording layouts/native capacities/wire remain unchanged. No user-supplied callback/boolean constitutes absence or lifecycle evidence. Implementation/callsite+affectedconsumer/runtime checks remain required.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/original-delivery-publication-successor-independent-review/review.json",
+        "byte_len": 3547,
+        "sha256": "06e0d1973f9fad0d207731bb3e37ed1a2e21a4af71fabe3814982975e262f2c0"
+      },
+      "allocated_source_rejection_successor": {
+        "schema_version": 1,
+        "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_IMPLEMENTATION_AND_RUNTIME_PENDING",
+        "contract_predecessor_sha256": "4f04aab04b07817b19b3210cd092ed2c9539b79b0f6034e58713180ad9a93915",
+        "need": "A genuine recovered allocation retains a fresh original-only lookup call after its old ordinary call is released. A genuine source-construction capacity/identity/binding failure cannot close that original using close_original(call); close_deadline cannot fake expiry and AllocateRejected cannot erase a known positive allocation. Preserve frozen source-failure closure and fresh explicit Save behavior.",
+        "signature": "Existing SaveGateGuard::publish_original_delivery(&mut self,claim:&NativeExecutionClaim,outcome:NativeSaveDeliveryOutcome<'_>)->Result<(),Status>; add ONE closed unit enum variant AllocatedSourceRejected. No new callable method/wire/data record.",
+        "request_authority_Lang": "Actual trusted Core holds the same issuer Gate and its own once-installed Allocate3 NativeExecutionClaim. Existing exact Authority/Core attachment/claim pointer/actor/object/generation/epoch/intent checks remain. No client setter, number, callback, caller-supplied error/cause/body, or renewed authority.",
+        "core_preconditions": "Before invoking, Core holds same actual Object->Gate, validates exact actual allocated row against original known allocation, and proves this original has not dispatched/registered a first Commit, has no installed/reserving mutating IO, no permit/receipt, and no already-published live source owner. Call only for an owner-known source construction rejection after authentic current ordinary actor/base/snapshot admission; never for a foreign/lost/ambiguous result, duplicate source with a valid alias, unrelated lookup, existing Commit or permitted original. Actual source failure stays its real status.",
+        "gate_checks": "Allocate3 only; actual canonical positive allocation already present and matches same own intent allocation map; no source/receipt/permit on this claim, no same-intent Commit claim/call and no live same-intent bound-source lifetime. Reject without effects if these prerequisites fail. Actual source failure does not prove NoAllocation, thread completion or disk rollback.",
+        "publication": "Retain operation ID, exact canonical allocation, immutable snapshot and original identity. Set only original closed=true/uncertain=false, retain AllocationSettled known-allocation phase, close its own live call row if present, publish Unsaved for its own document unless already Unavailable. No fabricated source-bound noncommit receipt, NoAllocation, Store closure cause, permit, grant, counter, epoch/clock change or release/join/cancel/charge inference. Core mirrors original closed state; durable slot remains retained.",
+        "positive_lookup_preservation": "Idempotent publish_allocation must preserve actual sticky closure: a closed known allocation publishes Unsaved even before real intent deadline, rather than changing closed metadata back to apparent Saving. Exact positive operation may be observed again; no source/firstCommit rights are reopened.",
+        "scope": "Default-off trusted host Core glue for existing frozen source-failure and compact-original requirements. Original18 assertion bodies, recording layouts/counts, native capacities and IDL unchanged. Implement only after independent review; source-callsite and runtime/affected consumers still required.",
+        "independent_review": {
+          "path": "out/roadmap-coordinator/native-save-assertions/author/source-closure-successor-independent-review/review.json",
+          "byte_len": 4036,
+          "sha256": "7c281ca4a9c3d0ed7bcfb1d9080056c361c2ba02a2067aa3cdcd8463e3da80e6"
+        }
+      }
+    },
+    "source_admission_and_proof_retention": {
+      "schema_version": 1,
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_CORE_GLUE",
+      "historical_current_contract_sha256": "3915688ca12b0d22b38a3a91753cd840a6ab646114c0bbfee72cabca46c4b408",
+      "feature": "editor_native_save_v0_dev",
+      "joined_proof_retention": {
+        "signature": "SaveIssuer::retain_joined_proof(&self,proof:&JoinedProducerProof)->Result<JoinedProducerProof,Status>",
+        "need": "Public StoreHost join returns nonClone authentic proof to caller. Core must retain an authentic copy for later original NoAllocation observation and supported fence validation without relying on caller keeping its token alive.",
+        "Lang": "Existing opaque actual SaveIssuer and genuine actual same-private-Authority JoinedProducerProof obtained at true owned handle.join. Foreign proof Denied without effects. No numeric arguments, metadata/diagnostic constructor, row lookup, new join or fake completion.",
+        "ObsContract": "Returns opaque retention of exactly same actual authority/origin/id/kind/generation/completed native join metadata, cloned privately from that genuine proof. No grants, producer admission, counters, ownership charge, handle/query/source alias or runtime state change. Public JoinedProducerProof remains nonClone and fields private; this is not broad external proof ingestion.",
+        "ownership": "Core retains before returning caller proof at actual join. Retain only bounded existing unresolved-original/fence-required evidence, compact terminal records. Each original private producer inventory <=64 and existing original-record bound96 stays; no unbounded proof table/newlivecapacity. Authentic NoAllocation still needs complete actual original proof set, never empty/subset merely because live roster is empty."
+      },
+      "bound_source_admission": {
+        "signature": "SaveGateGuard::admit_bound_source(&self,source:&BoundNativeSource)->Result<(),Status>",
+        "need": "Actual original-only Allocate lookup may recover before original CtrlS deadline. Its lookup NativeSaveCall intentionally cannot ordinary-admit; using that call for subsequent source write either wrongly denies valid original firstCommit continuation or revives recovery-only mutation.",
+        "Lang": "Existing sameactualSaveIssuer Gate guard + own opaque actual BoundNativeSource privately created from genuine sameintent/allocation/snapshot. Verify same private Authority/Core enrollment/attachment, immutable actor/object/generation/originalStoreepoch/intent/source binding, current ordinary instance/grant/TTL and actual original absolute intent deadline. Deny retired/faulted/expired/foreign/noncanonical/closed/consumed bound sources without effects. No numeric view or recovered lookup call provides authority.",
+        "ObsContract": "Returns unit admission only; exposes no source/body/state/foreign metadata. Does not allocate, grant, unfreeze, renew clocks, change editable bytes, confirmSaved, release charges, issue a permit or replay mutation. Existing Store owns Registry->Object->Gate->Data and all actual Data descriptor/range/frozen/alias checks; this helper does not bypass them.",
+        "ownership": "Returned real write lease retains actual bound-source/intent/allocation/Core owners. Admit before every actual source write with same sticky consumption/retirement checks. Immutable submitted snapshot may survive a newer edit; helper does not substitute currentdraft for snapshot or require changing it. FirstCommit remains the original explicit intent at mostonce before originaldeadline."
+      },
+      "scope": "Two narrow default-off trusted host Core glue operations. Already frozen original18/consumer assertions and initial missingAPI RED cover genuine joined ownership, foreign/retired denial, original recovery/no replay/deadline/source liveness. Public wire/record layouts/native capacities/sourcefixed counts unchanged; source/runtime integration review remains required. No target/syscall/native wire endpoint, hidden authority noninterference, process containment or release claim.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/source-admission-proof-retention-independent-review/review.json",
+        "byte_len": 2976,
+        "sha256": "70b9f91ab4a7a0f65a4d49e6df8edda895c9b1ec7185759f2073aa025a5a3014"
+      }
+    },
+    "fenced_enrolled_owners": {
+      "schema_version": 1,
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_IMPLEMENTATION_AND_RUNTIME_PENDING",
+      "signature": "SaveGateGuard::fenced_enrolled_owners(&self,objects:&[StoreObjectEnrollment],proofs:&[JoinedProducerProof])->Result<Vec<PreviewOwner>,Status>",
+      "need": "All three genuinely enrolled objects must reopen even when one owner never activated a Store grant. Activated Store registry is not the source of the original enrollment owner/session relation. Resolve missing/ambiguous owner before automatic recovery metadata IO.",
+      "Lang": "Same issuer-held Gate, exact actual own fenced objects bounded1..3 sorted, exact successor epochs and authentic joined proofs. Call existing validate_fenced_reenrollment first; no held producer/reservation for these objects. For each exact fenced object resolve exactly one actual private PreviewGate owners row with matching original owner_id. Missing or ambiguous owner Denied without effects. No caller-supplied session, numeric reconstruction, fabricated PeerContext or broader owner enumeration.",
+      "ObsContract": "Returns only existing genuine PreviewOwner owner/session/generation relations aligned with requested own fenced objects, including enrolled but inactive owners. Pure bounded view, no admission/grant/clock/epoch/reenrollment/counter/IO/producer state mutation. Numbers are correlation, never new authority.",
+      "Store_use": "Capture aligned owner relations before reopen_inner_mode performs metadata IO. Pair each with same exact requested object and actual readback StoreCurrentSelection. Existing reenroll_fenced_objects again validates entire proof/current set before publishing successor. Failed reopen retains original owner and real attempt; no bypass of selected owner relation.",
+      "scope": "Default-off trusted Core glue only. Frozen18 bodies/recording/wire/IDL/capacities unchanged; source and runtime affected consumers remain required.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/fenced-enrolled-owners-independent-review/review.json",
+        "byte_len": 3248,
+        "sha256": "d1966a507ec236af8d2833b41ced93d277faf0ff4b35bfbfa24743d4c1401d1a"
+      }
+    },
+    "recovery_call_intent_accounting": "Actual held CallLife matches its direct intent OR genuine recovery ClaimLife.intent by Arc identity. Retained recovery source/write aliases remain charged until actual Call drops. Compact SourceLife/ClaimLife metadata alone adds no live charge. No synthetic recovery flag, numeric identity or Arc-count authority.",
+    "active_producer_diagnostics": {
+      "schema_version": 1,
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_IMPLEMENTATION_AND_RUNTIME_PENDING",
+      "signature": "Existing ProducerCounts gains #[cfg(feature=\"editor_native_save_v0_dev\")] active_non_io:u32 and active_io:u32 fields; no new getter.",
+      "Lang": "Existing RegistryWitness::producer_counts locks actual private owned roster. Observations only, never authority/admission/join/permit/capacity release.",
+      "ObsContract": "Count actual installed Some(JoinHandle) where !is_finished(), partition non-StoreIo and StoreIo. Reserved None remains held but not active. join_finished requires finished handle before moving it, so joining None row is held and not active. Existing held/io/joining/joined_total unchanged and charges only released by genuine join.",
+      "Store_use": "Only actual Save attachment substitutes held_service_producers=held-io, active_supervisors=active_non_io and active_io_workers=active_io. Counts are per-component instantaneous observations, not atomic global snapshot. No source selection, gate admission, cancellation or completion inferred.",
+      "scope": "Save feature only; non-Save ProducerCounts shape and Read behavior unchanged. No wire/IDL/recording shape/capacity/frozen assertions change.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/active-producer-diagnostic-independent-review/review.json",
+        "byte_len": 3270,
+        "sha256": "8b539c71895748d0434cc5dd452d2f544aa5dc462aa964e39606cf3b5947a35d"
+      }
+    },
+    "snapshot_admission_before_source_capacity": {
+      "signature": "Existing SaveGateGuard::snapshot_for_intent unchanged",
+      "semantics": "After authentic Authority and exact intent pointer, admit actual ordinary instance, real immutable intent deadline and actual same-intent sticky original closure before returning snapshot used for source construction/capacity rejection. NativeSaveIntent.snapshot remains pure immutable observation. No source capacity error can substitute for retired or expired admission.",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/store-source-independent-review/snapshot-admission-direction-review.json",
+        "byte_len": 2505,
+        "sha256": "e781440822168636d3276990db93c7a70de6eecddb8f3f1f76bf323f582f956b"
+      },
+      "scope": "Source-only existing contract clarification, no new API/wire/counts/nativecapacity or runtime acceptance."
+    },
+    "core_fixture_clock_observation": {
+      "signature": "SaveGateGuard::observe_core_time(&mut self,observed_ms:u64)->Result<u64,Status>",
+      "scope": "Default-off trusted claimed Core Save fixture only. Native callers hold no clock setter. No State callback, target API, global-clock or fresh-setup timing claim.",
+      "Lang": "Existing genuine claimed SaveIssuer and held own Gate; require actual Save/Preview claim before mutation. Store controller validates Core notclosed, holds actual Objects then sameGate, observes maxcurrentCore/input, and uses returned effective before clock publication and expiration. Actual attachment failures never fall back to legacy.",
+      "ObsContract": "One monotonic max of observed/Core/Gate/Preview highwaters. Pass exact effective to Preview.expire and return it; never rawlower input. Original instance/pin/request/intent deadlines, native capacities, IDs, grants, IO and producer ownership unchanged; no backward revival. Host-localclock maytemporarilylag; actual admission uses sticky ownGate highwater/retirement.",
+      "proposal_sha256": "bfcb54b19b25bff4c85f0c04f5cac19a357629a5ca289493551da9bfbf81577d",
+      "independent_review": {
+        "path": "out/roadmap-coordinator/native-save-assertions/author/shared-clock-proposal-independent-review/review.json",
+        "byte_len": 7173,
+        "sha256": "8f964784ac7ba6094b8d6465494855e3475abff6092804e2e05faa213f491e7a"
+      },
+      "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_IMPLEMENTATION_RUNTIME_PENDING"
+    }
+  },
+  "assertion_preparation_amendment": {
+    "date": "2026-10-06",
+    "base_commit": "717d6157412246cb3018c1db5406502ca24b72b1",
+    "held_contract_sha256": "a323e272545a10c072ad100edac9bf7beff8284a48cb291930705d8b4307b16d",
+    "scope": "Source-backed assertion reachability controls and actual diagnostic metadata only; no handlers, RED or runtime acceptance. Original18, IDL/data/wire, default-off mode and existing behavior remain unchanged. Producer-captured actual app-chain raw artifacts are exposed only through trusted bounded historical fixture observations.",
+    "review_status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_PREPARATION",
+    "independent_reviews": [
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/contract-amendment-review.json",
+        "byte_len": 6745,
+        "sha256": "0f30c62c8b656475a537532f045cfbccfc5c4f9daa9864404e873d0300acb9f3"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/actual-artifact-amendment-review.json",
+        "byte_len": 4754,
+        "sha256": "ea5fea7b7b3fdd3ef0aa03cdefd01d95dc95d3290ade4296a36622bd54a1b41f"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/pixel-profile-review.json",
+        "byte_len": 3107,
+        "sha256": "08c10badd0b8d2a9c508e4312988d5751cbbad1a6164d3da077615764d5622cb"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/counter-boundary-review.json",
+        "byte_len": 5257,
+        "sha256": "33947a5b983cb38a34ecb39df5ee8c2f1c99e49937fcf38da73601f9d0830d39"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/inventory-clarification-review.json",
+        "byte_len": 2880,
+        "sha256": "e870087e9df709f766cbd5cdd0fcf4f9539c2637310ab8ddc1ca5bfacfb822ff"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/host-join-projection-review.json",
+        "byte_len": 4525,
+        "sha256": "89ffa2e6ec6dfad1551e8271669479d0c1bb83e6f681baead32c2e7c16a2933a"
+      },
+      {
+        "path": "out/roadmap-coordinator/native-save-assertions/review/native-pause-pair-review.json",
+        "byte_len": 6430,
+        "sha256": "8bca5b635ce355a3b789082e555a93ddf70df91bd6319db25db1ed694142ef4f"
+      }
+    ]
+  },
+  "recording_preparation_budget_amendment": {
+    "status": "INDEPENDENTLY_ACCEPTED_SOURCE_ONLY_RECORDING_PREPARATION",
+    "historical_contract_sha256": "793ed4f451608e34123958345596426c3639e718d658df5d62bd05e9de5f5a06",
+    "reviewed_recording_proposal_sha256": "b994e45e0841c94508d0c15e3f2f4bb54d4b04f00094fa00af3fc6775d9c5227",
+    "packaging_upper_sha256": "c0e5e0553f10d1ab95ac2c7c3820b8e5fa3e7ae320cde541db17244a281e84be",
+    "reviewed_regular_file_upper": 36576,
+    "directory_upper": 155,
+    "regular_file_ceiling": 40960,
+    "entry_ceiling": 41115,
+    "source_inventory_ceiling_bytes": 1048576,
+    "native_base_fence_ceiling_bytes": 1048576,
+    "native_base_fence_conservative_upper_bytes": 379488,
+    "scope": "Recording preparation only. Existing2GiB total/512MiB JSON/128MiB per-case JSON/32MiB single record, all narrow raw byte caps, per-scenario2048raw files, native runtime capacities, public API signatures and original18 behavior remain unchanged. Source-only bounds do not prove a runtime recording fits. Historical initialRED pins remain unchanged; future gate uses independently adopted current contract pin.",
+    "independent_review": {
+      "path": "out/roadmap-coordinator/native-save-assertions/gate-draft/recording-budget-contract-review/review.json",
+      "byte_len": 2363,
+      "sha256": "9e0876bf37e4997c6d038f70c8ded894a7cfb3bf6ad65411601e8d742e20cc93"
+    }
   }
 }

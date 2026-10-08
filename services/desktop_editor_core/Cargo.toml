@@ -1,0 +1,13 @@
+[package]
+name = "desktop_editor_core"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+
+[dependencies]
+kernel_api = { path = "../../kernel_api" }
+
+[dev-dependencies]
+sha2 = "0.10"

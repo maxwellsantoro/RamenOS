@@ -320,7 +320,7 @@ impl NativeReadReply {
         &self.producers
     }
 }
-pub struct NativeSelectedRead {
+pub(super) struct NativeReadSelectedRead {
     original: Arc<ReadOriginal>,
     data: Arc<Data>,
     descriptor: ObjectDescriptor,
@@ -419,7 +419,7 @@ impl StoreHost {
         native(guard.close_query())
     }
 }
-impl NativeSelectedRead {
+impl NativeReadSelectedRead {
     pub fn descriptor(&self) -> ObjectDescriptor {
         self.descriptor.clone()
     }
@@ -627,11 +627,11 @@ fn read_selected(
     .encode(original.grant.handle)?;
     Ok((
         wire,
-        NativeSelectedRead {
+        NativeSelectedRead::from_read(NativeReadSelectedRead {
             original: original.clone(),
             data,
             descriptor,
-        },
+        }),
     ))
 }
 fn query_timeout(original: &ReadOriginal) -> StoreStatus {
@@ -905,6 +905,10 @@ impl StoreHost {
         self.native_attachment()
             .map(|a| a.witness.producer_counts())
             .unwrap_or(ProducerCounts {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                active_non_io: 0,
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                active_io: 0,
                 held: 0,
                 io: 0,
                 joining: 0,

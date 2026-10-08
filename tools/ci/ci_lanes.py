@@ -47,7 +47,7 @@ UMBRELLA = shell("foundry-umbrella", "tools/ci/foundry_all_s0_s1_s2_s3_s4_s5_s6.
 ), direct=True)
 EXTENDED = (
     shell("review-boundaries", "tools/ci/foundry_review_boundaries.sh"),
-    shell("agent-task", "tools/ci/foundry_agent_task_suite.sh"),
+    shell("agent-task", "tools/ci/foundry_agent_task_suite.sh", "agent"),
     shell("desktop-launch", "tools/ci/foundry_desktop_host_launch_ui1_0.sh"),
     shell("desktop-editor-host", "tools/ci/foundry_desktop_editor_host_ui1_1a.sh"),
     shell("editor-save-schema", "tools/ci/foundry_editor_save_schema_ui1_1b.sh"),
@@ -56,6 +56,8 @@ EXTENDED = (
     shell("desktop-editor-store", "tools/ci/foundry_desktop_editor_store_ui1_1b.sh"),
     Stage("editor-native-read", "host", ("python3", "tools/foundry/desktop_editor_native_read_gate.py")),
     Stage("editor-native-preview", "host", ("python3", "tools/foundry/desktop_editor_native_preview_read_gate.py")),
+    shell("desktop-editor-task", "tools/ci/foundry_desktop_editor_task_ui1_1c.sh"),
+    shell("editor-adapter-migration", "tools/ci/foundry_editor_adapter_migration_ui1_1d.sh"),
     shell("boot-frame-pool", "tools/ci/foundry_boot_frame_pool_run0_0.sh"),
     shell("compat-cleanup", "tools/ci/foundry_compat_cleanup_s2.sh"),
     shell("s7-security", "tools/ci/foundry_s7_all_security.sh", direct=True),
@@ -106,8 +108,8 @@ def quality_plan():
 def lane_plan(lane):
     if lane == "quality":
         return quality_plan()
-    if lane == "host":
-        return (IMAGE, PREREQUISITES, CACHE_PREREQUISITES, TOOLCHAIN, CODEGEN) + tuple(s for s in EXTENDED if s.lane == "host")
+    if lane in ("host", "agent"):
+        return (IMAGE, PREREQUISITES, CACHE_PREREQUISITES, TOOLCHAIN, CODEGEN) + tuple(s for s in EXTENDED if s.lane == lane)
     if lane == "qemu":
         return (CODEGEN, UMBRELLA) + tuple(s for s in EXTENDED if s.lane == "qemu")
     raise ValueError("unknown CI lane")
@@ -202,9 +204,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("all", "extended", "install-toolchain", "toolchain"):
         sub.add_parser(name)
-    sub.add_parser("lane").add_argument("lane", choices=("quality", "host", "qemu"))
+    sub.add_parser("lane").add_argument("lane", choices=("quality", "host", "agent", "qemu"))
     listing = sub.add_parser("list")
-    listing.add_argument("mode", choices=("all", "extended", "quality", "host", "qemu"))
+    listing.add_argument("mode", choices=("all", "extended", "quality", "host", "agent", "qemu"))
     args = parser.parse_args()
     if args.command in ("toolchain", "install-toolchain"):
         manifest = read_toolchain(ROOT)

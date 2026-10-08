@@ -1,0 +1,43 @@
+[package]
+name = "artifact_editor"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+# Trusted in-process host task fixture; separate editor process remains UI1.1d.
+host_native_save_v0_dev = [
+  "dep:desktop_service",
+  "desktop_service/editor_native_save_v0_dev",
+  "dep:store_service",
+  "store_service/editor_native_save_v0_dev",
+  "dep:kernel_api",
+  "dep:artifact_store_schema",
+]
+
+# Supplemental real-owner preservation assertions; default-off and test-only.
+host_editor_adapter_assertions_v0_dev = [
+  "host_native_save_v0_dev",
+  "desktop_service/editor_adapter_assertions_v0_dev",
+]
+
+[dependencies]
+desktop_service = { path = "../../services/desktop", default-features = false, optional = true }
+store_service = { path = "../../services/store_service", default-features = false, optional = true }
+kernel_api = { path = "../../kernel_api", optional = true }
+artifact_store_schema = { path = "../../artifact_store_schema", optional = true }
+
+[dev-dependencies]
+sha2 = "0.10"
+tempfile = "3"
+serde_json = "1"
+
+[[test]]
+name = "native_task"
+path = "tests/native_task.rs"
+required-features = ["host_native_save_v0_dev"]
+
+[[test]]
+name = "editor_adapter_migration"
+path = "tests/editor_adapter_migration.rs"
+required-features = ["host_editor_adapter_assertions_v0_dev"]

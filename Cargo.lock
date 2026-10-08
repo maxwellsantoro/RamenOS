@@ -111,6 +111,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
 
 [[package]]
+name = "artifact_editor"
+version = "0.0.0"
+dependencies = [
+ "artifact_store_schema",
+ "desktop_service",
+ "kernel_api",
+ "serde_json",
+ "sha2",
+ "store_service",
+ "tempfile",
+]
+
+[[package]]
 name = "artifact_store_core"
 version = "0.0.0"
 dependencies = [
@@ -547,10 +560,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "desktop_editor_core"
+version = "0.0.0"
+dependencies = [
+ "kernel_api",
+ "sha2",
+]
+
+[[package]]
 name = "desktop_service"
 version = "0.0.0"
 dependencies = [
  "artifact_store_schema",
+ "desktop_editor_core",
  "kernel_api",
  "sha2",
 ]

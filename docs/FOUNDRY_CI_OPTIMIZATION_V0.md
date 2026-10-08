@@ -35,13 +35,29 @@ reap, elapsed time and bounded output observations, and are labelled
 ## Complete acceptance and lanes
 
 `tools/ci/ci_lanes.py` owns one canonical inventory. `just preflight` executes the
-complete serial sequence: proof and compiler-cache input prerequisites, generation before formatting, tooling
-regressions, IDL lint, target builds, baseline and six strict lint tranches,
-workspace tests, the umbrella and all 36 original extended stages.
-`just ci-lane quality`, `just ci-lane host` and `just ci-lane qemu` select complete
-partitions of that inventory. Gates within a lane remain serialized. CI selects `RUST_TEST_THREADS=1`,
-matching the accepted integration profile. CI executes
-those partitions on separate runners with separate output and compiler paths.
+complete 55-stage serial sequence: proof and compiler-cache input prerequisites,
+generation before formatting, tooling regressions, IDL lint, target builds,
+baseline and six strict lint tranches, workspace tests, the umbrella and all 39
+extended stages. The supplemental `editor-adapter-migration` host stage is inserted
+immediately after `desktop-editor-task`; removing that one stage reproduces every
+original 54-stage name, argument, order and environment override. It executes two
+explicit, unfiltered required-feature Cargo test targets with default features
+disabled, checks all four adapter assertion names and both actual MAX rejection
+markers, and rejects incomplete fixtures. The default-feature workspace test stage
+does not establish execution of these supplemental targets. The original 38
+extended stages, including the earlier original 36, remain required.
+`just ci-lane quality`, `just ci-lane host`, `just ci-lane agent` and
+`just ci-lane qemu` select the four CI lanes. Quality retains its 13 stages.
+The extended runtime bodies partition exactly into 25 host, one agent and 13 QEMU
+stages. QEMU also runs generation and the umbrella; host and agent each run the
+same five preparation stages before their runtime bodies. These isolated
+preparations do not add stages to local `preflight` or `extended`. Historical
+54-stage evidence describes its original source snapshot and does not validate
+this 55-stage successor or an adapter migration.
+No CI job additionally executes the full or extended sequence. Gates within a
+lane remain serialized. CI selects `RUST_TEST_THREADS=1`, matching the accepted
+integration profile, and executes the four lanes on separate runners with
+separate output and compiler paths.
 Local users must also use separate checkouts/output resources when running lanes
 simultaneously. A tracked source fingerprint and Cargo.lock hash are checked
 before and after execution, including failure. Direct Cargo commands use
@@ -50,18 +66,29 @@ before and after execution, including failure. Direct Cargo commands use
 CI installs the dated toolchain, components and targets from
 `rust-toolchain.toml`, caches dependency downloads and toolchains, and verifies
 the pinned Docker image, SW0 prerequisites and compiler-cache inputs before host
-toolchain installation or compilation. QEMU's
+and agent toolchain installation or compilation. The agent runner has the same
+strict environment and five-stage bootstrap as host, but restores only Cargo
+downloads and the pinned toolchain; it has no compiler-target or evidence cache.
+Host and agent depend only on successful change classification, so neither waits
+for quality or the other lane. QEMU's
 compatibility package cache uses its exact digest and the gate still checks the
 bytes. Superseded PR runs may be cancelled within their event/PR group. The stable
 required `foundry` job runs after every lane and fails closed on failure,
 cancellation, unknown result or an unexpected skip. A successful docs-only
-classification permits exactly three skipped lanes. `merge-gate` also requires
+classification permits exactly four skipped lanes; OS-code classification requires
+all four lane results to be successful. The policy and CLI require every result
+in the order `changes, os_code, quality, host, agent, qemu`, with no optional
+agent default. Missing results or failed classification deny acceptance.
+`merge-gate` also requires
 successful classification and separate org governance; author/reviewer authority
 is unchanged.
 
 Every stage passes through `stage_timer.py`: its record contains actual argv,
 child PID, monotonic elapsed time and exit status. Unique atomic records survive
-command failures and CI uploads the lane's timing directory. Environment values
+command failures, and each lane uploads its own uniquely named timing directory
+with `if: always()` and missing files treated as an error. Upload during
+cancellation is best effort; a cancelled lane still fails required acceptance.
+Environment values
 are not copied. An unproved reap is recorded as cleanup uncertainty and fails;
 post-kill waiting is bounded. These records are instrumentation, never substitute PASS receipts.
 
@@ -101,9 +128,8 @@ binary checks, new process birth identities, exits/reaps, nonces and fixture
 cleanup remain fresh. Cached-profile runs also retain a separate, size/hash-checked copy of the actual
 test executable in their private run directory, preserving historical bytes when
 compiler targets are later rebuilt or removed. Results explicitly record cache
-admission and hits. CI
-restores compilation directories only, with an exact outer key and no fallback;
-it never restores acceptance evidence. Compiler caching is a trusted host tooling
+admission and hits. Only CI's host lane restores these compilation directories,
+with an exact outer key and no fallback; no lane restores acceptance evidence. Compiler caching is a trusted host tooling
 optimization, not a containment or hostile compiler/cache attestation boundary.
 
 ## Consolidation limits
@@ -123,5 +149,7 @@ than infer equivalence from similar command flags.
 
 Use focused checks during editing, then affected consumer gates and one complete
 integrated preflight on a fixed candidate. Mac host checks cannot certify the
-Linux/Docker/QEMU profile. Cached builds, planning documents and timing estimates
+Linux/Docker/QEMU profile. The four-lane configuration is a scheduling change;
+no measured GitHub-hosted speedup is established by serial stage timings or
+mocked tooling controls. Cached builds, planning documents and timing estimates
 supply no metal, release, full UI1.1c or live Save evidence.

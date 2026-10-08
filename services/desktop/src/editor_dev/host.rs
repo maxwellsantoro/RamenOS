@@ -10,6 +10,10 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, mpsc};
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "editor_adapter_assertions_v0_dev")]
+#[path = "owner_private_assertions.rs"]
+mod owner_private_assertions;
+
 const FRAME_BYTES: usize = 640 * 480 * 4;
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -313,6 +317,8 @@ struct Surface {
 }
 #[derive(Clone, Copy)]
 struct Key {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    entered: Instant,
     sequence: u64,
     usage: u32,
     phase: u32,
@@ -412,6 +418,13 @@ struct Object {
     data: Data,
 }
 struct State {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    save_mode: bool,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    save_pending: BTreeMap<u64, Arc<super::native_preview::PendingStoreInstance>>,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    save_chrome: BTreeMap<u64, super::NativeSaveChromeObservation>,
+
     #[cfg(feature = "editor_native_preview_v0_dev")]
     preview_pins: BTreeMap<u64, Arc<super::native_preview::PinLife>>,
     #[cfg(feature = "editor_native_preview_v0_dev")]
@@ -475,6 +488,16 @@ fn text_bytes(object: u64, revision: u64, bytes: &[u8]) -> Vec<u8> {
 }
 
 impl State {
+    fn shared_object_limit(&self) -> usize {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if self.save_mode {
+            // Set only with the actual Save Gate installed by new_store_save.
+            // Sixteen retained grants and their two real surface buffers need
+            // 48 rows, plus the bounded current per-session permission previews.
+            return 64;
+        }
+        32
+    }
     fn reserve_identities(&self, count: u64) -> Result<(), Status> {
         if self
             .next_identity
@@ -539,7 +562,7 @@ impl State {
         operation: u64,
         data: Data,
     ) -> Result<u64, Status> {
-        if self.objects.len() >= 32 {
+        if self.objects.len() >= self.shared_object_limit() {
             return Err(Status::Exhausted);
         }
         let h = self.handle(HandleKind::Shmem)?;
@@ -674,6 +697,24 @@ impl State {
         s.suppressed = s.pressed.clone();
         Ok(())
     }
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    fn release_save_pending(&mut self, id: u64) {
+        if let Some(pending) = self.save_pending.remove(&id) {
+            // The current State pin is released only if it is this exact setup
+            // owner. A newer preview in the same session is independent.
+            if let Some(sid) = self.instances.get(&id).map(|i| i.session) {
+                if self
+                    .preview_pins
+                    .get(&sid)
+                    .is_some_and(|pin| Arc::ptr_eq(pin, &pending.setup._pin))
+                {
+                    self.preview_pins.remove(&sid);
+                }
+            }
+            // No Gate is held here. Caller/error/setup owners keep their Arcs.
+            drop(pending);
+        }
+    }
     fn retire(&mut self, id: u64, state: InstanceState) {
         #[cfg(feature = "editor_native_preview_v0_dev")]
         self.preview_instances.remove(&id);
@@ -681,6 +722,8 @@ impl State {
         if let Some(native) = &self.native {
             native.retire(id);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        self.release_save_pending(id);
         if let Some(i) = self.instances.get_mut(&id) {
             if matches!(i.state, InstanceState::Starting | InstanceState::Running) {
                 i.state = state;
@@ -1003,6 +1046,7 @@ fn reply(q: &Envelope, class: EndpointClass, status: Status) -> Envelope {
         (368, 2) => 36,
         (368, 4) => 16,
         (368, 6 | 8) => 32,
+        (368, 10) => 24,
         _ => 44,
     };
     put32(&mut r.payload, offset, status as u32);
@@ -1019,6 +1063,12 @@ impl HostDesktop {
             #[cfg(feature = "editor_native_read_v0_dev")]
             native: None,
             state: Arc::new(Mutex::new(State {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                save_mode: false,
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                save_pending: BTreeMap::new(),
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                save_chrome: BTreeMap::new(),
                 #[cfg(feature = "editor_native_read_v0_dev")]
                 native: None,
                 #[cfg(feature = "editor_native_preview_v0_dev")]
@@ -1114,6 +1164,45 @@ impl HostDesktop {
                 | (368, 7, EndpointClass::RecoveryReceipt)
         );
         if !permitted {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if s.save_mode
+                && matches!(
+                    class,
+                    EndpointClass::InputProducer | EndpointClass::Compositor
+                )
+            {
+                // A supported wire shape at this authentic endpoint can still
+                // name a route this endpoint does not implement. Authenticate
+                // its actual session before returning the route-only denial.
+                let sid = if q.protocol == 802 && q.msg_type == 3 {
+                    q64(q, 0)
+                } else if q.protocol == 833 && q.msg_type != 1 {
+                    peer.session
+                } else {
+                    q64(q, 8)
+                };
+                if sid != peer.session {
+                    return Err(Status::Denied);
+                }
+                s.auth(peer)?;
+                let session = s.sessions.get(&sid).ok_or(Status::Denied)?;
+                if session.object.inner.lock().unwrap().owner != session.owner {
+                    return Err(Status::Denied);
+                }
+                if !(q.protocol == 833 && q.msg_type != 1)
+                    && q64(
+                        q,
+                        if q.protocol == 802 && q.msg_type == 3 {
+                            8
+                        } else {
+                            16
+                        },
+                    ) != session.generation
+                {
+                    return Err(Status::Stale);
+                }
+                return Err(Status::Unsupported);
+            }
             return Err(Status::Denied);
         }
         let sid = if q.protocol == 802 && q.msg_type == 3 {
@@ -1277,7 +1366,7 @@ impl HostDesktop {
         }
         let slot = {
             let mut s = self.state.lock().unwrap();
-            if s.exchanges.len() >= 256 {
+            if s.exchanges.len() >= s.trace_limit() {
                 s.trace_exhausted = true;
                 return reply(q, peer.class, Status::Exhausted);
             }
@@ -1646,7 +1735,7 @@ impl HostDesktop {
         if let Some(key) = old {
             s.objects.remove(&key);
         }
-        if s.objects.len() >= 32 {
+        if s.objects.len() >= s.shared_object_limit() {
             return Err(Status::Exhausted);
         }
         let plan = s.identity()?;
@@ -1734,7 +1823,10 @@ impl HostDesktop {
             return Err(Status::Denied);
         }
         drop(o);
-        if s.instances.len() >= 16 || s.endpoints.len() + 4 > 64 || s.objects.len() + 5 > 32 {
+        if s.instances.len() >= 16
+            || s.endpoints.len() + 4 > 64
+            || s.objects.len() + 5 > s.shared_object_limit()
+        {
             return Err(Status::Exhausted);
         }
         let expires = self
@@ -1880,6 +1972,8 @@ impl HostDesktop {
             session.modifiers = 0;
             session.keys.clear();
             session.keys.push_back(Key {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                entered: life.entered,
                 sequence: q64(q, 24),
                 usage: 0,
                 phase: 3,
@@ -1904,6 +1998,10 @@ impl HostDesktop {
             return Ok(reply(q, peer.class, Status::Ok));
         }
         if !matches!(usage,4..=49|51..=56|74|77|79..=82|224|225) {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if s.save_mode {
+                return Err(Status::Invalid);
+            }
             return Err(Status::Unsupported);
         }
         if phase == 1 && session.pressed.contains(&usage)
@@ -1932,6 +2030,8 @@ impl HostDesktop {
             session.modifiers = 0;
             session.reset_pending = true;
             session.keys.push_back(Key {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                entered: life.entered,
                 sequence: q64(q, 24),
                 usage: 0,
                 phase: 3,
@@ -2009,11 +2109,31 @@ impl HostDesktop {
                     })
                     .ok_or(Status::NotReady)?;
                 let generation = s.instances[&id].generation;
-                action = if usage == 20 {
-                    Action::Close(id, generation)
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                if usage == 21 && s.save_mode {
+                    // Native Save restart discards this actual instance and setup.
+                    // Fresh approval must come from a later accepted Enter after R
+                    // release; the volatile PrepareRestart wire path is not used.
+                    s.retire(id, InstanceState::Revoked);
+                    s.retire_preview_setup(sid);
+                    s.shift_focus(sid, Route::Launcher, None)?;
+                    s.sessions.get_mut(&sid).unwrap().pending_selector =
+                        Some((q64(q, 24), 21, true));
                 } else {
-                    Action::Restart(id, generation)
-                };
+                    action = if usage == 20 {
+                        Action::Close(id, generation)
+                    } else {
+                        Action::Restart(id, generation)
+                    };
+                }
+                #[cfg(not(feature = "editor_native_save_v0_dev"))]
+                {
+                    action = if usage == 20 {
+                        Action::Close(id, generation)
+                    } else {
+                        Action::Restart(id, generation)
+                    };
+                }
             }
         } else if route != Route::App {
             if phase == 1 && usage == 40 && mods == 0 {
@@ -2038,6 +2158,8 @@ impl HostDesktop {
             }
         } else {
             s.sessions.get_mut(&sid).unwrap().keys.push_back(Key {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                entered: life.entered,
                 sequence: q64(q, 24),
                 usage,
                 phase,
@@ -2140,7 +2262,7 @@ impl HostDesktop {
                 if s.instances[&id].surface.created {
                     return Err(Status::Exhausted);
                 }
-                if s.objects.len() + 2 > 32 {
+                if s.objects.len() + 2 > s.shared_object_limit() {
                     return Err(Status::Exhausted);
                 }
                 let data = || {
@@ -2220,9 +2342,37 @@ impl HostDesktop {
                 let Data::Mutable(data) = object.data else {
                     return Err(Status::Internal);
                 };
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                let native_owner = if s.save_mode {
+                    Some(s.native.as_ref().ok_or(Status::Internal)?.clone())
+                } else {
+                    None
+                };
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                let mut native_gate = match &native_owner {
+                    Some(a) => Some(a.gate.lock().map_err(|_| Status::Internal)?),
+                    None => None,
+                };
                 let mut data = data.lock().unwrap();
                 if !data.writable || data.mapping != q64(q, 24) {
                     return Err(Status::Stale);
+                }
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                if s.save_mode {
+                    if let Some(g) = &mut native_gate {
+                        if let Some(save) = &mut g.save {
+                            for d in save
+                                .documents
+                                .values_mut()
+                                .filter(|d| d.view.actor.instance_id == id)
+                            {
+                                d.frame = None;
+                                if d.view.phase == super::NativeEditorPhase::Saved {
+                                    d.view.phase = super::NativeEditorPhase::Unsaved;
+                                }
+                            }
+                        }
+                    }
                 }
                 data.writable = false;
                 data.frozen = true;
@@ -2351,7 +2501,7 @@ impl HostDesktop {
             .find(|(_, o)| o.instance == peer.instance && o.kind == ObjectKind::DraftSource)
             .map(|(k, o)| (*k, o.data.clone()));
         s.reserve_identities(1)?;
-        if old.is_none() && s.objects.len() >= 32 {
+        if old.is_none() && s.objects.len() >= s.shared_object_limit() {
             return Err(Status::Exhausted);
         }
         if let Some((key, Data::Mutable(data))) = old {
@@ -2590,7 +2740,7 @@ impl HostDesktop {
         let mut s = self.effect(peer, q, life)?;
         let old = s.sessions[&peer.session].receipt_object;
         s.reserve_identities(1)?;
-        if old == 0 && s.objects.len() >= 32 {
+        if old == 0 && s.objects.len() >= s.shared_object_limit() {
             return Err(Status::Exhausted);
         }
         if old != 0 {
@@ -2815,6 +2965,10 @@ impl HostDesktop {
         Ok(())
     }
     pub fn compose_next(&self, compositor: &Endpoint, now: u64) -> Result<ComposedFrame, Status> {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if self.state.lock().map_err(|_| Status::Internal)?.save_mode {
+            return self.compose_native_save(compositor, now);
+        }
         #[cfg(feature = "editor_native_preview_v0_dev")]
         if self.preview_mode() {
             return self.compose_store_preview(compositor, now);
@@ -2844,7 +2998,7 @@ impl HostDesktop {
             if s.sessions[&sid].compositor != compositor.peer.endpoint {
                 return Err(Status::Denied);
             }
-            if s.composed_frames + s.pending_frames >= 16 {
+            if s.frame_limit_hit() {
                 s.frame_exhausted = true;
                 return Err(Status::Exhausted);
             }
@@ -3364,6 +3518,13 @@ impl FixtureController {
         #[cfg(feature = "editor_native_preview_v0_dev")]
         if self.host.preview_mode() {
             if let Some(native) = &s.native {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                if s.save_mode && matches!(service, ServiceKind::Focus | ServiceKind::Compositor) {
+                    native.retire_save_service();
+                } else {
+                    native.retire_all();
+                }
+                #[cfg(not(feature = "editor_native_save_v0_dev"))]
                 native.retire_all();
             }
         }
@@ -3453,7 +3614,16 @@ impl FixtureController {
             permit_count: self.host.counters.permits.load(Ordering::SeqCst),
             transition_count: self.host.counters.transitions.load(Ordering::SeqCst),
             mutation_dispatch_count: self.host.counters.dispatches.load(Ordering::SeqCst),
-            volatile_backend: true,
+            volatile_backend: {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                {
+                    !s.save_mode
+                }
+                #[cfg(not(feature = "editor_native_save_v0_dev"))]
+                {
+                    true
+                }
+            },
         })
     }
     pub fn seed_exhaustion(&self, counter: CounterKind) -> Result<(), Status> {
@@ -3623,6 +3793,10 @@ impl HostDesktop {
                 io: 0,
                 joining: 0,
                 joined_total: 0,
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                active_non_io: 0,
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                active_io: 0,
             })
     }
 }
@@ -3727,6 +3901,15 @@ impl HostDesktop {
         use super::native_preview::*;
         let session = &s.sessions[&sid];
         let (kind, plan, revision) = if route == Route::Launcher {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if s.save_mode
+                && session
+                    .pending_selector
+                    .is_some_and(|(_, key, _)| key == 21)
+                && session.pressed.contains(&21)
+            {
+                return Ok(());
+            }
             (PreviewUiTicketKind::Selector, 0, 0)
         } else {
             let p = session.preview.as_ref().ok_or(Status::NotReady)?;
@@ -3811,6 +3994,10 @@ impl HostDesktop {
                 state: TicketState::Available,
             },
         );
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode && kind == PreviewUiTicketKind::Selector {
+            s.sessions.get_mut(&sid).unwrap().pending_selector = None;
+        }
         Ok(())
     }
     pub fn take_preview_action(
@@ -3930,7 +4117,82 @@ impl HostDesktop {
             reserved: 0,
             records,
         };
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode {
+            use artifact_store_schema::editor_native_save::*;
+            let records = core::array::from_fn(|n| EditorNativeSaveGrantV0 {
+                handle: data.records[n].handle,
+                resource_id: data.records[n].resource_id,
+                resource_generation: data.records[n].resource_generation,
+                service_epoch: data.records[n].service_epoch,
+                expires_at_ms: data.records[n].expires_at_ms,
+                class: [
+                    EditorNativeSaveClassV0::SelfStatus,
+                    EditorNativeSaveClassV0::FocusRead,
+                    EditorNativeSaveClassV0::Surface,
+                    EditorNativeSaveClassV0::StoreArtifact,
+                ][n],
+                rights: [1, 1, 15, 7][n],
+                protocol_version: 1,
+                reserved: 0,
+            });
+            let save = EditorNativeSaveDataV0 {
+                phase: if id == 0 {
+                    EditorNativeSavePhaseV0::Preview
+                } else {
+                    EditorNativeSavePhaseV0::Active
+                },
+                schema_version: 3,
+                total_len: 464,
+                category_mask: data.category_mask,
+                record_count: 4,
+                session_id: data.session_id,
+                session_generation: data.session_generation,
+                instance_id: data.instance_id,
+                instance_generation: data.instance_generation,
+                selected_object_id: data.selected_object_id,
+                selected_object_generation: data.selected_object_generation,
+                selected_revision: data.selected_revision,
+                policy_revision: data.policy_revision,
+                plan_id: data.plan_id,
+                preview_revision: data.preview_revision,
+                expires_at_ms: data.expires_at_ms,
+                desktop_service_epoch: data.desktop_service_epoch,
+                application_hash: data.application_hash,
+                manifest_hash: data.manifest_hash,
+                selected_content_hash: data.selected_content_hash,
+                max_text_len: 4096,
+                surface_width: 640,
+                surface_height: 480,
+                surface_stride: 2560,
+                surface_format: 1,
+                input_capacity: 64,
+                protocol_version: 1,
+                reserved: 0,
+                records,
+            };
+            return Ok(save.encode_le().map_err(|_| Status::Invalid)?.to_vec());
+        }
         Ok(data.encode_le().map_err(|_| Status::Invalid)?.to_vec())
+    }
+    fn preview_setup_time_locked(
+        &self,
+        state: &State,
+        authority: &Arc<super::native_authority::NativeAuthority>,
+        now: u64,
+    ) -> Result<u64, Status> {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if state.save_mode {
+            let gate = super::native_preview::lock(&authority.gate)?;
+            if gate.save.is_none() {
+                return Err(Status::Denied);
+            }
+            let preview = gate.preview.as_ref().ok_or(Status::Denied)?;
+            // Drop this Gate before State expiry can retire holders via Gate.
+            return Ok(now.max(gate.now_ms).max(preview.now));
+        }
+        let _ = (state, authority);
+        Ok(now)
     }
     pub fn prepare_store_preview(
         &self,
@@ -3951,8 +4213,25 @@ impl HostDesktop {
             return Err(Status::Denied);
         }
         let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        let now = self.preview_setup_time_locked(&s, &authority, now)?;
+        self.clock.fetch_max(now, Ordering::SeqCst);
         s.expire(now);
         let mut gate = lock(&authority.gate)?;
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let now = if s.save_mode {
+            if gate.save.is_none() {
+                return Err(Status::Denied);
+            }
+            let now = now
+                .max(gate.now_ms)
+                .max(gate.preview.as_ref().ok_or(Status::Denied)?.now);
+            gate.now_ms = now;
+            gate.preview.as_mut().ok_or(Status::Denied)?.expire(now);
+            self.clock.fetch_max(now, Ordering::SeqCst);
+            now
+        } else {
+            now
+        };
         let p = gate.preview.as_mut().ok_or(Status::Denied)?;
         let tr = p.tickets.get(&ticket.life.id).ok_or(Status::NotReady)?;
         if tr.state == TicketState::Consumed {
@@ -3981,9 +4260,14 @@ impl HostDesktop {
         {
             return Err(Status::Stale);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode && s.exchanges.len() >= s.trace_limit() {
+            s.trace_exhausted = true;
+            return Err(Status::Exhausted);
+        }
         s.reserve_identities(3)?;
         s.focus_counter.checked_add(1).ok_or(Status::Exhausted)?;
-        if s.objects.len() >= 32 {
+        if s.objects.len() >= s.shared_object_limit() {
             return Err(Status::Exhausted);
         }
         let expires = now
@@ -4033,6 +4317,10 @@ impl HostDesktop {
         put64(&mut r.payload, 24, descriptor);
         put32(&mut r.payload, 32, 464);
         put32(&mut r.payload, 40, 63);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode {
+            s.exchanges.push((ticket.request, r));
+        }
         Ok(r)
     }
     pub fn confirm_store_preview(
@@ -4052,8 +4340,29 @@ impl HostDesktop {
             return Err(Status::Denied);
         }
         let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        let now = self.preview_setup_time_locked(&s, &authority, now)?;
+        self.clock.fetch_max(now, Ordering::SeqCst);
         s.expire(now);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode && s.save_pending.len() >= 16 {
+            return Err(Status::Exhausted);
+        }
         let mut gate = lock(&authority.gate)?;
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let now = if s.save_mode {
+            if gate.save.is_none() {
+                return Err(Status::Denied);
+            }
+            let now = now
+                .max(gate.now_ms)
+                .max(gate.preview.as_ref().ok_or(Status::Denied)?.now);
+            gate.now_ms = now;
+            gate.preview.as_mut().ok_or(Status::Denied)?.expire(now);
+            self.clock.fetch_max(now, Ordering::SeqCst);
+            now
+        } else {
+            now
+        };
         let p = gate.preview.as_mut().ok_or(Status::Denied)?;
         p.prune();
         let tr = p.tickets.get(&ticket.life.id).ok_or(Status::NotReady)?;
@@ -4090,7 +4399,7 @@ impl HostDesktop {
         if p.attachments.len() >= 16
             || s.instances.len() >= 16
             || s.endpoints.len() + 3 > 64
-            || s.objects.len() + 1 > 32
+            || s.objects.len() + 1 > s.shared_object_limit()
         {
             return Err(Status::Exhausted);
         }
@@ -4214,11 +4523,25 @@ impl HostDesktop {
             .as_mut()
             .ok_or(Status::Stale)?
             .invalid = true;
-        Ok(PendingStoreInstance {
+        let pending = PendingStoreInstance {
             authority: authority.clone(),
             life,
             setup,
-        })
+        };
+        // Save's terminal State owner is installed in the same State->Gate
+        // confirmation transaction. Public caller ownership stays independent.
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if s.save_mode {
+            s.save_pending.insert(
+                id,
+                Arc::new(PendingStoreInstance {
+                    authority: pending.authority.clone(),
+                    life: pending.life.clone(),
+                    setup: pending.setup.clone(),
+                }),
+            );
+        }
+        Ok(pending)
     }
 }
 #[cfg(feature = "editor_native_preview_v0_dev")]
@@ -4306,6 +4629,11 @@ impl HostDesktop {
             if r.delivered {
                 return Err(Status::NotReady);
             }
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if s.save_mode && s.exchanges.len() >= s.trace_limit() {
+                s.trace_exhausted = true;
+                return Err(Status::Exhausted);
+            }
             let installation = r.installation.clone().ok_or(Status::NotReady)?;
             let id = pending.life.id;
             let i = s.instances.get(&id).ok_or(Status::Stale)?;
@@ -4329,6 +4657,8 @@ impl HostDesktop {
             let endpoints = r.endpoints;
             let generation = i.generation;
             let expires = r.view.instance_expires_at_ms;
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            let confirm_request = r.confirm_request;
             let mut confirm = reply(&r.confirm_request, EndpointClass::Chrome, Status::Ok);
             put64(&mut confirm.payload, 8, r.view.actor.session_generation);
             put64(&mut confirm.payload, 16, id);
@@ -4381,6 +4711,10 @@ impl HostDesktop {
                 .unwrap()
                 .live
                 .insert(id, (generation, expires));
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if s.save_mode {
+                s.exchanges.push((confirm_request, confirm));
+            }
             observation.stage = PreviewDeliveryStage::Expose;
             Ok(StoreLaunch {
                 confirm_reply: confirm,
@@ -4700,6 +5034,9 @@ impl State {
             })
             .unwrap_or_default();
         for id in retired {
+            // Gate used to select these actual terminal rows is already dropped.
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            self.release_save_pending(id);
             if self.preview_instances.contains_key(&id) {
                 self.retire(id, InstanceState::Revoked);
             }
@@ -4808,7 +5145,7 @@ impl HostDesktop {
             if s.sessions[&sid].compositor != compositor.peer.endpoint {
                 return Err(Status::Denied);
             }
-            if s.composed_frames + s.pending_frames >= 16 {
+            if s.frame_limit_hit() {
                 return Err(Status::Exhausted);
             }
             let mut g = lock(&authority.gate)?;
@@ -5001,7 +5338,7 @@ impl HostDesktop {
                         sequence,
                     }
                     .encode(compositor.handle)?;
-                    if s.exchanges.len() >= 256 {
+                    if s.exchanges.len() >= s.trace_limit() {
                         return Err(Status::Exhausted);
                     }
                     s.consume_frozen(id, sequence)?;
@@ -5298,5 +5635,1785 @@ impl HostDesktop {
             return Err(Status::Denied);
         }
         Ok(())
+    }
+}
+
+impl State {
+    fn trace_limit(&self) -> usize {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if self.save_mode {
+            return 131072;
+        }
+        256
+    }
+    fn frame_limit_hit(&self) -> bool {
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if self.save_mode {
+            return self.composed_frames >= 128 || self.pending_frames >= 16;
+        }
+        self.composed_frames + self.pending_frames >= 16
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl HostDesktop {
+    fn save_authority(&self) -> Result<Arc<super::native_authority::NativeAuthority>, Status> {
+        let authority = self.native_authority()?;
+        if authority
+            .gate
+            .lock()
+            .map_err(|_| Status::Internal)?
+            .save
+            .is_none()
+        {
+            return Err(Status::Unsupported);
+        }
+        Ok(authority)
+    }
+    pub fn new_store_save(
+        config: HostConfig,
+    ) -> Result<
+        (
+            Self,
+            FixtureController,
+            super::RegistryWitness,
+            super::NativeSaveEnrollment,
+        ),
+        Status,
+    > {
+        let (host, controller, witness, enrollment) = Self::new_store_preview_read(config)?;
+        let authority = host.native_authority()?;
+        {
+            let mut state = host.state.lock().map_err(|_| Status::Internal)?;
+            let mut gate = authority.gate.lock().map_err(|_| Status::Internal)?;
+            state.save_mode = true;
+            gate.save = Some(super::native_save::SaveGate::new());
+        }
+        Ok((
+            host,
+            controller,
+            witness,
+            super::NativeSaveEnrollment {
+                inner: enrollment,
+                authority,
+            },
+        ))
+    }
+    pub fn native_save_profile(&self) -> Result<super::NativeSaveProfile, Status> {
+        self.save_authority()?;
+        Ok(super::NativeSaveProfile {
+            selected_object_limit: 3,
+            trace_capacity: 131072,
+            composed_history_capacity: 128,
+            pending_frame_capacity: 16,
+        })
+    }
+    pub fn take_save_preview_action(
+        &self,
+        chrome: &PeerContext,
+    ) -> Result<super::SaveUiTicket, Status> {
+        self.save_authority()?;
+        Ok(super::SaveUiTicket {
+            inner: self.take_preview_action(chrome)?,
+        })
+    }
+    pub fn prepare_save_preview(
+        &self,
+        chrome: &PeerContext,
+        ticket: &mut super::SaveUiTicket,
+        pin: &super::SaveSelectionPin,
+        now: u64,
+    ) -> Result<Envelope, Status> {
+        self.save_authority()?;
+        self.prepare_store_preview(chrome, &mut ticket.inner, &pin.inner, now)
+    }
+    pub fn confirm_save_preview(
+        &self,
+        chrome: &PeerContext,
+        ticket: &mut super::SaveUiTicket,
+        now: u64,
+    ) -> Result<super::PendingSaveInstance, Status> {
+        self.save_authority()?;
+        let inner = Arc::new(self.confirm_store_preview(chrome, &mut ticket.inner, now)?);
+        Ok(super::PendingSaveInstance { inner })
+    }
+    pub fn take_save_launch(
+        &self,
+        chrome: &PeerContext,
+        held: &mut Option<super::DesktopSaveLaunch>,
+        now: u64,
+    ) -> Result<(), super::NativeSaveDeliveryFailure> {
+        use super::native_save::*;
+        let mut observation = NativeSaveDeliveryObservation {
+            stage: NativeSaveDeliveryStage::Authorize,
+            status: Status::Denied,
+            authorized_attempt: false,
+            active: false,
+            retired: false,
+            pending_retained: false,
+            launch_retained: held.is_some(),
+            bootstrap_delivered: false,
+            confirm_delivered: false,
+        };
+        let mut retained = None;
+        let result = (|| {
+            let authority = self.save_authority()?;
+            let (pending, stamp) = {
+                let state = self.state.lock().map_err(|_| Status::Internal)?;
+                self.preview_chrome_locked(&state, chrome)?;
+                if held.is_some() {
+                    return Err(Status::NotReady);
+                }
+                let gate = authority.gate.lock().map_err(|_| Status::Internal)?;
+                let p = gate.preview.as_ref().ok_or(Status::Denied)?;
+                let pending = state
+                    .save_pending
+                    .values()
+                    .rev()
+                    .find(|pending| {
+                        p.attachments
+                            .get(&pending.life.id)
+                            .is_some_and(|r| r.view.actor.session_id == chrome.session)
+                    })
+                    .ok_or(Status::NotReady)?
+                    .clone();
+                let row = p.row(&pending.life)?;
+                retained = Some(pending.clone());
+                observation.authorized_attempt = true;
+                observation.pending_retained = true;
+                observation.active = row.active;
+                let stamp = super::StoreActivationStamp {
+                    authority: authority.clone(),
+                    life: pending.life.clone(),
+                    version: row.version,
+                };
+                (pending, stamp)
+            };
+            observation.stage = NativeSaveDeliveryStage::Validate;
+            let launch = self
+                .take_store_launch(chrome, &pending, &stamp, now)
+                .map_err(|e| e.status())?;
+            observation.stage = NativeSaveDeliveryStage::BuildReply;
+            let b = launch.bindings;
+            let origin = b.artifact_origin;
+            let save = DesktopSaveLaunch {
+                confirm_reply: launch.confirm_reply,
+                bindings: NativeSaveBindings {
+                    bootstrap: b.bootstrap,
+                    self_status: b.self_status,
+                    focus_read: b.focus_read,
+                    surface: b.surface,
+                    artifact_origin: SaveOrigin {
+                        authority: origin.authority,
+                        life: origin.life,
+                        context: origin.context,
+                    },
+                },
+                stamp: SaveActivationStamp {
+                    inner: launch.stamp,
+                },
+            };
+            self.state
+                .lock()
+                .map_err(|_| Status::Internal)?
+                .save_pending
+                .remove(&pending.life.id);
+            *held = Some(save);
+            observation.stage = NativeSaveDeliveryStage::Expose;
+            observation.bootstrap_delivered = true;
+            observation.confirm_delivered = true;
+            Ok(())
+        })();
+        result.map_err(|status| {
+            observation.status = status;
+            if let Some(p) = &retained {
+                if let Ok(a) = self.native_authority() {
+                    let gate = a.gate.lock().unwrap_or_else(|p| p.into_inner());
+                    observation.retired = gate
+                        .preview
+                        .as_ref()
+                        .and_then(|g| g.attachments.get(&p.life.id))
+                        .is_some_and(|r| r.retired);
+                }
+            }
+            NativeSaveDeliveryFailure {
+                status,
+                observation,
+                _pending: retained,
+                _launch: None,
+            }
+        })
+    }
+    pub fn dispatch_store_save_chrome(
+        &self,
+        chrome: &PeerContext,
+        q: &Envelope,
+        now: u64,
+    ) -> Envelope {
+        if let Err(status) = self.save_authority() {
+            return reply(q, chrome.class, status);
+        }
+        self.dispatch_store_preview_chrome(chrome, q, now)
+    }
+    pub fn native_join_observation(
+        &self,
+        proof: &super::JoinedProducerProof,
+    ) -> Result<super::NativeJoinObservation, Status> {
+        self.save_authority()?
+            .witness()
+            .save_join_observation(proof)
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl FixtureController {
+    pub fn pause_next_native_save(
+        &self,
+        session: u64,
+        point: super::NativeSavePausePoint,
+    ) -> Result<super::NativeSavePause, Status> {
+        use super::native_save::*;
+        let authority = self.host.save_authority()?;
+        if point == NativeSavePausePoint::BeforeActivation {
+            return Ok(NativeSavePause {
+                authority,
+                inner: SavePause::Preview(self.pause_next_store_preview(
+                    session,
+                    super::PreviewPausePoint::BeforeActivation,
+                )?),
+            });
+        }
+        let state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        if !state.sessions.contains_key(&session) {
+            return Err(Status::Denied);
+        }
+        let mut gate = authority.gate.lock().map_err(|_| Status::Internal)?;
+        let save = gate.save.as_mut().ok_or(Status::Unsupported)?;
+        save.barriers.retain(|b| b.strong_count() > 0);
+        if save.armed.is_some() {
+            return Err(Status::NotReady);
+        }
+        if save.barriers.len() >= 32 {
+            return Err(Status::Exhausted);
+        }
+        let b = SaveBarrier::new(session, point);
+        save.barriers.push(Arc::downgrade(&b));
+        save.armed = Some((session, point, b.clone()));
+        Ok(NativeSavePause {
+            authority: authority.clone(),
+            inner: SavePause::Save(b),
+        })
+    }
+    pub fn release_native_save(&self, pause: &super::NativeSavePause) -> Result<(), Status> {
+        use super::native_save::*;
+        if !same(&self.host.save_authority()?, &pause.authority) {
+            return Err(Status::Denied);
+        }
+        match &pause.inner {
+            SavePause::Preview(p) => self.release_store_preview(p),
+            SavePause::Save(b) => b.release(),
+        }
+    }
+    pub fn probe_inactive_save(
+        &self,
+        chrome: &PeerContext,
+        pending: &super::PendingSaveInstance,
+        pause: &super::NativeSavePause,
+        now: u64,
+    ) -> Result<super::InactiveSaveDesktopObservation, Status> {
+        use super::native_save::*;
+        if !same(&self.host.save_authority()?, &pause.authority) {
+            return Err(Status::Denied);
+        }
+        let SavePause::Preview(p) = &pause.inner else {
+            return Err(Status::NotReady);
+        };
+        let v = self.probe_inactive_preview(chrome, &pending.inner, p, now)?;
+        Ok(InactiveSaveDesktopObservation {
+            endpoint_requests: v.endpoint_requests,
+            endpoint_replies: v.endpoint_replies,
+            origin_status: v.origin_status,
+            bootstrap_status: v.bootstrap_status,
+            grants_lease_status: v.grants_lease_status,
+        })
+    }
+    pub fn seed_native_save_counter(
+        &self,
+        counter: super::NativeSaveCounter,
+    ) -> Result<(), Status> {
+        use super::NativeSaveCounter::*;
+        let _state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        let a = self.host.save_authority()?;
+        let mut g = a.gate.lock().map_err(|_| Status::Internal)?;
+        #[cfg(feature = "editor_adapter_assertions_v0_dev")]
+        if matches!(counter, TextGeneration | ViewVersion) {
+            // Same State -> Gate -> roster lock order as actual admission/join.
+            // Retained completed Read owners are allowed; every actual producer
+            // must already have been removed by its genuine join operation.
+            if a.witness().producer_counts().held != 0 {
+                return Err(Status::NotReady);
+            }
+            return owner_private_assertions::seed_actual_counter(&_state, &mut g, counter);
+        }
+        if counter == StatusVersion {
+            g.preview.as_mut().ok_or(Status::Denied)?.next_status = u64::MAX;
+        }
+        let s = g.save.as_mut().ok_or(Status::Denied)?;
+        match counter {
+            Intent => s.next_intent = u64::MAX,
+            Document => s.next_document = u64::MAX,
+            TextGeneration => s.text_exhausted = true,
+            ViewVersion => s.view_exhausted = true,
+            FrameJoin => s.next_frame = u64::MAX,
+            StatusVersion => {}
+            SourceBinding => s.next_source = u64::MAX,
+            OriginalRecord => s.next_original = u64::MAX,
+        }
+        Ok(())
+    }
+    pub fn fault_native_editor(&self, instance_id: u64, now: u64) -> Result<(), Status> {
+        let a = self.host.save_authority()?;
+        self.host.advance(now);
+        let mut state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        if !state.instances.contains_key(&instance_id) {
+            return Err(Status::Stale);
+        }
+        state.retire(instance_id, InstanceState::Faulted);
+        let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+        let next = p.next_status.checked_add(1);
+        let row = p.attachments.get_mut(&instance_id).ok_or(Status::Stale)?;
+        row.retired = true;
+        row.faulted = true;
+        match next {
+            Some(n) => {
+                row.status_version = n;
+                p.next_status = n;
+                Ok(())
+            }
+            None => {
+                row.status_exhausted = true;
+                Err(Status::Exhausted)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl HostDesktop {
+    pub fn begin_save_read(
+        &self,
+        origin: &super::SaveOrigin,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        self.begin_save_entry((Some(origin), None, None, None), q, now, 1)
+    }
+    pub fn begin_save_allocate(
+        &self,
+        origin: &super::SaveOrigin,
+        intent: &super::NativeSaveIntent,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        self.begin_save_entry((Some(origin), Some(intent), None, None), q, now, 3)
+    }
+    pub fn begin_save_commit(
+        &self,
+        origin: &super::SaveOrigin,
+        source: &super::BoundNativeSource,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        self.begin_save_entry((Some(origin), None, Some(source), None), q, now, 5)
+    }
+    pub fn begin_save_status(
+        &self,
+        origin: &super::SaveOrigin,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        self.begin_save_entry((Some(origin), None, None, None), q, now, 7)
+    }
+    pub fn begin_save_recovery(
+        &self,
+        origin: &super::OriginalRecoveryOrigin,
+        q: &Envelope,
+        now: u64,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        if !matches!(q.msg_type, 7 | 9) {
+            return Err(Status::Unsupported);
+        }
+        self.begin_save_entry((None, None, None, Some(origin)), q, now, q.msg_type)
+    }
+    fn begin_save_entry(
+        &self,
+        origins: (
+            Option<&super::SaveOrigin>,
+            Option<&super::NativeSaveIntent>,
+            Option<&super::BoundNativeSource>,
+            Option<&super::OriginalRecoveryOrigin>,
+        ),
+        q: &Envelope,
+        now: u64,
+        kind: u32,
+    ) -> Result<super::NativeSaveEntry, Status> {
+        use super::native_save::*;
+        let (origin, intent, source, recovery) = origins;
+        let entered = Instant::now();
+        let authority = self.save_authority()?;
+        if q.protocol != 368 || q.msg_type != kind {
+            return Err(Status::Unsupported);
+        }
+        encode_envelope_wire(q).and_then(|b| decode_envelope_wire(&b))?;
+        if origin.is_some_and(|o| !same(&authority, &o.authority))
+            || intent.is_some_and(|i| !same(&authority, &i.authority))
+            || source.is_some_and(|s| !same(&authority, &s.authority))
+            || recovery.is_some_and(|r| !same(&authority, &r.authority))
+        {
+            return Err(Status::Denied);
+        }
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        state.expire(now);
+        let mut gate = authority.gate.lock().map_err(|_| Status::Internal)?;
+        let (attachment, actor, object_id, object_generation, epoch) = if let Some(origin) = origin
+        {
+            let p = gate.preview.as_ref().ok_or(Status::Denied)?;
+            let row = p.row(&origin.life)?;
+            let installation = row.installation.as_ref().ok_or(Status::NotReady)?;
+            if origin.context != row.context || q.handle != installation.store_handle {
+                return Err(Status::Denied);
+            }
+            p.admit_instance(origin.life.id)?;
+            if !row.delivered {
+                return Err(Status::NotReady);
+            }
+            (
+                origin.life.clone(),
+                row.view.actor.clone(),
+                installation.object_id,
+                installation.object_generation,
+                installation.store_epoch,
+            )
+        } else {
+            let r = recovery.ok_or(Status::Denied)?;
+            if q.handle != r.life.view.request.handle {
+                return Err(Status::Denied);
+            }
+            if q.msg_type == 9 {
+                if r.life.view.request.msg_type != 3 || q64(q, 24) != q64(&r.life.view.request, 0) {
+                    return Err(Status::Denied);
+                }
+            } else {
+                let op = r
+                    .life
+                    .source
+                    .as_ref()
+                    .map(|s| s.binding.allocation.operation_id)
+                    .or_else(|| {
+                        r.life
+                            .state
+                            .lock()
+                            .ok()
+                            .and_then(|s| s.allocation.as_ref().map(|w| q64(w, 8)))
+                    })
+                    .ok_or(Status::Denied)?;
+                if q64(q, 24) != op {
+                    return Err(Status::Denied);
+                }
+            }
+            (
+                r.life.attachment.clone(),
+                r.life.view.actor.clone(),
+                r.life.view.object_id,
+                r.life.view.object_generation,
+                r.life.view.store_epoch,
+            )
+        };
+        if q64(q, 8) != actor.session_id
+            || q64(q, 16) != actor.session_generation
+            || kind == 1
+                && (q64(q, 24) != actor.instance_id || q64(q, 32) != actor.instance_generation)
+        {
+            return Err(Status::Denied);
+        }
+        let actual_intent = intent
+            .map(|i| i.life.clone())
+            .or_else(|| source.map(|s| s.life.intent.clone()));
+        if let Some(i) = &actual_intent {
+            if !Arc::ptr_eq(&i.attachment, &attachment)
+                || i.snapshot.data.view.actor != actor
+                || q64(q, 24) != i.snapshot.data.view.expected_revision
+            {
+                return Err(Status::Denied);
+            }
+        }
+        if let Some(source) = source {
+            if q64(q, 32) != source.life.binding.allocation.operation_id
+                || q64(q, 40) != source.life.binding.source.source_object_id
+                || q32(q, 48)
+                    != source
+                        .life
+                        .binding
+                        .source
+                        .byte_len
+                        .checked_add(64)
+                        .ok_or(Status::Exhausted)?
+            {
+                return Err(Status::Denied);
+            }
+        }
+        let deadline = actual_intent.as_ref().map(|i| i.deadline).unwrap_or(
+            entered
+                .checked_add(Duration::from_millis(1000))
+                .ok_or(Status::Exhausted)?,
+        );
+        let started = actual_intent.as_ref().map(|i| i.entered).unwrap_or(entered);
+        if Instant::now() >= deadline {
+            return Err(Status::Timeout);
+        }
+        if authority.prune_save_calls(&mut gate)? >= 64 {
+            return Err(Status::Exhausted);
+        }
+        let id = gate.next_origin.checked_add(1).ok_or(Status::Exhausted)?;
+        let scope = super::native_authority::NativeAuthority::save_origin(
+            id,
+            attachment.clone(),
+            object_id,
+        );
+        let [dispatcher_reservation, supervisor_reservation] = authority.reserve_save_pair(
+            &scope,
+            [
+                super::ProducerKind::DesktopDispatch,
+                super::ProducerKind::DesktopSupervisor,
+            ],
+        )?;
+        let producers = [
+            dispatcher_reservation.save_id(),
+            supervisor_reservation.save_id(),
+        ];
+        let life = Arc::new(CallLife {
+            origin: scope,
+            attachment,
+            intent: actual_intent.clone(),
+            source: source.map(|s| s.life.clone()),
+            recovery: recovery.map(|r| r.life.clone()),
+            producers,
+            view: NativeSaveCallView {
+                actor: actor.clone(),
+                object_id,
+                object_generation,
+                store_epoch: epoch,
+                origin_id: id,
+                intent_id: actual_intent.as_ref().map(|i| i.id),
+                entered: started,
+                deadline,
+                request: *q,
+            },
+        });
+        gate.next_origin = id;
+        let save = gate.save.as_mut().ok_or(Status::Denied)?;
+        save.calls.insert(
+            id,
+            CallRow {
+                life: Arc::downgrade(&life),
+                claimed: false,
+                closed: false,
+            },
+        );
+        let barrier = if save.armed.as_ref().is_some_and(|(sid, p, _)| {
+            *sid == actor.session_id && *p == NativeSavePausePoint::BeforeEntryAdmission
+        }) {
+            save.armed.take().map(|(_, _, b)| b)
+        } else {
+            None
+        };
+        drop(gate);
+        drop(state);
+        let result = Arc::new(SaveEntryResult {
+            state: Mutex::new(SaveEntryState {
+                started: false,
+                completed: false,
+                consumed: false,
+                outcome: None,
+            }),
+            changed: Condvar::new(),
+        });
+        let worker_result = result.clone();
+        let worker_authority = authority.clone();
+        let worker_life = life.clone();
+        let worker_barrier = barrier.clone();
+        let dispatcher = std::thread::Builder::new()
+            .name("desktop-native-save".into())
+            .spawn(move || {
+                let _settle = SaveSettlement(worker_barrier.clone());
+                let mut ready = worker_result
+                    .state
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner());
+                while !ready.started && !ready.completed {
+                    ready = worker_result
+                        .changed
+                        .wait(ready)
+                        .unwrap_or_else(|p| p.into_inner());
+                }
+                let started = ready.started;
+                drop(ready);
+                if !started {
+                    return;
+                }
+                if let Some(b) = &worker_barrier {
+                    if let Err(e) =
+                        b.enter_wait(worker_life.attachment.id, worker_life.attachment.pin)
+                    {
+                        worker_result.publish(Err(e));
+                        return;
+                    }
+                }
+                let call = NativeSaveCall {
+                    authority: worker_authority.clone(),
+                    life: worker_life,
+                };
+                let outcome = worker_authority
+                    .gate
+                    .lock()
+                    .map_err(|_| Status::Internal)
+                    .and_then(|g| g.save_call(&call, call.life.recovery.is_some()).map(|_| ()));
+                worker_result.publish(outcome);
+            });
+        let dispatcher = match dispatcher {
+            Ok(handle) => dispatcher_reservation.install(handle),
+            Err(_) => {
+                dispatcher_reservation.cancel_unspawned()?;
+                supervisor_reservation.cancel_unspawned()?;
+                if let Some(b) = barrier {
+                    b.settle();
+                }
+                return Err(Status::Internal);
+            }
+        };
+        let timer_result = result.clone();
+        let timer_authority = authority.clone();
+        let timer_life = life.clone();
+        let supervisor = std::thread::Builder::new()
+            .name("desktop-save-deadline".into())
+            .spawn(move || {
+                let mut ready = timer_result.state.lock().unwrap_or_else(|p| p.into_inner());
+                while !ready.started && !ready.completed {
+                    ready = timer_result
+                        .changed
+                        .wait(ready)
+                        .unwrap_or_else(|p| p.into_inner());
+                }
+                while !ready.completed {
+                    let now = Instant::now();
+                    if now >= deadline {
+                        drop(ready);
+                        let mut gate = timer_authority
+                            .gate
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner());
+                        if let Some(row) = gate.save.as_mut().and_then(|s| s.calls.get_mut(&id)) {
+                            row.closed = true;
+                        }
+                        drop(gate);
+                        timer_result.publish(Err(Status::Timeout));
+                        return;
+                    }
+                    ready = timer_result
+                        .changed
+                        .wait_timeout(ready, deadline - now)
+                        .unwrap_or_else(|p| p.into_inner())
+                        .0;
+                }
+                drop(timer_life);
+            });
+        let supervisor = match supervisor {
+            Ok(handle) => supervisor_reservation.install(handle),
+            Err(_) => {
+                supervisor_reservation.cancel_unspawned()?;
+                result.publish(Err(Status::Internal));
+                return Err(Status::Internal);
+            }
+        };
+        let mut ready = result.state.lock().unwrap_or_else(|p| p.into_inner());
+        if !ready.completed {
+            ready.started = true;
+        }
+        result.changed.notify_all();
+        drop(ready);
+        Ok(NativeSaveEntry {
+            authority,
+            life,
+            result,
+            producers: [dispatcher, supervisor],
+        })
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl HostDesktop {
+    pub fn editor_observation(
+        &self,
+        editor: &super::NativeEditor,
+        now: u64,
+    ) -> Result<super::NativeEditorObservation, Status> {
+        use super::native_save::*;
+        let authority = self.save_authority()?;
+        if !same(&authority, &editor.authority) {
+            return Err(Status::Denied);
+        }
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        state.expire(now);
+        let gate = authority.gate.lock().map_err(|_| Status::Internal)?;
+        let row = gate
+            .save
+            .as_ref()
+            .ok_or(Status::Denied)?
+            .documents
+            .get(&editor.life.id)
+            .ok_or(Status::Stale)?;
+        if !Arc::ptr_eq(&row.life, &editor.life) {
+            return Err(Status::Denied);
+        }
+        gate.preview
+            .as_ref()
+            .ok_or(Status::Denied)?
+            .admit_instance(row.attachment.id)?;
+        Ok(row.view.clone())
+    }
+    pub fn take_save_intent(
+        &self,
+        editor: &super::NativeEditor,
+    ) -> Result<super::NativeSaveIntent, Status> {
+        use super::native_save::*;
+        let a = self.save_authority()?;
+        if !same(&a, &editor.authority) {
+            return Err(Status::Denied);
+        }
+        let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        let row = gate
+            .save
+            .as_mut()
+            .ok_or(Status::Denied)?
+            .documents
+            .get_mut(&editor.life.id)
+            .ok_or(Status::Stale)?;
+        if !Arc::ptr_eq(&row.life, &editor.life) {
+            return Err(Status::Denied);
+        }
+        let life = row.queued_intent.take().ok_or(Status::NotReady)?;
+        life.exposed.store(true, Ordering::Release);
+        Ok(NativeSaveIntent {
+            authority: a.clone(),
+            life,
+        })
+    }
+    pub fn step_native_editor(
+        &self,
+        editor: &super::NativeEditor,
+        now: u64,
+    ) -> Result<super::NativeEditorStep, Status> {
+        use super::native_save::*;
+        use kernel_api::generated::desktop_focus_v1 as focus;
+        let a = self.save_authority()?;
+        if !same(&a, &editor.authority) {
+            return Err(Status::Denied);
+        }
+        let (status_endpoint, focus_endpoint, actor, ids, queued) = {
+            let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+            let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            state.expire(now);
+            let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            let save = gate.save.as_ref().ok_or(Status::Denied)?;
+            let doc = save.documents.get(&editor.life.id).ok_or(Status::Stale)?;
+            if !Arc::ptr_eq(&doc.life, &editor.life) {
+                return Err(Status::Denied);
+            }
+            let actor = doc.view.actor.clone();
+            let p = gate.preview.as_ref().ok_or(Status::Denied)?;
+            p.admit_instance(actor.instance_id)?;
+            let row = p.row(&doc.attachment)?;
+            let endpoints = row.endpoints;
+            let queued = state
+                .sessions
+                .get(&actor.session_id)
+                .ok_or(Status::Stale)?
+                .keys
+                .front()
+                .copied();
+            let doc = gate
+                .save
+                .as_mut()
+                .ok_or(Status::Denied)?
+                .documents
+                .get_mut(&editor.life.id)
+                .ok_or(Status::Stale)?;
+            let last = doc.request_id.checked_add(2).ok_or(Status::Exhausted)?;
+            let ids = [last - 1, last];
+            doc.request_id = last;
+            (
+                self.endpoint_locked(&state, endpoints[0])?,
+                self.endpoint_locked(&state, endpoints[1])?,
+                actor,
+                ids,
+                queued,
+            )
+        };
+        let q = editor::ObserveFocus {
+            request_id: ids[0],
+            session_id: actor.session_id,
+            session_generation: actor.session_generation,
+            instance_id: actor.instance_id,
+            instance_generation: actor.instance_generation,
+        }
+        .encode(status_endpoint.handle)?;
+        let reply = self.dispatch(&status_endpoint.peer, &q, now);
+        let observed = editor::ObserveFocusReply::decode(&reply)?;
+        if observed.status == Status::NotReady as u32 {
+            return Ok(NativeEditorStep {
+                consumed_sequence: None,
+                text_changed: false,
+                save_intent_available: false,
+                render_required: false,
+            });
+        }
+        if observed.status != 0 {
+            return Err(status_from_u32(observed.status));
+        }
+        let q = focus::PollKeys {
+            request_id: ids[1],
+            session_id: actor.session_id,
+            session_generation: actor.session_generation,
+            instance_id: actor.instance_id,
+            instance_generation: actor.instance_generation,
+            focus_epoch: observed.focus_epoch,
+        }
+        .encode(focus_endpoint.handle)?;
+        let reply = self.dispatch(&focus_endpoint.peer, &q, now);
+        let key = focus::PollKeysReply::decode(&reply)?;
+        if key.status == Status::NotReady as u32 {
+            return Ok(NativeEditorStep {
+                consumed_sequence: None,
+                text_changed: false,
+                save_intent_available: false,
+                render_required: false,
+            });
+        }
+        if key.status != 0 {
+            return Err(status_from_u32(key.status));
+        }
+        let queued = queued
+            .filter(|q| q.sequence == key.sequence)
+            .ok_or(Status::Stale)?;
+        let barrier = {
+            let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            let save = gate.save.as_mut().ok_or(Status::Denied)?;
+            if save.armed.as_ref().is_some_and(|(sid, p, _)| {
+                *sid == actor.session_id && *p == NativeSavePausePoint::BeforeKeyDelivery
+            }) {
+                save.armed.take().map(|(_, _, b)| b)
+            } else {
+                None
+            }
+        };
+        let _settle = SaveSettlement(barrier.clone());
+        if let Some(b) = &barrier {
+            b.enter_wait(actor.instance_id, 0)?;
+        }
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        state.expire(now);
+        let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        gate.preview
+            .as_ref()
+            .ok_or(Status::Denied)?
+            .admit_instance(actor.instance_id)?;
+        let session = state.sessions.get(&actor.session_id).ok_or(Status::Stale)?;
+        if session.focused != Some(actor.instance_id) || session.focus != key.focus_epoch {
+            return Err(Status::Stale);
+        }
+        let save = gate.save.as_mut().ok_or(Status::Denied)?;
+        let doc = save.documents.get(&editor.life.id).ok_or(Status::Stale)?;
+        if !Arc::ptr_eq(&doc.life, &editor.life)
+            || key.sequence <= doc.key_sequence && doc.focus_epoch == key.focus_epoch
+        {
+            return Err(Status::Stale);
+        }
+        let before = doc.view.clone();
+        let anchor = doc.selection_anchor;
+        let column = doc.preferred_column;
+        let saving = key.phase == 1 && key.usage == 22 && key.modifiers & 1 != 0;
+        let mut intent = None;
+        let unresolved = save.unresolved_document(before.document_id)?;
+        if saving
+            && !unresolved
+            && !matches!(
+                before.phase,
+                NativeEditorPhase::AllocationPending
+                    | NativeEditorPhase::AllocationUnknown
+                    | NativeEditorPhase::Saving
+                    | NativeEditorPhase::Unknown
+            )
+        {
+            save.intents.retain(|_, w| w.strong_count() > 0);
+            let live = save.live_intents(&a)?;
+            if live.len() >= 48
+                || live
+                    .iter()
+                    .filter(|i| i.snapshot.data.view.object_id == doc.object_id)
+                    .count()
+                    >= 16
+            {
+                return Err(Status::Exhausted);
+            }
+            let id = save.next_intent.checked_add(1).ok_or(Status::Exhausted)?;
+            let current = save.current.get(&doc.object_id).ok_or(Status::Denied)?;
+            let deadline = queued
+                .entered
+                .checked_add(Duration::from_millis(1000))
+                .ok_or(Status::Exhausted)?;
+            let snapshot = NativeDraftSnapshot {
+                data: Arc::new(SnapshotData {
+                    body: before.bytes.clone(),
+                    view: DraftSnapshotView {
+                        actor: actor.clone(),
+                        object_id: current.object_id,
+                        object_generation: current.object_generation,
+                        original_store_epoch: current.store_epoch,
+                        document_id: before.document_id,
+                        text_generation: before.text_generation,
+                        expected_revision: before.confirmed_revision,
+                        expected_content_hash: before.confirmed_hash,
+                        byte_len: before.bytes.len() as u32,
+                        source_content_hash: hash(&before.bytes),
+                    },
+                }),
+            };
+            intent = Some(Arc::new(IntentLife {
+                id,
+                exposed: std::sync::atomic::AtomicBool::new(false),
+                snapshot,
+                entered: queued.entered,
+                deadline,
+                attachment: doc.attachment.clone(),
+            }));
+        }
+        #[cfg(feature = "editor_adapter_assertions_v0_dev")]
+        let owner_checkpoint = (key.phase == 1
+            && key.usage == 4
+            && key.modifiers == 0
+            && (before.text_generation == u64::MAX || before.view_version == u64::MAX))
+            .then(|| owner_private_assertions::OwnedCheckpoint::capture(doc));
+        let mut text = super::client::NativeTextEditor::from_native(
+            &before,
+            anchor,
+            column,
+            state.config.font_rows,
+        )?;
+        if key.phase == 1 && !saving {
+            #[cfg(not(feature = "editor_adapter_assertions_v0_dev"))]
+            let accepted_edit = text.press(key.usage, key.modifiers)?;
+            #[cfg(feature = "editor_adapter_assertions_v0_dev")]
+            let accepted_edit = match text.press(key.usage, key.modifiers) {
+                Ok(accepted) => accepted,
+                Err(status) => {
+                    if status == Status::Exhausted {
+                        if let Some(checkpoint) = &owner_checkpoint {
+                            checkpoint.assert_max_rejection(doc);
+                        }
+                    }
+                    return Err(status);
+                }
+            };
+            if !accepted_edit {
+                let doc = save
+                    .documents
+                    .get_mut(&editor.life.id)
+                    .ok_or(Status::Stale)?;
+                doc.key_sequence = key.sequence;
+                doc.focus_epoch = key.focus_epoch;
+                return Ok(NativeEditorStep {
+                    consumed_sequence: Some(key.sequence),
+                    text_changed: false,
+                    save_intent_available: doc.queued_intent.is_some(),
+                    render_required: false,
+                });
+            }
+        }
+        let changed = text.draft.bytes != before.bytes;
+        let visible = changed
+            || text.draft.cursor as u32 != before.cursor
+            || text.draft.selection.map(|(a, b)| (a as u32, b as u32)) != before.selection
+            || text.draft.first_visible_line as u32 != before.first_visible_line;
+        if changed && save.text_exhausted || visible && save.view_exhausted {
+            return Err(Status::Exhausted);
+        }
+        #[cfg(not(feature = "editor_adapter_assertions_v0_dev"))]
+        let version = if visible {
+            before
+                .view_version
+                .checked_add(1)
+                .ok_or(Status::Exhausted)?
+        } else {
+            before.view_version
+        };
+        #[cfg(feature = "editor_adapter_assertions_v0_dev")]
+        let version = if visible {
+            match before.view_version.checked_add(1) {
+                Some(version) => version,
+                None => {
+                    if let Some(checkpoint) = &owner_checkpoint {
+                        checkpoint.assert_max_rejection(doc);
+                    }
+                    return Err(Status::Exhausted);
+                }
+            }
+        } else {
+            before.view_version
+        };
+        if let Some(i) = &intent {
+            save.next_intent = i.id;
+            save.intents.insert(i.id, Arc::downgrade(i));
+        }
+        let doc = save
+            .documents
+            .get_mut(&editor.life.id)
+            .ok_or(Status::Stale)?;
+        doc.view.bytes = text.draft.bytes;
+        doc.view.cursor = text.draft.cursor as u32;
+        doc.view.selection = text.draft.selection.map(|(a, b)| (a as u32, b as u32));
+        doc.view.first_visible_line = text.draft.first_visible_line as u32;
+        doc.view.text_generation = text.draft_generation;
+        doc.view.view_version = version;
+        doc.selection_anchor = text.selection_anchor;
+        doc.preferred_column = text.preferred_column;
+        doc.key_sequence = key.sequence;
+        doc.focus_epoch = key.focus_epoch;
+        if visible {
+            doc.frame = None;
+            if changed || doc.view.phase == NativeEditorPhase::Saved {
+                doc.view.phase = NativeEditorPhase::Unsaved;
+            }
+        }
+        if let Some(i) = intent {
+            doc.last_intent_id = Some(i.id);
+            doc.queued_intent = Some(i);
+            doc.view.phase = NativeEditorPhase::AllocationPending;
+        }
+        Ok(NativeEditorStep {
+            consumed_sequence: Some(key.sequence),
+            text_changed: changed,
+            save_intent_available: doc.queued_intent.is_some(),
+            render_required: visible,
+        })
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+fn status_from_u32(v: u32) -> Status {
+    match v {
+        0 => Status::Ok,
+        1 => Status::Denied,
+        2 => Status::Invalid,
+        3 => Status::Unsupported,
+        4 => Status::Stale,
+        5 => Status::Exhausted,
+        6 => Status::NotReady,
+        7 => Status::Conflict,
+        8 => Status::Timeout,
+        9 => Status::Disconnected,
+        10 => Status::Unknown,
+        _ => Status::Internal,
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl HostDesktop {
+    pub fn render_native_editor(
+        &self,
+        editor: &super::NativeEditor,
+        now: u64,
+    ) -> Result<super::NativeFrameObservation, Status> {
+        use super::native_save::*;
+        use kernel_api::generated::{desktop_focus_v1 as focus, desktop_surface_v1 as surface};
+        let a = self.save_authority()?;
+        if !same(&a, &editor.authority) {
+            return Err(Status::Denied);
+        }
+        let (
+            view,
+            endpoint,
+            focus_endpoint,
+            created,
+            surface_id,
+            surface_gen,
+            index,
+            sequence,
+            requests,
+            pixels,
+            initial_focus,
+        ) = {
+            let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+            let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            state.expire(now);
+            if state.frame_limit_hit() {
+                return Err(Status::Exhausted);
+            }
+            let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            let d = gate
+                .save
+                .as_ref()
+                .ok_or(Status::Denied)?
+                .documents
+                .get(&editor.life.id)
+                .ok_or(Status::Stale)?;
+            if !Arc::ptr_eq(&d.life, &editor.life) {
+                return Err(Status::Denied);
+            }
+            let actor = &d.view.actor;
+            let p = gate.preview.as_ref().ok_or(Status::Denied)?;
+            p.admit_instance(actor.instance_id)?;
+            let r = p.row(&d.attachment)?;
+            let endpoints = r.endpoints;
+            let i = state
+                .instances
+                .get(&actor.instance_id)
+                .ok_or(Status::Stale)?;
+            let (created, sid, sg, sequence) = (
+                i.surface.created,
+                i.surface.id,
+                i.surface.generation,
+                i.surface.sequence.checked_add(1).ok_or(Status::Exhausted)?,
+            );
+            if i.surface.frozen.is_some() {
+                return Err(Status::NotReady);
+            }
+            let focused = state.sessions[&actor.session_id].focused == Some(actor.instance_id);
+            let initial_focus = state.sessions[&actor.session_id].focus;
+            let chrome_endpoint =
+                self.endpoint_locked(&state, state.sessions[&actor.session_id].chrome)?;
+            let view = d.view.clone();
+            let text = super::client::NativeTextEditor::from_native(
+                &view,
+                d.selection_anchor,
+                d.preferred_column,
+                state.config.font_rows,
+            )?;
+            let pixels = text;
+            let s = gate.save.as_mut().ok_or(Status::Denied)?;
+            let frame = s.next_frame.checked_add(1).ok_or(Status::Exhausted)?;
+            let d = s.documents.get_mut(&editor.life.id).ok_or(Status::Stale)?;
+            let last = d.request_id.checked_add(4).ok_or(Status::Exhausted)?;
+            d.request_id = last;
+            d.frame = None;
+            if d.view.phase == NativeEditorPhase::Saved {
+                d.view.phase = NativeEditorPhase::Unsaved;
+            }
+            s.next_frame = frame;
+            state.pending_frames += 1;
+            (
+                view,
+                self.endpoint_locked(&state, endpoints[2])?,
+                chrome_endpoint,
+                created,
+                sid,
+                sg,
+                ((sequence - 1) % 2) as u32,
+                sequence,
+                [last - 3, last - 2, last - 1, last],
+                pixels,
+                if focused { Some(initial_focus) } else { None },
+            )
+        };
+        let mut reservation = FrameReservation {
+            state: self.state.clone(),
+            finished: false,
+        };
+        let pixels = pixels.raster()?;
+        let actor = &view.actor;
+        if !created {
+            let q = surface::Create {
+                request_id: requests[0],
+                session_id: actor.session_id,
+                session_generation: actor.session_generation,
+                instance_id: actor.instance_id,
+                instance_generation: actor.instance_generation,
+                width: 640,
+                height: 480,
+                format: 1,
+                reserved: 0,
+            }
+            .encode(endpoint.handle)?;
+            let r = surface::CreateReply::decode(&self.dispatch(&endpoint.peer, &q, now))?;
+            if r.status != 0 {
+                return Err(status_from_u32(r.status));
+            }
+            if r.surface_id != surface_id || r.surface_generation != surface_gen {
+                return Err(Status::Denied);
+            }
+        }
+        let focus_epoch = if let Some(epoch) = initial_focus {
+            epoch
+        } else {
+            let q = focus::Assign {
+                request_id: requests[1],
+                session_id: actor.session_id,
+                session_generation: actor.session_generation,
+                instance_id: actor.instance_id,
+                instance_generation: actor.instance_generation,
+                surface_id,
+                surface_generation: surface_gen,
+            }
+            .encode(focus_endpoint.handle)?;
+            let r = focus::AssignReply::decode(&self.dispatch(&focus_endpoint.peer, &q, now))?;
+            if r.status != 0 {
+                return Err(status_from_u32(r.status));
+            }
+            r.focus_epoch
+        };
+        let q = surface::Acquire {
+            request_id: requests[2],
+            surface_id,
+            surface_generation: surface_gen,
+            buffer_index: index,
+            reserved: 0,
+        }
+        .encode(endpoint.handle)?;
+        let acquired = surface::AcquireReply::decode(&self.dispatch(&endpoint.peer, &q, now))?;
+        if acquired.status != 0 {
+            return Err(status_from_u32(acquired.status));
+        }
+        if acquired.mapping_generation == 0 || acquired.byte_len != FRAME_BYTES as u32 {
+            return Err(Status::Invalid);
+        }
+        let h = Handle::unpack(acquired.buffer_shm);
+        let descriptor = ObjectDescriptor {
+            handle: h,
+            kind: ObjectKind::SurfaceBuffer,
+            byte_len: acquired.byte_len,
+            object_generation: h.generation,
+        };
+        let lease = self.write_lease(
+            &endpoint.peer,
+            &descriptor,
+            acquired.mapping_generation,
+            now,
+        )?;
+        lease.copy_from(0, &pixels, now)?;
+        let barrier = self
+            .take_save_frame_barrier(actor.session_id, NativeSavePausePoint::BeforePresentFreeze)?;
+        let _settle = SaveSettlement(barrier.clone());
+        if let Some(b) = &barrier {
+            b.enter_wait(actor.instance_id, 0)?;
+        }
+        {
+            let state = self.state.lock().map_err(|_| Status::Internal)?;
+            let gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            gate.preview
+                .as_ref()
+                .ok_or(Status::Denied)?
+                .admit_instance(actor.instance_id)?;
+            if state.sessions[&actor.session_id].focus != focus_epoch {
+                return Err(Status::Stale);
+            }
+        }
+        let q = surface::Present {
+            request_id: requests[3],
+            surface_id,
+            surface_generation: surface_gen,
+            mapping_generation: acquired.mapping_generation,
+            sequence,
+            buffer_index: index,
+            reserved: 0,
+        }
+        .encode(endpoint.handle)?;
+        let r = surface::PresentReply::decode(&self.dispatch(&endpoint.peer, &q, now))?;
+        if r.status != 0 {
+            return Err(status_from_u32(r.status));
+        }
+        if r.sequence != sequence {
+            return Err(Status::Invalid);
+        }
+        let barrier = self
+            .take_save_frame_barrier(actor.session_id, NativeSavePausePoint::BeforeFramePublish)?;
+        let _settle = SaveSettlement(barrier.clone());
+        if let Some(b) = &barrier {
+            b.enter_wait(actor.instance_id, 0)?;
+        }
+        let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+        let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+        state.expire(now);
+        let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        gate.preview
+            .as_ref()
+            .ok_or(Status::Denied)?
+            .admit_instance(actor.instance_id)?;
+        let session = state.sessions.get(&actor.session_id).ok_or(Status::Stale)?;
+        let frozen = state
+            .instances
+            .get(&actor.instance_id)
+            .ok_or(Status::Stale)?
+            .surface
+            .frozen
+            .as_ref()
+            .ok_or(Status::Stale)?;
+        if session.focus != focus_epoch
+            || session.focused != Some(actor.instance_id)
+            || frozen.1 != sequence
+            || frozen.2.as_slice() != pixels.as_slice()
+        {
+            return Err(Status::Stale);
+        }
+        let save = gate.save.as_mut().ok_or(Status::Denied)?;
+        let doc = save
+            .documents
+            .get_mut(&editor.life.id)
+            .ok_or(Status::Stale)?;
+        if !Arc::ptr_eq(&doc.life, &editor.life)
+            || doc.view.actor != view.actor
+            || doc.view.text_generation != view.text_generation
+            || doc.view.view_version != view.view_version
+            || doc.view.bytes != view.bytes
+        {
+            return Err(Status::Stale);
+        }
+        let observation = NativeFrameObservation {
+            actor: view.actor,
+            document_id: view.document_id,
+            text_generation: view.text_generation,
+            view_version: view.view_version,
+            surface_id,
+            surface_generation: surface_gen,
+            mapping_generation: acquired.mapping_generation,
+            focus_epoch,
+            sequence,
+            app_crop_sha256: hash(&pixels),
+        };
+        doc.frame = Some(observation.clone());
+        state.pending_frames -= 1;
+        reservation.finished = true;
+        Ok(observation)
+    }
+    fn take_save_frame_barrier(
+        &self,
+        session: u64,
+        point: super::NativeSavePausePoint,
+    ) -> Result<Option<Arc<super::native_save::SaveBarrier>>, Status> {
+        let a = self.save_authority()?;
+        let mut g = a.gate.lock().map_err(|_| Status::Internal)?;
+        let s = g.save.as_mut().ok_or(Status::Denied)?;
+        if s.armed
+            .as_ref()
+            .is_some_and(|(sid, p, _)| *sid == session && *p == point)
+        {
+            Ok(s.armed.take().map(|(_, _, b)| b))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl HostDesktop {
+    pub fn compose_native_save(
+        &self,
+        compositor: &Endpoint,
+        now: u64,
+    ) -> Result<ComposedFrame, Status> {
+        use super::native_save::*;
+        if !Arc::ptr_eq(&self.state, &compositor.peer.registry)
+            || compositor.peer.class != EndpointClass::Compositor
+            || compositor.handle.pack() != compositor.peer.endpoint
+        {
+            return Err(Status::Denied);
+        }
+        let a = self.save_authority()?;
+        let (sid, id, focus, sequence, source, font, observation, setup) = {
+            let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+            let now = self.clock.fetch_max(now, Ordering::SeqCst).max(now);
+            state.expire(now);
+            state.auth(&compositor.peer)?;
+            let sid = compositor.peer.session;
+            if state.sessions[&sid].compositor != compositor.peer.endpoint {
+                return Err(Status::Denied);
+            }
+            if state.frame_limit_hit() {
+                return Err(Status::Exhausted);
+            }
+            let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            let p = gate.preview.as_mut().ok_or(Status::Denied)?;
+            let id = p
+                .attachments
+                .iter()
+                .rev()
+                .find(|(_, r)| r.view.actor.session_id == sid && r.delivered)
+                .map(|(id, _)| *id)
+                .unwrap_or(0);
+            let (focus, sequence, source, observation, setup) = if id != 0 {
+                let row = p.attachments.get(&id).ok_or(Status::Stale)?;
+                if row.status_exhausted {
+                    return Err(Status::Exhausted);
+                }
+                let terminal = row.retired || row.faulted;
+                let (focus, sequence, source) = if terminal {
+                    (0, 0, None)
+                } else {
+                    p.admit_instance(id)?;
+                    let i = state.instances.get(&id).ok_or(Status::Stale)?;
+                    let (_, sequence, source) =
+                        i.surface.frozen.as_ref().ok_or(Status::NotReady)?;
+                    (state.sessions[&sid].focus, *sequence, Some(source.clone()))
+                };
+                let next = p.next_status.checked_add(1).ok_or(Status::Exhausted)?;
+                p.next_status = next;
+                p.attachments
+                    .get_mut(&id)
+                    .ok_or(Status::Stale)?
+                    .status_version = next;
+                let observation = gate.save.as_ref().ok_or(Status::Denied)?.chrome(
+                    gate.preview.as_ref().ok_or(Status::Denied)?,
+                    id,
+                    focus,
+                    sequence,
+                    next,
+                )?;
+                (focus, sequence, source, Some(observation), None)
+            } else {
+                let pin = state.preview_pins.get(&sid).ok_or(Status::NotReady)?;
+                let row = p.pins.get(&pin.id).ok_or(Status::Stale)?;
+                let preview = state.sessions[&sid]
+                    .preview
+                    .as_ref()
+                    .ok_or(Status::NotReady)?;
+                if row.retired
+                    || preview.invalid
+                    || p.now >= row.view.expires_at_ms
+                    || Instant::now() >= row.view.deadline
+                {
+                    return Err(Status::Stale);
+                }
+                (
+                    0,
+                    0,
+                    None,
+                    None,
+                    Some((
+                        pin.clone(),
+                        row.view.clone(),
+                        preview.plan,
+                        preview.revision,
+                    )),
+                )
+            };
+            state.pending_frames += 1;
+            (
+                sid,
+                id,
+                focus,
+                sequence,
+                source,
+                state.config.font_rows,
+                observation,
+                setup,
+            )
+        };
+        let mut reservation = FrameReservation {
+            state: self.state.clone(),
+            finished: false,
+        };
+        let mut pixels = vec![224; 640 * 568 * 4];
+        for p in pixels.chunks_exact_mut(4) {
+            p[3] = 255;
+        }
+        pixels[48 * 2560..528 * 2560].fill(255);
+        let unavailable = observation
+            .as_ref()
+            .is_some_and(|o| o.label == NativeEditorPhase::Unavailable);
+        if !unavailable {
+            if let Some(source) = &source {
+                pixels[48 * 2560..528 * 2560].copy_from_slice(source);
+            }
+        }
+        for y in 8..24 {
+            for x in 8..24 {
+                let n = (y * 640 + x) * 4;
+                pixels[n..n + 4].copy_from_slice(if x == 8 || x == 23 || y == 8 || y == 23 {
+                    &[0, 0, 0, 255]
+                } else {
+                    &[0, 192, 0, 255]
+                });
+            }
+        }
+        draw_label(&mut pixels, &font, b"HOST STORE", 40, 8);
+        let (label, banner) = if let Some(o) = &observation {
+            let allocation = o
+                .pending_originals
+                .iter()
+                .any(|o| o.phase == NativePendingOriginalPhase::AllocationUnknown);
+            let commit = o
+                .pending_originals
+                .iter()
+                .any(|o| o.phase == NativePendingOriginalPhase::CommitUnknown);
+            let banner: &[u8] = match (commit, allocation) {
+                (true, true) => b"SAVE UNKNOWN | ALLOCATION UNKNOWN",
+                (true, false) => b"SAVE UNKNOWN",
+                (false, true) => b"ALLOCATION UNKNOWN",
+                _ => b"",
+            };
+            let label: &[u8] = match o.label {
+                NativeEditorPhase::Loaded => b"LOADED",
+                NativeEditorPhase::Unsaved => b"UNSAVED",
+                NativeEditorPhase::AllocationPending | NativeEditorPhase::Saving => b"SAVING",
+                NativeEditorPhase::AllocationUnknown | NativeEditorPhase::Unknown => b"UNSAVED",
+                NativeEditorPhase::Saved => b"SAVED",
+                NativeEditorPhase::Conflict => b"CONFLICT",
+                NativeEditorPhase::Unavailable => b"UNAVAILABLE",
+            };
+            (label, banner)
+        } else {
+            (b"LOADED".as_slice(), b"".as_slice())
+        };
+        draw_label(&mut pixels, &font, banner, 8, 24);
+        draw_label(&mut pixels, &font, label, 8, 536);
+        {
+            let mut state = self.state.lock().map_err(|_| Status::Internal)?;
+            state.expire(self.clock.load(Ordering::SeqCst));
+            state.auth(&compositor.peer)?;
+            let mut gate = a.gate.lock().map_err(|_| Status::Internal)?;
+            if let Some(captured) = observation {
+                let actual = gate.save.as_ref().ok_or(Status::Denied)?.chrome(
+                    gate.preview.as_ref().ok_or(Status::Denied)?,
+                    id,
+                    focus,
+                    sequence,
+                    captured.status_version,
+                )?;
+                if actual != captured {
+                    return Err(Status::Stale);
+                }
+                let row = gate
+                    .preview
+                    .as_ref()
+                    .ok_or(Status::Denied)?
+                    .attachments
+                    .get(&id)
+                    .ok_or(Status::Stale)?;
+                if row.status_version != captured.status_version || row.status_exhausted {
+                    return Err(Status::Stale);
+                }
+                if !unavailable {
+                    gate.preview
+                        .as_ref()
+                        .ok_or(Status::Denied)?
+                        .admit_instance(id)?;
+                    let i = state.instances.get(&id).ok_or(Status::Stale)?;
+                    if state.sessions[&sid].focus != focus
+                        || state.sessions[&sid].focused != Some(id)
+                        || i.surface.frozen.as_ref().map(|(_, seq, _)| *seq) != Some(sequence)
+                    {
+                        return Err(Status::Stale);
+                    }
+                    let q = kernel_api::generated::desktop_surface_v1::Consume {
+                        request_id: sequence,
+                        surface_id: i.surface.id,
+                        surface_generation: i.surface.generation,
+                        sequence,
+                    }
+                    .encode(compositor.handle)?;
+                    if state.exchanges.len() >= state.trace_limit() {
+                        return Err(Status::Exhausted);
+                    }
+                    state.consume_frozen(id, sequence)?;
+                    let mut r = reply(&q, EndpointClass::Compositor, Status::Ok);
+                    put64(&mut r.payload, 8, sequence);
+                    state.exchanges.push((q, r));
+                }
+                if let Some(docid) = captured.document_id {
+                    if let Some(d) = gate
+                        .save
+                        .as_mut()
+                        .ok_or(Status::Denied)?
+                        .documents
+                        .get_mut(&docid)
+                    {
+                        d.view.phase = captured.label.clone();
+                    }
+                }
+                state.save_chrome.insert(sid, captured);
+            } else {
+                let (pin, view, plan, revision) = setup.as_ref().ok_or(Status::Internal)?;
+                let current_pin = state.preview_pins.get(&sid).ok_or(Status::Stale)?;
+                let row = gate
+                    .preview
+                    .as_ref()
+                    .ok_or(Status::Denied)?
+                    .pins
+                    .get(&pin.id)
+                    .ok_or(Status::Stale)?;
+                let preview = state.sessions[&sid].preview.as_ref().ok_or(Status::Stale)?;
+                if !Arc::ptr_eq(pin, current_pin)
+                    || row.retired
+                    || row.view.entered != view.entered
+                    || row.view.deadline != view.deadline
+                    || preview.invalid
+                    || preview.plan != *plan
+                    || preview.revision != *revision
+                    || Instant::now() >= row.view.deadline
+                {
+                    return Err(Status::Stale);
+                }
+                state.save_chrome.remove(&sid);
+            }
+            state.pending_frames -= 1;
+            state.composed_frames += 1;
+            reservation.finished = true;
+        }
+        Ok(ComposedFrame {
+            session_id: sid,
+            instance_id: id,
+            focus_epoch: focus,
+            sequence,
+            bgra: pixels,
+        })
+    }
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl FixtureController {
+    pub fn save_chrome_observation(
+        &self,
+        compositor: &Endpoint,
+    ) -> Result<super::NativeSaveChromeObservation, Status> {
+        if !Arc::ptr_eq(&self.host.state, &compositor.peer.registry)
+            || compositor.peer.class != EndpointClass::Compositor
+            || compositor.handle.pack() != compositor.peer.endpoint
+        {
+            return Err(Status::Denied);
+        }
+        let state = self.host.state.lock().map_err(|_| Status::Internal)?;
+        state.auth(&compositor.peer)?;
+        let stored = state
+            .save_chrome
+            .get(&compositor.peer.session)
+            .ok_or(Status::NotReady)?;
+        let a = self.host.save_authority()?;
+        let gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        if gate.preview.as_ref().ok_or(Status::Denied)?.next_status == u64::MAX {
+            return Err(Status::Exhausted);
+        }
+        let row = gate
+            .preview
+            .as_ref()
+            .ok_or(Status::Denied)?
+            .attachments
+            .get(&stored.current_frame_actor.instance_id)
+            .ok_or(Status::Stale)?;
+        if row.status_exhausted
+            || row.version != stored.attachment_version
+            || row.status_version != stored.status_version
+        {
+            return Err(Status::Stale);
+        }
+        if row.retired && stored.label != super::NativeEditorPhase::Unavailable {
+            return Err(Status::Stale);
+        }
+        let actual = gate.save.as_ref().ok_or(Status::Denied)?.chrome(
+            gate.preview.as_ref().ok_or(Status::Denied)?,
+            row.view.actor.instance_id,
+            stored.focus_epoch,
+            stored.frame_sequence,
+            stored.status_version,
+        )?;
+        if actual != *stored {
+            return Err(Status::Stale);
+        }
+        Ok(stored.clone())
+    }
+    pub fn save_chrome_record(&self, compositor: &Endpoint) -> Result<[u8; 248], Status> {
+        self.save_chrome_observation(compositor)?
+            .record248
+            .ok_or(Status::NotReady)
+    }
+    pub fn save_original_chrome_observation(
+        &self,
+        compositor: &Endpoint,
+        original: &super::OriginalRecoveryOrigin,
+    ) -> Result<super::NativeSaveChromeObservation, Status> {
+        use super::native_save::*;
+        let mut out = self.save_chrome_observation(compositor)?;
+        let a = self.host.save_authority()?;
+        if !same(&a, &original.authority)
+            || original.life.view.actor.session_id != compositor.peer.session
+        {
+            return Err(Status::Denied);
+        }
+        let gate = a.gate.lock().map_err(|_| Status::Internal)?;
+        let save = gate.save.as_ref().ok_or(Status::Denied)?;
+        if save
+            .originals
+            .get(&original.life.view.origin_id)
+            .is_none_or(|w| !std::sync::Weak::ptr_eq(w, &Arc::downgrade(&original.life)))
+        {
+            return Err(Status::Denied);
+        }
+        // The current frame identity is retained; only the requested genuine
+        // original outcome is substituted, never a caller-selected operation.
+        let state = super::native_save::lock(&original.life.state)?;
+        out.original_actor = Some(original.life.view.actor.clone());
+        if let Some(source) = &original.life.source {
+            use artifact_store_schema::editor_native_save::*;
+            let b = &source.binding;
+            let current = save
+                .current
+                .get(&original.life.view.object_id)
+                .ok_or(Status::Stale)?;
+            let record = EditorNativeSaveChromeV0 {
+                schema_version: 2,
+                total_len: 248,
+                state: if let Some(r) = &state.receipt {
+                    if r.outcome
+                        == artifact_store_schema::editor_save::EditorReceiptOutcomeV0::Committed
+                    {
+                        EditorNativeSaveChromeStateV0::Committed
+                    } else {
+                        EditorNativeSaveChromeStateV0::DefinitiveNoncommit
+                    }
+                } else {
+                    EditorNativeSaveChromeStateV0::Unknown
+                },
+                reserved: 0,
+                actor: b.allocation.actor.clone(),
+                selected_object_id: b.allocation.selected_object_id,
+                selected_object_generation: b.allocation.selected_generation,
+                current_store_epoch: current.store_epoch,
+                original_backend_epoch: source.epoch,
+                operation_id: b.allocation.operation_id,
+                source_handle: b.source.source_object_id,
+                source_generation: b.source.source_generation,
+                expected_revision: b.allocation.expected_revision,
+                result_revision: state
+                    .receipt
+                    .as_ref()
+                    .map(|r| r.result_revision)
+                    .unwrap_or(0),
+                attachment_version: out.attachment_version,
+                status_version: out.status_version,
+                source_content_hash: b.source.content_hash,
+                expected_content_hash: b.allocation.expected_content_hash,
+                receipt_sha256: state
+                    .receipt_bytes
+                    .as_ref()
+                    .map(|b| hash(b))
+                    .unwrap_or([0; 32]),
+                source_body_len: b.source.byte_len,
+                tail_reserved: 0,
+            };
+            out.record248 = Some(record.encode_le().map_err(|_| Status::Invalid)?);
+        } else {
+            out.record248 = None;
+        }
+        Ok(out)
     }
 }

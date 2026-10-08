@@ -78,7 +78,7 @@ def layouts():
                 fields[key] = (offset, size)
                 offset += size
             result[data["protocol"], message["msg_type"]] = (name, offset, fields)
-    require(len(result) == 43, "wire inventory changed without gate review")
+    require(len(result) == 45, "wire inventory changed without gate review")
     return result
 
 

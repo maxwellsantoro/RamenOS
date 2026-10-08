@@ -36,6 +36,10 @@ pub struct ProducerCounts {
     pub io: u32,
     pub joining: u32,
     pub joined_total: u64,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub active_non_io: u32,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub active_io: u32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ReadBarrierView {
@@ -118,9 +122,15 @@ pub struct ProducerId {
     kind: ProducerKind,
 }
 pub struct JoinedProducerProof {
-    authority: Arc<NativeAuthority>,
+    pub(super) authority: Arc<NativeAuthority>,
     id: u64,
     outcome: JoinOutcome,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    observation: super::native_save::NativeJoinObservation,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) origin: Weak<OriginLifetime>,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_object: Option<u64>,
 }
 
 // There is deliberately no State back-reference. State alone issues bindings and
@@ -135,8 +145,12 @@ struct BindingRow {
     endpoint: u64,
     retired: bool,
 }
-struct OriginLifetime {
-    id: u64,
+pub(super) struct OriginLifetime {
+    pub(super) id: u64,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_object: Option<u64>,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_installed: Mutex<BTreeMap<u64, (ProducerKind, u64)>>,
     #[cfg(feature = "editor_native_preview_v0_dev")]
     _preview_attachment: Option<Arc<super::native_preview::AttachmentLife>>,
 }
@@ -147,11 +161,13 @@ struct OriginRow {
     closed: bool,
 }
 pub(super) struct GateState {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save: Option<super::native_save::SaveGate>,
     #[cfg(feature = "editor_native_preview_v0_dev")]
     pub(super) preview: Option<super::native_preview::PreviewGate>,
     pub(super) now_ms: u64,
     next_binding: u64,
-    next_origin: u64,
+    pub(super) next_origin: u64,
     bindings: BTreeMap<u64, BindingRow>,
     origins: BTreeMap<u64, OriginRow>,
     armed: Option<(u64, Arc<EntryBarrier>)>,
@@ -243,6 +259,8 @@ impl NativeAuthority {
             // Arc pointer identity; numeric values cannot construct authority.
             identity: identity.as_ptr() as usize as u64,
             gate: Mutex::new(GateState {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                save: None,
                 #[cfg(feature = "editor_native_preview_v0_dev")]
                 preview: None,
                 now_ms: 0,
@@ -282,6 +300,18 @@ impl NativeAuthority {
         if let Some(preview) = &mut gate.preview {
             preview.retire_instance(instance);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(save) = &mut gate.save {
+            for d in save
+                .documents
+                .values_mut()
+                .filter(|d| d.view.actor.instance_id == instance)
+            {
+                d.view.phase = super::NativeEditorPhase::Unavailable;
+                d.frame = None;
+                d.queued_intent = None;
+            }
+        }
         for row in gate.bindings.values_mut() {
             if row.view.actor.instance_id == instance {
                 row.retired = true;
@@ -296,6 +326,34 @@ impl NativeAuthority {
         }
         for row in gate.bindings.values_mut() {
             row.retired = true;
+        }
+    }
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) fn retire_save_service(&self) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(preview) = &mut gate.preview {
+            // Service replacement retires every old actor/setup, while the
+            // actual enrolled Store namespace can issue a new explicit approval.
+            // A previously fenced namespace remains fenced.
+            for row in preview.attachments.values_mut() {
+                row.retired = true;
+            }
+            for row in preview.pins.values_mut() {
+                row.retired = true;
+            }
+            for row in preview.tickets.values_mut() {
+                row.state = super::native_preview::TicketState::Closed;
+            }
+        }
+        for row in gate.bindings.values_mut() {
+            row.retired = true;
+        }
+        if let Some(save) = &mut gate.save {
+            for doc in save.documents.values_mut() {
+                doc.view.phase = super::NativeEditorPhase::Unavailable;
+                doc.frame = None;
+                doc.queued_intent = None;
+            }
         }
     }
     pub(super) fn approve(
@@ -398,6 +456,10 @@ impl NativeAuthority {
             None
         };
         let origin = Arc::new(OriginLifetime {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_object: None,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_installed: Mutex::new(BTreeMap::new()),
             id,
             #[cfg(feature = "editor_native_preview_v0_dev")]
             _preview_attachment: preview_attachment,
@@ -712,12 +774,45 @@ impl RegistryWitness {
                 .count() as u32,
             joining: roster.rows.values().filter(|r| r.joining).count() as u32,
             joined_total: roster.joined_total,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            active_non_io: roster
+                .rows
+                .values()
+                .filter(|r| {
+                    r.kind != ProducerKind::StoreIo
+                        && r.handle
+                            .as_ref()
+                            .is_some_and(|handle| !handle.is_finished())
+                })
+                .count() as u32,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            active_io: roster
+                .rows
+                .values()
+                .filter(|r| {
+                    r.kind == ProducerKind::StoreIo
+                        && r.handle
+                            .as_ref()
+                            .is_some_and(|handle| !handle.is_finished())
+                })
+                .count() as u32,
         }
     }
     pub fn join_finished(&self, id: &ProducerId) -> Result<JoinedProducerProof, Status> {
         if !same(&self.authority, &id.authority) {
             return Err(Status::Denied);
         }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let (origin_id, origin, kind, save_object) = {
+            let roster = locked(&self.authority.owned)?;
+            let row = roster.rows.get(&id.id).ok_or(Status::NotReady)?;
+            (
+                row.origin.id,
+                Arc::downgrade(&row.origin),
+                row.kind,
+                row.origin.save_object,
+            )
+        };
         let handle = {
             let mut roster = locked(&self.authority.owned)?;
             let row = roster.rows.get_mut(&id.id).ok_or(Status::NotReady)?;
@@ -730,6 +825,8 @@ impl RegistryWitness {
             row.joining = true;
             row.handle.take().ok_or(Status::Internal)?
         };
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let rust_thread_id = format!("{:?}", handle.thread().id());
         // Only the actual held handle can produce a join proof. No enforcement
         // lock spans join; a concurrent caller observes Joining/NotReady.
         let outcome = if handle.join().is_ok() {
@@ -759,6 +856,20 @@ impl RegistryWitness {
             authority: self.authority.clone(),
             id: id.id,
             outcome,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            observation: super::native_save::NativeJoinObservation {
+                producer_id: id.id,
+                producer_generation: 1,
+                origin_id,
+                kind,
+                native_pid: std::process::id(),
+                rust_thread_id,
+                outcome,
+            },
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            origin,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_object,
         })
     }
 }
@@ -924,6 +1035,15 @@ impl ProducerReservation {
             .get_mut(&self.id)
             .expect("private reserved producer row");
         row.handle = Some(handle);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if row.origin.save_object.is_some() {
+            let mut installed = row
+                .origin
+                .save_installed
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            installed.insert(self.id, (row.kind, 1));
+        }
         self.pending = false;
         ProducerId {
             authority: self.authority.clone(),
@@ -1028,6 +1148,13 @@ impl RegistryWitness {
     pub fn preview_counts(&self) -> Result<super::PreviewCounts, Status> {
         let mut gate = locked(&self.authority.gate)?;
         gate.prune_origins();
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let query_slots = if gate.save.is_some() {
+            self.authority.prune_save_calls(&mut gate)? as u32
+        } else {
+            gate.origins.len() as u32
+        };
+        #[cfg(not(feature = "editor_native_save_v0_dev"))]
         let query_slots = gate.origins.len() as u32;
         let preview = gate.preview.as_mut().ok_or(Status::Denied)?;
         preview.prune();
@@ -1067,5 +1194,249 @@ impl GateState {
             },
         );
         Ok(())
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl RegistryWitness {
+    pub fn verify_join_for(
+        &self,
+        id: &ProducerId,
+        proof: &JoinedProducerProof,
+    ) -> Result<super::NativeJoinObservation, Status> {
+        if !same(&self.authority, &id.authority)
+            || !same(&self.authority, &proof.authority)
+            || id.id != proof.id
+            || id.kind != proof.observation.kind
+            || !Weak::ptr_eq(&id.origin, &proof.origin)
+        {
+            return Err(Status::Denied);
+        }
+        self.save_join_observation(proof)
+    }
+    pub(super) fn save_join_observation(
+        &self,
+        proof: &JoinedProducerProof,
+    ) -> Result<super::NativeJoinObservation, Status> {
+        if !same(&self.authority, &proof.authority) {
+            return Err(Status::Denied);
+        }
+        if proof.observation.rust_thread_id.len() > 64 {
+            return Err(Status::Internal);
+        }
+        Ok(proof.observation.clone())
+    }
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn save_origin(
+        id: u64,
+        attachment: Arc<super::native_preview::AttachmentLife>,
+        object: u64,
+    ) -> Arc<OriginLifetime> {
+        Arc::new(OriginLifetime {
+            id,
+            save_object: Some(object),
+            save_installed: Mutex::new(BTreeMap::new()),
+            _preview_attachment: Some(attachment),
+        })
+    }
+    // Caller already holds Gate. This reserves every row before the first spawn.
+    pub(super) fn reserve_save_pair(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        kinds: [ProducerKind; 2],
+    ) -> Result<[ProducerReservation; 2], Status> {
+        let mut r = locked(&self.owned)?;
+        let installed = locked(&origin.save_installed)?.len();
+        let pending = r
+            .rows
+            .values()
+            .filter(|row| Arc::ptr_eq(&row.origin, origin) && row.handle.is_none() && !row.joining)
+            .count();
+        if installed + pending > 62 {
+            return Err(Status::Exhausted);
+        }
+        let last = r.next.checked_add(2).ok_or(Status::Exhausted)?;
+        if r.rows.len() > PRODUCERS - 2 {
+            return Err(Status::Exhausted);
+        }
+        r.next = last;
+        for (id, kind) in [(last - 1, kinds[0]), (last, kinds[1])] {
+            r.rows.insert(
+                id,
+                ProducerRow {
+                    kind,
+                    origin: origin.clone(),
+                    handle: None,
+                    joining: false,
+                },
+            );
+        }
+        Ok([
+            ProducerReservation {
+                authority: self.clone(),
+                id: last - 1,
+                pending: true,
+            },
+            ProducerReservation {
+                authority: self.clone(),
+                id: last,
+                pending: true,
+            },
+        ])
+    }
+    pub(super) fn reserve_save_one(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        kind: ProducerKind,
+    ) -> Result<ProducerReservation, Status> {
+        let mut r = locked(&self.owned)?;
+        let installed = locked(&origin.save_installed)?.len();
+        let pending = r
+            .rows
+            .values()
+            .filter(|row| Arc::ptr_eq(&row.origin, origin) && row.handle.is_none() && !row.joining)
+            .count();
+        if installed + pending >= 64 {
+            return Err(Status::Exhausted);
+        }
+        let id = r.next.checked_add(1).ok_or(Status::Exhausted)?;
+        if r.rows.len() >= PRODUCERS
+            || kind == ProducerKind::StoreIo
+                && r.rows
+                    .values()
+                    .filter(|r| r.kind == ProducerKind::StoreIo)
+                    .count()
+                    >= 2
+        {
+            return Err(Status::Exhausted);
+        }
+        r.next = id;
+        r.rows.insert(
+            id,
+            ProducerRow {
+                kind,
+                origin: origin.clone(),
+                handle: None,
+                joining: false,
+            },
+        );
+        Ok(ProducerReservation {
+            authority: self.clone(),
+            id,
+            pending: true,
+        })
+    }
+    pub(super) fn save_ids(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        ids: [u64; 2],
+    ) -> Result<[ProducerId; 2], Status> {
+        let r = locked(&self.owned)?;
+        let one = |id| {
+            let row = r.rows.get(&id).ok_or(Status::NotReady)?;
+            if !Arc::ptr_eq(&row.origin, origin) || row.handle.is_none() && !row.joining {
+                return Err(Status::Denied);
+            }
+            Ok(ProducerId {
+                authority: self.clone(),
+                id,
+                origin: Arc::downgrade(origin),
+                kind: row.kind,
+            })
+        };
+        Ok([one(ids[0])?, one(ids[1])?])
+    }
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl ProducerReservation {
+    pub(super) fn save_id(&self) -> u64 {
+        self.id
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl ProducerId {
+    /// Observation of this already-issued opaque token; never a lookup or mint.
+    pub fn producer_id(&self) -> u64 {
+        self.id
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn prune_save_calls(&self, gate: &mut GateState) -> Result<usize, Status> {
+        gate.prune_origins();
+        let r = locked(&self.owned)?;
+        let active = gate
+            .preview
+            .as_ref()
+            .map(|p| {
+                p.attachments
+                    .iter()
+                    .filter(|(_, r)| !r.retired)
+                    .map(|(id, _)| *id)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if let Some(s) = &mut gate.save {
+            s.documents
+                .retain(|_, d| Arc::strong_count(&d.life) > 1 || active.contains(&d.attachment.id));
+            s.intents.retain(|_, w| w.strong_count() > 0);
+            s.sources.retain(|_, w| w.strong_count() > 0);
+            s.originals.retain(|_, w| w.strong_count() > 0);
+            s.allocations.retain(|id, _| s.intents.contains_key(id));
+            s.calls.retain(|id, row| {
+                row.life.strong_count() > 0 || r.rows.values().any(|p| p.origin.id == *id)
+            });
+            Ok(gate.origins.len() + s.calls.len())
+        } else {
+            Err(Status::Unsupported)
+        }
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn held_save_objects(&self, objects: &[u64]) -> Result<Vec<u64>, Status> {
+        let r = locked(&self.owned)?;
+        Ok(r.rows
+            .iter()
+            .filter(|(_, r)| r.origin.save_object.is_some_and(|o| objects.contains(&o)))
+            .map(|(id, _)| *id)
+            .collect())
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn has_save_origin(&self, id: u64) -> Result<bool, Status> {
+        Ok(locked(&self.owned)?
+            .rows
+            .values()
+            .any(|r| r.origin.id == id))
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl super::native_save::SaveIssuer {
+    pub fn retain_joined_proof(
+        &self,
+        proof: &JoinedProducerProof,
+    ) -> Result<JoinedProducerProof, Status> {
+        if !same(&self.authority, &proof.authority) {
+            return Err(Status::Denied);
+        }
+        // All fields come from the same genuinely joined opaque proof. This does
+        // not join, install, look up a numeric row, or alter any live charge.
+        Ok(JoinedProducerProof {
+            authority: proof.authority.clone(),
+            id: proof.id,
+            outcome: proof.outcome,
+            observation: proof.observation.clone(),
+            origin: proof.origin.clone(),
+            save_object: proof.save_object,
+        })
     }
 }

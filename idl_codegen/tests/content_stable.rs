@@ -186,6 +186,10 @@ mod script {
             "rust",
         ),
         (
+            "kernel_api/src/generated/desktop_editor_process_v1.generated.rs",
+            "rust",
+        ),
+        (
             "kernel_api/src/generated/desktop_artifact_v1.generated.rs",
             "rust",
         ),
@@ -335,7 +339,7 @@ mod script {
     }
     fn render_inventory(f: &Fixture) {
         let renders = lines(f, "renders.jsonl");
-        assert_eq!(renders.len(), 34);
+        assert_eq!(renders.len(), OUTPUTS.len());
         for (row, (out, lang)) in renders.iter().zip(OUTPUTS) {
             // Each wrapper line comes from an actual generator invocation.
             assert!(row.contains(&format!("\"{out}\"")), "{row}");

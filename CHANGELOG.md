@@ -3,6 +3,238 @@
 ## [Unreleased]
 
 ### Added
+- UI1.1d shared-core adapter preservation is accepted: both existing adapters
+  delegate pure edit/navigation/scroll/raster with complete seven-field transfer,
+  preserved legacy/native policies and native scratch admission before owner
+  commit. Four gate-first assertions have an explicit required-feature host stage:
+  55 full/39 extended, preserving the original54/38 subsequence. Task source
+  admission grows207→217 for ten legitimate adapter/core/test/font paths.
+  Final macOS adapter4 and unchanged pure-core26/quality checks, CI62 Python/seven
+  Rust controls, and independently reviewed strict Linux55 pass. Original13/18,
+  strict3 and complete Reader93 remain unchanged and pass on the final candidate.
+  Linux runtime result `f9342ae11a4d1187ec733fb4ad6647cd5ad21204732212b89c739aa4291fa760`
+  and review `d266a33e9baf5078e704f5c40b7d9e2f6c4a99c89893ee1638b99d15151ed0e8`
+  bind the runtime source snapshot; four-document planning checks are separate.
+  Earlier acceptance/failures remain retained. Existing agent-task Linux provider
+  controls/reconciliation remain INCOMPLETE. Next work completes all thirty process
+  assertion families and safe runtime staging; cleanup-v5 is private source
+  preparation. Actual child execution, authenticated channels, sealed publication,
+  Save after death, target/HIL and measured hosted performance remain pending.
+- UI1.1d pure editor-core prerequisite with bounded ASCII editing/navigation,
+  caller-supplied raster output, explicit adapter policies and an 88-byte typed
+  process data codec. Registered protocol384/version1 IDL and generated data types;
+  26 focused assertions and formatting/IDL/build/all-targets Clippy pass on
+  macOS/Linux after actual reviewed missing-module/export RED. Complete strict
+  Linux canonical54 and required planning gates pass on the integrated candidate.
+  Initial preflight caught a missing codegen-test roster entry; the reviewed fix
+  preserves all seven tests, with fresh 61-Python/seven-Rust CI checks passing.
+  Earlier failures remain retained. At that prerequisite milestone, existing
+  Desktop adapters and process runtime remained dependent work and the
+  canonical54/extended38 CI inventories stayed unchanged.
+  The native task source registry adds four legitimate inputs,203 to207, with no
+  existing dependency upgrades or original assertion changes.
+- Independently reviewed UI1.1d process contract, API inventory and thirty finite
+  assertion families for default-off Linux child-local editing/raster, held sealed
+  executable identity, authenticated control, immutable publications and retained
+  parent Save owners. Three private smoke assertions reached actual Linux
+  missing-API compiler RED; full process assertion coverage, safe cleanup,
+  handlers and runtime acceptance remain pending. The existing eighteen-case
+  in-process task and 93-scenario recording contract remain unchanged.
+- Reviewed RUN0 relocated-entry preparation with source-derived seven-reason
+  retention analysis and a single prior-run diagnostic candidate method. The
+  collector/profile/schema are unfrozen; actual capture remains INCOMPLETE.
+- Conditional UI1.1c native Save/task acceptance within the default-off trusted
+  in-process host scope requires separate supplemental result
+  `1a3c3af1f6ac534bd51990054755593bc3a9995b05484fd29d0a68ba9ef206f2` and independent review
+  `3c2c6740c3fdfd5d0f56b7079b4dbe49403c158d6c7a525e9a263611806666ac`, plus current affected-consumer review: original eighteen assertions, complete 93-scenario recordings,
+  exact affected consumers and sixth canonical Linux54 run
+  `native-save-final-linux54-6f6e8667343a8e996c7fedc708a4378c`, preserved raw wrapper result `3fe759b5e4a2ca76983f02b16f08f5675279edb80775ae4799f64e03e0787e2b`, in
+  827.595754605 seconds, with all 55 stage/outer
+  timing records and actual owned exits/reaps. Retained review
+  `f68882546cfcbeef041954eef11aaaceebc8846f4f59d3cba2bf03c7eec68679` accepts actual54 plus outer55 execution facts and unchanged
+  source. The raw wrapper remains INCOMPLETE with actual exit 1 because its
+  line478 shared-stdout parser includes nested CI test lane labels. Preserve that
+  result/log/exit unchanged: this is an acceptance-only classification refusal,
+  not a sixth canonical execution failure. Supplemental acceptance is separate.
+  The integrated task packet `aMpP1aQU`, result
+  `6dcfa3fc1ea09a727191cad54a267506e6bcec67086e7a5f5887a9862a45db8d` and independent task review
+  `38ea2526b181baae9f04149e810d3f6962da60f7aed7763d97cad3ccd3ab8369` bind final Task source
+  `8f8fb22911c2696f323f36935a3920e1f1f6a0f4dc52be659b1a1c43954a6a4f` and retain eighteen unfiltered outcomes in
+  61.63 seconds, strict3, all eleven command returns/reaps
+  and complete 93-scenario recording validation. Actual reader observations are
+  727 ordered controls and 7
+  verifier callbacks, without imposing those counts on future runs.
+  Preserve the original clean missing-API RED, additive Artifact368 messages9/10
+  and all failed predecessor evidence. The accepted inventories contain
+  38 extended and 54 full stages, including the task gate. Next ready work is UI1.1d real editor-child
+  contract freeze and separate hosted CI scheduling/cache measurement against the
+  implemented CI4lane configuration.
+  Child implementation, target persistence, device and containment remain separate.
+- Native Save/task integration diagnostics: the first nineteen independently
+  sourced macOS runs execute all eighteen cases. The nineteenth passes all eighteen in
+  194.38 seconds with actual birth/reap evidence. Reviewed StatusVersion fence
+  cleanup, failed OriginalRecord entry-owner retention and the Writer control's
+  exact closed-intent Stale plus fresh CtrlS/Allocate Exhausted assertions pass.
+  The fourteenth run finishes its three strict logs, then rejects an unsupported
+  fixed-zero final ownership timestamp. Reviewed
+  reader repairs validate strict u64 ownership and actual historical closure
+  lineage, retaining full immutable tuples and genuine ticket/producer joins.
+  The recorder retains existing actual draft/render joins for two Saved frames;
+  the complete original surface case passes privately with both legs and unchanged
+  evidence counts. Root has adopted these reviewed changes plus the failure
+  metadata repair. The fresh fifteenth runtime passes all eighteen and strict3;
+  its complete failure record retains all eleven returned/reaped commands.
+  Recording validation reaches an incorrect malformed Commit-ticket allocation
+  expectation; a full matching Allocate/Commit ticket, reply and producer
+  crossjoin is now independently reviewed and integrated. Further private reader
+  diagnostics corrected the NativeRead Desktop flag mapping and two volatile
+  receipt-length offsets without changing authority checks. The capture quota
+  assertion now records its already-required genuine duplicate execution poll.
+  Its complete original capacity case passes privately with all 32 scenarios,
+  seven ordered capture controls and unchanged selection/IO. Root has adopted
+  these reviewed assertion/reader/pin corrections. The sixteenth fresh runtime
+  passes all eighteen in 155.75 seconds and strict3; all eleven returned commands
+  are retained/reaped. A reviewed private metadata correction counts six genuine
+  Document observations instead of five. Independently reviewed reader
+  corrections validate genuine internally joined IO, coarse Desktop producer
+  kinds and recovered current frames carrying the original Save actor. Private
+  validation passes all 93 scenarios and 727 ordered controls on the unchanged
+  sixteenth-run corpus, with actual diagnostic and verifier exit/reap evidence.
+  Root has adopted these three source changes. The seventeenth fresh 203-source
+  task gate passes all eighteen in 220.14 seconds, strict3, complete 93-scenario
+  recording validation and final source checks; all returned children are
+  retained/reaped. Historical missing process rows are not invented. Formal task
+  evidence has passed independent review. All five affected Mac consumer gates
+  pass with independent scope reviews. The first combined Linux attempt retains
+  three passing prerequisite/codegen timings, a verifier-only formatting failure
+  and a failed outer timer; all 745 source rows remain unchanged. These partial
+  four-stage plus outer timings do not establish complete54 acceptance. Earlier
+  owned temporary ancestor mode repairs change no source/kernel bytes or admission
+  policy. Reviewed verifier formatting and its two outer pins are adopted; the
+  full Cargo formatting check passes. Fresh Gate18 passes all eighteen in 159.49
+  seconds, strict3, complete93 recording and final source checks, with all eleven
+  returned commands retained/reaped. Formal Gate18 result evidence has passed independent review. The second combined
+  Linux attempt retains eight canonical timings and the failed outer timing;
+  formatting passes before a verifier-only `manual_is_multiple_of` lint failure.
+  All 745 source rows remain unchanged. The independently reviewed parity-method
+  correction and exact two outer pins introduce no warning waiver; full local
+  Cargo formatting and baseline lint pass. All five accepted affected Mac
+  consumer closures were current at Gate19 before the later Cargo profile change,
+  with neither changed file in those closures.
+  Fresh Gate19 passes all eighteen in 194.38 seconds,
+  three strict checks, complete 93-scenario recording validation and final source checks, with all eleven returned commands retained/reaped.
+  Formal Gate19 result evidence has passed independent review.
+  The third combined Linux attempt retains 27 canonical timings and a failed
+  outer timing of 778.888 seconds. Native eighteen pass in 99.91 seconds and
+  strict3 completes, with all eleven returned commands retained/reaped. Verifier
+  retention rejects the actual Cargo example's two hardlinked executable aliases
+  before the reader, verifier callbacks or final task acceptance. All 745 source
+  rows remain unchanged. The reviewed verifier-only closed-pair repair preserves
+  bounded ownership, held no-follow identities, hashing and a private single-link
+  copy, with a final deadline check after hashing. Eight focused component families
+  pass on macOS/Linux, and a separate actual earlier Linux-pair control passes;
+  these component results do not establish task or full54 acceptance.
+  The twentieth fresh formal Mac run passes seventeen cases and fails the unchanged
+  stalled-session 1000 ms assertion in 226.02 seconds, with actual exit/reap;
+  downstream strict checks, reader and callbacks do not run. A reviewed private
+  A/B observation measures support intervals 451.574/468.450 to 132.091/98.957 ms
+  and raw/crop hashing 267.937/279.907 to 17.082/17.518 ms, with scans near 50 ms.
+  Compilation takes 17.877/19.148 seconds and focused tests 3.63/3.57 seconds;
+  this is neither a sole-cause finding nor a whole-CI/hosted speedup claim.
+  Root adopts only the reviewed 42-byte sha2 dev package opt-level 3 addition.
+  Actual 86-unit compiler profiles differ only for sha2 opt-level 0 to 3;
+  debug/overflow checks, debuginfo 2 and native/service opt-level 0 remain.
+  Diagnostic support/recording changes are not adopted, and frame batching stays
+  held. All five source-refreshed Mac consumers return zero with actual birth/reap
+  and source pre/post checks: launch, volatile editor, Store, NativeRead and
+  NativePreviewRead. Their independent UI0 evidence review accepts all five current source closures.
+  Fresh formal Task21 passes all eighteen without filtering in 86.40 seconds on
+  `yaKqSww8`, source manifest
+  `084efcb9e50929addd39fc639fca6a939908fd3de55d0e34050ff5d5d2689e83`.
+  Strict3 completes, final source checks pass and all eleven actual command
+  returns are retained/reaped. Reader validation covers 93 scenarios with actual
+  727 ordered controls and seven verifier callbacks, observed counts rather than
+  future inventory assumptions. Actual artifacts contain 3,799 files, 3,953
+  entries, 547,274,819 case bytes and 28,374,339 JSON bytes. Result SHA-256 is
+  `10d73330268571f939a29405ec80031c6f35c4a716e8d2d7049da8dece777e87`.
+  Independent formal Task21 evidence review accepts the trusted in-process Mac
+  result (report SHA-256
+  `9b51672d897df75fe06e5fb3f75f02a3c92ac0e732ba61b1dada324f664eb6ea`).
+  Subsequent actual Linux54 execution and pending supplemental acceptance are recorded above. All
+  five partial canonical Linux failures and failed Mac20/Mac22 remain retained. Uncontrolled
+  historical task times do not establish a whole-CI speedup.
+  A separate fresh focused Linux task on `ihrAae0O` passes all eighteen without
+  filtering in 66.33 seconds, strict3, complete93 recording validation and final
+  source checks. Its actual 727 ordered controls, seven verifier callbacks and
+  all eleven command births/exits/reaps pass independent review together with
+  the completed packet transfer. All 745 source identities, bytes, types and
+  modes match before and after. This run records the authentic two-link Cargo
+  verifier alias pair and exact private single-link retained copy; it is focused
+  trusted-host evidence, not canonical full54 or milestone acceptance.
+  The fourth canonical Linux54 attempt passes the first 26 stages and fails
+  stage 27 at the recording reader; its failed outer timing is 745.488301585
+  seconds. Native eighteen pass unfiltered in 65.67 seconds and strict3 passes.
+  The preserved incomplete record retains all eleven actual command births,
+  exits and reaps, and seven completed verifier callbacks in incomplete scope;
+  no final Task result exists. All 745 source bytes, modes, aliases and
+  Git-selected paths match before and after. Partial failure metadata and
+  complete failed-packet preservation pass independent review; complete93,
+  formal Linux Task and full54 acceptance do not. Every retained stage and outer
+  command reports reaped; aggregate cleanup remains uncertain without the
+  complete 54-stage record.
+  Source audit and independent diagnosis find actual joined Dispatcher 12 in
+  the genuine fences of `app_unknown/0` and `app_unknown/1`, absent from caller
+  join observations. The reader correctly rejects these non-IO rows from its
+  internally joined IO route; no runtime producer fault is established.
+  At that fourth-run failure, the fixture-only collection repair remained
+  pending review and fresh evidence. All earlier failed histories remain retained;
+  no whole-CI speedup or containment claim follows from those partial results.
+  The subsequently reviewed genuine-token/proof fixture repair and CI4lane
+  configuration are adopted without changing services, Reader/schema, eighteen
+  assertions or 1000 ms windows. The maintained focused tooling gate passes
+  61 Python and seven Rust controls in 42.080959416984115 seconds with actual
+  exit/reap; mocked RED/GREEN and separate lane checks establish no hosted speedup.
+  Formal Mac Task22 actually passes seventeen and fails the original 1000 ms
+  B-session assertion in 196.92 seconds. Focused Linux v7 passes native eighteen
+  in 62.55 seconds, then fails fixture-only strict Clippy; the reviewed
+  short-circuit AND-equivalent correction preserves assertions and behavior.
+  Focused v8 passes on its earlier recorder preimage, independently reviewed.
+  A later single diagnostic passes its two original intervals in 237.556/216.218 ms,
+  with six scans taking 130.610/111.500 ms; this neither reproduces Mac22's failure
+  nor establishes its sole cause. The reviewed frame/optional-chrome pair shares
+  admission and preserves exact successful bytes/rows, independent single-link
+  checks and actual partial-failure evidence. Its conservative four-byte marker
+  edge does not relax any cap. All eight component families pass after retained
+  actual one-PASS/seven-FAIL baseline RED and independent GREEN review 013a0d58.
+  Mac Task23 reports native18 PASS in 92.99 seconds, strict3 and Reader93 on Task source7221fafc,
+  with retained result `ee3ec6f939ffba3cdf893bb8eec2cbb86d89ab262a255371f6fb729440243fca`.
+  Focused Linux v9 independently passes native18 in 60.769 seconds, strict3,
+  complete93 and actual727 controls/seven callbacks, accepted by review
+  `a9a668cbb879e9a9f5b57302f4d6a428a80004713eb54e2efa5723d5376e0d7e`;
+  its result is `3e30617e88b1c5fcc15e9d02b7e7ec83b168905c831511539b4682bb37c6e34d`.
+  The fifth canonical attempt then stops at fixture formatting in 3.264 seconds.
+  Three prerequisite/codegen stages pass, fmt-check fails, and the failed outer
+  gives five retained timing records total; no Task stage executes. Whole745
+  source pre/post matches, with conservative downstream cleanup uncertainty true
+  because canonical54 is incomplete. Retain partial review
+  `d86568dfa0c211fbd085213c8f98c9ed2044970961cd9c02832b52578e1579d7`. Its format-only
+  successor changes source pins, so historical Mac23/v9 are not final-source evidence.
+  Final-source Mac Task `24`, packet `pQFwONsI`,
+  result `be9d403723a32acc1b5aa3a2f8b38b6bd640e068b810500bc018e4a7663f35e4` and review `76386e9f955592a9b2f8973c257d82aa4c00c831f836aa0550b7d413eaa6d89d` bind
+  exact source `8f8fb22911c2696f323f36935a3920e1f1f6a0f4dc52be659b1a1c43954a6a4f`, native18 unfiltered outcomes
+  in 91.26 seconds, strict3, all eleven command returns/reaps,
+  complete93 and final source checks. Actual 727 controls
+  and 7 callbacks remain observed counts only.
+  Final focused Linux result `107c90a4fd7e5fed08f2120e613290ac05566d0033a009749a1ac2e0f549ee84` and review
+  `ff14ecb95a2e420d730dffb7c6a4f8704b814b3d48c7cdc521c7faf2c943b55d` bind the same final Task source before
+  canonical validation; they establish no complete54 acceptance alone.
+  Fresh canonical Linux consumer results are `4e3996984e2963fd7d85ef53bc72c889e6468b455cd9f8b39466974115af6825`,
+  `7e5b0c4539bef513a423132c44e9b664f1af079aa9c011e4a6c8879d4f0dfd0a`, `ea33d2a083b34274c3186d165cd2bc361a12ad58ca1ec4089ae3203f8540ba89`,
+  `78f2374eb36e7e39617a1b60841c314c94f6a23205ad54d5182ce14cc908e057` and `0ebd85edd71246d816a86c9979682dba87e519b42ba6b1680369ca0cf112eb91`,
+  covered by complete compact current-source metadata/log review of trusted fresh
+  gate outcomes in `bff3a0be5f64cf1735dae772cd24178f537d06feb8a245af5580dcee4d75a636`; this does not independently
+  revalidate omitted launch children or legacy case raw trees.
+
 - Independently reviewed live native Save/task API preparation: fresh explicit
   approval, actual private keyboard draft/render joins, original allocation and
   Commit observation without mutation replay, asynchronous once-only completion,
