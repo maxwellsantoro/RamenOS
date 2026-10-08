@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Roadmap and contributor workflow — 2026-10-08
+- Reordered the ready frontier around host transition reliability and evidence
+  admission before the real editor process; split assertion/owner staging, carrier,
+  child consumer and Save/recovery integration with independent target/input/storage
+  preparation and reserved review capacity.
+- Pruned detailed integration chronology from required status/task intake into a
+  linked historical status snapshot; reconciled README, navigation, current scope,
+  roadmap, contributor/agent instructions and all five project skills. Pinned
+  contracts, original failure evidence and historical trials remain preserved.
+- Removed automatic per-edit client formatting/Clippy; explicit feature-correct
+  checks and fresh affected integration retain validation. Clarified both-token
+  clearing and actual A3 identity verification in the bot guide.
+- CI classification now requires Foundry for executable contracts/fixtures and
+  execution-consumed Markdown, with modification/deletion controls. NativeRead and
+  NativePreview source admission includes transitive core/dependency/include inputs,
+  retains old inventories and rejects future omissions before cache/build admission.
+  New focused tooling regressions run inside the existing quality stage; no canonical
+  stage, assertion, real deadline or CI lane was removed. Validation is recorded in
+  Current Status after final review; the reported runtime defects remain open.
+
 ### Added
 - UI1.1d shared-core adapter preservation is accepted: both existing adapters
   delegate pure edit/navigation/scroll/raster with complete seven-field transfer,

@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
@@ -106,10 +106,10 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 ### OS and Hardware
 
 - [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization and bounded comparison; scripted foundations landed, model comparison pending
-- [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; first host launch/lifetime consumer implemented; editor/device/target joins pending
+- [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; host launch and in-process editor/Store task implemented; reliability repairs, actual editor child and device/target joins pending
 - [Desktop session v1](DESKTOP_SESSION_V1.md) — generated protocol-336 preview/confirmation/lifetime contract and passing default-off Unix host process/wire gate
 - [Boot frame ownership v0](BOOT_FRAME_OWNERSHIP_V0.md) — reviewed pure map/retention admission and passing 17-case gate; actual firmware-exit adapter, initial-access evidence and QEMU allocator proof pending
-- [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets; volatile editor and host Store transaction implemented, integrated task/process successors pending
+- [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets; volatile editor, host Store transaction and integrated task implemented; actual editor process pending
 - [Desktop editor wire v1](DESKTOP_EDITOR_WIRE_V1.md) — five registered canonical IDLs and 43 generated messages consumed by the passing volatile host editor gate
 - [Desktop editor host API v0](DESKTOP_EDITOR_HOST_API_V0.md) — implemented default-off opaque peers/leases, logical keyboard editing, offscreen composition and 13-case gate; no Store/device/target/process-containment evidence
 - [Desktop editor Store transaction v0](plans/editor-store-transaction-v0.md) — implemented default-off host CAS, atomic selection/receipt and joined-writer recovery; seven behavior cases pass on macOS/Linux, integrated editor/device/target joins remain separate
@@ -117,7 +117,8 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 - [Editor Store recording contract v0](contracts/editor-store-recording-v0.json) — closed source/provenance/lease/fence/cleanup shapes and explicit temporal receipt correction consumed by the sixteen-case evidence gate and native Rust decoder
 - [Desktop editor native Read API v0](DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and [bounded contract](contracts/editor-native-read-v0.json) — implemented default-off approved-peer/Store Read prerequisite, original deadlines, live copy checks and owned joins; nine host assertions pass on macOS/Linux, with strict Linux preflight passing under `RUST_TEST_THREADS=1` and full UI1.1c Save/task acceptance separate
 - [Pure native Save data contract](contracts/editor-native-save-codec-v0.json) — reviewed codec prerequisite with separate grants464/schema3 and original-outcome248/schema2, complete Binding/receipt crosslinks and eight independently reviewed assertion families passing on macOS/Linux through `just foundry-editor-native-save-codec-ui1-1c` after actual missing-module RED. Strict std Clippy, no_std checks and complete 53-stage Linux preflight pass; no live Save authority, current-draft Saved or IO proof
-- [Live native Save/task API](contracts/editor-native-save-task-v0.json) — independently reviewed full eighteen-case contract preparation: actual private draft/frame/receipt Saved joins, explicit allocation uncertainty and typed original lookup, async completion, shared 64/IO2 and native joined reopen. Fixed Save-only recording/history profile preserves old modes. Executable assertions/counts, RED, IDL/codegen and handlers remain next; four required planning/governance checks pass
+- [Live native Save/task API](contracts/editor-native-save-task-v0.json) — accepted default-off trusted in-process host keyboard/Store task with eighteen original assertions and complete 93-scenario recordings; review transition repairs now precede actual editor-process integration. The JSON preserves its contract/preparation snapshot; [Current Status](../CURRENT_STATUS.md) owns current acceptance and limitations
+- [Shared core and adapter preservation](../CURRENT_STATUS.md#ui11d-shared-adapter-migration--accepted-host-preservation) — pure edit/raster core and both existing adapters accepted; protocol384/process contracts do not establish child runtime
 - [Native Store preview Read contract](contracts/editor-native-preview-read-v0.json) and [pure codec contract](contracts/editor-native-preview-codec-v0.json) — implemented default-off Store-current pin/approval/Read-only precursor: five source-bound cases pass on macOS/Linux through `just foundry-editor-native-preview-read-ui1-1c`, with identical source/lock inputs and affected consumers checked. The shared464/248 pure codec retains seven passing assertion families. Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`. Creation-stage JSON snapshots remain provenance; Save/recovery/IO2 and the original eighteen-case task remain separate. The bounded runtime gate records actual binary/process/log evidence without a universal exported transcript claim
 - [External boot-profile Oracle v0](plans/boot-profile-oracle-v0.md) — reviewed CPU inspection preparation, bounded actual EFI checkpoints and fixed claim limits; relocated-entry resolution and frozen executable capture still pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
@@ -181,9 +182,17 @@ the coordinator's multi-task queue. See [CurrentTaskV0](org/CURRENT_TASK_V0.md).
 | Superseded plans and investigations | [Archive](archive/README.md) |
 
 Update the relevant owner instead of copying its queue or history into another
-reference. The coordinator integrates shared status/queue/history edits once per
+reference. The [historical status snapshot](archive/plans/2026-10-06-status-integration-snapshot.md)
+retains the detailed editor integration chronology pruned from routine intake. The coordinator integrates shared status/queue/history edits once per
 landed unit; workers return evidence and proposed deltas. Design docs record the
 contract and limits; label proposed behavior and commands. Archive superseded
 analysis under the [archive policy](archive/README.md), preserving gate-bound
 paths and original trial evidence. Recheck local links/anchors and recipe names
 against `justfile`; run the required governance and affected Foundry gates.
+
+Machine-readable files under `docs/contracts/`, fixtures, and execution-consumed
+Markdown are gate inputs. Check source inventories and literal digest consumers
+before editing or moving them; a stale creation-stage status in a pinned contract
+is historical provenance, not permission to rewrite its bytes. The CI classifier
+requires Foundry for executable inputs. Ordinary prose and governed org packets
+retain their cheaper path; classification alone is not evidence of behavior.

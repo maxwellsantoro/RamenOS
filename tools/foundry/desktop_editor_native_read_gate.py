@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('native_read_gate_primitives', hel
 h = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(h)
 REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-REGISTRY_SHA = 'c8448034f73a7fef2c11fa13046fc2700fcdb8768a3a1c221e1ca0f780d139a8'
+REGISTRY_SHA = '67888adceacf5e08d84e6fd0efec4d24832c546bc35dfc49ba422b13e727c24e'
 CONTRACT_SHA = 'b28134e814f25b1b51ee1124509e971fed38b70c6682fe6d79a8baa13512f2bd'
 CASES = (
     'native_read_positive', 'native_read_identity_denials',
@@ -32,7 +32,20 @@ CASES = (
 CACHE_HELPER = 'tools/ci/build_cache.py'
 CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
 
+INVENTORY_HELPER = 'tools/ci/editor_source_inventory.py'
+INVENTORY_HELPER_SHA = 'b13e7bda229678467e31ecea01577d341b30a8e1c19aa276e43937bdf9974639'
+
 FEATURE = 'editor_native_read_v0_dev'
+
+
+def load_source_inventory(h, repo_fd):
+    raw, _, sha = h.source_read(repo_fd, INVENTORY_HELPER, 65536, True)
+    h.require(sha == INVENTORY_HELPER_SHA, 'reviewed source inventory adapter pin')
+    import types
+    module = types.ModuleType('native_gate_source_inventory')
+    module.__file__ = INVENTORY_HELPER
+    exec(compile(raw, INVENTORY_HELPER, 'exec'), module.__dict__)
+    return module
 
 
 def freeze_sources(repo_fd, run):
@@ -46,12 +59,20 @@ def freeze_sources(repo_fd, run):
     h.require(type(paths) is list and 1 <= len(paths) <= 1024
               and all(type(p) is str for p in paths) and paths == sorted(set(paths)),
               'registry exact inventory')
+    inventory = load_source_inventory(h, repo_fd)
+    closure = inventory.validate(h, repo_fd, paths)
     rows = []
     for name in paths:
         _, size, sha = h.source_read(repo_fd, name)
+        if name == INVENTORY_HELPER:
+            h.require(sha == INVENTORY_HELPER_SHA, 'captured source admission adapter pin')
+        if name == inventory.COLLECTOR:
+            h.require(sha == inventory.COLLECTOR_SHA, 'captured transitive collector pin')
         row = {'relative_path': name, 'byte_len': size, 'sha256': sha}
         h.require(len(h.compact(row)) <= 512, 'source record bound')
         rows.append(row)
+    h.require(inventory.validate(h, repo_fd, paths) == closure,
+              'transitive compilation input set changed while captured')
     raw = h.compact(rows)
     h.require(len(raw) <= 524288, 'manifest bound')
     destination = run / 'source-manifest.json'

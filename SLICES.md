@@ -1,6 +1,6 @@
 # Vertical Slices
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
@@ -31,9 +31,12 @@ whole-product readiness.
 | S12 | First-metal golden machine and HIL appliance | Active at S12.4 |
 | S13 | Persistent storage from Oracle capture to metal graduation | QEMU loop complete; metal pending |
 | S14 | USB xHCI and HID interactivity | Design/contract work ready; device implementation and qualification pending |
-| S15 | Native compositor and desktop integration | Human-task design/host contracts ready; target runtime and integration pending |
+| S15 | Native compositor and desktop integration | Trusted in-process host editing/Save task and shared core landed; reliability repairs, editor child and target integration pending |
 
 ## Current Slice: S12.4
+
+This is the current physical slice. The active software checkpoint is UI1.1 host
+reliability followed by the actual editor process; see [Next Tasks](NEXT_TASKS.md).
 
 **Goal:** Make physical HIL repeatable through a dedicated appliance rather than
 manual serial-log handling.
@@ -89,7 +92,7 @@ These are cooperating slices, not a requirement to finish all of S14 before
 starting S15. A coordinator assigns disjoint packets, freezes shared boundaries
 and integrates each packet with its affected consumer gates. Exact scopes and
 joins live in [Next Tasks](NEXT_TASKS.md#ready-work-front); product checkpoints
-live in [Roadmap](ROADMAP.md#deliver-the-first-integrated-human-task).
+live in [Roadmap](ROADMAP.md#shortest-path-to-a-useful-dependable-computer).
 
 ## Definition of Done
 

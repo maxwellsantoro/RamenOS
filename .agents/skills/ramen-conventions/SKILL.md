@@ -1,7 +1,6 @@
 ---
 name: ramen-conventions
 description: RamenOS architecture invariants and coding patterns. Apply when writing or reviewing kernel, service, or store code.
-user-invocable: false
 ---
 
 Use `AGENTS.md` and `CONSTITUTION.md` for invariants; load the relevant maintained
@@ -22,6 +21,9 @@ data objects, and consumer. Check the boundaries the change actually affects:
 - **Recovery:** test affected consumers and an unrelated consumer sharing the
   resource when a service stalls, dies, or restarts. Preserve uncertain outcomes;
   do not replay a mutation without its contract's reconciliation rule.
+  Account for pending replies, acquired buffers, leases and staging files during
+  failure transitions; prove the next operation can use the same live resource.
+  Distinguish definitive pre-admission rejection from uncertain admitted work.
 - **Evidence:** distinguish host fixtures, replay, QEMU, and live devices. For
   hardware, begin with the Reference Vault and Oracle trace; for application
   ports, derive the manifest from observed-capability evidence and scenarios.

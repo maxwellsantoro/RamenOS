@@ -1,7 +1,49 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-08
 **Status:** Active
+
+
+## 2026-10-08 — Short critical-path packets, transition repairs and evidence-aware fast feedback
+
+Keep the everyday human-and-agent destination and one keyboard-first task. Put
+reported host ownership/focus/Save regressions and the journal staging investigation
+before actual editor-process integration; define explicit recovery assertions
+rather than widening deadlines or adding retries. Process assertion/owner staging,
+carrier, child edit/raster and original Save recovery are separate mergeable units
+with frozen joins. RUN0, input Oracle/Vault and storage preparation proceed in
+independent scopes; paid studies and physical graduation impose no global stop.
+Use coordinator + two implementers + reviewer by default, reserve shared source
+and gate resources, and integrate each accepted packet without waiting for an
+unrelated batch. Review capacity is a throughput constraint.
+
+Keep current acceptance, ready work, direction and history in their existing owners.
+Move the large pre-review Current Status narrative to a dated archive snapshot,
+preserving failures and evidence identities. Do not modernize byte-pinned contracts
+or historical trials merely to change status wording. Add a bounded component
+replacement/failure/recovery experiment after the genuine process task to measure
+the combined Core/Foundry/Store safe-change proposition; hardware claims retain
+actual DMA/reset and device prerequisites.
+
+Remove client per-edit formatting/Clippy side effects in favor of explicit owned,
+feature-correct checks. Preserve guardrails and independent review; hook files
+are client conventions, not security enforcement. Use focused checks while editing,
+affected consumers at handoff and the canonical lanes on a fixed candidate. Reuse
+compilation and unchanged-input focused evidence for its original scope, never
+cached PASS or synthetic acceptance.
+
+Close the CI executable-contract exemption and derive NativeRead/Preview dependency
+admission from the existing bounded transitive task collector, conservatively
+including its original roots/extras without claiming an exact feature unit graph.
+Retain old source entries, require future dependency/include additions to receive
+registry review, and validate mutations/deletions gate-first. The canonical 55/39
+stage plan, four-result aggregate and real runtime budgets remain unchanged.
+The merged-main hosted run 37730644587 succeeded with a host job of 820 seconds,
+agent 337,quality 309,QEMU 292 and 845 seconds creation-to-update. This single baseline
+identifies host costs; it establishes no before/after speedup. Measure stages before
+another scheduling/cache change. This decision grants no publication, spending,
+HIL or role authority.
+
 
 ## 2026-10-06 — Isolate the agent CI lane and preserve genuine fixture joins; integration pending
 

@@ -1,6 +1,6 @@
 # RamenOS Vision
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-08
 **Status:** Product direction; implementation evidence lives in Current Status
 
 RamenOS is a modern, post-Unix operating system being built for humans and AI
@@ -57,6 +57,21 @@ the need to test consumers when a component changes.
 Post-Unix means native interfaces follow the needs of this product. POSIX and
 legacy stacks remain compatibility tools rather than the blueprint for native
 APIs. Useful existing techniques can stay when they serve the design.
+
+## Independent evolution as a measurable goal
+
+The three pillars aim to reduce the cost of safe change. A developer should be
+able to improve a driver, service or application against a bounded contract;
+Foundry supplies reusable qualification evidence, and Store helps discover and
+activate suitable implementations under user policy. Contracts must cover
+behavior, authority, resources, failure and recovery as well as message syntax.
+
+Demonstrate this with a concrete replacement and recovery cycle while an unrelated
+human task continues. Measure changes outside the component, qualification effort,
+resource cost, disruption and recovery success. Independent evolution permits
+explicit service interruption or boot-time activation when that is the supported
+mode. Hardware failure boundaries additionally depend on real DMA/reset topology
+and device evidence. These are goals, not established platform capabilities.
 
 ## What the vision requires us to demonstrate
 

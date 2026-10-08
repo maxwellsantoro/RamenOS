@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -42,6 +43,90 @@ class FirmwareTests(unittest.TestCase):
 
 
 class CiTests(unittest.TestCase):
+    def test_executable_docs_require_foundry_before_prose_exemption(self):
+        spec = importlib.util.spec_from_file_location("ci_policy", ROOT / "tools/ci/change_policy.py")
+        policy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(policy)
+        for path in ["docs/contracts/editor-native-preview-read-v0.json",
+                     "docs/contracts/new-contract.md", "docs/fixtures/new.yaml",
+                     "docs/new-executable-input.json", "docs/DESKTOP_EDITOR_WIRE_V1.md",
+                     "docs/HIL_APPLIANCE_EVIDENCE_V0.md", "CONSTITUTION.md",
+                     "EVIDENCE_LEVELS.md", "drivers/reference_vaults/virtio-net/README.md",
+                     "drivers/reference_vaults/virtio-blk/README.md"]:
+            with self.subTest(path=path):
+                self.assertTrue(policy.requires_foundry([path]), path)
+        self.assertFalse(policy.requires_foundry([
+            "README.md", "CURRENT_STATUS.md", "docs/INDEX.md", "docs/research/RESEARCH_PROGRAM.md",
+            "docs/org/current_task.yaml", "docs/org/tasks/new-packet.json"]))
+
+    def test_execution_consumed_markdown_is_not_prose(self):
+        spec = importlib.util.spec_from_file_location("ci_policy", ROOT / "tools/ci/change_policy.py")
+        policy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(policy)
+        # Audit literal inputs in OS gate tooling. Governance alone owns org
+        # packet/prose checks, so its requirements do not activate expensive lanes.
+        paths = set()
+        for directory in (ROOT / "tools/ci", ROOT / "tools/foundry"):
+            for source in directory.iterdir():
+                if (source.suffix not in {".py", ".sh"} or source.name.startswith("test_")
+                        or source.name in {"change_policy.py", "foundry_org_governance_g0.sh"}):
+                    continue
+                for line in source.read_text().splitlines():
+                    if not line.lstrip().startswith("#"):
+                        paths.update(re.findall(r"docs/[A-Za-z0-9_./-]+\.md", line))
+                        paths.update(re.findall(r"[\"']([A-Z][A-Z0-9_]*\.md)[\"']", line))
+            for registry in directory.glob("*sources*v*.json"):
+                paths.update(path for path in json.loads(registry.read_bytes())["paths"]
+                             if path.endswith(".md"))
+        # Contract source pins can name root documents rather than docs/**.
+        # Free-form historical prose references are intentionally not input pins.
+        def pinned_markdown(value):
+            if type(value) is dict:
+                if (type(value.get("path")) is str and value["path"].endswith(".md")
+                        and "sha256" in value):
+                    paths.add(value["path"])
+                for child in value.values():
+                    pinned_markdown(child)
+            elif type(value) is list:
+                for child in value:
+                    pinned_markdown(child)
+        for contract in (ROOT / "docs/contracts").rglob("*.json"):
+            pinned_markdown(json.loads(contract.read_bytes()))
+        self.assertIn("CONSTITUTION.md", paths)
+        self.assertIn("EVIDENCE_LEVELS.md", paths)
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertTrue(policy.requires_foundry([path]), path)
+
+    def test_contract_modification_and_deletion_cli(self):
+        for name in ("docs/contracts/editor-native-preview-read-v0.json", "CONSTITUTION.md"):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                def git(*args):
+                    return subprocess.check_output(["git", *args], cwd=root, stderr=subprocess.DEVNULL).decode().strip()
+                git("init", "-q")
+                git("config", "user.name", "CI fixture")
+                git("config", "user.email", "fixture@example.invalid")
+                contract = root / name
+                contract.parent.mkdir(parents=True, exist_ok=True)
+                contract.write_text('{"version":1}\n')
+                git("add", ".")
+                git("commit", "-qm", "baseline")
+                base = git("rev-parse", "HEAD")
+                for operation in ("modify", "delete"):
+                    if operation == "modify":
+                        contract.write_text('{"version":2}\n')
+                    else:
+                        contract.unlink()
+                    git("add", "-A")
+                    git("commit", "-qm", operation)
+                    result = subprocess.run(["python3", str(ROOT / "tools/ci/change_policy.py"),
+                                             "classify", base, "HEAD"], cwd=root,
+                                            capture_output=True, text=True, timeout=30)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    with self.subTest(path=name, operation=operation):
+                        self.assertEqual(result.stdout.strip(), "true", operation)
+
     def test_classifier_and_merge_fail_closed(self):
         spec = importlib.util.spec_from_file_location("ci_policy", ROOT / "tools/ci/change_policy.py")
         policy = importlib.util.module_from_spec(spec)

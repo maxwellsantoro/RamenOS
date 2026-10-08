@@ -1,6 +1,6 @@
 # Contributing
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Active
 
 RamenOS is being built as an everyday, post-Unix OS for humans and AI agents
@@ -25,7 +25,10 @@ and shared resources before handoff. For native contract changes, run
 `just codegen` and `just idl-lint`, then inspect the generated diff. Never edit
 generated outputs manually.
 
-Run `cargo fmt --all --check` and the relevant lint checks for Rust changes.
+Use the [scoped developer loop](docs/FOUNDRY_CI_OPTIMIZATION_V0.md#developer-loop)
+for fast compilation, lint and tests; resolve its actual package/target/features
+before running it. Run `cargo fmt --all --check` and the relevant lint checks for
+Rust changes.
 The integrating owner runs the required combined checks once the reviewed packets
 are together; individual worker passes do not establish integration success.
 
@@ -36,6 +39,9 @@ INCOMPLETE. Follow
 [Getting Started](docs/GETTING_STARTED.md) for environment-specific checks.
 Report the exact commands, result, tested revision, retained evidence, and
 environment limitations. Resolve current recipes from [justfile](justfile).
+Full preflight is an integration checkpoint, not a per-edit loop. Reuse focused
+results only for unchanged tested inputs and environment; changed dependencies
+require affected consumer checks. Cache compiler work, then execute fresh assertions.
 
 ## Working as a team
 
@@ -49,7 +55,8 @@ invent incompatible interfaces.
 PRs follow [the implementer-bot workflow](docs/org/RAMEN_IMPLEMENTER_BOT.md):
 the A2 bot authors; a distinct authorized A3 identity approves and merges.
 Local agent review does not supply that approval. The path classifier determines
-CI requirements; documentation scope is not a waiver for failing governance checks.
+CI requirements; executable contracts under `docs/` still need affected Foundry
+checks. Documentation scope is not a waiver for failing governance checks.
 
 ## Documentation
 

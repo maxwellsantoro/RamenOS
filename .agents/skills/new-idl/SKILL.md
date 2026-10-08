@@ -1,11 +1,9 @@
 ---
 name: new-idl
 description: Create a new IDL interface definition and generate Rust bindings
-disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-Create or evolve the interface requested in $ARGUMENTS. Read `AGENTS.md` and
+Create or evolve the requested interface. Read `AGENTS.md` and
 `idl/tools/README.md`; use a relevant existing IDL for the current syntax and wire
 limits. Generated syntax is not evidence of enforcement or target availability.
 

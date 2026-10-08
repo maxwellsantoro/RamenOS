@@ -58,7 +58,8 @@ export GH_TOKEN=$(python3 tools/org/mint_app_token.py \
 ```
 
 `gh` prefers `GH_TOKEN` over stored auth, so the session acts as the bot until
-you `unset GH_TOKEN`. Capture it without printing the value or enabling shell
+you clear both `GH_TOKEN` and `GITHUB_TOKEN` before using stored reviewer auth.
+Capture it without printing the value or enabling shell
 tracing; tracing/debug output can expose an expanded assignment. To resolve only
 the installation id, add `--print-installation-id`.
 
@@ -103,14 +104,20 @@ bot (see Stage 2).
 > as the bot because `GH_TOKEN` holds the bot token. The next `gh pr review
 > --approve` will *also* run as the bot unless you clear the token first, and
 > GitHub rejects it: *"Review cannot approve your own pull request."* **Always
-> `unset GH_TOKEN` (or switch to a different credential) between opening and
+> `unset GH_TOKEN GITHUB_TOKEN` (or select an explicitly authorized different
+> credential) between opening and
 > approving.**
 
 ```sh
-unset GH_TOKEN                       # REQUIRED: drop the bot token first
+unset GH_TOKEN GITHUB_TOKEN          # REQUIRED: clear environment token overrides
+gh api user --jq .login              # verify the authorized A3 identity before review
 gh pr review <N> --approve --body "..."   # now runs as the human (A3)
-gh pr merge  <N> --squash --delete-branch
+gh pr merge  <N> --squash
 ```
+
+Use the exact reviewed head and satisfy required checks/approval without bypass.
+Branch deletion is a separate optional cleanup. No command example grants review
+or merge authority.
 
 This is the A2→A3 split in action: implementer opens, reviewer approves+merges.
 

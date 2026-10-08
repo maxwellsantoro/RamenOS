@@ -1,6 +1,6 @@
 # Getting Started with RamenOS
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-08
 **Status:** Active contributor guide
 
 RamenOS is an everyday OS being built for humans and AI agents. It is public
@@ -59,6 +59,7 @@ qemu-system-aarch64 --version
 
 | Goal | Command | Evidence |
 |------|---------|----------|
+| Run the scripted human editor task | `just codegen` then `just foundry-desktop-editor-task-ui1-1c` | Injected keyboard/offscreen frames and actual host Store Save/reopen; trusted in-process, review repairs pending |
 | Build typed host components | `just build-host` | Host build; runs codegen first |
 | Inspect structured OS state | `just foundry-semantic-state-s10-2` | Host snapshots, subscriptions, filtered views, runner checks |
 | Run a Store demo | `just foundry-store-s0` | Self-contained host service and launch plan |

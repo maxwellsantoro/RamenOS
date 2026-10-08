@@ -11,6 +11,10 @@ contracts and feature combinations.
   consumers; compilation alone does not check denial or recovery behavior.
 - Resolve existing recipes from `just --list` and their scripts. A proposed recipe
   in a plan is not implemented evidence. Honor required checks in `AGENTS.md`.
+- Separate fast iteration from packet acceptance and affected integration checks.
+  Reuse a prior focused result only when its transitive inputs and environment
+  remain unchanged; execute fresh assertions after changed inputs. Do not launch
+  full preflight per edit or duplicate a worker's valid result.
 - IDL changes require coordinator-owned codegen plus affected wire/consumer checks.
   Do not regenerate files or change shared registration during an unassigned review.
 - Check prerequisites before spending build time. Missing Linux/Docker inputs,

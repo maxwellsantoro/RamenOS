@@ -1,6 +1,6 @@
 # Documentation Archive
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-08
 **Status:** Historical and non-authoritative
 
 This directory preserves completed or superseded plans, designs, and
@@ -23,6 +23,10 @@ commands, risks, or sequencing and must not be used as current project truth.
 Files keep descriptive, date-prefixed names where practical. Links into the
 archive are welcome when historical rationale matters, but new implementation
 work should cite a maintained contract, decision, or active plan as well.
+
+The [pre-review status snapshot](plans/2026-10-06-status-integration-snapshot.md)
+retains detailed host-editor integration chronology and original evidence identities
+removed from routine intake on October 8. Its pending statements are historical.
 
 ## Archive Policy
 
