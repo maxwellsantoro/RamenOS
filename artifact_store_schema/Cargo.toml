@@ -28,3 +28,11 @@ std = [
     "base64",
     "rand",
 ]
+
+# Foundry-only pure verifier, gated off for no_std schema consumers.
+[[example]]
+name = "native_manifest_verifier"
+path = "examples/native_manifest_verifier.rs"
+required-features = ["std"]
+test = false
+bench = false

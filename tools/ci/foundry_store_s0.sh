@@ -11,15 +11,28 @@ INSTALLED_ROOT="$OUT_DIR/installed"
 INSTALLED_ARTIFACTS="$INSTALLED_ROOT/artifacts"
 STORE_SOCKET="$OUT_DIR/store.sock"
 STORE_LOG="$OUT_DIR/store_service.log"
+STORE_BUILD_JSON="$OUT_DIR/store_build.jsonl"
+STORE_BUILD_LOG="$OUT_DIR/store_build.stderr.log"
 
 mkdir -p "$OUT_DIR" "$ARTIFACT_ROOT" "$INSTALLED_ARTIFACTS"
 rm -f "$STORE_SOCKET"
+
+# Compilation has its own synchronous phase; the unchanged readiness budget
+# starts only after launching the actual server, not a Cargo compiler wrapper.
+if ! cargo build -p store_service --bin store_service --message-format=json \
+  >"$STORE_BUILD_JSON" 2>"$STORE_BUILD_LOG"; then
+  echo "store_service build failed; evidence_dir=$OUT_DIR" >&2
+  cat "$STORE_BUILD_LOG" >&2
+  exit 1
+fi
+
+STORE_BIN="$(python3 "$ROOT_DIR/tools/ci/cargo_artifact.py" "$STORE_BUILD_JSON" store_service)"
 
 RAMEN_STORE_DEV_MODE=1 \
 RAMEN_STORE_ACCESS_POLICY=AllowAll \
 RAMEN_STORE_SOCKET="$STORE_SOCKET" \
 RAMEN_STORE_ROOT="$INSTALLED_ARTIFACTS" \
-cargo run -p store_service >"$STORE_LOG" 2>&1 &
+"$STORE_BIN" >"$STORE_LOG" 2>&1 &
 STORE_PID=$!
 
 cleanup() {

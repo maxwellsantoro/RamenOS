@@ -11,8 +11,24 @@ path = "src/main.rs"
 name = "export_agent_task_fixture"
 required-features = ["agent_task_v1_dev"]
 
+[[test]]
+name = "editor_store"
+path = "tests/editor_store.rs"
+required-features = ["editor_store_v0_dev"]
+
+[[test]]
+name = "editor_native_read"
+path = "tests/editor_native_read.rs"
+required-features = ["editor_native_read_v0_dev"]
+
+[[test]]
+name = "editor_native_preview_read"
+path = "tests/editor_native_preview_read.rs"
+required-features = ["editor_native_preview_v0_dev"]
+
 [dependencies]
 kernel_api = { path = "../../kernel_api" }
+desktop_service = { path = "../desktop", default-features = false, optional = true }
 artifact_store_core = { path = "../../artifact_store_core" }
 artifact_store_schema = { path = "../../artifact_store_schema" }
 serde = { version = "1", features = ["derive"] }
@@ -34,12 +50,18 @@ rand = "0.8" # Service-owned opaque task objects
 default = []
 # WARNING: opt-in host fixture authority/mappings; no public endpoint or production authentication.
 agent_task_v1_dev = []
+# Default-off trusted editor transaction fixture; no deployed Store endpoint.
+editor_store_v0_dev = []
+editor_native_read_v0_dev = ["editor_store_v0_dev", "dep:desktop_service", "desktop_service/editor_native_read_v0_dev"]
+editor_native_preview_v0_dev = ["editor_native_read_v0_dev", "desktop_service/editor_native_preview_v0_dev"]
+editor_native_save_v0_dev = ["editor_native_preview_v0_dev", "desktop_service/editor_native_save_v0_dev"]
 ## Enable development mode with fallback signing key.
 ## WARNING: This feature MUST NOT be enabled in production builds.
 ## It allows unsigned/insecure key fallback for development only.
 dev_insecure = []
 
 [dev-dependencies]
+desktop_service = { path = "../desktop", default-features = false, features = ["desktop_v0_dev"] }
 tempfile = "3"  # V-007 Phase 5: For testing domain visibility registry
 rand = "0.8"  # V-007 Phase 6: For generating test keypairs
 wat = "1"

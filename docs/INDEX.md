@@ -23,6 +23,9 @@ parts of that product, with implementation status and evidence recorded separate
 | Slice definitions | [Vertical Slices](../SLICES.md) |
 | Contributor setup | [Getting Started](GETTING_STARTED.md) and [Contributing](../CONTRIBUTING.md) |
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
+| Warm developer checks, complete CI lanes, compiler cache and timing | [Foundry execution profile](FOUNDRY_CI_OPTIMIZATION_V0.md) |
+| Linux editor process contract and API | [Process contract](contracts/editor-process-v0.json), [API](DESKTOP_EDITOR_PROCESS_API_V0.md), [plan](plans/editor-process-v0.md) |
+| RUN0 source-derived entry/retention preparation | [Entry preparation](plans/run0-relocated-entry-preparation-v0.md) |
 | Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
 | Coordinator/sub-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
 | Terms and concepts | [Glossary](GLOSSARY.md) |
@@ -103,6 +106,20 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 ### OS and Hardware
 
 - [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization and bounded comparison; scripted foundations landed, model comparison pending
+- [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; first host launch/lifetime consumer implemented; editor/device/target joins pending
+- [Desktop session v1](DESKTOP_SESSION_V1.md) — generated protocol-336 preview/confirmation/lifetime contract and passing default-off Unix host process/wire gate
+- [Boot frame ownership v0](BOOT_FRAME_OWNERSHIP_V0.md) — reviewed pure map/retention admission and passing 17-case gate; actual firmware-exit adapter, initial-access evidence and QEMU allocator proof pending
+- [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets; volatile editor and host Store transaction implemented, integrated task/process successors pending
+- [Desktop editor wire v1](DESKTOP_EDITOR_WIRE_V1.md) — five registered canonical IDLs and 43 generated messages consumed by the passing volatile host editor gate
+- [Desktop editor host API v0](DESKTOP_EDITOR_HOST_API_V0.md) — implemented default-off opaque peers/leases, logical keyboard editing, offscreen composition and 13-case gate; no Store/device/target/process-containment evidence
+- [Desktop editor Store transaction v0](plans/editor-store-transaction-v0.md) — implemented default-off host CAS, atomic selection/receipt and joined-writer recovery; seven behavior cases pass on macOS/Linux, integrated editor/device/target joins remain separate
+- [Desktop editor Store API v0](DESKTOP_EDITOR_STORE_API_V0.md) — frozen pure/service API consumed by the passing nine-case schema and seven-case actual host Store gates; opaque authority, admission and original-operation recovery are exercised within the trusted fixture scope
+- [Editor Store recording contract v0](contracts/editor-store-recording-v0.json) — closed source/provenance/lease/fence/cleanup shapes and explicit temporal receipt correction consumed by the sixteen-case evidence gate and native Rust decoder
+- [Desktop editor native Read API v0](DESKTOP_EDITOR_NATIVE_READ_API_V0.md) and [bounded contract](contracts/editor-native-read-v0.json) — implemented default-off approved-peer/Store Read prerequisite, original deadlines, live copy checks and owned joins; nine host assertions pass on macOS/Linux, with strict Linux preflight passing under `RUST_TEST_THREADS=1` and full UI1.1c Save/task acceptance separate
+- [Pure native Save data contract](contracts/editor-native-save-codec-v0.json) — reviewed codec prerequisite with separate grants464/schema3 and original-outcome248/schema2, complete Binding/receipt crosslinks and eight independently reviewed assertion families passing on macOS/Linux through `just foundry-editor-native-save-codec-ui1-1c` after actual missing-module RED. Strict std Clippy, no_std checks and complete 53-stage Linux preflight pass; no live Save authority, current-draft Saved or IO proof
+- [Live native Save/task API](contracts/editor-native-save-task-v0.json) — independently reviewed full eighteen-case contract preparation: actual private draft/frame/receipt Saved joins, explicit allocation uncertainty and typed original lookup, async completion, shared 64/IO2 and native joined reopen. Fixed Save-only recording/history profile preserves old modes. Executable assertions/counts, RED, IDL/codegen and handlers remain next; four required planning/governance checks pass
+- [Native Store preview Read contract](contracts/editor-native-preview-read-v0.json) and [pure codec contract](contracts/editor-native-preview-codec-v0.json) — implemented default-off Store-current pin/approval/Read-only precursor: five source-bound cases pass on macOS/Linux through `just foundry-editor-native-preview-read-ui1-1c`, with identical source/lock inputs and affected consumers checked. The shared464/248 pure codec retains seven passing assertion families. Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`. Creation-stage JSON snapshots remain provenance; Save/recovery/IO2 and the original eighteen-case task remain separate. The bounded runtime gate records actual binary/process/log evidence without a universal exported transcript claim
+- [External boot-profile Oracle v0](plans/boot-profile-oracle-v0.md) — reviewed CPU inspection preparation, bounded actual EFI checkpoints and fixed claim limits; relocated-entry resolution and frozen executable capture still pending
 - [Semantic State substrate](plans/2026-02-20-s10-2-semantic-state-substrate.md)
 - [Projection storage](plans/2026-02-20-s10-3-projection-storage.md)
 - [Execution fabric](plans/2026-06-17-s10-4-execution-fabric.md)

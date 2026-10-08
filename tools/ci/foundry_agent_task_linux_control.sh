@@ -6,6 +6,8 @@ if [[ "$(uname -s)" != Linux ]]; then
     echo "FOUNDRY_AGENT_TASK_LINUX_CONTROL: Linux required" >&2
     exit 1
 fi
+# Pure failure-evidence controls do not stand in for the Linux probes below.
+python3 tools/agent_task/test_sandbox_failure_evidence.py
 cargo build -p native_runner --features agent_task_v1_dev --bin task_validator_worker
 TARGET_DIR="$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')"
 FIXTURE_DIR="$(mktemp -d)"

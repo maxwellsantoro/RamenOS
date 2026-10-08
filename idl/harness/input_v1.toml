@@ -1,0 +1,33 @@
+namespace = "harness.input"
+version = "1"
+protocol = 802 # 0x322; incompatible versions require a new protocol ID.
+
+# Canonical UI1.1 contract only; no driver, host handler or target input proof.
+# Payload IDs are references, not owner/role/PID authentication. Envelope.handle
+# resolves an opaque trusted peer and class-specific grant outside the payload.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# Explicit little-endian codecs require exact lengths and zero reserved/tail
+# bytes; generated repr(C) types neither validate wire bytes nor grant authority.
+# Denials expose only correlation (request_id or sequence) and status; all
+# remaining reply fields are zero. Input enums remain a coordinator prerequisite.
+
+# Attach one driver-class keyboard to its owned focus attachment endpoint;
+# the driver cannot choose an application recipient or assign focus.
+[message.attach]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "device_generation:u64"]
+
+[message.attach_reply]
+msg_type = 2
+fields = ["request_id:u64", "queue_generation:u64", "status:u32", "reserved:u32"]
+
+# Attached driver-class producer only; phase denotes press/release/reset.
+# Sequence and generations are checked; reset cannot confirm a preview.
+[message.produce_key]
+msg_type = 3
+fields = ["session_id:u64", "session_generation:u64", "queue_generation:u64", "sequence:u64", "usage:u32", "phase:u32", "modifiers:u32", "reserved:u32"]
+
+[message.produce_key_reply]
+msg_type = 4
+fields = ["sequence:u64", "status:u32", "reserved:u32"]

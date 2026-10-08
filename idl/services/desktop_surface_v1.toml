@@ -1,0 +1,59 @@
+namespace = "services.desktop_surface"
+version = "1"
+protocol = 833 # 0x341; incompatible versions require a new protocol ID.
+
+# Canonical UI1.1 contract only; no compositor, mapped alias or scanout proof.
+# Payload IDs are references, not owner/role/PID authentication. Envelope.handle
+# resolves an opaque trusted peer and class-specific grant outside the payload.
+# Equal numeric rights in different endpoint classes do not cross-authorize.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# Explicit little-endian codecs require exact lengths and zero reserved/tail
+# bytes; generated repr(C) types neither validate wire bytes nor grant authority.
+# Denials expose only request_id and status; all other reply fields are zero.
+
+# Owning instance only: fixed 640x480 BGRA8888 profile, one surface, two buffers.
+[message.create]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "width:u32", "height:u32", "format:u32", "reserved:u32"]
+
+# Descriptors alone confer no writable lease or chrome/scanout mapping.
+[message.create_reply]
+msg_type = 2
+fields = ["request_id:u64", "surface_id:u64", "surface_generation:u64", "buffer0_shm:u64", "buffer1_shm:u64", "status:u32", "stride:u32", "format:u32", "reserved:u32"]
+
+# Service-bound owning instance; one fresh checked writable mapping lease.
+[message.acquire]
+msg_type = 3
+fields = ["request_id:u64", "surface_id:u64", "surface_generation:u64", "buffer_index:u32", "reserved:u32"]
+
+[message.acquire_reply]
+msg_type = 4
+fields = ["request_id:u64", "mapping_generation:u64", "buffer_shm:u64", "status:u32", "byte_len:u32"]
+
+# Owning instance only; freeze all aliases before successful acknowledgement.
+[message.present]
+msg_type = 5
+fields = ["request_id:u64", "surface_id:u64", "surface_generation:u64", "mapping_generation:u64", "sequence:u64", "buffer_index:u32", "reserved:u32"]
+
+[message.present_reply]
+msg_type = 6
+fields = ["request_id:u64", "sequence:u64", "status:u32", "reserved:u32"]
+
+# Compositor-class endpoint only, consuming the selected frozen frame.
+[message.consume]
+msg_type = 7
+fields = ["request_id:u64", "surface_id:u64", "surface_generation:u64", "sequence:u64"]
+
+[message.consume_reply]
+msg_type = 8
+fields = ["request_id:u64", "sequence:u64", "status:u32", "reserved:u32"]
+
+# Owned instance or trusted recovery endpoint; retire old leases/generations.
+[message.destroy]
+msg_type = 9
+fields = ["request_id:u64", "surface_id:u64", "surface_generation:u64"]
+
+[message.destroy_reply]
+msg_type = 10
+fields = ["request_id:u64", "status:u32", "reserved:u32"]

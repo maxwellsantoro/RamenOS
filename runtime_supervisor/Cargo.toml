@@ -34,7 +34,7 @@ artifact_store_schema = { path = "../artifact_store_schema" }
 native_runner = { path = "../services/native_runner" }
 execution_fabric = { path = "../services/execution_fabric" }
 anyhow = "1"
-ctrlc = "3"
+ctrlc = { version = "3", features = ["termination"] }
 libc = "0.2"
 # Security: seccomp BPF filter for syscall restriction (fixes NEW-005)
 [target.'cfg(target_os = "linux")'.dependencies]

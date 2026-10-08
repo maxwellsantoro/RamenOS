@@ -1,0 +1,78 @@
+namespace = "portal.desktop_session"
+version = "1"
+protocol = 336 # 0x150; incompatible versions require a new protocol ID.
+
+# UI1.0 default-off host development consumer. Identity is authenticated by
+# the adapter outside the payload; Envelope.handle is registry-bound.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# All payloads are explicitly encoded little-endian; padding/tails are zero.
+[message.prepare_launch]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "application_hash:bytes32", "requested_rights:u32", "reserved:u32"]
+
+[message.prepare_launch_reply]
+msg_type = 2
+fields = ["request_id:u64", "plan_id:u64", "preview_revision:u64", "preview_shm:u64", "preview_len:u32", "status:u32", "granted_rights:u32", "reserved:u32"]
+
+[message.cancel_preview]
+msg_type = 3
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "plan_id:u64"]
+
+[message.cancel_preview_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+[message.confirm_launch]
+msg_type = 5
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "plan_id:u64", "preview_revision:u64"]
+
+[message.confirm_launch_reply]
+msg_type = 6
+fields = ["request_id:u64", "instance_id:u64", "instance_generation:u64", "observation_handle:u64", "granted_rights:u32", "status:u32", "child_pid:u32", "reserved:u32"]
+
+[message.get_status]
+msg_type = 7
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.get_status_reply]
+msg_type = 8
+fields = ["request_id:u64", "instance_id:u64", "instance_generation:u64", "executable_hash:bytes32", "state:u32", "status:u32"]
+
+[message.close_instance]
+msg_type = 9
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.close_instance_reply]
+msg_type = 10
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+[message.revoke_instance]
+msg_type = 11
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.revoke_instance_reply]
+msg_type = 12
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+[message.prepare_restart]
+msg_type = 13
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.prepare_restart_reply]
+msg_type = 14
+fields = ["request_id:u64", "plan_id:u64", "preview_revision:u64", "preview_shm:u64", "preview_len:u32", "status:u32", "granted_rights:u32", "reserved:u32"]
+
+# Message IDs 15/16 remain reserved. The owned child pipe authenticates the
+# observer; PID, role and owner identity are never accepted from its payload.
+[message.observe_instance]
+msg_type = 17
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.observe_instance_reply]
+msg_type = 18
+fields = ["request_id:u64", "instance_id:u64", "instance_generation:u64", "executable_hash:bytes32", "state:u32", "status:u32"]
+
+[message.instance_bootstrap]
+msg_type = 19
+fields = ["session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "observation_handle:u64", "granted_rights:u32", "reserved:u32"]

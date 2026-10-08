@@ -34,6 +34,16 @@ clippy-strict-tranche5:
 preflight:
 	bash ./tools/ci/foundry_preflight.sh
 
+# Focused, exclusive warm loop; this is development evidence.
+dev-check package test="lib" features="":
+	python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}}
+
+foundry-ci-optimization:
+	bash ./tools/ci/foundry_ci_optimization.sh
+
+ci-lane lane:
+	python3 tools/ci/ci_lanes.py lane {{quote(lane)}}
+
 build-host: codegen
 	cargo build --workspace --exclude kernel_uefi --exclude kernel_aarch64
 
@@ -83,6 +93,9 @@ foundry-all-s0-s1-s2:
 
 foundry-compat-s2:
 	./tools/ci/foundry_compat_s2.sh
+
+foundry-compat-cleanup-s2:
+	bash ./tools/ci/foundry_compat_cleanup_s2.sh
 
 foundry-init-s2-2:
 	./tools/ci/foundry_init_s2_2.sh
@@ -361,6 +374,56 @@ foundry-agent-task-authority:
 foundry-agent-task-evaluator-controls:
 	bash ./tools/ci/foundry_agent_task_evaluator_controls.sh
 
+# Portable frozen usage plans and retained synthetic provider accounting rows.
+foundry-agent-task-provider-accounting:
+	bash ./tools/ci/foundry_agent_task_provider_accounting.sh
+
+# Default-off desktop permission-preview, real host launch and lifetime witness.
+foundry-desktop-host-launch-ui1-0:
+	bash ./tools/ci/foundry_desktop_host_launch_ui1_0.sh
+
+# Default-off volatile in-process editor, typed input/focus and offscreen surfaces.
+foundry-desktop-editor-host-ui1-1a:
+	bash ./tools/ci/foundry_desktop_editor_host_ui1_1a.sh
+
+# Pure editor save records/codecs; no Store IO or runtime admission evidence.
+foundry-editor-save-schema-ui1-1b:
+	bash ./tools/ci/foundry_editor_save_schema_ui1_1b.sh
+
+# Pure NativePreview shared-data codec; no Store IO or authority proof.
+foundry-editor-native-preview-codec-ui1-1c:
+	bash ./tools/ci/foundry_editor_native_preview_codec_ui1_1c.sh
+
+# Pure native Save grants and original outcome records; no live Save authority.
+foundry-editor-native-save-codec-ui1-1c:
+	bash ./tools/ci/foundry_editor_native_save_codec_ui1_1c.sh
+
+# UI1.1d pure editing/raster and typed process data; no child or Save authority.
+# Workspace tests also discover these assertions in the unchanged complete CI inventory.
+foundry-editor-core-ui1-1d-prerequisite:
+	cargo test --locked -p kernel_api --test editor_process_generated -- --test-threads=1
+	cargo test --locked -p desktop_editor_core --no-default-features --tests -- --test-threads=1
+
+# Four default-off adapter preservation assertions; explicit required-feature targets.
+foundry-editor-adapter-migration-ui1-1d:
+	bash ./tools/ci/foundry_editor_adapter_migration_ui1_1d.sh
+
+# Default-off host Store CAS, atomic selection/receipt and joined-writer recovery.
+foundry-desktop-editor-store-ui1-1b:
+	bash ./tools/ci/foundry_desktop_editor_store_ui1_1b.sh
+
+# Original Desktop authority and deadline through a trusted host Store Read.
+foundry-desktop-editor-native-read-ui1-1c-prerequisite:
+	python3 ./tools/foundry/desktop_editor_native_read_gate.py
+
+# Default-off Store-current preview, staged Read authority and protected chrome.
+foundry-editor-native-preview-read-ui1-1c:
+	python3 ./tools/foundry/desktop_editor_native_preview_read_gate.py
+
+# Original eighteen-case task with complete source-bound native recordings.
+foundry-desktop-editor-task-ui1-1c:
+	bash ./tools/ci/foundry_desktop_editor_task_ui1_1c.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh
@@ -368,3 +431,7 @@ foundry-agent-task-reconciliation:
 # Finite issued-right projections and named authority lifetime witnesses.
 foundry-agent-task-requestable-authority:
 	bash ./tools/ci/foundry_agent_task_requestable_authority.sh
+
+# RUN0.0 pure boot pool admission; real firmware handoff remains separately gated.
+foundry-boot-frame-pool-run0-0:
+	bash ./tools/ci/foundry_boot_frame_pool_run0_0.sh

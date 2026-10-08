@@ -1,0 +1,97 @@
+namespace = "portal.desktop_editor_session"
+version = "1"
+protocol = 352 # 0x160; incompatible versions require a new protocol ID.
+
+# Canonical UI1.1 contract only; protocol 336 remains unchanged. No editor
+# execution, host handler, Store IO or target enforcement proof is supplied.
+# Payload IDs are references, not owner/role/PID authentication. Envelope.handle
+# resolves an opaque trusted peer and class-specific grant outside the payload.
+# Equal numeric rights in different endpoint classes do not cross-authorize.
+# Status: Ok=0 Denied=1 Invalid=2 Unsupported=3 Stale=4 Exhausted=5
+# NotReady=6 Conflict=7 Timeout=8 Disconnected=9 Unknown=10 Internal=11.
+# Explicit little-endian codecs require exact lengths and zero reserved/tail
+# bytes; generated repr(C) types neither validate wire bytes nor grant authority.
+# Denials expose only request_id and status; all other reply fields are zero.
+# Shared preview/grant bytes describe bindings, never caller-issued authority.
+
+# Trusted chrome only: pinned application/manifest and exact editor profile 63.
+[message.prepare_launch]
+msg_type = 1
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "application_hash:bytes32", "requested_rights:u32", "reserved:u32"]
+
+[message.prepare_launch_reply]
+msg_type = 2
+fields = ["request_id:u64", "plan_id:u64", "preview_revision:u64", "preview_shm:u64", "preview_len:u32", "status:u32", "granted_rights:u32", "reserved:u32"]
+
+# Trusted chrome only; cancellation retires the single-use preview event.
+[message.cancel_preview]
+msg_type = 3
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "plan_id:u64"]
+
+[message.cancel_preview_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+# Trusted chrome plus one current authenticated Enter event; endpoint access
+# alone is insufficient. Revalidate immutable preview/policy/artifact bindings.
+[message.confirm_launch]
+msg_type = 5
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "plan_id:u64", "preview_revision:u64"]
+
+# Authenticated context already binds session; issued grants are registry-owned.
+[message.confirm_launch_reply]
+msg_type = 6
+fields = ["request_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "grants_shm:u64", "grants_len:u32", "status:u32"]
+
+# Own instance observation through the authorized self/status endpoint.
+[message.get_status]
+msg_type = 7
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.get_status_reply]
+msg_type = 8
+fields = ["request_id:u64", "instance_id:u64", "instance_generation:u64", "focus_epoch:u64", "service_epoch:u64", "state:u32", "status:u32"]
+
+# Trusted chrome only; editor self endpoint cannot close or revoke.
+[message.close_instance]
+msg_type = 9
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.close_instance_reply]
+msg_type = 10
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+# Trusted chrome only; retire instance authority without replaying a save.
+# A previously issued immutable save permit follows its bound outcome contract.
+[message.revoke_instance]
+msg_type = 11
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.revoke_instance_reply]
+msg_type = 12
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+# Trusted chrome only; fresh preview/approval, with Unknown saves reconciled.
+[message.prepare_restart]
+msg_type = 13
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+[message.prepare_restart_reply]
+msg_type = 14
+fields = ["request_id:u64", "plan_id:u64", "preview_revision:u64", "preview_shm:u64", "preview_len:u32", "status:u32", "granted_rights:u32", "reserved:u32"]
+
+# Editor observation endpoint only, never the Focus assignment endpoint.
+[message.observe_focus]
+msg_type = 15
+fields = ["request_id:u64", "session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64"]
+
+# Authorized but unfocused: NotReady and zero focus_epoch/service_epoch.
+[message.observe_focus_reply]
+msg_type = 16
+fields = ["request_id:u64", "focus_epoch:u64", "service_epoch:u64", "status:u32", "reserved:u32"]
+
+# Service-to-client only, never an accepted request; status must be Ok.
+# Bootstrap bytes do not authenticate the caller or replace registry grants.
+[message.instance_bootstrap]
+msg_type = 17
+fields = ["session_id:u64", "session_generation:u64", "instance_id:u64", "instance_generation:u64", "grants_shm:u64", "grants_len:u32", "status:u32"]

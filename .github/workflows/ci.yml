@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# PR supersession never cancels a push run, and never changes required checks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -31,98 +36,200 @@ jobs:
           OS=$(python3 tools/ci/change_policy.py classify "$BASE" HEAD)
           echo "os_code=$OS" >> "$GITHUB_OUTPUT"
 
-  foundry:
+  quality:
     needs: changes
     if: needs.changes.outputs.os_code == 'true'
     runs-on: ubuntu-latest
     env:
-      S2_COMPAT_KERNEL_URL: https://github.com/${{ github.repository }}/releases/download/compat-kernel-v6.6.50/compat-kernel.deb
-      S2_COMPAT_KERNEL_SHA256: cd62738b1a85029517d7aa64018454e78c0492391ea7b0334d1b254587c358cc
       RAMEN_CI_STRICT: "1"
+      RUST_TEST_THREADS: "1"
       LINT_ALLOW_WARNINGS: "0"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system deps
+      - name: Install system prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl
-
-      - name: Prepare S2 compat kernel cache dir
-        run: mkdir -p out/compat_s2/kernel
-
-      - name: Cache pinned S2 compat kernel
+          sudo apt-get install -y just qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl ripgrep
+      - id: toolchain
+        name: Read pinned manifest toolchain
+        run: echo "channel=$(python3 tools/ci/ci_lanes.py toolchain)" >> "$GITHUB_OUTPUT"
+      - name: Cache Cargo downloads and pinned toolchain
         uses: actions/cache@v4
         with:
-          path: out/compat_s2/kernel
-          key: ${{ runner.os }}-s2-compat-kernel-${{ env.S2_COMPAT_KERNEL_SHA256 }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
           restore-keys: |
-            ${{ runner.os }}-s2-compat-kernel-
+            ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
+      - name: Install manifest-pinned Rust components and targets
+        run: python3 tools/ci/ci_lanes.py install-toolchain
+      - name: Run canonical quality lane (serialized)
+        run: python3 tools/ci/ci_lanes.py lane quality
+      - name: Retain actual quality stage timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-quality-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/foundry/timings/
+          if-no-files-found: error
 
-      - name: Install Rust toolchain
+  host-docker:
+    needs: changes
+    if: needs.changes.outputs.os_code == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RAMEN_CI_STRICT: "1"
+      RUST_TEST_THREADS: "1"
+      LINT_ALLOW_WARNINGS: "0"
+      SKIP_E2E_ASSERTIONS: "1"
+      RAMEN_FOUNDRY_BUILD_CACHE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system prerequisites
         run: |
-          rustup toolchain install nightly --profile minimal
-          rustup default nightly
-          rustup component add rust-src llvm-tools rustfmt clippy
-          rustup target add x86_64-unknown-none aarch64-unknown-none x86_64-unknown-uefi aarch64-unknown-uefi
+          sudo apt-get update
+          sudo apt-get install -y just qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl ripgrep
+      - id: toolchain
+        name: Read pinned manifest toolchain
+        run: echo "channel=$(python3 tools/ci/ci_lanes.py toolchain)" >> "$GITHUB_OUTPUT"
+      - name: Cache Cargo downloads and pinned toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
+      # Canonical host setup pulls/checks the image BEFORE its pinned Rust install.
+      # Compilation only: helper independently admits exact inner keys and locks.
+      # Fresh out/desktop evidence is never restored or accepted from a cache.
+      - name: Cache isolated compiler targets
+        uses: actions/cache@v4
+        with:
+          path: out/ci-optimization/compiler-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-foundry-compile-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '**/*.rs', '**/Cargo.toml', 'idl/**', 'tools/**', 'docs/**', 'justfile', '.cargo/**', '.github/**', 'services/**/fixtures/**') }}
+      - name: Run canonical host lane (serialized)
+        run: python3 tools/ci/ci_lanes.py lane host
+      - name: Retain actual host stage timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-host-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/foundry/timings/
+          if-no-files-found: error
 
-      - name: Generate IDL bindings
-        run: bash tools/ci/run_codegen.sh
-
-      - name: Lint Baseline (workspace clippy)
+  agent-task:
+    needs: changes
+    if: needs.changes.outputs.os_code == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RAMEN_CI_STRICT: "1"
+      RUST_TEST_THREADS: "1"
+      LINT_ALLOW_WARNINGS: "0"
+      SKIP_E2E_ASSERTIONS: "1"
+      RAMEN_FOUNDRY_BUILD_CACHE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system prerequisites
         run: |
-          bash tools/ci/foundry_lint_baseline.sh
+          sudo apt-get update
+          sudo apt-get install -y just qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl ripgrep
+      - id: toolchain
+        name: Read pinned manifest toolchain
+        run: echo "channel=$(python3 tools/ci/ci_lanes.py toolchain)" >> "$GITHUB_OUTPUT"
+      - name: Cache Cargo downloads and pinned toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
+      # This runner owns fresh outputs; only downloads/toolchain are cached.
+      - name: Run canonical agent lane (serialized)
+        run: python3 tools/ci/ci_lanes.py lane agent
+      - name: Retain actual agent stage timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-agent-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/foundry/timings/
+          if-no-files-found: error
 
-      - name: Lint Strict Tranche 1
+  qemu:
+    needs: changes
+    if: needs.changes.outputs.os_code == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RAMEN_CI_STRICT: "1"
+      RUST_TEST_THREADS: "1"
+      LINT_ALLOW_WARNINGS: "0"
+      SKIP_E2E_ASSERTIONS: "1"
+      S2_COMPAT_KERNEL_URL: https://github.com/${{ github.repository }}/releases/download/compat-kernel-v6.6.50/compat-kernel.deb
+      S2_COMPAT_KERNEL_SHA256: cd62738b1a85029517d7aa64018454e78c0492391ea7b0334d1b254587c358cc
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system prerequisites
         run: |
-          bash tools/ci/foundry_lint_strict_tranche1.sh
-
-      - name: Lint Strict Tranche 2
-        run: |
-          bash tools/ci/foundry_lint_strict_tranche2.sh
-
-      - name: Lint Strict Tranche 3
-        run: |
-          bash tools/ci/foundry_lint_strict_tranche3.sh
-
-      - name: Lint Strict Tranche 4
-        run: |
-          bash tools/ci/foundry_lint_strict_tranche4.sh
-
-      - name: Lint Strict Tranche 5
-        run: |
-          bash tools/ci/foundry_lint_strict_tranche5.sh
-
-      - name: Lint Strict Tranche 6
-        run: |
-          bash tools/ci/foundry_lint_strict_tranche6.sh
-
-      - name: Workspace tests
-        run: cargo test --workspace --exclude kernel_uefi --exclude kernel_aarch64
-
-      - name: Foundry S0+S1+S2+S3+S4+S5+S6+S7+S8-Phase1
+          sudo apt-get update
+          sudo apt-get install -y just qemu-system-x86 qemu-system-arm ovmf python3 python3-jsonschema gcc cpio gzip e2fsprogs curl ripgrep
+      - id: toolchain
+        name: Read pinned manifest toolchain
+        run: echo "channel=$(python3 tools/ci/ci_lanes.py toolchain)" >> "$GITHUB_OUTPUT"
+      - name: Cache Cargo downloads and pinned toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
+      - name: Install manifest-pinned Rust components and targets
+        run: python3 tools/ci/ci_lanes.py install-toolchain
+      - name: Prepare pinned S2 download cache
+        run: mkdir -p out/compat_s2/kernel
+      - name: Cache verified S2 package only
+        uses: actions/cache@v4
+        with:
+          path: out/compat_s2/kernel/kernel.deb
+          key: ${{ runner.os }}-s2-compat-kernel-${{ env.S2_COMPAT_KERNEL_SHA256 }}
+      - name: Run canonical qemu lane (serialized)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          S7_MIN_PROTOCOL_EVENTS: "6"
-          S7_MIN_PROTOCOL_PAIRS: "3"
-          S7_MIN_SCENARIO_EVENTS: "4"
-          S7_MIN_OBSERVED_CAPS: "1"
-          S7_MIN_CAP_GRANTED: "1"
-          S7_MIN_CAP_USED: "1"
-          S7_MIN_EXPORT_WIDTH: "1280"
-          S7_MIN_EXPORT_HEIGHT: "720"
-          S7_EVIDENCE_POLICY_PATH: evidence_policy.toml
-        run: |
-          set -x
-          tools/ci/foundry_all_s0_s1_s2_s3_s4_s5_s6.sh
+        run: python3 tools/ci/ci_lanes.py lane qemu
+      - name: Retain actual qemu stage timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-qemu-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/foundry/timings/
+          if-no-files-found: error
 
-      - name: Prepare pinned Linux SW0 proof image
-        run: docker pull python@sha256:139020233cc412efe4c8135b0efe1c7569dc8b28ddd88bddb109b764f8977e30
-
-      - name: Foundry CI extended (complete SW0 + S7 security + S9–S13 gates)
+  # This stable required check rejects failed, cancelled or unexpectedly skipped
+  # lanes. Only a successful docs-only classification allows four lane skips.
+  foundry:
+    runs-on: ubuntu-latest
+    needs: [changes, quality, host-docker, agent-task, qemu]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evaluate complete Foundry lane results
         env:
-          SKIP_E2E_ASSERTIONS: "1"
-        run: bash tools/ci/foundry_ci_extended.sh
+          CHANGES: ${{ needs.changes.result }}
+          OS_CODE: ${{ needs.changes.outputs.os_code }}
+          QUALITY: ${{ needs.quality.result }}
+          HOST: ${{ needs.host-docker.result }}
+          AGENT: ${{ needs.agent-task.result }}
+          QEMU: ${{ needs.qemu.result }}
+        run: python3 tools/ci/change_policy.py foundry "$CHANGES" "$OS_CODE" "$QUALITY" "$HOST" "$AGENT" "$QEMU"
 
   org-governance:
     runs-on: ubuntu-latest

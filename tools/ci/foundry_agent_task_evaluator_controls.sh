@@ -6,6 +6,7 @@ EVIDENCE="$PWD/out/agent-task-evaluator-controls"
 mkdir -p "$EVIDENCE"
 rm -f "$EVIDENCE/report.json"
 [[ "$(uname -s)" == Linux ]] || { echo 'Evaluator control gate requires Linux' >&2; exit 1; }
+bash tools/ci/foundry_agent_task_provider_accounting.sh
 python3 tools/agent_task/test_fixture_bank.py
 python3 tools/agent_task/test_evaluator_session.py
 cargo build -p native_runner --features agent_task_v1_dev --bin task_validator_worker

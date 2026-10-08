@@ -1,0 +1,745 @@
+{
+  "schema_version": 1,
+  "packet": "UI1.1c-native-Store-preview-Read-prerequisite",
+  "status": "FROZEN_READ_PRECURSOR_API_OBSERVATIONS_READY_FOR_ASSERTIONS",
+  "frozen": true,
+  "base_commit": "5b31e52e2d9f104c9ffdf5f87061046dde8b146b",
+  "implementation_authorized": false,
+  "assertions_authorized": true,
+  "resources_authorized": false,
+  "scope": "Host trusted setup and Read-only Store-current preview prerequisite: planned identities1,2,3,4,8 only. Future Save/recovery/mutation permits/IO2/full18 keyboard task/editor PID/device/target remain separate. This maintained contract records technical API freeze, not a registered gate or runtime acceptance.",
+  "precedence": "Use embedded reviewed_proposal, then coordinator_amendments, then observability_amendments and preinstance_record_clarification overriding their corresponding preparation definitions. All technical definitions are embedded. Original nested status/authority flags are provenance snapshots; this root wrapper freezes current assertion scope only. No service runtime acceptance. Later root entry_origin_observation, generic_route_and_cancel_status, status_version_max_fault_result and service_owner_helpers override corresponding earlier definitions; their nested proposal/status/authority fields retain creation provenance. The current trusted service-owner helper API is frozen; its new implementation remains held until the required crossed-witness assertion is reviewed. The later error_pending_retention amendment overrides incomplete error-owner and shared setup/Active lifetime definitions; genuine Pending/error setup aliases remain charged, while delivered paired-only Active/context aliases do not retain dropped setup owners.",
+  "reviewed_proposal": {
+    "schema_version": 3,
+    "status": "PROPOSED_NPR_READ1_V3_PENDING_REVIEW_AND_FREEZE",
+    "implementation_authorized": false,
+    "resources_authorized": false,
+    "base": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "predecessor": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v2.json",
+      "bytes": 25559,
+      "sha256": "14e911d0ef1d70a3bc831acd3d49a45dab2fca72cf7ffc803dc25f69e61bf1ae"
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v2-independent-review.json",
+      "bytes": 11754,
+      "sha256": "d4b9e642d6517f6a8ce5b086066899bb9384f770c6ca849b2b5e46f8775182d4"
+    },
+    "scope": {
+      "current": "Read1-only NPR precursor, runnable planned identities1/2/3/4/8. New distinct gate-first assertions required. No eight-case/full18/Save/IO2/mutation permit claim.",
+      "DAG": "Store->Desktop; composition->both; Desktop never imports Store. No generic callback/backend. Default-off separate NPR mode; old UIa13/UIb7/NativeRead9/launch17 unchanged.",
+      "trust": "Source-reviewed privileged fixture enrollment moved once solely into actual Core/init-failure. App/Chrome cannot mint/retain publisher. Shared issuer does not attest malicious trusted setup/Core. Actual Core/Grant/peer/object checks enforce effects; views/labels/IDs never authority.",
+      "amendment": "Replaces V2 current APIs/carriers/activation/lifetimes/schemas/caps/pixels. Bootstrap17/Confirm6;3 actual Desktop endpoints+private origin. Borrowed consuming &mut ticket replaces initial move-by-value. Store-side PairedStoreLaunch avoids Desktop Store dependency."
+    },
+    "types": {
+      "private": "All authority carriers private-field/private-constructor/nonClone/nonserde/no numeric mint. Authority has actual native immutable constructor identity/Gate/shared roster, NO strong State backedge. State retains Arc<Authority>; Weak<State>/pointer identity never upgraded/locked under Gate. SelectionGuard holds actual issuer borrow+MutexGuard<GateState>. Native State registers actual Chrome/session/device owner in Gate.",
+      "holders": "StoreSelectionEnrollment fresh one-shot row; SelectionIssuer claimed row solely actual Core/error; StoreSelectionPin real issuer/pinrow; PendingStoreInstance actual approval/pin/attachment; StoreActivationStamp actual Active row/version; PreviewUiTicket actual Authority/TicketRow; PreviewReadOrigin actual State/Authority/actor/context/Active attachment/actual StoreHandle/object/epoch, no peer getter. Entry/call/guards original query+lifetime. PreparedPreviewStore actual Core/witness/issuer; NativePreviewActivation Core/Grant/stamp; RegisteredPreviewRead Core/Grant/call+atomic once; selected lease actual Data/descriptor/original call.",
+      "carriers": "Desktop StoreLaunch private{confirm_reply:Envelope,bindings:NativePreviewBindings,stamp:StoreActivationStamp}; NativePreviewBindings private{bootstrap:Envelope,self_status:Endpoint,focus_read:Endpoint,surface:Endpoint,artifact_origin:PreviewReadOrigin}; Store PairedStoreLaunch private{desktop:StoreLaunch,endpoint:EditorEndpoint}. Same Active pairing, no consumer rebinding.",
+      "views": "PreviewOwner{owner_id,session_id,session_generation:u64}; StoreObjectEnrollment{owner_id,object_id,object_generation,store_epoch:u64}; StoreCurrentSelection{owner:PreviewOwner,object_id,object_generation,store_epoch,revision:u64,content_hash:[u8;32]}; PinView{current:StoreCurrentSelection,pin_id,pin_generation,expires_at_ms:u64,entered:Instant,deadline:Instant}; PendingView{actor:EditorActorV0,pin:PinView,plan_id,preview_revision,instance_expires_at_ms:u64}; PreviewReadCallView{actor:EditorActorV0,object_id,object_generation,store_epoch,origin_id:u64,entered,deadline:Instant,request:Envelope}. All observations only.",
+      "gate": "Enrollment Fresh/Claimed/Failed; Ticket Available/Taken/Consumed/Superseded/Closed; Pin Live/Consumed/Cancelled/Expired/Retired; Attachment Inactive/Active/Retired. Reverse links allow Gate retirement without State callback.",
+      "Ticket": "PreviewUiTicketKind::{Selector=1,Approval=2}; PreviewUiTicketView{kind:PreviewUiTicketKind,ticket_id,ticket_generation,session_id,session_generation,device_id,device_generation,input_sequence,focus_epoch,plan_id,preview_revision,expires_at_ms:u64,entered:Instant,deadline:Instant}. Private row stores canonical generated request, actual owner/event/release/policy/app/manifest and original clocks. View/request not authority.",
+      "fixture": "PreviewPausePoint::{BeforeActivation=1,BeforeFramePublish=2}; NativePreviewCounter::{Pin=1,AttachmentVersion=2,StatusVersion=3,UiTicket=4,ReadContext=5}; PreviewBarrierView{point:PreviewPausePoint,entered,settled:bool,session,instance,pin:u64}; PreviewCounts{live_pins,pin_rows,inactive,active,retired,retained_view_leases,ticket_rows,live_tickets,read_contexts,query_slots:u32}."
+    },
+    "Desktop_API": {
+      "HostDesktop": [
+        "pub fn new_store_preview_read(config:HostConfig)->Result<(Self,FixtureController,RegistryWitness,StoreSelectionEnrollment),Status>;",
+        "pub fn take_preview_action(&self,chrome:&PeerContext)->Result<PreviewUiTicket,Status>;",
+        "pub fn prepare_store_preview(&self,chrome:&PeerContext,ticket:&mut PreviewUiTicket,pin:&StoreSelectionPin,now_ms:u64)->Result<Envelope,Status>;",
+        "pub fn confirm_store_preview(&self,chrome:&PeerContext,ticket:&mut PreviewUiTicket,now_ms:u64)->Result<PendingStoreInstance,Status>;",
+        "pub fn take_store_launch(&self,chrome:&PeerContext,pending:&PendingStoreInstance,stamp:&StoreActivationStamp,now_ms:u64)->Result<StoreLaunch,NativePreviewDeliveryFailure>;",
+        "pub fn dispatch_store_preview_chrome(&self,chrome:&PeerContext,request:&Envelope,now_ms:u64)->Envelope;",
+        "pub fn begin_preview_read(&self,origin:&PreviewReadOrigin,request:&Envelope,now_ms:u64)->Result<PreviewReadEntry,Status>;"
+      ],
+      "FixtureController": [
+        "pub fn register_store_session(&self,owner:u64,application:[u8;32],manifest:[u8;32],object_id:u64,object_generation:u64,now_ms:u64)->Result<SessionFixture,Status>;",
+        "pub fn pause_next_store_read(&self,session_id:u64)->Result<NativeReadPause,Status>; pub fn release_store_read(&self,pause:&NativeReadPause)->Result<(),Status>;",
+        "pub fn pause_next_store_preview(&self,session_id:u64,point:PreviewPausePoint)->Result<PreviewPause,Status>; pub fn release_store_preview(&self,pause:&PreviewPause)->Result<(),Status>; pub fn seed_preview_counter(&self,counter:NativePreviewCounter)->Result<(),Status>;"
+      ],
+      "StoreSelectionEnrollment": "pub fn claim_for_store_constructor(self)->Result<SelectionIssuer,EnrollmentFailure>; EnrollmentFailure::status(&self)->Status;",
+      "SelectionIssuer": "pub fn lock(&self)->Result<SelectionGuard<'_>,Status>;",
+      "SelectionGuard": [
+        "pub fn enroll_objects(&mut self,objects:&[StoreObjectEnrollment])->Result<(),Status>; pub fn preview_owner(&self,chrome:&PeerContext)->Result<PreviewOwner,Status>;",
+        "pub fn reserve_pin(&mut self,chrome:&PeerContext,current:StoreCurrentSelection,ttl_ms:u64)->Result<StoreSelectionPin,Status>; pub fn view_pin(&self,pin:&StoreSelectionPin)->Result<PinView,Status>; pub fn view_pending(&self,pending:&PendingStoreInstance)->Result<PendingView,Status>;",
+        "pub fn activate_read(&mut self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<StoreActivationStamp,Status>; StoreReadInstallation{store_handle:Handle,object_id,object_generation,store_epoch:u64};",
+        "pub fn retire_source_object(&mut self,object_id:u64)->Result<(),Status>;"
+      ],
+      "PreviewUiTicket": "pub fn view(&self)->PreviewUiTicketView; pub fn request(&self)->&Envelope;",
+      "StoreLaunch": "pub fn confirm_reply(&self)->&Envelope; pub fn bindings(&self)->&NativePreviewBindings; pub fn stamp(&self)->&StoreActivationStamp;",
+      "NativePreviewBindings": "pub fn bootstrap(&self)->&Envelope; pub fn self_status(&self)->&Endpoint; pub fn focus_read(&self)->&Endpoint; pub fn surface(&self)->&Endpoint; pub fn artifact_origin(&self)->&PreviewReadOrigin;",
+      "NativePreviewDeliveryFailure": "pub fn status(&self)->Status; pub fn observation(&self)->DeliveryObservation;",
+      "PreviewReadEntry": "pub fn wait(&self)->Result<PreviewReadCall,Status>; pub fn producer_ids(&self)->[&ProducerId;2]; order DesktopDispatch,DesktopSupervisor.",
+      "PreviewReadCall": "pub fn request(&self)->Envelope; pub fn entered(&self)->Instant; pub fn deadline(&self)->Instant; pub fn admit<'a>(&'a self,witness:&RegistryWitness)->Result<PreviewReadGuard<'a>,Status>; pub fn deadline_guard<'a>(&'a self,witness:&RegistryWitness)->Result<PreviewReadDeadlineGuard<'a>,Status>; pub fn reserve_store_producer(&self,kind:ProducerKind)->Result<ProducerReservation,Status>;",
+      "PreviewReadGuard": "pub fn view(&self)->PreviewReadCallView;",
+      "PreviewReadDeadlineGuard": "pub fn close_query(&mut self)->Result<(),Status>;",
+      "PreviewPause": "pub fn wait_until_entered(&self,timeout_ms:u64)->Result<PreviewBarrierView,Status>; pub fn wait_until_settled(&self,timeout_ms:u64)->Result<PreviewBarrierView,Status>;",
+      "RegistryWitness": "pub fn preview_counts(&self)->Result<PreviewCounts,Status>; existing actual duplicate/join/counts semantics unchanged."
+    },
+    "Store_API": {
+      "StoreFixture": "pub fn prepare_preview_read(root:&Path,profile:FixtureProfile,witness:RegistryWitness,enrollment:StoreSelectionEnrollment)->Result<PreparedPreviewStore,NativePreviewInitFailure>;",
+      "PreparedPreviewStore": "pub fn host(&self)->StoreHost; pub fn controller(&self)->&FixtureController; pub fn pin_selection(&self,chrome:&PeerContext,ttl_ms:u64)->Result<StoreSelectionPin,StoreStatus>; pub fn activate_read(&self,pending:&PendingStoreInstance)->Result<NativePreviewActivation,NativePreviewExposeFailure>;",
+      "NativePreviewInitFailure": "pub fn status(&self)->StoreStatus; pub fn observation(&self)->InitObservation;",
+      "NativePreviewExposeFailure": "pub fn status(&self)->StoreStatus; pub fn observation(&self)->ExposeObservation;",
+      "NativePreviewActivation": "pub fn stamp(&self)->&StoreActivationStamp; pub fn endpoint(&self)->&EditorEndpoint; pub fn pair_launch(&self,launch:StoreLaunch)->Result<PairedStoreLaunch,NativePreviewExposeFailure>;",
+      "PairedStoreLaunch": "pub fn desktop(&self)->&StoreLaunch; pub fn endpoint(&self)->&EditorEndpoint;",
+      "StoreHost": "pub fn register_preview_read(&self,peer:&EditorPeer,call:PreviewReadCall)->Result<RegisteredPreviewRead,StoreStatus>; pub fn execute_preview_read(&self,registered:&RegisteredPreviewRead)->Result<PreviewReadReply,StoreStatus>; pub fn close_preview_read_deadline(&self,registered:&RegisteredPreviewRead)->Result<(),StoreStatus>; pub fn preview_read_producers(&self)->Vec<ProducerId>; pub fn join_preview_read_finished(&self,id:&ProducerId)->Result<JoinedProducerProof,StoreStatus>;",
+      "PreviewReadReply": "pub fn wire(&self)->Envelope; pub fn selected(&self)->Option<&PreviewSelectedRead>; pub fn producer_ids(&self)->&[ProducerId];",
+      "PreviewSelectedRead": "pub fn descriptor(&self)->ObjectDescriptor; pub fn copy_into(&self,offset:u32,out:&mut[u8])->Result<(),StoreStatus>; pub fn copy_checked(&self,descriptor:&ObjectDescriptor,offset:u32,out:&mut[u8])->Result<(),StoreStatus>;",
+      "FixtureController": "pub fn fault_preview_object(&self,object_id:u64)->Result<(),FixtureError>;",
+      "Core_private": "fn publish_preview_selection(&self,object:&Object,state:&ObjectState)->Result<(),StoreStatus>; no operation publisher now."
+    },
+    "errors": {
+      "enums": "PreviewInitStage::{Validate,PrepareCore,CreateRoot,Provision,Enroll}; PreviewExposeStage::{Validate,ReserveStoreGrant,PrepareRecord,Activate,Deliver}; PreviewDeliveryStage::{Authorize,Validate,BuildReply,Expose}.",
+      "records": "InitObservation{stage:PreviewInitStage,status:StoreStatus,panicked:bool,root:ReadRootObservation,root_path:Option<PathBuf>,core_retained:bool,issuer_retained:bool}; ExposeObservation{stage:PreviewExposeStage,status:StoreStatus,pending_retained:bool,inactive_store_grant_retained:bool,active:bool}; DeliveryObservation{stage:PreviewDeliveryStage,status:Status,authorized_attempt:bool,active:bool,retired:bool}. Path<=4096, observations only.",
+      "owner": "Actual partial Core/witness/consumed enrollment owned OUTSIDE narrow catch_unwind BEFORE IO. No init workers/partial root delete/reopen. Preexistingroot Internal11 preserves sentinels. Expose error retains actual pending/reservation. Foreign/auth denial leaves rightful rows unchanged, status only/no lifecycle disclosure (observation booleans false); authorized own failure may close exact inactive attempt. Own delivery failure afterActive retires exactActive/reportactive=true, not rollback. Abort/OOM outside.",
+      "status": "Malformed wireInvalid/unsupportedprotocol-opUnsupported; wrongidentity/Core/issuer/class/descriptorDenied; lifecycle-expiryStale; none/repeat/conflictingpin/joinNotReady; capsMAXExhausted; closedqueryTimeout; IO/poison/unwindInternal with actual owners. No Unknown/Conflict/Disconnected constructor result. Registered failure canonical reply2 originalcorr/request/status-only; wrong registration RustErrDenied. DescriptorlengthDenied+sentinelunchanged, validrangeInvalid."
+    },
+    "ticket_rules": {
+      "mint": "ONLY accepted actual native Produce under State->Gate. Fresh unmodified Enter Launcher -> Selector storing actual generated352/1 with request_id=accepted inputsequence, actual Chrome handle/session/gen/application/requested categories63/reserved0. Fresh unmodified Enter current preview AFTER selecting Enter accepted Release -> Approval storing actual generated352/5 inputsequence/plan/revision. Private row binds actual event/device/queuegeneration/focus/policy/app/manifest. No fabricatedrequest/event/callback; NPR never auto-dispatches old volatilePrepare/Confirm. Old Produce13 unchanged.",
+      "take_consume": "Take Available->Taken once; none/superseded/repeatedtake/replayNotReady; expired/lifecycleStale; foreignpointer/Authority/ownerDenied. Actions borrow &mut holder. Authenticate actual peer/State/Authority/owner BEFORE changes; wrongowner/pin/kind/request binding Denied preserves holder/row/pin. Then sameGate checks exact canonical storedrequest/correlation/event/input/devicegen/focus/release/plan/revision/policy/selection. Authorized success consumes row once with effect; repeatNotReady. Authorized stale failure closes only own inactive attempt.",
+      "supersession": "New accepted Selector supersedes own untaken/taken ticket and closes previous inactive pin/pending, never Active grants (requires real Close/Revoke first). Taken superseded row stays charged. Cancel/policy/app/manifest/devicegen/reset/detach/session/servicefault retire own pending tickets/pins/approval State->Gate, returnLauncher. Foreign denial no retirement.",
+      "release": "Producer pressed/modifier separate from delivery/approval; focus suppresses heldkeys until actualRelease. DuplicatePress/unheldReleaseInvalid. SelectingRelease must follow previewcreation; queued/samepressEnter cannotapprove. Reset/overflowReset invalidatescycle/returnsLauncher and is not releaseproof. No phantomrelease/injection.",
+      "clock": "Each actual accepted Produce enteredInstant+checked1000ms and clampedlogicalevent+checked1000ms, earliest pin/preview/instance deadline. now>=expires or Instant>=deadlineStale, never reset on take/actions/activate/deliver. Selector bounds prepare; distinct fresh Approval bounds pending/activation/delivery. Successful instanceTTL anchored actual confirmingevent/config, no delivery reset; consumed request expiry alone does not revoke Active. NewRead originalentry+1000 bounded instanceexpiry.",
+      "drop_caps": "Drop locks only Authority/Gate; closes only own unconsumed row, no State upgrade/backedge/join/Active close. At most1 live action/session2; retained ticketrows16 inclTaken/terminalaliases/pendingrefs. Prune terminal only no real references. Checked IDs, no eviction/reuse; sticky overflow fences fresh admission, retains charged workers/joins."
+    },
+    "activation": {
+      "inactive": "Confirm reserves9checked IDs: instance2+surface2+3DesktopendpointIDs+1privateReadcontextID+1grantsdescriptor, attachment/status versions+schema2 bytes. Store pre-reserves actual tagged Read1Grant/handle/epoch. All inactive: State.auth/editor_bindings/SelfStatus/focus/surface/leases/bootstrap/Read deny early. Existing editor_bindings rejectsNPR. No oldrights7 grants.",
+      "commit": "Finish falliblework BEFORE Registry->sortedObjects->ONEGate. Validate actual Core/profile/issuer/witness/currentobject/selection/epoch/pin/Approval/pending/clocks+complete inactive batches. Install inactive StoreGrant then ONE Inactive->Active flag gates complete3Desktop+origin+Store1. No IO/allocation/callback/State afterlinearization; Desktop drops State/Gate before Store.",
+      "delivery": "Authentic State->Gate take creates actual ConfirmReply352/6 from originalApproval correlation/request and Bootstrap352/17/nativebindings/stamp once. Store pair_launch checks exact same Active/Core/Grant/handle/actor/object/epoch before pairing actual endpoint, once. Foreign denial preserves rightful row; rightful delivery failure may retire its exactActive, never rollback. RepeatNotReady/retiredStale.",
+      "read": "begin_preview_read captures Instant BEFORE validation; accepts canonical generated368/1 alreadyactualStorehandle. State->Gate actual State/Authority/origin/context/Active/actor/object/currentepoch/handle checks. Store repeats ownCore/peer/taggedGrant/issuer/stamp/epoch, atomic once execution; duplicate reply2NotReady zero data. No peer getter/rebinding/callback. Lease Object->Gate->Data repeats originaldeadline/Core/epoch/Active, unchanged sentinel on denial/no writable alias.",
+      "locks": "State->Gate; StoreRegistry->Object(sascending)->Gate; Object->Gate->Data; reservation Gate->Roster/installRosteronly. No Gate->State/Object or State duringStore. No enforcinglocks acrossIO/render/pause/join."
+    },
+    "schemas": {
+      "grant464": "Shared schema2 total464/categorymask63/count4. LE0/4/8/12:u32;16..112 twelveu64 session/sessiongen/instance/instancegen/object/objectgen/selectedrev/policy/plan/previewrev/expires/Desktopepoch;112application32,144manifest32,176actualStoreselectedhash32;208eightu32=4096/640/480/2560/1/64/1/0;240four56B records handle/resource/resourcegen/serviceepoch/expires:u64,class/rights/protocol_version/reserved:u32. Classes1/2/3/4 rights1/1/15/1, lastactualStorehandle+epoch, othersDesktopepoch. Preview instance/gen/fourhandles0 with realobject/resources/selection/epochs; Activecanonicalnonzero. Class4 isNOTDesktopIPCpeer. Decode exactlen/schema/mask/count/LE/zeroreserved/canonical16slot32gen/objectgen/classrights/currentepochs/expiry. Oldschema1 notpromoted; oldclientrejects2.",
+      "control": "Generated352/1,2,5,6,17 and368/1,2 unchanged; typed<=64/canonical88Envelope. Shared464 uses descriptors, not payload/new19. IDL generator has messages only: root maintained typedsharedschema+strict service/schema codec, NO fakegeneratedsharedstruct. Private hostproof not targetwireauthority.",
+      "read": "Existing368/1,2 exact40/40payload. Selected64header+ASCIIbody<=4096/hash/object/revision/length validated. Descriptor object_generation=widenedcanonicalHandlegen; oversized index/gen rejectedbeforepack. Copy original lifetime/Core/attachment underObject->Gate->Data; no authority from data.",
+      "chrome248": "Schema1 total248;0schema/4total/8state/12reserved:u32;16actor fiveu64 to56;56object/64objectgen/72currentStoreepoch/80originalBackendepoch/88operation/96sourceHandle/104sourceGen/112expectedrev/120resultrev/128attachmentVersion/136statusVersion:u64;144sourcehash32/176expectedhash32/208receiptSHA32;240source_body_len/244reserved:u32. All LE initialized, zero reserved. This host observation format is NOT a new allocated wire protocol.",
+      "currentstatus": "NoSave0/Unavailable4 ONLY: actualactor/object/currentStoreepoch/attachment/statusversions positive; originalBackendepoch/op/sourcehandle/gen/expected/result/allhashes/sourcebodylen0. Future1/2/3 unsupported until real Save ledger validator. Sharedtypedcodec contract, not generated wire."
+    },
+    "lifecycle": {
+      "pin": "ActualCoreObject validation capturesInstant before checking current journal; Gate logical=maxactualStore/Desktop/registry. TTL>0<=30000 checked. PreActive earliest originalpin/preview/ticket/instance setup bound, never reset. Auth rejection first unchanged; then actualepoch/object/session retirement/expiry/owncancel beforeconfirmation. CancelbeforeActiveStale; ActivefirstCancelNotReady needing realClose/Revoke. Identicalsameepochpublication idempotent; changedselection/livepinNotReady. No mutation/reopen/epochsetter currentphase.",
+      "caps": "Livepins2,1/object; pinrows16 includingterminalaliases. Retainedinstance/attachment rows16; privateReadcontexts16(one/instance) SEPARATE3actualendpointrows each andqueryslots64/sharedproducers64. Endpoints64/sharedobjects32/historicalviewleases16/sessions2/selected2. Terminal prune only no opaque/lease/pending refs, no eviction or identityreuse.",
+      "MAX": "UiTicket next actualProduce mint; Pin nextactualpin_selection; ReadContext nextconfirmcontextreservation; AttachmentVersion nextconfirminitialversionreservation; StatusVersion nextprivateactualinitial/faultpublication. Checkbeforepartialadmission/grant, stickyfence. Fault staysactual evenversionfailure; no fabricatedSaved/currentframe. ExistingliveRead/joins survive absentactualexpiry/lifecycle. Canonical16slot/32gen checkedbeforepack."
+    },
+    "compositor": {
+      "source": "ActualCore provision/Activerow derivesNoSave; fault_preview_object validates exactCore/Object Registry->Object and setsactualfaulted BEFORE Object->Gate retiresmatchingpins/grants/aliases+derivedUnavailable checkedversion. No status/epoch/fakeclock/restore/reopen/writer or rollback; BsameCoreusable. Real producerschargeduntilactualjoin. Cap/version protection not maliciousCoreattestation.",
+      "pixels": "Existing640x568BGRA; Surface640x480 appcropx0..640,y48..528; protected48top+40bottom=88chrome. Pinnedfont/clipapp/authenticatedfocus-confirmroute. HOST STORE/READ ONLY/NO SAVE; faultUNAVAILABLE+entireappcropblank. Ownerbound terminalfocus_epoch=sequence0; unchangedterminalrepeatNotReady. Lastvalidframe cannotmasqueradecurrent.",
+      "version": "Private snapshot_chrome_locked(actualcompositor)->Result<(ChromeSnapshot,ChromeFrameStamp),Status>; validate_chrome_stamp_locked(&ChromeFrameStamp)->Result<(),Status>. Opaquestamp actualAuthority/attachment/status/epoch/lifetime/framefence. State->Gate snapshot, unlockraster; finalState->Gate validatesstamp+frozenframe and appliesgeneratedConsume+counters/evidence/publication WHILEheld. Changedstatus/lifecycle/overflow deniesoldpixels; no publicdispatchrecursion or checkthenunlock. No lockacrossIO/render/wait."
+    },
+    "executor": {
+      "quota": "ONE64actualroster includes DesktopDispatch/Supervisor,StoreDispatch/Supervisor,structuralStoreIo<=2. ReadIO0/StoreIoUnsupported; no64+2/legacyOwnedescape. Queryslots64/context16 separate. No initworker.",
+      "ownership": "Privateowners reserveboth/spawnbehindstartlatch/installactualJoinHandles BEFORE falliblework. Partialspawn retainsactualinstalledcharges andcancelsonlyunspawnedreservation. Timeout/Drop freeszero. GetteronlyownactualStoreinstalltokens; same-rowduplicate nocharge. Same-domainjoin cleanup notStoreprovenance.",
+      "join": "Roster actualis_finished->markJoining/takehandle->unlockactualjoin->retireexactrowonce. Unfinished/concurrent/retiredNotReady;foreignDenied. ActualStorepairIDs distinctDesktop; no numericmint. 32realpausedDesktoppairs64, nextExhaustednopartialspawn; release64uniquejoins, thenStorepairadds2. Retain/release/join supportedserviceandexternalcallerhandles beforeteardown; no hostilehungthreadcontainment.",
+      "barrier": "Registry33 actualarmed/Weakrows. BeforeActivation/FramePublish synchronous ownedcaller, retainactualexternalcallerJoinHandles separately (nofakeservicepair). Actualentered/settled boundedwaitproof; no State/Object/Gate/Roster lockacrosspause."
+    },
+    "cases": [
+      {
+        "id": 1,
+        "name": "store_preview_current_selection",
+        "runnable": true,
+        "assert": "RealProduce->Selector->Corepin->prepare/copiedschema2/currentStoremetadata/protectedpixels. Foreignowner/issuer/Coredenialpreservesrightful. ActualAobjectfault closesA/pin/data+Unavailableblankframe; BsameCoreactualpairedRead1/2/copy. ImmutableoldRead separatelystamped, no mutation/epoch/permitproof."
+      },
+      {
+        "id": 2,
+        "name": "store_preview_fresh_approval_activation",
+        "runnable": true,
+        "assert": "RealtypedProduce/ticketrequest->pin/prepare->acceptedselectingRelease->freshApprovalrequest->pending; allearly3endpoints/origin/Store/leases/bootstrapdeny. ActualCoreactivate->actualreply6/bootstrap17/schema2/pairedendpoint->actualStorehandlerequestbegin/register/execute/copy/frame. Once/foreign/stale/replay/correlation/actor/Core/epochs1000ms,3/5/7Unsupported. No fabricatedrequest/event."
+      },
+      {
+        "id": 3,
+        "name": "store_preview_pin_cancel_expiry_race",
+        "runnable": true,
+        "assert": "ActualenteredBeforeActivationcallerbarrier: owncancel/policy/reset/devicegen/earliestTTL/faultfirst deniesexposure+Bpositive. ActivefirstCancelNotReady thenrealRevoke stalesaliases. Freshrealroutepositive; ticketDropownonly,foreignmutableticketdenial leavesrightfulproofusable. No locksacrosspause/permit/IOclaim."
+      },
+      {
+        "id": 4,
+        "name": "store_preview_init_and_exposure_failure",
+        "runnable": true,
+        "assert": "WrongprofileDenied/preexistingrootInternal/sentinelunchanged; actualretainedCore/issuer/stage/zerohandles/no spawn/delete/reopen. Owninactivependingthenrightfulretirement exactexpose/deliverygetter+chargedcapacity/noearlyauthority. Foreignfailurepreservesrightfulticket/pin/pending/Active,sameholderpositive. OwnpostActivefailure actualactive+retired notrollback. Actualallhandlesjoined."
+      },
+      {
+        "id": 5,
+        "name": "store_preview_original_status_and_frame_version",
+        "runnable": false,
+        "requires": "ActualSaveentry/source/permit/receipt/statusledger. V2 exactoriginalUnknown->Committedreceipt/Saved+framestatusversion rules preserved. NoSave/clippedappSAVED/readonlyfault controls doNOTsatisfy5."
+      },
+      {
+        "id": 6,
+        "name": "store_preview_original_timeout_and_retirement",
+        "runnable": false,
+        "requires": "ActualSaveorigin/sourceclosure/sharedIO. PreserveprepermitTimeoutfreshSaveSAMEstillliveinstance; postpermitrevokeUnknown/no replay/originalreceipt/ordinarydataretired. Readqueryexpiry+freshRead doesNOTsatisfy6."
+      },
+      {
+        "id": 7,
+        "name": "store_preview_original_recovery_identity",
+        "runnable": false,
+        "requires": "Actualoriginal-onlyrecovery4/newquerydeadline/joinedfenceepochtransfer. Preserveoriginalactor/base/source/op/backendepoch/noCommitreplay/failedreopentoken/unjoinedwriterblocksreplacement. Readonlyrecovery/quiesce/reopenDenied doesNOTsatisfy7."
+      },
+      {
+        "id": 8,
+        "name": "store_preview_caps_versions_and_actual_joins",
+        "runnable": true,
+        "assert": "2realobjectpins/sameobjectNotReady; retain16cancelledpin/tickettokens then17thExhausted/releaseeligibleprune/newcheckedIDs. Context16separate3endpoints/query64. SpecifiedMAXtransitions/nopartialgrant/oldliveRead+joinpositives. Real32pausedpairs64/nextExhausted/earlyNotReady/release64uniquejoins, Storepair2afterspacefree. IO0only,IO2future."
+      }
+    ],
+    "source_sites": [
+      "host.rsProduce1913..2025 NPRbranchmints onlyticket beforeoldvolatileauto-dispatch; oldmodeunchanged. prepare1544/confirm1639/editor_bindings3039 oldimmediategrant path excludedNPR; actualBootstrap17/frame2816 640x568.",
+      "State.auth/focus/surface/lease/editor_bindings/originentry consultactualGateActive; native_authority actualState/Gate/64roster addsboundedticket/pin/context/stamp withoutStatebackedge. StoreactualCore/Grant constructor/provision/register/execute/copy repeatsactualowner/epoch Object->Gate->Data, no rebinding.",
+      "Rootownsmaintainedschema2/strictcodec/features/exports/sharedhooks/gates/IDLifneeded. FutureDesktophost/nativeAuthority andStoreNPRadapter/Corewritersdisjoint. No sourceimplementationpermission here."
+    ],
+    "future_reference": {
+      "only": "Unchanged futureSave validator/table in pinnedV2 status_and_compositor, dependencycases5..7; no currentAPI depends on them. Rights7 needsseparateStore-currentpreview/freshapproval/atomicupgrade.",
+      "excluded": [
+        "full18",
+        "actualsameCoremutationpermitblocking",
+        "actualIO2",
+        "writer/quarantine/reopen",
+        "malicioussetupattestation",
+        "target/device/powerloss/containment"
+      ]
+    },
+    "claims": {
+      "proposal_only": true,
+      "API_frozen": false,
+      "runtime": false,
+      "eight_executable": false,
+      "fullSave": false
+    },
+    "remaining_prerequisites": [
+      "IndependentV3review/rootfreeze; five distinctgate-firstassertions beforehandlers.",
+      "Rootmaintainedtypedsharedschema2/strictcodec beforetests; existingIDLmessagesunchanged.",
+      "ActualSave/status/recovery separatedependency, nofabricatedfixturewriter."
+    ]
+  },
+  "coordinator_amendments": {
+    "schema_version": 1,
+    "status": "COORDINATOR_DRAFT_PENDING_INDEPENDENT_REVIEW",
+    "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3.json",
+      "bytes": 28112,
+      "sha256": "e03997a80b7f4ecf453ab861e00d727c8ac63800fde9cee9c6897d0022d9e70e"
+    },
+    "precedence": "These exact narrow amendments override corresponding V3 pairing API and lifetime ambiguity. All other V3 technical scope, capacities, schemas, lock order and current five cases remain unchanged. No source implementation or resources authorized.",
+    "pairing": {
+      "signature": "pub fn pair_launch(&self,launch:&mut Option<StoreLaunch>)->Result<PairedStoreLaunch,NativePreviewExposeFailure>;",
+      "ownership": "Foreign Authority/Core/owner or stamp mismatch leaves Some and rightful row unchanged. Validate before taking. Only authorized successful pairing takes actual owned launch once into PairedStoreLaunch; repeat None is NotReady. No failure/destructor suppressions or recovery remint. Actual own stale lifecycle remains separately enforced.",
+      "guard_signature": "pub fn match_read_activation(&self,left:&StoreActivationStamp,right:&StoreActivationStamp)->Result<StoreReadActivationView,Status>;",
+      "guard_validation": "Both opaque stamps must refer to actual same Authority/Active attachment row and version, canonical StoreHandle, actor, object/object generation, Store epoch, read context and original instance expiry. Validate current live actual Gate under this already-held SelectionGuard, never compare wrapper struct addresses or accept view fields as authority. Store then compares actual Core/profile/tagged Grant/handle/actor/object/epoch. Wrong Authority or row denied with no rightful retirement; actual retired/expired Stale.",
+      "view": "pub struct StoreReadActivationView { pub actor:EditorActorV0,pub store_handle:Handle,pub object_id:u64,pub object_generation:u64,pub store_epoch:u64,pub read_context_id:u64,pub attachment_version:u64,pub instance_expires_at_ms:u64 }",
+      "view_scope": "Returned fields are diagnostic values, no authority carrier, minted only after held-guard validation. No Store imports in Desktop.",
+      "stamp_alias": "take_store_launch validates borrowed stamp against actual State and Authority Active row, then internally issues a private nonClone stamp alias of that exact actual row/version. NativePreviewActivation retains original owned stamp. No public Clone, serialization or numeric constructor. Same-row identity is validated by match_read_activation, not wrapper pointer equality; no strong State backedge."
+    },
+    "active_lifetime": {
+      "setup": "Each original selector/approval ticket request is event-entry+1000ms, clamped by pin/preview/instance setup expiry. Prepare and activation/delivery must succeed before their corresponding original deadlines. No deadline reset.",
+      "after_delivery": "After successful activation and delivery, consumed pin, preview and ticket setup expiry or Drop alone does not retire Active. Active instance expiry remains anchored to actual confirming event and configuration and is never extended/reset by delivery. Real Close/Revoke/session/service/object fault/current epoch and original instance expiry continue to bound Active authority. Each new Read has original entry+1000ms additionally bounded by that original active instance expiry.",
+      "races": "Until authorized delivery completes, original setup constraints still apply. No surviving grant claim is made for incomplete failed delivery. Actual owner-authorized failure can retire only its own exact Active attempt. Foreign denial preserves rightful attempt.",
+      "staged_requests": "Consumed Selector request deadline bounds successful Prepare only. It does not alone cancel resulting still-live preview/pin after Prepare. Distinct fresh Approval has its own actual event-entry+1000ms deadline for Confirm/activation/delivery, clamped to original pin/preview and configured instance expiry. Pin and preview original lifetimes continue to bound pre-delivery. No deadline reset or inherited consumed Selector deadline into fresh Approval."
+    },
+    "assertion_requirements": [
+      "Case4 passes a real retained Some launch to foreign Core pairing; Denied leaves the same holder and source row intact, then rightful same holder pairs successfully; successful consumption leaves None and repeat NotReady.",
+      "Case2 retains actual Store stamp and returned Desktop alias, checks match under actual owning guard and actual Core/Grant fields; different Authority/row denied without retiring rightful Active.",
+      "Current Read precursor shows request deadline expiry followed by fresh Read on SAME still-live actual instance, then actual original instance expiry/revoke/fault denies aliases. Consumed setup expiry is not a substitute instance retirement."
+    ],
+    "implementation_authorized": false,
+    "resources_authorized": false,
+    "counts_observation": {
+      "signature": "HostDesktop::pub fn preview_counts(&self)->Result<PreviewCounts,Status>;",
+      "semantics": "Return a bounded diagnostic snapshot from this actual host Authority/Gate and existing shared roster, not caller counts or cloned RegistryWitness. Lock State->Gate and Gate->Roster consistently, do not acquire State under Gate. Consumer retains HostDesktop after Store consumes nonClone witness. Counts carry no grant or cross-domain actor authority; trusted host fixture observation only.",
+      "assertions": "Current five cases use retained actual HostDesktop to observe real pin/ticket/context/attachment/query/producer charges, aliases and overflow. Not a manufactured counter callback."
+    },
+    "delivery_linearization": {
+      "boundary": "Successful HostDesktop::take_store_launch under actual State->Gate is the delivery linearization. It validates original Approval/pin/preview setup constraints and current Active instance, checks/installs actual origination context, creates canonical reply/bootstrap/bindings and records private delivered transition before return. Failure exposes no carrier and preserves stated authorized/foreign failure ownership.",
+      "pair_after_delivery": "pair_launch checks an already-delivered same actual Active row, original instance expiry, current epoch and actual Core/Grant, then moves the held launch once. It does not check/reset consumed setup deadlines or add a delivery-state mutation API. After successful take_store_launch, consumed setup expiry alone cannot retire Active. Actual instance/session/service/object lifecycle remains enforced."
+    }
+  },
+  "review_provenance": {
+    "proposal": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3.json",
+      "bytes": 28112,
+      "sha256": "e03997a80b7f4ecf453ab861e00d727c8ac63800fde9cee9c6897d0022d9e70e"
+    },
+    "amendment": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-v3-coordinator-amendment-draft.json",
+      "bytes": 6611,
+      "sha256": "a5bc378da44cce0f013548913a655e038e6e8b0725f6103d3d56e73beec9e306"
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-store-preview-chrome-proposal-v3-independent-review.json",
+      "bytes": 15527,
+      "sha256": "11e9bcfa3e5472c02d8cce46ea0717c98d75ffe0e197d0900205c14ce03854cd"
+    }
+  },
+  "remaining_dependencies": [
+    "Separately frozen pure schema2 464-byte grants and 248-byte current-status codec/API plus seven gate-first pure assertion families before codec implementation.",
+    "Five independently reviewed native consumer assertions and actual initial RED before Desktop/Store service handlers.",
+    "Root assigns disjoint writers for Desktop, Store and consumer; root alone owns shared features/exports/IDL/registries/codegen/gates/status/integration.",
+    "Preserve nine native Read and affected13volatile/7Store+16evidence consumers; final integrated Linux preflight required before host milestone acceptance."
+  ],
+  "claims": {
+    "implemented": false,
+    "gate_passed": false,
+    "Save": false,
+    "recovery": false,
+    "IO2": false,
+    "full_UI1_1c": false,
+    "editor_process": false,
+    "target": false,
+    "hardware": false
+  },
+  "observability_amendments": {
+    "schema_version": 1,
+    "status": "PROPOSED_OBSERVABILITY_AMENDMENT_NOT_FROZEN_NO_IMPLEMENTATION_AUTHORITY",
+    "base_commit": "02c9c982b2ed5f92869e1e3cd3713e9a0377530d",
+    "author": "/root/review",
+    "contract": {
+      "path": "docs/contracts/editor-native-preview-read-v0.json",
+      "bytes": 39010,
+      "sha256": "a4fcbd94bbd5a12af6caa92137f4e4376b0ad9c798f1ae655241884e723077a9"
+    },
+    "assertion_plan": {
+      "path": "out/roadmap-coordinator/editor-native-preview-five-assertion-plan.json",
+      "bytes": 31542,
+      "sha256": "2a34ca00db3f53f25b6cfad685b10f09945fdb3abe8ba16cbe60f136302da53a"
+    },
+    "scope": "Only Read1 NativePreview planned cases1,2,3,4,8. Propose privileged fixture/internal-boundary observation, existing shared producer getters, protected pixel constants, actual composed Chrome248 evidence and a legitimate query-row capacity leg. No Save, caller status setter, actual target/device, new editor process, mutation/reopen or resource permission.",
+    "source_basis": [
+      {
+        "path": "services/desktop/src/editor_dev/host.rs",
+        "bytes": 123324,
+        "sha256": "dc8941134f8578fc858b1b555f66419d0075844833acd3ed52741d8f3c191783"
+      },
+      {
+        "path": "services/desktop/src/editor_dev/native_authority.rs",
+        "bytes": 32291,
+        "sha256": "e5578873bc460c262dc412c4036a35f703fde1e4251dd4af0f44dc067cdfc5ed"
+      },
+      {
+        "path": "services/desktop/src/editor_dev/client.rs",
+        "bytes": 36089,
+        "sha256": "8c9a0f1718ece83dbf74619a6e65797f66928118a0778a094770d91087412720"
+      },
+      {
+        "path": "services/store_service/src/editor_store/mod.rs",
+        "bytes": 122925,
+        "sha256": "092d753041d4c9bfd874fa225c86c3b3574076bc44de3097cedb51d429064b20"
+      },
+      {
+        "path": "services/store_service/src/editor_store/native_read.rs",
+        "bytes": 34229,
+        "sha256": "580f8f859810b48b5e70e593d3915ff20f7c24d5aaae919f5de43d68e78aa4a2"
+      },
+      {
+        "path": "idl/portals/desktop_editor_session_v1.toml",
+        "bytes": 4711,
+        "sha256": "46899abfc2cb1cbac082092bd4ea0330583f5944607ab12514c912fc3095ea9e"
+      },
+      {
+        "path": "idl/services/desktop_focus_v1.toml",
+        "bytes": 1799,
+        "sha256": "b19dc96512d121411d664428ce091be5b0f577723ffb11608ca3c79fd1c4d2b2"
+      },
+      {
+        "path": "idl/services/desktop_surface_v1.toml",
+        "bytes": 2696,
+        "sha256": "a7770e0c8c869a8e71544e10e4b0abe9a1aecb137e2e438e846e2c41f7180bed"
+      },
+      {
+        "path": "services/desktop/tests/fixtures/ascii8x16_v0.bin",
+        "bytes": 1536,
+        "sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64"
+      }
+    ],
+    "conflicts_and_minimal_defaults": [
+      {
+        "id": "NPO-1",
+        "source": "Frozen activation.commit/inactive and coordinator delivery_linearization.boundary",
+        "conflict": "BeforeActivation does not currently guarantee an actual installed inactive Store Grant; private original read context is installed at take_store_launch. Pending has no public carriers. Merely inspecting reserved numeric IDs or routing ordinary legacy Store dispatch would not prove actual Inactive Gate enforcement.",
+        "default": "Make the existing preactivation batch explicitly own actual registered inactive three Desktop endpoints, reserved grants shared object and private read context. Actual Core installs its tagged inactive Store Grant and binds that exact private context before entering BeforeActivation pause. All remain Inactive. Release enforcing locks, pause; reacquire Registry\u2192sortedObjects\u2192Gate and fully revalidate before the sole Active flip. Delivery exposes/moves the already-owned context, never remints it."
+      },
+      {
+        "id": "NPO-2",
+        "source": "HostDesktop native_producers/join_native_finished/native_producer_counts host.rs3501-3520",
+        "conflict": "Store consumes the nonClone witness, but retained HostDesktop already has these methods. An unrelated or absent NativeAuthority would make counts uninformative, and zero fallback cannot prove NPR is wired.",
+        "default": "NPR constructor installs exactly one same Arc<NativeAuthority> into HostDesktop and State and returns its actual witness/enrollment. Reuse existing methods unchanged; no second roster or new public counter callback. Counts represent whole shared domain, not Store ownership."
+      },
+      {
+        "id": "NPO-3",
+        "source": "host.rs2815-2844 and draw_label2891-2905",
+        "conflict": "V3 specifies labels/regions but no literal coordinates/colors or independent current goldens.",
+        "default": "Freeze literal pixels below, preserving pinned MSB-left8x16 font, existing BGRA background/white application/ownership indicator and fixed protected rows."
+      },
+      {
+        "id": "NPO-4",
+        "source": "Private compositor snapshot_chrome_locked/validate_chrome_stamp_locked contract only; no public Chrome248 accessor",
+        "conflict": "Pure codec output is not evidence that actual Core-derived compositor status was produced. Returning unrelated manually encoded fixture bytes would make the test circular.",
+        "default": "Privileged diagnostic-only compositor record observation below copies the exact initialized248 bytes actually paired with the last successful NPR frame publication. It is not an app/data-plane lease API or new native protocol. If root requires a new native shared-data lease consumer, freeze that separately; do not claim one here."
+      },
+      {
+        "id": "NPO-5",
+        "source": "native_authority.rs start329-384 checks origin rows64 before producer pair64; prune_origins retains actual strong owners",
+        "conflict": "Thirty-two paused pairs saturate64 producer rows first and cannot independently prove query slot64.",
+        "default": "Use separate fresh fixture: retain64 genuine entries/origin owners while actual pairs complete and are joined between successive begins. Same one Active read context, not64 fake contexts. Query rows remain charged by real retained owners even if original query deadline closes; no synthetic roster bypass. If this cannot be realized under original lifetimes, report64 as structural bound only until a real reachability proof exists."
+      }
+    ],
+    "inactive_staging": {
+      "additional_service_signature": "SelectionGuard::pub fn stage_read_installation(&mut self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<(),Status>;",
+      "ownership": "Only actual private SelectionIssuer held by Core can obtain this guard. StoreReadInstallation remains data, not an enrollment grant. Same actual Core first registers its real tagged Grant/peer/handle, then stages canonical handle/object/generation/epoch into that pending attachment. No consumer issuer getter, tuple mint, status setter or new visible endpoint.",
+      "semantics": "Authorize actual Authority/Core-linked pending/pin/actor/current selected object and setup lifetime under held Gate; same exact already-staged tuple is idempotent, different tuple Denied preserving rightful stage. Establish an actual private retained origin from the already-reserved context and actual staged Store handle exactly once; keep origin/three endpoints/bootstrap descriptor hidden. No Active flag, no delivery or producer spawn.",
+      "activation": "activate_read must require and match the staged immutable installation, same pending/context and actual tagged Grant. BeforeActivation occurs only after Store Grant and private origin are installed Inactive, with Registry/Object/Gate/Roster locks dropped. Reacquire and repeat all actual checks before Active. No IO, allocation, callback or State locking after final Active linearization.",
+      "failures": "Foreign denial changes no row. Own invalid/expired setup Stale can retire only exact owned inactive attempt, with NativePreviewExposeFailure retaining actual pending/inactive Grant and existing stage/owner observations. No rollback claim, silent row loss or unbounded additional rows; reuse already-reserved endpoint/context/grant/attachment/object caps."
+    },
+    "fixed_privileged_probe": {
+      "desktop_signature": "desktop::FixtureController::pub fn probe_inactive_preview(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause,now_ms:u64)->Result<InactiveDesktopProbeObservation,Status>;",
+      "store_signature": "store::FixtureController::pub fn probe_inactive_preview_read(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause)->Result<InactiveStoreProbeObservation,StoreStatus>;",
+      "desktop_observation": "pub struct InactiveDesktopProbeObservation { pub endpoint_requests:[Envelope;3],pub endpoint_replies:[Envelope;3],pub origin_status:Result<(),Status>,pub bootstrap_status:Result<(),Status>,pub grants_lease_status:Result<(),Status> }",
+      "store_observation": "pub struct InactiveStoreProbeObservation { pub grant_status:Result<(),StoreStatus> }",
+      "authority": "Methods exist only in explicit default-off NPR fixture mode, controller privately retains actual owner host/Core. Actual passed Chrome must match exact controller Authority/State/session owner and actual pending; wrong Authority/owner/pending/pause Denied before stage disclosure or row mutation. Views and request handles never authorize.",
+      "pause_race_exclusion": "Actual pause token must be same Authority/session/pin/instance, pointBeforeActivation, entered && !settled && !released. A bounded single probe-in-progress flag on existing barrier owns a short fixture reservation; release_store_preview returnsNotReady while a probe owns it. Claim/check/release flag under barrier lock; drop it before dispatch, never nest barrier mutex with enforcing State/Object/Gate/Roster locks. Already released, concurrent probe, wrong point or nonentered NotReady. RAII clears only its own flag after success/error/unwind; no extra rows/threads/counter identities. It cannot keep arbitrary hung threads contained.",
+      "desktop_actual_attempts": "Internally borrow/temporarily hold actual installed registered three endpoints and private original origin, never construct peer from numeric observation or return a carrier. Build generated352/7 GetStatus,832/3 PollKeys and833/1 Create with actual pending actor/session/focus,640x480/format1/reserved0 and fixed originalApproval correlation as diagnostic queryID. Call the real dispatcher with each actual peer. Store exact canonical actual requests/replies in observation; each expectedNotReady6/status-only. Direct original origin begin_preview_read uses actual canonical368/1 request carrying the staged actual Store handle and actor: expect RustErrNotReady with no producers/query allocation.",
+      "bootstrap_and_lease_attempts": "Use the same private actual pending bootstrap/grants admission helper called by production take_store_launch/lease exposure, before a fake stamp could be needed. Attempt the actual registered grants descriptor/read admission and bootstrap construction; expectErrNotReady and no bytes/handles. This is expressly an internal shared production-helper boundary, not a call to take_store_launch with a fabricated Active stamp.",
+      "store_actual_attempt": "Locate the exact tagged installed Grant via actual Core ownership, immutable stage tuple and actual issuer guard. Invoke the same production Core/Grant/epoch/attachment Gate admission helper used by register/execute/copy; expectNotReady. Do not call legacy generic dispatch (it denies NPR independently), synthesize PreviewReadCall, manufacture an Active stamp or falsely claim full typed registration occurred while origin begin itself correctly denies.",
+      "effect_proof": "Tests compare real HostDesktop preview_counts/shared producer counts and actual Core files/effects before/after; no counts or result supplied by caller. Exact replies remain observable, unexpectedSuccess/data orErrInternal fails the test rather than being normalized into a denial. Foreign-controller test preserves rightful still-paused pending, then rightful probe/release/activation/delivery/copy succeeds. If a buggy inactive origin attempt unexpectedly spawns real workers, its installed handles remain charged to the actual host roster and are retained/released/joined by the normal owned fixture cleanup. They are not discarded, reported joined by Drop, or omitted from effects; no public active carrier is returned.",
+      "retention": "Probe observations contain no opaque carrier, Arc, lease, JoinHandle, grant/reference duplication or public reflection. Fixed3 request/reply pairs and fixed Result fields only; reuse existing exchange256 budget, no new invisible synthetic traces. Internal transient holders are released on exit and never retained as app authority. Any malformed/noninactive call returns error, not a partial successful observation."
+    },
+    "existing_shared_producer_API": {
+      "signatures": [
+        "HostDesktop::pub fn native_producers(&self)->Vec<ProducerId>;",
+        "HostDesktop::pub fn join_native_finished(&self,producer:&ProducerId)->Result<JoinedProducerProof,Status>;",
+        "HostDesktop::pub fn native_producer_counts(&self)->ProducerCounts;"
+      ],
+      "same_authority": "NPR feature enables existing NativeRead module/guard code and constructor sets both private native pointers to exact same Authority used by actual SelectionIssuer and Store witness. State\u2192Gate and Gate\u2192Roster order unchanged. No State acquired under Gate, no strong State backedge.",
+      "meaning": "Host getter enumerates actual installed/joining rows in whole shared domain; counts held/io/joining/joined_total are shared diagnostics. Store own getter and actualReturned pairs alone prove Store spawn ownership. Same-domain join can reap actual Desktop or Store token, not confer Store provenance. Query/context counts remain separate diagnostics.",
+      "tests": "Actual NPR paused pairs64 and returnedunique joins prove wiring; never accept zero fallback as unsupported-mode success. Unfinished/concurrent/retired joinNotReady, foreignDenied, identity aliasuncharged and actual joinonce preserved. IO0; no64+2 escape."
+    },
+    "protected_pixel_freeze": {
+      "font": {
+        "path": "services/desktop/tests/fixtures/ascii8x16_v0.bin",
+        "bytes": 1536,
+        "sha256": "50ab6522c495f06a69590ccb6958458be15e02a2ca4c6b1024b052e826d21c64"
+      },
+      "font_interpretation": "96 ASCII32..127 glyphs,16 rows each,bit128 MSB-left; exact fixture input reviewed, no system font or serviceformatter expected-output dependency.",
+      "dimensions": {
+        "width": 640,
+        "height": 568,
+        "stride": 2560,
+        "format": "BGRA8888",
+        "byte_len": 1454080,
+        "application_rectangle": "x[0,640),y[48,528)",
+        "protected_rectangle": "all x; y[0,48) then[528,568)"
+      },
+      "background_bgra": [
+        224,
+        224,
+        224,
+        255
+      ],
+      "foreground_bgra": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "blank_application_bgra": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "indicator": {
+        "rectangle": "x[8,24),y[8,24)",
+        "border": "x8 or23 or y8 or23",
+        "border_bgra": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "interior_bgra": [
+          0,
+          192,
+          0,
+          255
+        ],
+        "meaning": "Protected owning route indicator, not Saved/available/durable verdict; unchanged on Unavailable."
+      },
+      "labels": [
+        {
+          "ascii": "HOST STORE",
+          "x": 40,
+          "y": 16,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "READ ONLY",
+          "x": 144,
+          "y": 16,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "NO SAVE",
+          "x": 8,
+          "y": 536,
+          "states": [
+            "NoSave",
+            "Unavailable"
+          ]
+        },
+        {
+          "ascii": "UNAVAILABLE",
+          "x": 88,
+          "y": 536,
+          "states": [
+            "Unavailable"
+          ]
+        }
+      ],
+      "raster": "Each label glyph writes all8x16 pixels black for setbit else chrome224/alpha255. All labels lie entirely in protected rows and are nonoverlapping. No VOLATILE / IN-PROCESS or DRAFT LOST/SAVE UNKNOWN/Saved inherited in NPR; old volatile compose unchanged.",
+      "static_goldens": {
+        "NoSave": {
+          "protected_bytes": 225280,
+          "protected_sha256": "ed29bf9aa5cce83a0421707f9bc8eecce32086154b9ce9b58c3994fdfb8d5206",
+          "white_app_bytes": 1228800,
+          "white_app_sha256": "f7f3eed6bad2c170eb0bccd6c368b320688a207a59c27321b412dd0774bc4df1",
+          "blank_app_full_frame_sha256": "9026cb19fa72aae4d1c36d397fc353f73f81fcf20649fca2c4d2471cd7a876c6"
+        },
+        "Unavailable": {
+          "protected_bytes": 225280,
+          "protected_sha256": "06c45d415ba0ffa22b05c50daff5cfaf1f5eecc0f7dd6537a1a1ac2f9d6e5621",
+          "white_app_bytes": 1228800,
+          "white_app_sha256": "f7f3eed6bad2c170eb0bccd6c368b320688a207a59c27321b412dd0774bc4df1",
+          "blank_app_full_frame_sha256": "58b89ef26ea3176b5115832c08b6551bf8cc7b8f131184743ee9cc0e14b44faa"
+        }
+      },
+      "golden_scope": "Hashes computed solely as proposed literal expected fixture from pinned font and constants, not by importing/running service/candidate. Protected hash concatenates top then bottom row bytes. NoSave fullframe hash valid only for deliberately all-white app positivecontrol; normal app pixels may differ. Unavailable whole app MUST white, no stale frozen app copied.",
+      "publication": "Actual NoSave/Unavailable derived by actual Core/Gate row, not fixture flag or raw record. Fault terminal frame has positive actual session/retired instance with focus_epoch=sequence=0; unchanged repeatcomposeNotReady. Snapshot/final heldGate version checks remain atomic with Consume/publication; actualBeforeFramePublish supported pause never holds enforcing locks. StatusVersionMAX keeps fault true but no fabricated current record/frame; Exhausted/stale publication denied."
+    },
+    "actual_Chrome248_evidence": {
+      "signature": "desktop::FixtureController::pub fn preview_chrome_observation(&self,compositor:&Endpoint)->Result<PreviewChromeRecordObservation,Status>;",
+      "observation": "pub struct PreviewChromeRecordObservation { pub session_id:u64,pub instance_id:u64,pub focus_epoch:u64,pub sequence:u64,pub attachment_version:u64,pub status_version:u64,pub bytes:[u8;248] }",
+      "source": "During normal NPR compose, canonical codec encodes actual Core-derived ChromeSnapshot once before final publication. Same private ChromeFrameStamp binds bytes, raster/state and actual frame. Store exact bytes with actual frame-publication row under final State\u2192Gate success, not by encoding caller observation later. Fixture getter copies this initialized actual producer record; pure codec may decode it independently in tests.",
+      "authority_and_lifetime": "Only actual own NPR controller/compositor/session context. Foreign registry/session/classDenied with no lifecycle disclosure. No current NPR published frameNotReady. If private stamp no longer current because object/lifecycle/epoch/version changed, Stale; no stale NoSave snapshot replay. After authentic terminalUnavailable publication its positive retired actor/status record remains observable while that terminal version is current. No live app Read restored.",
+      "bounded": "Use already-retained composed frame rows16, store at most248 additional bytes per row; no independent unbounded snapshot cache or viewlease allocation and no public status setter. Repeated evidence reading does not consume frame or reset deadlines/counters. At most16*248=3968 additional retained bytes, charged to existing frame evidence bound.",
+      "scope": "Privileged host diagnostic observation only, explicitly not a new zero-copy native status lease, allocated wire message or production app observation API. Future native data-plane status consumer needs a separate lease/descriptor authority contract if required; this amendment does not claim it.",
+      "tests": "Cases1/2 decode actualNoSave record after actualcompose and independently bind actor/object/Storeepoch/version/zerooriginalfields to actualCore/activation. Case1 faultcomposexpectsstate4+blankcrop; getter over the private last-published record returnsStale afterfault until a new current publication. Already-returned plain record bytes remain immutable historical observation, not a revocable authority carrier. Case3 frameversionbarrier oldpixels denied then newcurrent record/Bpositive. No fake producer bytes or knownhash lookup as actualcopy."
+    },
+    "query_slot_reachability": {
+      "source_basis": "Existing NativeAuthority::start charges one OriginLifetime per genuine entry plus two actual producers. Entry and Call keep real origin strong; Gate prune_origins only prunes dead owners. Actual join removes producer rows without destroying retained entry/call origin. Query rows remain charged until last real entry/call/producer owner drops, not merely request deadline/worker completion.",
+      "proposed_leg": "Fresh own NPR fixture one genuinely Active instance with original configuredTTL30000; one actual private Readcontext. Begin64 distinct canonical actual368/1 requests through actualorigin; retain every returned PreviewReadEntry (and successful Call if wait returns one), wait for actual pair completion with bounded supported waits, join both actualReturned producers before nextbegin. Before eachnext begin producerheld0/io0/joining0; retained actualquery rows grow1..64. No Storeexecute needed for these real Desktop query entries; Storeproducer ownership has its separate positiveleg.",
+      "deadline_scope": "Each original entry preserves actual1000ms deadline and may closeTimeout; never reset it, instanceclock, context or roster. Closed origin still counts only while actual owners retained. Entireleg bounded15s inside original30s instance; if native lifecycle expires or actual join fails tosettle, fail/INCOMPLETE with evidence rather than claim independent querycap saturation. No injected slots, syntheticworker, capseed, fake Authority or doublethreadcharging.",
+      "assertions": "At64 retainedquery owners and producerheld0, nextotherwisevalidbegin returnsExhausted with querycount64 and zero partial producerreservation/spawn; own Active instance and Core selection remain unchanged, observed through actual counts and scoped state. Drop real retainedquery entries/calls, require actualprune by fresh otherwisevalidbegin; freshcheckedoriginID greater/no reuse, actual StoreRead/copy on the new originaldeadline and realpairjoins. Do not require an expired old read to remain usable, or fabricate a fresh read while all query slots are retained.",
+      "central_decision": "Freeze this row-retention meaning and source-review implementation before treating64 as independent runtime saturation. If NPR origin accounting differs or finite leg cannot reach64 honestly, retain64 documentedstructuralcap and explicitly defer dynamic saturation; producer64 proof stillstands. No testknob bypasses either actualcap."
+    },
+    "gate_first_followup": [
+      "Root independently reviews and embeds accepted amendment before UI0 writes five cases.",
+      "Add only the above real observation probes/own production-helper boundary, pixel constants/goldens and honest capacity/evidence wording. Shared maintainer owns APIs/features/exports; disjoint writers afterward only after actual missingAPI RED.",
+      "Source review must verify helpers are shared real enforcers, actualstagepauseordering, sameAuthority wiring, actualproduction248 emission, no carrier exposure and precise protected/frame evidence."
+    ],
+    "performed": "Only source/JSON reads, hash/AST interpretation and offline proposed golden arithmetic from pinnedfont. No maintained edits, imports, builds, tests, runtime, allocation of service resources, Docker/HTTP, gate execution or authority actuation.",
+    "claims": {
+      "proposal_only": true,
+      "frozen": false,
+      "implemented": false,
+      "assertions_run": false,
+      "native_data_plane_status_API": false,
+      "inactive_dispatch_runtime_proved": false,
+      "dynamic_query64_proved": false,
+      "full_UIc_Save_or_target": false
+    }
+  },
+  "preinstance_record_clarification": {
+    "schema_version": 1,
+    "status": "CONSISTENT_NARROW_INTERPRETATION_PENDING_COORDINATOR_FREEZE",
+    "author": "/root/review",
+    "proposal_unchanged": {
+      "path": "out/roadmap-coordinator/editor-native-preview-observability-amendment-proposal.json",
+      "bytes": 24111,
+      "sha256": "b4bbc21c9ac8d4dc80ffe0401961249ef01566099a4131a2823422208a9c1d0d"
+    },
+    "frozen_read_contract": {
+      "path": "docs/contracts/editor-native-preview-read-v0.json",
+      "bytes": 39010,
+      "sha256": "a4fcbd94bbd5a12af6caa92137f4e4376b0ad9c798f1ae655241884e723077a9"
+    },
+    "frozen_codec_contract": {
+      "path": "docs/contracts/editor-native-preview-codec-v0.json",
+      "bytes": 23821,
+      "sha256": "92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325a32249"
+    },
+    "precedence": "Clarifies only observability proposal actual_Chrome248_evidence.source/bounded/tests and pre-instance frame behavior. No relaxed Chrome248 validation or new authority/API.",
+    "interpretation": [
+      "The per-frame stored initialized248-byte record is optional. A pre-instance permission preview has no genuine positive actor and therefore stores no Chrome248 record; only the actual464 preview metadata and permitted preview rendering are available.",
+      "Normal pre-instance compose remains supported. Absence of a positive actor must not invent actor IDs, emit a zero-filled invalid248 record, copy an unrelated actor, or cause ordinary preview rendering to fail merely because the Chrome248 codec cannot encode it.",
+      "FixtureController::preview_chrome_observation on an otherwise authorized own pre-instance frame returnsErr(NotReady), without bytes or descriptor. Foreign owner/registry/class stillDenied before lifecycle disclosure. Absent optional record is not State0 or State4.",
+      "When an actual genuine confirmed positive actor is associated with authentic current NPR frame publication, the optional bytes may be Some only if the full existing codec validation succeeds and actual Core/Gate/version/epoch and frame-publication checks bind that actor. This diagnostic record grants no Active/bootstrap/read authority; inactive/foreign/lifetime enforcement remains unchanged.",
+      "Case1 Unavailable248 proof faults A only after genuine confirmation, activation and authorized delivery/publication. The actual retained retired actor stays positive, fault-derived state4/current versions and white application crop must come from the authentic terminal frame. Getter behavior/version checks remain as proposed.",
+      "A fault before any genuine actor exists can prove actual object/pin/ticket retirement, preview rendering and counts or B noninterference. It cannot prove a248 Unavailable actor record. No test may manufacture a confirmed actor to repair that gap.",
+      "Each frame retains at most one optional248-byte array, so the existing upper bound16*248=3968 remains conservative. None frames still occupy normal frame accounting; no quota, object or lease exception is created."
+    ],
+    "contract_consistency": "This follows frozen codec validate248.phase_scope (positive reserved/current/retired actor; pre-instance excluded) and Read contract currentstatus rules. It narrows an overbroad reading of storing248 for every NPR compose, without altering layouts, states, actor positivity, normal preview rendering, or current five cases.",
+    "performed": "Read/hash and narrow interpretation artifact only; immutable proposal preserved. No maintained/source/test changes, builds, imports, runtime or resources.",
+    "claims": {
+      "clarification_only": true,
+      "contract_changed": false,
+      "implementation_authorized": false,
+      "runtime_evidence": false
+    }
+  },
+  "assertion_registration": {
+    "desktop_feature": "editor_native_preview_v0_dev = [editor_native_read_v0_dev]",
+    "store_feature": "editor_native_preview_v0_dev = [editor_native_read_v0_dev, desktop_service/editor_native_preview_v0_dev]",
+    "test_target": "editor_native_preview_read",
+    "required_features": [
+      "editor_native_preview_v0_dev"
+    ],
+    "test_path": "services/store_service/tests/editor_native_preview_read.rs",
+    "support_path": "services/store_service/tests/editor_native_preview_read_support/mod.rs",
+    "gate": "foundry-editor-native-preview-read-ui1-1c",
+    "case_inventory": [
+      "native_preview_current_selection",
+      "native_preview_fresh_approval_activation",
+      "native_preview_pin_cancel_expiry_race",
+      "native_preview_init_exposure_failure",
+      "native_preview_caps_versions_actual_joins"
+    ],
+    "default_off": true,
+    "assertions_first": true,
+    "original_missing_API_RED_before_handlers": true,
+    "claimed_runnable_cases": 0
+  },
+  "observation_review_provenance": {
+    "observability": {
+      "path": "out/roadmap-coordinator/editor-native-preview-observability-amendment-independent-review.json",
+      "bytes": 9380,
+      "sha256": "8f88362e8fd8970578fa19923dc50c0095eb52188b20f1352a818423cc527cfa"
+    },
+    "preinstance": {
+      "path": "out/roadmap-coordinator/editor-native-preview-preinstance-record-clarification-independent-review.json",
+      "bytes": 3977,
+      "sha256": "66e27e2f3035ce0e33dd77777f31beac531533cfa1ef98122dd833bf0d88b65e"
+    }
+  },
+  "root_implementation_obligations": [
+    "Preserve Registry -> Object -> Gate in Store probe and production admission; never acquire Registry/Object while holding SelectionGuard. No enforcing locks across barriers, IO or raster.",
+    "Probe unexpected admission/error remains observable and fails assertions; cannot normalize into NotReady.",
+    "Pre-instance frame may have no248 record and still renders464 metadata; genuine positiveactor required for published248.",
+    "Query64 saturation must retain actual entry/call owners and actual join records. No cap bypass, fake worker/proof, or extra64+2 roster.",
+    "Same existing native Authority must serve actual producer getters/joins; private setup and diagnostic observations confer no app authority."
+  ],
+  "entry_origin_observation": {
+    "signature": "PreviewReadEntry::pub fn origin_id(&self)->u64;",
+    "source": "Return immutable nonzero checked ID from this actual private query-owner allocation, never request correlation, wrapper address, a diagnostic reconstruction or caller data.",
+    "Lang": "Possession of actual nonClone private PreviewReadEntry issued by own begin_preview_read. No new constructor or public numeric mint.",
+    "ObsContract": "This own historical entry identity only. Plain u64 confers no current authority, clock, issuer, lifecycle, peer/origin carrier or cross-domain reflection. No witness getter, mutation, refresh, grant or rebinding.",
+    "assertion": "Read64 capacity leg retains actual entries and actual original IDs while each pair is joined; after dropping all owners/pruning a genuinely new entry has a strictly greater never-reused checked ID. Actual counter overflow remains sticky and fails closed."
+  },
+  "generic_route_and_cancel_status": {
+    "ordinary_dispatch": "In NPR mode an own authenticated canonical generated352 Prepare or Confirm sent through ordinary HostDesktop::dispatch returns Status::Unsupported and causes no volatile/NPR prepare, ticket consumption, grant, launch or count changes. Foreign identity and malformed wire continue to use their existing precise denial checks; this Unsupported assertion applies to own canonical bypass controls only.",
+    "inactive_cancel": "Own canonical generated352 Cancel through dispatch_store_preview_chrome for its prepared preview/inactive pending returns Status::Ok, retires only the exact own inactive attempt and makes subsequent activation Stale.",
+    "active_cancel": "After actual Active linearization, own Cancel returns Status::NotReady and preserves Active. Actual owner Revoke or actual lifecycle/fault/expiry retires it; Cancel is not an Active revocation backdoor."
+  },
+  "status_version_max_fault_result": {
+    "status": "FROZEN_EXACT_ASSERTION_OUTCOMES_BEFORE_HANDLERS",
+    "source_basis": "Clarifies the accepted StatusVersionMAX fault/publication rule without changing checked-counter admission or actual retirement.",
+    "fault_preview_object": "For an authenticated actual object fault whose required checked StatusVersion increment is exhausted, first preserve the actual fault and retire its matching pins, attachment/grants and aliases; return FixtureError with status StoreStatus::Exhausted and reason FixtureErrorKind::Exhausted. This is publication failure after an actual fault, never rollback or a successful new publication.",
+    "compose_next": "For that authorized own faulted session whose required current-status/frame publication cannot advance StatusVersion, compose_next returns Err(Status::Exhausted). Sticky exhaustion cannot fabricate or publish a current frame/record, or return a stale prior frame as success.",
+    "held_read_and_observation": "Its pre-fault held Read and previously published own chrome observation are stale: actual Read/copy and preview_chrome_observation return their typed Stale denial. No fabricated positive-actor status or fabricated current version is returned.",
+    "authority_and_scope": "Existing foreign/malformed authentication denials retain their exact status and no rightful retirement. Unrelated live Read and actual owned producer joins survive absent their actual expiry or lifecycle retirement. No new getter, counter reset, rollback, injected clock, runtime proof or Save authority."
+  },
+  "service_owner_helpers": {
+    "status": "FROZEN_TRUSTED_HOST_HELPERS_ASSERTION_ADDITION_PENDING",
+    "proposal": {
+      "schema_version": 1,
+      "status": "PROPOSED_SERVICE_OWNER_HELPERS_BEFORE_IMPLEMENTATION",
+      "author": "/root",
+      "base": "485f00966ad0139a6592e039059943b970cccba3",
+      "prior_contract_sha256": "2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c",
+      "scope": "Default-off trusted host Core/issuer helpers only; existing native protocol messages and five consumer case identities unchanged. No caller-minted grant, fake inactive call, new wire interface, State backedge or runtime acceptance.",
+      "signatures": {
+        "SelectionIssuer": [
+          "pub fn validate_witness(&self,witness:&RegistryWitness)->Result<(),Status>;",
+          "pub fn begin_read_activation_attempt(&self,pending:&PendingStoreInstance)->Result<PreviewActivationAttempt,Status>;",
+          "pub fn claim_inactive_read_probe(&self,chrome:&PeerContext,pending:&PendingStoreInstance,pause:&PreviewPause)->Result<InactiveReadProbeReservation,Status>;"
+        ],
+        "PreviewActivationAttempt": [
+          "pub fn wait_before_activation(&self)->Result<(),Status>;",
+          "pub fn finish(self);"
+        ],
+        "SelectionGuard": [
+          "pub fn admit_read_installation(&self,pending:&PendingStoreInstance,installation:StoreReadInstallation)->Result<(),Status>;",
+          "pub fn reserve_pin_started(&mut self,chrome:&PeerContext,current:StoreCurrentSelection,ttl_ms:u64,entered:Instant)->Result<StoreSelectionPin,Status>;"
+        ]
+      },
+      "opaque_helpers": "PreviewActivationAttempt and InactiveReadProbeReservation have private fields/constructors, no Clone/serde/numeric constructor/getter. They retain only actual pending lifetime/optional already-armed barrier or actual probe interlock; no endpoint/origin/call/grant/issuer/witness getter. No new producers, query slots or independent cache. At most one actual attempt per staged attachment and one probe per actual barrier.",
+      "witness_validation": "SelectionIssuer checks actual private Authority Arc identity, NPR mode and its own actually claimed enrollment row against the actual RegistryWitness before Store IO. Equal view fields, labels and IDs never establish identity. Foreign/wrong-mode Denied with no rightful domain mutation; actual own retired lifecycle Stale, lock failure Internal. This is an identity check, not authority minting or malicious-Core attestation. Consumed constructor arguments retain the existing error-owner semantics.",
+      "activation_attempt": "Actual Core first registers its tagged inactive Grant and invokes stage_read_installation on the genuine pending. Only after dropping Registry/Object/Gate can it begin the attempt. Under Gate validate actual issuer/pending lifetime/current stage and take only that pending-owned armed BeforeActivation barrier, then drop Gate before returning. wait_before_activation records actual entered and waits using only that barrier; no enforcing locks held. Retain attempt through final Registry->Object->Gate validation/activation and terminal caller outcome. finish after all guards drop marks only observational settlement; Drop provides the same settlement fallback for error/unwind. No Gate/State/service/IO/grant callback during settlement. No optional barrier means normal checked activation without a synthetic pause. Repeat attempt/wait is NotReady; foreign Denied; actual retired/expired Stale. An armed barrier consumed into the genuine attempt remains tied to the same actual pending and original clocks.",
+      "probe_interlock": "Before Store locks, claim validates actual issuer/registered Chrome identity+owner/pending/staged installation and same own BeforeActivation pause. Drop Gate before claiming barrier mutex; require actual entered, not settled or released, no existing probe. Revalidate actual Gate state only outside barrier mutex if needed; never hold enforcing locks while barrier mutex is held. The RAII reservation holds the existing probe-in-progress bit; release_store_preview returns NotReady while claimed. Core then locks Registry->Object->Gate and invokes its genuine production admission helpers. Drop reservation only after all enforcing guards drop, clearing only its owned bit. Foreign Denied preserves rightful pause/rows; actual own retired/expired Stale; absent stage/entry, wrong phase/released/settled/already claimed NotReady. No actual private Read call or active carrier is fabricated.",
+      "shared_admission": "Under an already held SelectionGuard, authenticate actual same issuer/Authority/pending row and compare canonical actual staged installation fields. Store derives installation from its actual registered tagged Grant and locked Object, never caller observations. Foreign or wrong installation Denied before rightful mutation; actual retired/expired Stale; genuine staged Inactive NotReady; genuine current Active Ok. No side effects or authority returned. The internal actual attachment/Active validator is also used by activation checks and genuine PreviewReadCall::admit/live production admission, so inactive probes execute the same enforcer rather than reconstructing status from view fields. No nested Gate reacquisition, State lookup, callback or holding SelectorGuard then acquiring Registry/Object.",
+      "post_active_rule": "The existing no service/State callback/IO/alloc after final Active rule remains. Only observational completion of the already-owned fixture barrier after terminal activation is permitted; it cannot change admission, a row version, grants or publication.",
+      "assertions_before_helpers": "Existing case2/3 assertions already require genuine entered/settled staging and inactive Core/helper denial. Extend existing case4 (no sixth identity) with two authentic NPR factories carrying deliberately equal numeric profile/session observations: cross the actual witness and enrollment, require Denied/Validate/NotAttempted/no root or producers, preserving unrelated factory state. This denial assertion must be written and independently reviewed before helper implementation. No test should mint a numeric witness or use helper status as a replacement for Core effects.",
+      "claims": {
+        "proposed_only": true,
+        "helpers_implemented": false,
+        "assertions_executed": false,
+        "runtime": false,
+        "new_native_wire": false,
+        "Save": false,
+        "full_UI1_1c": false
+      },
+      "pin_entry_timing": "Store captures its actual local Instant at pin_selection entry, before Registry/Object validation or lock waits, and forwards that unmodified Instant through reserve_pin_started under the actual issuer guard. The helper derives its checked monotonic deadline from this original start; elapsed validation time cannot reset the clock. Preserve existing reserve_pin API as an entry-capturing wrapper. This is a trusted service-owner helper, not caller wire authority or an injectable clock: Store never accepts an external Instant and producer code never derives it from numeric observations. Validate expiry from the original bound before any reservation mutation; an already-expired original start returns Stale with no pin. Checked overflow returns Exhausted. Existing case3 timing/lifecycle assertions retain their identity; inspect their original pin timing coverage before implementation and add a bounded consumer assertion if missing."
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-preview-service-owner-helpers-independent-review.json",
+      "bytes": 5742,
+      "sha256": "f6a5d28153de46d3567501951c05f1ec8bc2f9a079f425f03360f51a4a0ee601"
+    },
+    "coordinator_evidence_limit": "Existing case3 does not establish original local Store pin-entry timing across validation waits. Independent review of the actual fixed pin_selection entry capture and reserve_pin_started forwarding is required; no runtime validation-wait timing claim. Crossed genuine witness/enrollment case4 assertion must be added and independently reviewed before these new helper implementations."
+  },
+  "error_pending_retention": {
+    "status": "FROZEN_COMPLETE_ERROR_OWNER_ASSERTION_ADDITION_PENDING",
+    "proposal": {
+      "schema_version": 2,
+      "status": "PROPOSED_OPAQUE_ERROR_LIFETIME_RETENTION_BEFORE_IMPLEMENTATION",
+      "author": "/root",
+      "prior_contract_sha256": "fbfd17607b06bcee7d846cf232de7ff57285e67dc98e35a7bc4c589acf73c62b",
+      "fixed_store_candidate": {
+        "path": "services/store_service/src/editor_store/native_preview.rs",
+        "bytes": 49694,
+        "sha256": "de0acfff2ae42ac131f6c522c9fa63ce453217e787c29c80036fb93adb1cb43f"
+      },
+      "problem": "Expose failure currently infers pending_retained from a Grant tag. The borrowed caller may drop Pending after attempt.finish consumes its owner; a Grant is not the actual private AttachmentLife. Preserve the already frozen actual error-owner requirement rather than weaken its observation.",
+      "signature": "pub fn SelectionIssuer::retain_pending_for_error(&self,pending:&PendingStoreInstance)->Result<PreviewPendingRetention,Status>;",
+      "opaque_type": "PreviewPendingRetention private fields/constructor, nonClone/nonserde, no getters, no authority operation or conversion. Retain the complete genuine private Pending owner lifetime Arc(s), including actual AttachmentLife and its own required original setup Pin/Ticket references; not only an incomplete attachment alias or a Grant tag. No new row, endpoint, stamp, origin, query, producer, pending alias or cache. All original row/cap bounds remain. Retaining a retired/expired owner never makes it admissible.",
+      "authentication": "Use actual inaccessible issuer/pending Authority Arc identity and the genuine private Pending lifetime Arc(s), never numeric ID/view equality. Foreign Denied before retaining or mutating anything. No Gate/State/Registry/Object lookup is required: genuine same-Authority private Pending owns its actual lifetime even after retirement. Lock poisoning cannot erase ownership or require a fabricated owner. Issuer remains sole trusted Core holder; no malicious-Core attestation.",
+      "effects": "Clone only the actual existing complete Pending lifetime Arc(s), without heap allocation, lock, IO, callback or lifecycle mutation. The retention helper has no custom Drop admission effects; normal actual weak-row pruning occurs through existing enforcers. Bound production use to at most one error-held owner per actual activation attempt; repeated references refer to the same original charged row and cannot escape original expiry/capacity rules.",
+      "store_use": "activate_read obtains this actual holder before the first fallible own validation/Registry operation, retaining it outside the outcome closure. Foreign identity failure has no holder and all lifecycle observation booleans remain false. On actual own failure transfer the holder into the actual NativePreviewExposeFailure; pending_retained derives only from its presence, independently of an installed Grant. The inactive_grant flag derives from actual owned inactive Grant/tag. Existing optional attempt.finish stays unit observational settlement after all guards drop and is independent of the error holder. On success discard only the extra holder; actual caller/stamp/origin ownership and all clocks remain unchanged. No new fallible work or authority mutation after final Active.",
+      "scope": "Activation exposure errors only. Existing foreign/redacted pair_launch failure carries no authorized pending claim and gains no retention helper or public stamp alias. No new native wire API, Save, disk mutation, runtime admission, or universal evidence export.",
+      "assertion_before_implementation": "Extend existing case3 cancellation leg, no sixth identity: genuine staged BeforeActivation caller enters; actual cancellation causes actual Stale exposure error and real caller join/settlement. Before unrelated launch, drop original Pending/Selector/Approval/Pin/pause holders. Retain only actual error; actual Host counts require live_pins0, pin_rows1 and retired attachment1. Drop error, existing eligible weak-row prune yields pin_rows0 and retired0. Then original existing unrelated Store paired reader remains usable and real file bytes unchanged. Exact owner set must be checked independently in final fixed Desktop source; do not fabricate counters/pause/getter or retain a caller setup token. Existing case4 foreign activation denial requires foreign error lifecycle flags false. Independently review assertion before helper implementation.",
+      "evidence_limits": "No current five-case runtime result proves independent pending lifetime retention; source candidate explicitly has this gap. Original Store pin validation-wait timing remains source-review-only. New exact source must pass focused and integrated gate after review.",
+      "claims": {
+        "proposed_only": true,
+        "implemented": false,
+        "assertions_executed": false,
+        "runtime": false
+      },
+      "predecessor": {
+        "path": "out/roadmap-coordinator/editor-native-preview-error-pending-retention-proposal.json",
+        "bytes": 4418,
+        "sha256": "af690ffe3562d514b2bcad3cde434060295992688e2ba2997a4b8e5bea00c2a1",
+        "independent_review_sha256": "d232135494792e585652527552bf6f0eda4f6338a05392e5c89b3e9ea4bba8e4"
+      },
+      "setup_vs_active_ownership": "Shared delivered Active attachment/context/stamp/origin lifetime must not keep consumed setup Pin/Ticket references merely because the actual Pending once shared its attachment. The genuine Pending holder and error retention retain their own original setup refs while alive, including terminal aliases. Separate private ownership accordingly; preserve immutable original checked binding IDs/views/deadlines and original admission checks. No early free of an actual Pin/Ticket/Pending token, global clearing of all aliases, clock reset or changed active authority. This keeps context16 independent of pin/ticket16: case5 retains only delivered paired launches, so those retain context without retaining dropped setup owners. Gate retirement never calls back into State; State-driven cancellation can release its genuine inactive owner, and existing State->Gate paths may reconcile terminal state."
+    },
+    "independent_review": {
+      "path": "out/roadmap-coordinator/editor-native-preview-error-pending-retention-v2-independent-review.json",
+      "bytes": 5110,
+      "sha256": "5a88d7b2bcf8291730d83ecb9b45106834765324b18f74825ae790b349995eb4"
+    },
+    "evidence_limit": "Normative counts are gate-first expected behavior. Actual State retirement, strong owner set and weak pruning must be reviewed on final fixed producer source and executed; no current count observation or runtime acceptance. New helper implementation held until case3 assertion source is independently reviewed."
+  }
+}

@@ -1,0 +1,39 @@
+[package]
+name = "desktop_service"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+default = []
+desktop_v0_dev = ["dep:sha2", "dep:desktop_editor_core"]
+editor_native_read_v0_dev = ["desktop_v0_dev", "dep:artifact_store_schema"]
+editor_native_preview_v0_dev = ["editor_native_read_v0_dev"]
+editor_native_save_v0_dev = ["editor_native_preview_v0_dev"]
+# Supplemental preservation assertions only; absent from ordinary host features.
+editor_adapter_assertions_v0_dev = ["editor_native_save_v0_dev"]
+
+[dependencies]
+desktop_editor_core = { path = "../desktop_editor_core", default-features = false, optional = true }
+kernel_api = { path = "../../kernel_api" }
+artifact_store_schema = { path = "../../artifact_store_schema", optional = true }
+sha2 = { version = "0.10", optional = true }
+
+[[bin]]
+name = "desktop-launch-witness"
+path = "src/bin/desktop-launch-witness.rs"
+required-features = ["desktop_v0_dev"]
+
+[[test]]
+name = "editor_host"
+path = "tests/editor_host.rs"
+required-features = ["desktop_v0_dev"]
+
+[[test]]
+name = "launch_lifetime"
+path = "tests/launch_lifetime.rs"
+required-features = ["desktop_v0_dev"]
+
+[[test]]
+name = "editor_adapter_migration"
+path = "tests/editor_adapter_migration.rs"
+required-features = ["desktop_v0_dev"]

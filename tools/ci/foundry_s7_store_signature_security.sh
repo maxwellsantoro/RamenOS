@@ -19,6 +19,25 @@ mkdir -p "$S7_STORE_DIR" "$EVIDENCE_DIR" "$INSTALLED_ROOT/artifacts"
 
 echo "=== S7 Store Signature Validation Fail-Closed Foundry Gate ==="
 
+STORE_PID=""
+cleanup_store() {
+    if [[ -n "$STORE_PID" ]]; then
+        kill "$STORE_PID" 2>/dev/null || true
+        wait "$STORE_PID" 2>/dev/null || true
+        STORE_PID=""
+    fi
+}
+trap cleanup_store EXIT
+
+# Compile synchronously so the unchanged startup window observes Store, not Cargo.
+if ! cargo build --locked -p store_service --bin store_service --message-format=json \
+    > "$EVIDENCE_DIR/build.jsonl" 2> "$EVIDENCE_DIR/build.stderr.log"; then
+    echo "FAIL: Store service build failed"
+    cat "$EVIDENCE_DIR/build.stderr.log"
+    exit 1
+fi
+STORE_BIN="$(python3 "$ROOT_DIR/tools/ci/cargo_artifact.py" "$EVIDENCE_DIR/build.jsonl" store_service)"
+
 # Test 1: Store service aborts startup without RAMEN_STORE_TRUSTED_KEYS in production mode
 echo "Test 1: Verifying store service aborts startup without RAMEN_STORE_TRUSTED_KEYS..."
 
@@ -27,20 +46,24 @@ unset RAMEN_STORE_DEV_MODE
 unset RAMEN_STORE_TRUSTED_KEYS
 
 # Try to start store service - it should fail
-if RAMEN_STORE_SOCKET="$S7_STORE_DIR/store.sock" \
-   RAMEN_STORE_ROOT="$INSTALLED_ROOT/artifacts" \
-   cargo run --package store_service \
-    > "$EVIDENCE_DIR/test1_no_keys.log" 2>&1 & then
-    STORE_PID=$!
-    sleep 2
-    # Check if process is still running - it should have exited
-    if kill -0 $STORE_PID 2>/dev/null; then
-        echo "FAIL: Store service started without RAMEN_STORE_TRUSTED_KEYS (should have aborted)"
-        kill $STORE_PID 2>/dev/null || true
-        exit 1
-    fi
-    wait $STORE_PID || true
+RAMEN_STORE_SOCKET="$S7_STORE_DIR/store.sock" \
+RAMEN_STORE_ROOT="$INSTALLED_ROOT/artifacts" \
+"$STORE_BIN" > "$EVIDENCE_DIR/test1_no_keys.log" 2>&1 &
+STORE_PID=$!
+sleep 2
+# Check if the actual Store process is still running - it should have exited.
+if kill -0 "$STORE_PID" 2>/dev/null; then
+    echo "FAIL: Store service started without RAMEN_STORE_TRUSTED_KEYS (should have aborted)"
+    cat "$EVIDENCE_DIR/test1_no_keys.log"
+    exit 1
 fi
+if wait "$STORE_PID"; then
+    STORE_PID=""
+    echo "FAIL: Store service exited successfully without RAMEN_STORE_TRUSTED_KEYS"
+    cat "$EVIDENCE_DIR/test1_no_keys.log"
+    exit 1
+fi
+STORE_PID=""
 
 # Verify the error message contains the expected security error
 if ! grep -q "RAMEN_STORE_TRUSTED_KEYS not set" "$EVIDENCE_DIR/test1_no_keys.log"; then
@@ -67,13 +90,13 @@ unset RAMEN_STORE_TRUSTED_KEYS
 # Start store service in dev mode
 RAMEN_STORE_SOCKET="$S7_STORE_DIR/store_dev.sock" \
 RAMEN_STORE_ROOT="$INSTALLED_ROOT/artifacts" \
-cargo run --package store_service \
+"$STORE_BIN" \
     > "$EVIDENCE_DIR/test2_dev_mode.log" 2>&1 &
 STORE_PID=$!
 sleep 2
 
 # Check if process started successfully
-if ! kill -0 $STORE_PID 2>/dev/null; then
+if ! kill -0 "$STORE_PID" 2>/dev/null; then
     echo "FAIL: Store service failed to start in dev mode"
     cat "$EVIDENCE_DIR/test2_dev_mode.log"
     exit 1
@@ -83,7 +106,6 @@ fi
 if ! grep -q "WARNING: RAMEN_STORE_DEV_MODE IS ENABLED" "$EVIDENCE_DIR/test2_dev_mode.log"; then
     echo "FAIL: Expected dev mode warning not found in output"
     cat "$EVIDENCE_DIR/test2_dev_mode.log"
-    kill $STORE_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -91,7 +113,6 @@ fi
 if ! grep -q "SECURITY RISK" "$EVIDENCE_DIR/test2_dev_mode.log"; then
     echo "FAIL: Expected security risk warning not found in output"
     cat "$EVIDENCE_DIR/test2_dev_mode.log"
-    kill $STORE_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -99,13 +120,11 @@ fi
 if ! grep -q "AllowUnsigned" "$EVIDENCE_DIR/test2_dev_mode.log"; then
     echo "FAIL: Expected AllowUnsigned policy not found in output"
     cat "$EVIDENCE_DIR/test2_dev_mode.log"
-    kill $STORE_PID 2>/dev/null || true
     exit 1
 fi
 
 # Clean up
-kill $STORE_PID 2>/dev/null || true
-wait $STORE_PID 2>/dev/null || true
+cleanup_store
 
 echo "PASS: Store service correctly allows unsigned artifacts in dev mode with warnings"
 
@@ -126,13 +145,13 @@ unset RAMEN_STORE_DEV_MODE
 
 RAMEN_STORE_SOCKET="$S7_STORE_DIR/store_signed.sock" \
 RAMEN_STORE_ROOT="$INSTALLED_ROOT/artifacts" \
-cargo run --package store_service \
+"$STORE_BIN" \
     > "$EVIDENCE_DIR/test3_with_keys.log" 2>&1 &
 STORE_PID=$!
 sleep 2
 
 # Check if process started successfully
-if ! kill -0 $STORE_PID 2>/dev/null; then
+if ! kill -0 "$STORE_PID" 2>/dev/null; then
     echo "FAIL: Store service failed to start with trusted keys"
     cat "$EVIDENCE_DIR/test3_with_keys.log"
     exit 1
@@ -142,7 +161,6 @@ fi
 if ! grep -q "RequireSignature" "$EVIDENCE_DIR/test3_with_keys.log"; then
     echo "FAIL: Expected RequireSignature policy not found in output"
     cat "$EVIDENCE_DIR/test3_with_keys.log"
-    kill $STORE_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -150,13 +168,11 @@ fi
 if ! grep -q "loaded.*trusted keys" "$EVIDENCE_DIR/test3_with_keys.log"; then
     echo "FAIL: Expected keys loaded message not found in output"
     cat "$EVIDENCE_DIR/test3_with_keys.log"
-    kill $STORE_PID 2>/dev/null || true
     exit 1
 fi
 
 # Clean up
-kill $STORE_PID 2>/dev/null || true
-wait $STORE_PID 2>/dev/null || true
+cleanup_store
 
 echo "PASS: Store service correctly starts with trusted keys and RequireSignature policy"
 

@@ -72,6 +72,48 @@ exact scheduling proof at the expiry instant. Raw backend times and consumer
 offsets remain in private artifacts. Disconnect/restart and forced cleanup retain
 their separate A2.5/A2.8 gates.
 
+## Named Python-consumer host-file witness
+
+The lifetime case additionally samples one unrelated, owner-only host canary at
+three named phases in all three arms: `before_expiry`, `after_expiry` and
+`after_revocation`. The canary has a random path/content outside the input,
+candidate, Store, validator and task mounts. Actual inspected bind-mount sources
+are checked, and only its SHA-256 or recognized denial errno enters retained
+artifacts. Its bytes and base64 encoding must not appear in those artifacts.
+
+The actor for RT/LT is the **actual trusted Python evaluator/host consumer that
+issues the Session calls**. Its direct host file reads succeed at these points.
+This measures that Python process, not the separate RT/LT adapter, broker, model
+tool surface or target application. The contained LS Python consumer attempts the
+same exact unmounted path; only ENOENT, EACCES or EPERM qualify as a file denial.
+Other IO failures and any successful LS canary read fail the gate. Each observation
+records the actual consumer PID, UID/GID and native mount/PID/network namespace
+identities; consistent actor metadata and the LS/host namespace split are checked.
+
+Backend evidence stays separate: an authorized short-grant read succeeds, the
+expired old-grant read and revoked renewed-grant read reject with null results,
+and a fresh-generation read succeeds. The reducer binds those request/reply
+references, binds active/expired reads to the actual short-grant result, binds
+the revoked read and revocation target to the renewed-grant result, and binds the
+fresh read to the new policy grant in exactly the returned revoke generation.
+All five read witnesses reference the same logical resource as their corresponding
+grant requests, and a successful renewed read precedes its revoked denial.
+It checks the recorded expiry clock and generation transition, and requires exactly
+nine unique arm/phase observations. Missing or malformed evidence, changed canary
+hash, unexpected errno, wrong actor attribution or broken backend redaction cannot
+pass. These phases are sampled callback points around the existing recorded
+backend events, not a continuously synchronized authority interval or exact
+proof of the grant's expiry instant.
+
+`host_consumer_file_lifetime` in the aggregate report records this **named
+Python-consumer observation difference**. It retains false adapter/model-interface
+measurement claims and unknown whole-authority inclusion. Existing LS mounted
+input/inherited-descriptor observations, the issuance catalog and declared-interface
+projection remain unchanged. This closes one previously unexercised consumer
+host-file observation; it establishes neither arbitrary RT/LT adapter host IO,
+model-accessible host files, narrower whole authority, noninterference, containment,
+continuous authority, full A2 nor target enforcement.
+
 ## Boundary and artifacts
 
 The declared-interface issued-right projections are equal across these three

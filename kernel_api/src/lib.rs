@@ -1090,6 +1090,42 @@ pub mod generated {
     include!("generated/portal_clipboard.generated.rs");
     include!("generated/portal_notifications.generated.rs");
     include!("generated/portal_screen_capture.generated.rs");
+
+    /// Desktop session v1: bounded typed preview/launch/lifetime messages.
+    /// Consumers and caller enforcement remain default-off host development.
+    pub mod desktop_session_v1 {
+        include!("generated/desktop_session_v1.generated.rs");
+    }
+
+    /// UI1.1 logical input contract. Driver and host handlers remain pending.
+    pub mod input_v1 {
+        include!("generated/input_v1.generated.rs");
+    }
+
+    /// UI1.1 focus contract. Generated types do not enforce caller authority.
+    pub mod desktop_focus_v1 {
+        include!("generated/desktop_focus_v1.generated.rs");
+    }
+
+    /// UI1.1 surface contract. Mapping/alias enforcement remains consumer work.
+    pub mod desktop_surface_v1 {
+        include!("generated/desktop_surface_v1.generated.rs");
+    }
+
+    /// UI1.1 editor contract; separate from the observation-only UI1.0 witness.
+    pub mod desktop_editor_session_v1 {
+        include!("generated/desktop_editor_session_v1.generated.rs");
+    }
+
+    /// UI1.1d process control data. Authentication and lifetime checks belong to consumers.
+    pub mod desktop_editor_process_v1 {
+        include!("generated/desktop_editor_process_v1.generated.rs");
+    }
+
+    /// UI1.1 selected-artifact deputy contract. Store handlers remain pending.
+    pub mod desktop_artifact_v1 {
+        include!("generated/desktop_artifact_v1.generated.rs");
+    }
     include!("generated/domain_manager_v1.generated.rs");
     include!("generated/gpu_quarantine_v1.generated.rs");
     include!("generated/net_v1.generated.rs");

@@ -64,6 +64,9 @@ use spin::Mutex;
 pub mod address;
 pub mod address_space;
 pub mod bitmap;
+pub mod boot_pool;
+#[cfg(test)]
+mod boot_pool_contract_tests;
 pub mod bump;
 pub mod constants;
 pub mod frame;

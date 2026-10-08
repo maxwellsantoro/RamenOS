@@ -1,0 +1,1442 @@
+//! Actual Desktop authority for the default-off native Read prerequisite.
+//! Diagnostic views and numeric IDs never replace the private Gate or held handles.
+use crate::dev::Status;
+use artifact_store_schema::editor_save::EditorActorV0;
+use kernel_api::ipc::Envelope;
+use std::collections::{BTreeMap, VecDeque};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+const BINDINGS: usize = 16;
+const ORIGINS: usize = 64;
+const PRODUCERS: usize = 64;
+const BARRIERS: usize = 32;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReadBindingView {
+    pub actor: EditorActorV0,
+    pub object_id: u64,
+    pub object_generation: u64,
+    pub selected_revision: u64,
+    pub expires_at_ms: u64,
+    pub selected_hash: [u8; 32],
+}
+#[derive(Clone)]
+pub struct ReadCallView {
+    pub binding: ReadBindingView,
+    pub origin_id: u64,
+    pub entered: Instant,
+    pub deadline: Instant,
+    pub request: Envelope,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProducerCounts {
+    pub held: u32,
+    pub io: u32,
+    pub joining: u32,
+    pub joined_total: u64,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub active_non_io: u32,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub active_io: u32,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReadBarrierView {
+    pub entered: bool,
+    pub settled: bool,
+    pub origin_id: u64,
+    pub dispatcher: u64,
+    pub supervisor: u64,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum JoinOutcome {
+    Returned = 1,
+    Panicked = 2,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ProducerKind {
+    DesktopDispatch = 1,
+    DesktopSupervisor = 2,
+    StoreDispatch = 3,
+    StoreSupervisor = 4,
+    StoreIo = 5,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum NativeCounter {
+    Binding = 1,
+    Origin = 2,
+    Producer = 3,
+}
+
+pub struct RegistryWitness {
+    pub(super) authority: Arc<NativeAuthority>,
+}
+pub struct ApprovedReadBinding {
+    authority: Arc<NativeAuthority>,
+    row: u64,
+}
+pub struct NativeReadCall {
+    authority: Arc<NativeAuthority>,
+    origin: Arc<OriginLifetime>,
+    entered: Instant,
+    deadline: Instant,
+    request: Envelope,
+}
+pub struct ApprovedReadGuard<'a> {
+    binding: &'a ApprovedReadBinding,
+    pub(super) gate: MutexGuard<'a, GateState>,
+}
+pub struct ReadGuard<'a> {
+    call: &'a NativeReadCall,
+    pub(super) gate: MutexGuard<'a, GateState>,
+}
+pub struct ReadDeadlineGuard<'a> {
+    call: &'a NativeReadCall,
+    pub(super) gate: MutexGuard<'a, GateState>,
+}
+pub struct NativeReadEntry {
+    authority: Arc<NativeAuthority>,
+    origin: Arc<OriginLifetime>,
+    result: Arc<EntryResult>,
+    producers: [ProducerId; 2],
+}
+pub struct NativeReadPause {
+    authority: Arc<NativeAuthority>,
+    barrier: Arc<EntryBarrier>,
+}
+pub struct ProducerReservation {
+    authority: Arc<NativeAuthority>,
+    id: u64,
+    pending: bool,
+}
+pub struct ProducerId {
+    authority: Arc<NativeAuthority>,
+    id: u64,
+    // A reference is not an actual producer holder. Retired references must not
+    // retain origin capacity after the original and actual row have gone away.
+    origin: Weak<OriginLifetime>,
+    kind: ProducerKind,
+}
+pub struct JoinedProducerProof {
+    pub(super) authority: Arc<NativeAuthority>,
+    id: u64,
+    outcome: JoinOutcome,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    observation: super::native_save::NativeJoinObservation,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) origin: Weak<OriginLifetime>,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_object: Option<u64>,
+}
+
+// There is deliberately no State back-reference. State alone issues bindings and
+// synchronizes its lifetime transitions into this Gate before unlocking State.
+pub(super) struct NativeAuthority {
+    identity: u64,
+    pub(super) gate: Mutex<GateState>,
+    owned: Mutex<ProducerRoster>,
+}
+struct BindingRow {
+    view: ReadBindingView,
+    endpoint: u64,
+    retired: bool,
+}
+pub(super) struct OriginLifetime {
+    pub(super) id: u64,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_object: Option<u64>,
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save_installed: Mutex<BTreeMap<u64, (ProducerKind, u64)>>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    _preview_attachment: Option<Arc<super::native_preview::AttachmentLife>>,
+}
+struct OriginRow {
+    lifetime: Weak<OriginLifetime>,
+    binding: u64,
+    deadline: Instant,
+    closed: bool,
+}
+pub(super) struct GateState {
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) save: Option<super::native_save::SaveGate>,
+    #[cfg(feature = "editor_native_preview_v0_dev")]
+    pub(super) preview: Option<super::native_preview::PreviewGate>,
+    pub(super) now_ms: u64,
+    next_binding: u64,
+    pub(super) next_origin: u64,
+    bindings: BTreeMap<u64, BindingRow>,
+    origins: BTreeMap<u64, OriginRow>,
+    armed: Option<(u64, Arc<EntryBarrier>)>,
+    barriers: Vec<Weak<EntryBarrier>>,
+}
+struct ProducerRow {
+    kind: ProducerKind,
+    origin: Arc<OriginLifetime>,
+    handle: Option<JoinHandle<()>>,
+    joining: bool,
+}
+struct ProducerRoster {
+    next: u64,
+    rows: BTreeMap<u64, ProducerRow>,
+    joined_total: u64,
+    recent: VecDeque<(u64, JoinOutcome)>,
+}
+struct EntryResult {
+    state: Mutex<ResultState>,
+    changed: Condvar,
+}
+struct ResultState {
+    outcome: Option<Result<NativeReadCall, Status>>,
+    completed: bool,
+    started: bool,
+    consumed: bool,
+}
+struct EntryBarrier {
+    state: Mutex<BarrierState>,
+    changed: Condvar,
+}
+struct BarrierState {
+    released: bool,
+    view: ReadBarrierView,
+}
+fn locked<T>(m: &Mutex<T>) -> Result<MutexGuard<'_, T>, Status> {
+    m.lock().map_err(|_| Status::Internal)
+}
+fn same(a: &Arc<NativeAuthority>, b: &Arc<NativeAuthority>) -> bool {
+    Arc::ptr_eq(a, b) && a.identity == b.identity
+}
+impl GateState {
+    fn live_binding(&self, id: u64) -> Result<&BindingRow, Status> {
+        let row = self.bindings.get(&id).ok_or(Status::Denied)?;
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &self.preview {
+            preview.admit_instance(row.view.actor.instance_id)?;
+        }
+        if row.retired || self.now_ms >= row.view.expires_at_ms {
+            return Err(Status::Stale);
+        }
+        Ok(row)
+    }
+    fn live_call(&self, call: &NativeReadCall) -> Result<&BindingRow, Status> {
+        let origin = self.origins.get(&call.origin.id).ok_or(Status::Denied)?;
+        if !origin
+            .lifetime
+            .upgrade()
+            .is_some_and(|token| Arc::ptr_eq(&token, &call.origin))
+            || origin.deadline != call.deadline
+        {
+            return Err(Status::Denied);
+        }
+        let row = self.live_binding(origin.binding)?;
+        if origin.closed || Instant::now() >= origin.deadline {
+            return Err(Status::Timeout);
+        }
+        Ok(row)
+    }
+    fn call_view(&self, call: &NativeReadCall) -> ReadCallView {
+        let origin = &self.origins[&call.origin.id];
+        ReadCallView {
+            binding: self.bindings[&origin.binding].view.clone(),
+            origin_id: call.origin.id,
+            entered: call.entered,
+            deadline: call.deadline,
+            request: call.request,
+        }
+    }
+    fn prune_origins(&mut self) {
+        self.origins
+            .retain(|_, row| row.lifetime.strong_count() > 0);
+    }
+}
+impl NativeAuthority {
+    pub(super) fn new() -> Arc<Self> {
+        Arc::new_cyclic(|identity| Self {
+            // Local allocation identity is private and checked together with
+            // Arc pointer identity; numeric values cannot construct authority.
+            identity: identity.as_ptr() as usize as u64,
+            gate: Mutex::new(GateState {
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                save: None,
+                #[cfg(feature = "editor_native_preview_v0_dev")]
+                preview: None,
+                now_ms: 0,
+                next_binding: 0,
+                next_origin: 0,
+                bindings: BTreeMap::new(),
+                origins: BTreeMap::new(),
+                armed: None,
+                barriers: Vec::new(),
+            }),
+            owned: Mutex::new(ProducerRoster {
+                next: 0,
+                rows: BTreeMap::new(),
+                joined_total: 0,
+                recent: VecDeque::new(),
+            }),
+        })
+    }
+    pub(super) fn witness(self: &Arc<Self>) -> RegistryWitness {
+        RegistryWitness {
+            authority: self.clone(),
+        }
+    }
+    // These hooks run only while actual Desktop State is locked. Poison fails
+    // subsequent admission closed; hooks still retain the authoritative retirement.
+    pub(super) fn advance(&self, now: u64) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        gate.now_ms = gate.now_ms.max(now);
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.expire(now);
+        }
+    }
+    pub(super) fn retire(&self, instance: u64) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.retire_instance(instance);
+        }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(save) = &mut gate.save {
+            for d in save
+                .documents
+                .values_mut()
+                .filter(|d| d.view.actor.instance_id == instance)
+            {
+                d.view.phase = super::NativeEditorPhase::Unavailable;
+                d.frame = None;
+                d.queued_intent = None;
+            }
+        }
+        for row in gate.bindings.values_mut() {
+            if row.view.actor.instance_id == instance {
+                row.retired = true;
+            }
+        }
+    }
+    pub(super) fn retire_all(&self) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        if let Some(preview) = &mut gate.preview {
+            preview.retire_all();
+        }
+        for row in gate.bindings.values_mut() {
+            row.retired = true;
+        }
+    }
+    #[cfg(feature = "editor_native_save_v0_dev")]
+    pub(super) fn retire_save_service(&self) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(preview) = &mut gate.preview {
+            // Service replacement retires every old actor/setup, while the
+            // actual enrolled Store namespace can issue a new explicit approval.
+            // A previously fenced namespace remains fenced.
+            for row in preview.attachments.values_mut() {
+                row.retired = true;
+            }
+            for row in preview.pins.values_mut() {
+                row.retired = true;
+            }
+            for row in preview.tickets.values_mut() {
+                row.state = super::native_preview::TicketState::Closed;
+            }
+        }
+        for row in gate.bindings.values_mut() {
+            row.retired = true;
+        }
+        if let Some(save) = &mut gate.save {
+            for doc in save.documents.values_mut() {
+                doc.view.phase = super::NativeEditorPhase::Unavailable;
+                doc.frame = None;
+                doc.queued_intent = None;
+            }
+        }
+    }
+    pub(super) fn approve(
+        self: &Arc<Self>,
+        endpoint: u64,
+        view: ReadBindingView,
+    ) -> Result<ApprovedReadBinding, Status> {
+        let mut gate = locked(&self.gate)?;
+        if let Some((&id, row)) = gate.bindings.iter().find(|(_, r)| r.endpoint == endpoint) {
+            gate.live_binding(id)?;
+            if row.view != view {
+                return Err(Status::Denied);
+            }
+            return Ok(ApprovedReadBinding {
+                authority: self.clone(),
+                row: id,
+            });
+        }
+        if gate.now_ms >= view.expires_at_ms {
+            return Err(Status::Stale);
+        }
+        let id = gate.next_binding.checked_add(1).ok_or(Status::Exhausted)?;
+        if gate.bindings.len() >= BINDINGS {
+            return Err(Status::Exhausted);
+        }
+        let mut objects = gate
+            .bindings
+            .values()
+            .map(|r| r.view.object_id)
+            .collect::<Vec<_>>();
+        objects.sort_unstable();
+        objects.dedup();
+        if objects.len() >= 2 && !objects.contains(&view.object_id) {
+            return Err(Status::Exhausted);
+        }
+        gate.next_binding = id;
+        gate.bindings.insert(
+            id,
+            BindingRow {
+                view,
+                endpoint,
+                retired: false,
+            },
+        );
+        Ok(ApprovedReadBinding {
+            authority: self.clone(),
+            row: id,
+        })
+    }
+    pub(super) fn start(
+        self: &Arc<Self>,
+        endpoint: u64,
+        request: Envelope,
+        entered: Instant,
+    ) -> Result<NativeReadEntry, Status> {
+        let deadline = entered
+            .checked_add(Duration::from_millis(1000))
+            .ok_or(Status::Exhausted)?;
+        let mut gate = locked(&self.gate)?;
+        let binding = gate
+            .bindings
+            .iter()
+            .find(|(_, r)| r.endpoint == endpoint)
+            .map(|(&id, _)| id)
+            .ok_or(Status::Denied)?;
+        let session = gate.live_binding(binding)?.view.actor.session_id;
+        if Instant::now() >= deadline {
+            return Err(Status::Timeout);
+        }
+        gate.barriers.retain(|barrier| barrier.strong_count() > 0);
+        if gate.armed.as_ref().is_some_and(|(sid, _)| *sid == session)
+            && gate.barriers.len() > BARRIERS
+        {
+            return Err(Status::Exhausted);
+        }
+        gate.prune_origins();
+        let id = gate.next_origin.checked_add(1).ok_or(Status::Exhausted)?;
+        if gate.origins.len() >= ORIGINS {
+            return Err(Status::Exhausted);
+        }
+        // Check the pair atomically before any spawn or partial reservation.
+        let mut roster = locked(&self.owned)?;
+        let last = roster.next.checked_add(2).ok_or(Status::Exhausted)?;
+        if roster.rows.len() > PRODUCERS - 2 {
+            return Err(Status::Exhausted);
+        }
+        #[cfg(feature = "editor_native_preview_v0_dev")]
+        let preview_attachment = if let Some(preview) = &gate.preview {
+            let actor = &gate.live_binding(binding)?.view.actor;
+            Some(
+                preview
+                    .attachments
+                    .get(&actor.instance_id)
+                    .ok_or(Status::Stale)?
+                    .life
+                    .upgrade()
+                    .ok_or(Status::Stale)?,
+            )
+        } else {
+            None
+        };
+        let origin = Arc::new(OriginLifetime {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_object: None,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_installed: Mutex::new(BTreeMap::new()),
+            id,
+            #[cfg(feature = "editor_native_preview_v0_dev")]
+            _preview_attachment: preview_attachment,
+        });
+        let first = last - 1;
+        roster.next = last;
+        for (pid, kind) in [
+            (first, ProducerKind::DesktopDispatch),
+            (last, ProducerKind::DesktopSupervisor),
+        ] {
+            roster.rows.insert(
+                pid,
+                ProducerRow {
+                    kind,
+                    origin: origin.clone(),
+                    handle: None,
+                    joining: false,
+                },
+            );
+        }
+        drop(roster);
+        gate.next_origin = id;
+        gate.origins.insert(
+            id,
+            OriginRow {
+                lifetime: Arc::downgrade(&origin),
+                binding,
+                deadline,
+                closed: false,
+            },
+        );
+        let pause = if gate.armed.as_ref().is_some_and(|(sid, _)| *sid == session) {
+            gate.armed.take().map(|(_, b)| b)
+        } else {
+            None
+        };
+        drop(gate);
+        let mut reservations = [
+            ProducerReservation {
+                authority: self.clone(),
+                id: first,
+                pending: true,
+            },
+            ProducerReservation {
+                authority: self.clone(),
+                id: last,
+                pending: true,
+            },
+        ];
+        let supervisor_reservation = reservations[1].take_pending();
+        let dispatcher_reservation = reservations[0].take_pending();
+        let result = Arc::new(EntryResult {
+            state: Mutex::new(ResultState {
+                outcome: None,
+                completed: false,
+                started: false,
+                consumed: false,
+            }),
+            changed: Condvar::new(),
+        });
+        let worker_authority = self.clone();
+        let worker_origin = origin.clone();
+        let worker_result = result.clone();
+        let worker_pause = pause.clone();
+        let dispatch = std::thread::Builder::new()
+            .name("desktop-native-read".into())
+            .spawn(move || {
+                // Both actual handles must be installed before this worker can
+                // publish a call or an entered-barrier observation. A partial
+                // spawn failure releases this latch with an Internal outcome.
+                let mut ready = worker_result
+                    .state
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner());
+                while !ready.started && !ready.completed {
+                    ready = worker_result
+                        .changed
+                        .wait(ready)
+                        .unwrap_or_else(|p| p.into_inner());
+                }
+                let started = ready.started;
+                drop(ready);
+                if !started {
+                    if let Some(barrier) = &worker_pause {
+                        let mut state = barrier.state.lock().unwrap_or_else(|p| p.into_inner());
+                        state.view.settled = true;
+                        barrier.changed.notify_all();
+                    }
+                    return;
+                }
+                if let Some(barrier) = &worker_pause {
+                    let mut state = barrier.state.lock().unwrap_or_else(|p| p.into_inner());
+                    state.view = ReadBarrierView {
+                        entered: true,
+                        settled: false,
+                        origin_id: id,
+                        dispatcher: first,
+                        supervisor: last,
+                    };
+                    barrier.changed.notify_all();
+                    while !state.released {
+                        state = barrier
+                            .changed
+                            .wait(state)
+                            .unwrap_or_else(|p| p.into_inner());
+                    }
+                }
+                let call = NativeReadCall {
+                    authority: worker_authority.clone(),
+                    origin: worker_origin,
+                    entered,
+                    deadline,
+                    request,
+                };
+                let outcome = locked(&worker_authority.gate)
+                    .and_then(|gate| {
+                        gate.live_call(&call)?;
+                        Ok(())
+                    })
+                    .map(|()| call);
+                worker_result.publish(outcome);
+                if let Some(barrier) = worker_pause {
+                    let mut state = barrier.state.lock().unwrap_or_else(|p| p.into_inner());
+                    state.view.settled = true;
+                    barrier.changed.notify_all();
+                }
+            });
+        let dispatcher = match dispatch {
+            Ok(handle) => dispatcher_reservation.install(handle),
+            Err(_) => {
+                dispatcher_reservation.cancel_unspawned()?;
+                supervisor_reservation.cancel_unspawned()?;
+                self.close_origin(id);
+                return Err(Status::Internal);
+            }
+        };
+        let timer_authority = self.clone();
+        let timer_origin = origin.clone();
+        let timer_result = result.clone();
+        let supervisor = std::thread::Builder::new()
+            .name("desktop-native-deadline".into())
+            .spawn(move || {
+                let mut state = timer_result.state.lock().unwrap_or_else(|p| p.into_inner());
+                while !state.started && !state.completed {
+                    state = timer_result
+                        .changed
+                        .wait(state)
+                        .unwrap_or_else(|p| p.into_inner());
+                }
+                while !state.completed {
+                    let now = Instant::now();
+                    if now >= deadline {
+                        // Close under admission before making Timeout observable.
+                        drop(state);
+                        timer_authority.close_origin(timer_origin.id);
+                        timer_result.publish(Err(Status::Timeout));
+                        return;
+                    }
+                    let (next, _) = timer_result
+                        .changed
+                        .wait_timeout(state, deadline.duration_since(now))
+                        .unwrap_or_else(|p| p.into_inner());
+                    state = next;
+                }
+            });
+        let supervisor = match supervisor {
+            Ok(handle) => supervisor_reservation.install(handle),
+            Err(_) => {
+                supervisor_reservation.cancel_unspawned()?;
+                self.close_origin(id);
+                result.publish(Err(Status::Internal));
+                // Dispatcher is already installed in the roster and remains
+                // observable/charged even if still paused after this failure.
+                return Err(Status::Internal);
+            }
+        };
+        {
+            let mut ready = result.state.lock().unwrap_or_else(|p| p.into_inner());
+            if !ready.completed {
+                ready.started = true;
+            }
+            result.changed.notify_all();
+        }
+        Ok(NativeReadEntry {
+            authority: self.clone(),
+            origin,
+            result,
+            producers: [dispatcher, supervisor],
+        })
+    }
+    fn close_origin(&self, id: u64) {
+        let mut gate = self.gate.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(row) = gate.origins.get_mut(&id) {
+            row.closed = true;
+        }
+    }
+    pub(super) fn pause(self: &Arc<Self>, session: u64) -> Result<NativeReadPause, Status> {
+        let mut gate = locked(&self.gate)?;
+        gate.barriers.retain(|b| b.strong_count() > 0);
+        if gate.armed.is_some() {
+            return Err(Status::NotReady);
+        }
+        if gate.barriers.len() > BARRIERS {
+            return Err(Status::Exhausted);
+        }
+        let barrier = Arc::new(EntryBarrier {
+            state: Mutex::new(BarrierState {
+                released: false,
+                view: ReadBarrierView {
+                    entered: false,
+                    settled: false,
+                    origin_id: 0,
+                    dispatcher: 0,
+                    supervisor: 0,
+                },
+            }),
+            changed: Condvar::new(),
+        });
+        gate.barriers.push(Arc::downgrade(&barrier));
+        gate.armed = Some((session, barrier.clone()));
+        Ok(NativeReadPause {
+            authority: self.clone(),
+            barrier,
+        })
+    }
+    pub(super) fn release(self: &Arc<Self>, pause: &NativeReadPause) -> Result<(), Status> {
+        if !same(self, &pause.authority) {
+            return Err(Status::Denied);
+        }
+        let mut state = locked(&pause.barrier.state)?;
+        if state.released {
+            return Err(Status::NotReady);
+        }
+        state.released = true;
+        pause.barrier.changed.notify_all();
+        Ok(())
+    }
+    pub(super) fn seed(&self, counter: NativeCounter) -> Result<(), Status> {
+        let mut gate = locked(&self.gate)?;
+        match counter {
+            NativeCounter::Binding => gate.next_binding = u64::MAX,
+            NativeCounter::Origin => gate.next_origin = u64::MAX,
+            NativeCounter::Producer => locked(&self.owned)?.next = u64::MAX,
+        }
+        Ok(())
+    }
+    pub(super) fn producers(self: &Arc<Self>) -> Vec<ProducerId> {
+        let roster = self.owned.lock().unwrap_or_else(|p| p.into_inner());
+        roster
+            .rows
+            .iter()
+            .filter(|(_, row)| row.handle.is_some() || row.joining)
+            .map(|(&id, row)| ProducerId {
+                authority: self.clone(),
+                id,
+                origin: Arc::downgrade(&row.origin),
+                kind: row.kind,
+            })
+            .collect()
+    }
+}
+impl EntryResult {
+    fn publish(&self, outcome: Result<NativeReadCall, Status>) {
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        if !state.completed {
+            state.completed = true;
+            state.outcome = Some(outcome);
+            self.changed.notify_all();
+        }
+    }
+}
+impl RegistryWitness {
+    pub fn matches_binding(&self, binding: &ApprovedReadBinding) -> bool {
+        same(&self.authority, &binding.authority)
+    }
+    pub fn matches_call(&self, call: &NativeReadCall) -> bool {
+        same(&self.authority, &call.authority)
+    }
+    pub fn duplicate_producer(&self, id: &ProducerId) -> Result<ProducerId, Status> {
+        if !same(&self.authority, &id.authority) {
+            return Err(Status::Denied);
+        }
+        let roster = locked(&self.authority.owned)?;
+        let row = roster.rows.get(&id.id).ok_or(Status::NotReady)?;
+        if row.kind != id.kind || !Weak::ptr_eq(&Arc::downgrade(&row.origin), &id.origin) {
+            return Err(Status::Denied);
+        }
+        if row.handle.is_none() && !row.joining {
+            return Err(Status::NotReady);
+        }
+        // Recreate a reference to this actual installed row only. The row's
+        // charge, identity and handle do not change; this is not service proof.
+        Ok(ProducerId {
+            authority: self.authority.clone(),
+            id: id.id,
+            origin: Arc::downgrade(&row.origin),
+            kind: row.kind,
+        })
+    }
+    pub fn producer_counts(&self) -> ProducerCounts {
+        let roster = self
+            .authority
+            .owned
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        ProducerCounts {
+            held: roster.rows.len() as u32,
+            io: roster
+                .rows
+                .values()
+                .filter(|r| r.kind == ProducerKind::StoreIo)
+                .count() as u32,
+            joining: roster.rows.values().filter(|r| r.joining).count() as u32,
+            joined_total: roster.joined_total,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            active_non_io: roster
+                .rows
+                .values()
+                .filter(|r| {
+                    r.kind != ProducerKind::StoreIo
+                        && r.handle
+                            .as_ref()
+                            .is_some_and(|handle| !handle.is_finished())
+                })
+                .count() as u32,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            active_io: roster
+                .rows
+                .values()
+                .filter(|r| {
+                    r.kind == ProducerKind::StoreIo
+                        && r.handle
+                            .as_ref()
+                            .is_some_and(|handle| !handle.is_finished())
+                })
+                .count() as u32,
+        }
+    }
+    pub fn join_finished(&self, id: &ProducerId) -> Result<JoinedProducerProof, Status> {
+        if !same(&self.authority, &id.authority) {
+            return Err(Status::Denied);
+        }
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let (origin_id, origin, kind, save_object) = {
+            let roster = locked(&self.authority.owned)?;
+            let row = roster.rows.get(&id.id).ok_or(Status::NotReady)?;
+            (
+                row.origin.id,
+                Arc::downgrade(&row.origin),
+                row.kind,
+                row.origin.save_object,
+            )
+        };
+        let handle = {
+            let mut roster = locked(&self.authority.owned)?;
+            let row = roster.rows.get_mut(&id.id).ok_or(Status::NotReady)?;
+            if row.kind != id.kind || !Weak::ptr_eq(&Arc::downgrade(&row.origin), &id.origin) {
+                return Err(Status::Denied);
+            }
+            if row.joining || row.handle.as_ref().is_none_or(|h| !h.is_finished()) {
+                return Err(Status::NotReady);
+            }
+            row.joining = true;
+            row.handle.take().ok_or(Status::Internal)?
+        };
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let rust_thread_id = format!("{:?}", handle.thread().id());
+        // Only the actual held handle can produce a join proof. No enforcement
+        // lock spans join; a concurrent caller observes Joining/NotReady.
+        let outcome = if handle.join().is_ok() {
+            JoinOutcome::Returned
+        } else {
+            JoinOutcome::Panicked
+        };
+        let mut gate = self
+            .authority
+            .gate
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        let mut roster = self
+            .authority
+            .owned
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        roster.rows.remove(&id.id);
+        roster.joined_total = roster.joined_total.saturating_add(1);
+        if roster.recent.len() == 16 {
+            roster.recent.pop_front();
+        }
+        roster.recent.push_back((id.id, outcome));
+        drop(roster);
+        gate.prune_origins();
+        Ok(JoinedProducerProof {
+            authority: self.authority.clone(),
+            id: id.id,
+            outcome,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            observation: super::native_save::NativeJoinObservation {
+                producer_id: id.id,
+                producer_generation: 1,
+                origin_id,
+                kind,
+                native_pid: std::process::id(),
+                rust_thread_id,
+                outcome,
+            },
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            origin,
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            save_object,
+        })
+    }
+}
+impl ApprovedReadBinding {
+    pub fn admit<'a>(&'a self, witness: &RegistryWitness) -> Result<ApprovedReadGuard<'a>, Status> {
+        if !same(&self.authority, &witness.authority) {
+            return Err(Status::Denied);
+        }
+        let gate = locked(&self.authority.gate)?;
+        gate.live_binding(self.row)?;
+        Ok(ApprovedReadGuard {
+            binding: self,
+            gate,
+        })
+    }
+}
+impl ApprovedReadGuard<'_> {
+    pub fn view(&self) -> ReadBindingView {
+        self.gate.bindings[&self.binding.row].view.clone()
+    }
+    pub fn view_binding(&self, binding: &ApprovedReadBinding) -> Result<ReadBindingView, Status> {
+        if !same(&self.binding.authority, &binding.authority) {
+            return Err(Status::Denied);
+        }
+        Ok(self.gate.live_binding(binding.row)?.view.clone())
+    }
+}
+impl NativeReadCall {
+    pub fn request(&self) -> Envelope {
+        self.request
+    }
+    pub fn entered(&self) -> Instant {
+        self.entered
+    }
+    pub fn deadline(&self) -> Instant {
+        self.deadline
+    }
+    pub fn admit<'a>(&'a self, witness: &RegistryWitness) -> Result<ReadGuard<'a>, Status> {
+        if !same(&self.authority, &witness.authority) {
+            return Err(Status::Denied);
+        }
+        let gate = locked(&self.authority.gate)?;
+        gate.live_call(self)?;
+        Ok(ReadGuard { call: self, gate })
+    }
+    pub fn deadline_guard<'a>(
+        &'a self,
+        witness: &RegistryWitness,
+    ) -> Result<ReadDeadlineGuard<'a>, Status> {
+        if !same(&self.authority, &witness.authority) {
+            return Err(Status::Denied);
+        }
+        let gate = locked(&self.authority.gate)?;
+        let origin = gate.origins.get(&self.origin.id).ok_or(Status::Denied)?;
+        if !origin
+            .lifetime
+            .upgrade()
+            .is_some_and(|o| Arc::ptr_eq(&o, &self.origin))
+        {
+            return Err(Status::Denied);
+        }
+        gate.live_binding(origin.binding)?;
+        Ok(ReadDeadlineGuard { call: self, gate })
+    }
+    pub fn reserve_store_producer(
+        &self,
+        kind: ProducerKind,
+    ) -> Result<ProducerReservation, Status> {
+        if !matches!(
+            kind,
+            ProducerKind::StoreDispatch | ProducerKind::StoreSupervisor
+        ) {
+            return Err(Status::Unsupported);
+        }
+        let gate = locked(&self.authority.gate)?;
+        gate.live_call(self)?;
+        let mut roster = locked(&self.authority.owned)?;
+        let id = roster.next.checked_add(1).ok_or(Status::Exhausted)?;
+        if roster.rows.len() >= PRODUCERS {
+            return Err(Status::Exhausted);
+        }
+        roster.next = id;
+        roster.rows.insert(
+            id,
+            ProducerRow {
+                kind,
+                origin: self.origin.clone(),
+                handle: None,
+                joining: false,
+            },
+        );
+        Ok(ProducerReservation {
+            authority: self.authority.clone(),
+            id,
+            pending: true,
+        })
+    }
+}
+impl ReadGuard<'_> {
+    pub fn view(&self) -> ReadCallView {
+        self.gate.call_view(self.call)
+    }
+}
+impl ReadDeadlineGuard<'_> {
+    pub fn view(&self) -> ReadCallView {
+        self.gate.call_view(self.call)
+    }
+    pub fn close_query(&mut self) -> Result<(), Status> {
+        let row = self
+            .gate
+            .origins
+            .get_mut(&self.call.origin.id)
+            .ok_or(Status::Denied)?;
+        if Instant::now() < row.deadline {
+            return Err(Status::NotReady);
+        }
+        row.closed = true;
+        Ok(())
+    }
+}
+impl NativeReadEntry {
+    pub fn producer_ids(&self) -> [&ProducerId; 2] {
+        [&self.producers[0], &self.producers[1]]
+    }
+    pub fn wait(&self) -> Result<NativeReadCall, Status> {
+        // The entry itself keeps its original row even after wait consumes the
+        // call. The installed producers independently retain the same origin.
+        let _owner = (&self.authority, &self.origin);
+        let mut state = locked(&self.result.state)?;
+        if state.consumed {
+            return Err(Status::NotReady);
+        }
+        while !state.completed {
+            state = self
+                .result
+                .changed
+                .wait(state)
+                .map_err(|_| Status::Internal)?;
+        }
+        state.consumed = true;
+        state.outcome.take().ok_or(Status::Internal)?
+    }
+}
+impl ProducerReservation {
+    fn take_pending(&mut self) -> Self {
+        self.pending = false;
+        Self {
+            authority: self.authority.clone(),
+            id: self.id,
+            pending: true,
+        }
+    }
+    pub fn install(mut self, handle: JoinHandle<()>) -> ProducerId {
+        let mut roster = self
+            .authority
+            .owned
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        // No other API can retire a reserved row: join requires an installed
+        // finished handle, and cancellation consumes this sole reservation.
+        let row = roster
+            .rows
+            .get_mut(&self.id)
+            .expect("private reserved producer row");
+        row.handle = Some(handle);
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if row.origin.save_object.is_some() {
+            let mut installed = row
+                .origin
+                .save_installed
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            installed.insert(self.id, (row.kind, 1));
+        }
+        self.pending = false;
+        ProducerId {
+            authority: self.authority.clone(),
+            id: self.id,
+            origin: Arc::downgrade(&row.origin),
+            kind: row.kind,
+        }
+    }
+    pub fn cancel_unspawned(mut self) -> Result<(), Status> {
+        let mut roster = locked(&self.authority.owned)?;
+        let row = roster.rows.get(&self.id).ok_or(Status::NotReady)?;
+        if row.handle.is_some() || row.joining {
+            return Err(Status::NotReady);
+        }
+        roster.rows.remove(&self.id);
+        self.pending = false;
+        Ok(())
+    }
+}
+impl Drop for ProducerReservation {
+    fn drop(&mut self) {
+        if self.pending {
+            let mut roster = self
+                .authority
+                .owned
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            if roster
+                .rows
+                .get(&self.id)
+                .is_some_and(|r| r.handle.is_none() && !r.joining)
+            {
+                roster.rows.remove(&self.id);
+            }
+        }
+    }
+}
+impl JoinedProducerProof {
+    pub fn producer_id(&self) -> u64 {
+        let _issuer = &self.authority;
+        self.id
+    }
+    pub fn outcome(&self) -> JoinOutcome {
+        self.outcome
+    }
+}
+impl NativeReadPause {
+    fn wait(&self, timeout_ms: u64, settled: bool) -> Result<ReadBarrierView, Status> {
+        if !(1..=5000).contains(&timeout_ms) {
+            return Err(Status::Invalid);
+        }
+        let deadline = Instant::now()
+            .checked_add(Duration::from_millis(timeout_ms))
+            .ok_or(Status::Exhausted)?;
+        let mut state = locked(&self.barrier.state)?;
+        while if settled {
+            !state.view.settled
+        } else {
+            !state.view.entered
+        } {
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(Status::NotReady);
+            }
+            let (next, _) = self
+                .barrier
+                .changed
+                .wait_timeout(state, deadline.duration_since(now))
+                .map_err(|_| Status::Internal)?;
+            state = next;
+        }
+        Ok(state.view)
+    }
+    pub fn wait_until_entered(&self, timeout_ms: u64) -> Result<ReadBarrierView, Status> {
+        self.wait(timeout_ms, false)
+    }
+    pub fn wait_until_settled(&self, timeout_ms: u64) -> Result<ReadBarrierView, Status> {
+        self.wait(timeout_ms, true)
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn enable_preview(&self) -> Result<(), Status> {
+        let mut gate = locked(&self.gate)?;
+        if gate.preview.is_some() {
+            return Err(Status::NotReady);
+        }
+        gate.preview = Some(super::native_preview::PreviewGate::new());
+        Ok(())
+    }
+}
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl NativeReadEntry {
+    pub(super) fn query_origin_id(&self) -> u64 {
+        self.origin.id
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl RegistryWitness {
+    pub fn preview_counts(&self) -> Result<super::PreviewCounts, Status> {
+        let mut gate = locked(&self.authority.gate)?;
+        gate.prune_origins();
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        let query_slots = if gate.save.is_some() {
+            self.authority.prune_save_calls(&mut gate)? as u32
+        } else {
+            gate.origins.len() as u32
+        };
+        #[cfg(not(feature = "editor_native_save_v0_dev"))]
+        let query_slots = gate.origins.len() as u32;
+        let preview = gate.preview.as_mut().ok_or(Status::Denied)?;
+        preview.prune();
+        let counts = preview.counts(query_slots);
+        let retained: Vec<_> = preview.attachments.keys().copied().collect();
+        gate.bindings
+            .retain(|_, row| retained.contains(&row.view.actor.instance_id));
+        Ok(counts)
+    }
+}
+
+#[cfg(feature = "editor_native_preview_v0_dev")]
+impl GateState {
+    pub(super) fn install_preview_binding(
+        &mut self,
+        context: u64,
+        view: ReadBindingView,
+    ) -> Result<(), Status> {
+        if let Some((&id, row)) = self.bindings.iter().find(|(_, r)| r.endpoint == context) {
+            if row.view != view || row.retired {
+                return Err(Status::Denied);
+            }
+            let _retained = id;
+            return Ok(());
+        }
+        if self.bindings.len() >= BINDINGS {
+            return Err(Status::Exhausted);
+        }
+        let id = self.next_binding.checked_add(1).ok_or(Status::Exhausted)?;
+        self.next_binding = id;
+        self.bindings.insert(
+            id,
+            BindingRow {
+                view,
+                endpoint: context,
+                retired: false,
+            },
+        );
+        Ok(())
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl RegistryWitness {
+    pub fn verify_join_for(
+        &self,
+        id: &ProducerId,
+        proof: &JoinedProducerProof,
+    ) -> Result<super::NativeJoinObservation, Status> {
+        if !same(&self.authority, &id.authority)
+            || !same(&self.authority, &proof.authority)
+            || id.id != proof.id
+            || id.kind != proof.observation.kind
+            || !Weak::ptr_eq(&id.origin, &proof.origin)
+        {
+            return Err(Status::Denied);
+        }
+        self.save_join_observation(proof)
+    }
+    pub(super) fn save_join_observation(
+        &self,
+        proof: &JoinedProducerProof,
+    ) -> Result<super::NativeJoinObservation, Status> {
+        if !same(&self.authority, &proof.authority) {
+            return Err(Status::Denied);
+        }
+        if proof.observation.rust_thread_id.len() > 64 {
+            return Err(Status::Internal);
+        }
+        Ok(proof.observation.clone())
+    }
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn save_origin(
+        id: u64,
+        attachment: Arc<super::native_preview::AttachmentLife>,
+        object: u64,
+    ) -> Arc<OriginLifetime> {
+        Arc::new(OriginLifetime {
+            id,
+            save_object: Some(object),
+            save_installed: Mutex::new(BTreeMap::new()),
+            _preview_attachment: Some(attachment),
+        })
+    }
+    // Caller already holds Gate. This reserves every row before the first spawn.
+    pub(super) fn reserve_save_pair(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        kinds: [ProducerKind; 2],
+    ) -> Result<[ProducerReservation; 2], Status> {
+        let mut r = locked(&self.owned)?;
+        let installed = locked(&origin.save_installed)?.len();
+        let pending = r
+            .rows
+            .values()
+            .filter(|row| Arc::ptr_eq(&row.origin, origin) && row.handle.is_none() && !row.joining)
+            .count();
+        if installed + pending > 62 {
+            return Err(Status::Exhausted);
+        }
+        let last = r.next.checked_add(2).ok_or(Status::Exhausted)?;
+        if r.rows.len() > PRODUCERS - 2 {
+            return Err(Status::Exhausted);
+        }
+        r.next = last;
+        for (id, kind) in [(last - 1, kinds[0]), (last, kinds[1])] {
+            r.rows.insert(
+                id,
+                ProducerRow {
+                    kind,
+                    origin: origin.clone(),
+                    handle: None,
+                    joining: false,
+                },
+            );
+        }
+        Ok([
+            ProducerReservation {
+                authority: self.clone(),
+                id: last - 1,
+                pending: true,
+            },
+            ProducerReservation {
+                authority: self.clone(),
+                id: last,
+                pending: true,
+            },
+        ])
+    }
+    pub(super) fn reserve_save_one(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        kind: ProducerKind,
+    ) -> Result<ProducerReservation, Status> {
+        let mut r = locked(&self.owned)?;
+        let installed = locked(&origin.save_installed)?.len();
+        let pending = r
+            .rows
+            .values()
+            .filter(|row| Arc::ptr_eq(&row.origin, origin) && row.handle.is_none() && !row.joining)
+            .count();
+        if installed + pending >= 64 {
+            return Err(Status::Exhausted);
+        }
+        let id = r.next.checked_add(1).ok_or(Status::Exhausted)?;
+        if r.rows.len() >= PRODUCERS
+            || kind == ProducerKind::StoreIo
+                && r.rows
+                    .values()
+                    .filter(|r| r.kind == ProducerKind::StoreIo)
+                    .count()
+                    >= 2
+        {
+            return Err(Status::Exhausted);
+        }
+        r.next = id;
+        r.rows.insert(
+            id,
+            ProducerRow {
+                kind,
+                origin: origin.clone(),
+                handle: None,
+                joining: false,
+            },
+        );
+        Ok(ProducerReservation {
+            authority: self.clone(),
+            id,
+            pending: true,
+        })
+    }
+    pub(super) fn save_ids(
+        self: &Arc<Self>,
+        origin: &Arc<OriginLifetime>,
+        ids: [u64; 2],
+    ) -> Result<[ProducerId; 2], Status> {
+        let r = locked(&self.owned)?;
+        let one = |id| {
+            let row = r.rows.get(&id).ok_or(Status::NotReady)?;
+            if !Arc::ptr_eq(&row.origin, origin) || row.handle.is_none() && !row.joining {
+                return Err(Status::Denied);
+            }
+            Ok(ProducerId {
+                authority: self.clone(),
+                id,
+                origin: Arc::downgrade(origin),
+                kind: row.kind,
+            })
+        };
+        Ok([one(ids[0])?, one(ids[1])?])
+    }
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl ProducerReservation {
+    pub(super) fn save_id(&self) -> u64 {
+        self.id
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl ProducerId {
+    /// Observation of this already-issued opaque token; never a lookup or mint.
+    pub fn producer_id(&self) -> u64 {
+        self.id
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn prune_save_calls(&self, gate: &mut GateState) -> Result<usize, Status> {
+        gate.prune_origins();
+        let r = locked(&self.owned)?;
+        let active = gate
+            .preview
+            .as_ref()
+            .map(|p| {
+                p.attachments
+                    .iter()
+                    .filter(|(_, r)| !r.retired)
+                    .map(|(id, _)| *id)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if let Some(s) = &mut gate.save {
+            s.documents
+                .retain(|_, d| Arc::strong_count(&d.life) > 1 || active.contains(&d.attachment.id));
+            s.intents.retain(|_, w| w.strong_count() > 0);
+            s.sources.retain(|_, w| w.strong_count() > 0);
+            s.originals.retain(|_, w| w.strong_count() > 0);
+            s.allocations.retain(|id, _| s.intents.contains_key(id));
+            s.calls.retain(|id, row| {
+                row.life.strong_count() > 0 || r.rows.values().any(|p| p.origin.id == *id)
+            });
+            Ok(gate.origins.len() + s.calls.len())
+        } else {
+            Err(Status::Unsupported)
+        }
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn held_save_objects(&self, objects: &[u64]) -> Result<Vec<u64>, Status> {
+        let r = locked(&self.owned)?;
+        Ok(r.rows
+            .iter()
+            .filter(|(_, r)| r.origin.save_object.is_some_and(|o| objects.contains(&o)))
+            .map(|(id, _)| *id)
+            .collect())
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl NativeAuthority {
+    pub(super) fn has_save_origin(&self, id: u64) -> Result<bool, Status> {
+        Ok(locked(&self.owned)?
+            .rows
+            .values()
+            .any(|r| r.origin.id == id))
+    }
+}
+
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl super::native_save::SaveIssuer {
+    pub fn retain_joined_proof(
+        &self,
+        proof: &JoinedProducerProof,
+    ) -> Result<JoinedProducerProof, Status> {
+        if !same(&self.authority, &proof.authority) {
+            return Err(Status::Denied);
+        }
+        // All fields come from the same genuinely joined opaque proof. This does
+        // not join, install, look up a numeric row, or alter any live charge.
+        Ok(JoinedProducerProof {
+            authority: proof.authority.clone(),
+            id: proof.id,
+            outcome: proof.outcome,
+            observation: proof.observation.clone(),
+            origin: proof.origin.clone(),
+            save_object: proof.save_object,
+        })
+    }
+}

@@ -1,0 +1,3981 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "PROVISIONAL STRUCTURE ONLY; source inventory, semantics and actual runtime remain unaccepted.",
+  "x-proposal-sha256": "ba4215628a366d67727dd85f8c5717652f9e84f90f53e8bd294d82b7a1e7c080",
+  "x-semantic-obligations": [
+    "FenceSnapshot service_producers + object_workers combined <=64; IO <=2.",
+    "Object and operation identities unique; fixed per-object operation history <=16.",
+    "Thread UTF8 byte limit is enforced in addition to JSON character length.",
+    "Actual grants/wires/files/captures/frames/joins/cleanup require independent joins."
+  ],
+  "$defs": {
+    "u8": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "u32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "Hash32": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "desktop::ProducerKind": {
+      "type": "string",
+      "enum": [
+        "DesktopDispatch",
+        "DesktopSupervisor",
+        "StoreDispatch",
+        "StoreSupervisor",
+        "StoreIo"
+      ]
+    },
+    "desktop::JoinOutcome": {
+      "type": "string",
+      "enum": [
+        "Returned",
+        "Panicked"
+      ]
+    },
+    "store::ProducerKind": {
+      "type": "string",
+      "enum": [
+        "Dispatcher",
+        "Supervisor",
+        "ObjectIoWorker"
+      ]
+    },
+    "store::ProducerJoinOutcome": {
+      "type": "string",
+      "enum": [
+        "Returned",
+        "Panicked"
+      ]
+    },
+    "OriginalTicketKind": {
+      "type": "string",
+      "enum": [
+        "Allocate",
+        "Commit"
+      ]
+    },
+    "OriginalTicketCompletion": {
+      "type": "string",
+      "enum": [
+        "Pending",
+        "JoinedReturned",
+        "JoinedPanicked"
+      ]
+    },
+    "NativePendingOriginalPhase": {
+      "type": "string",
+      "enum": [
+        "AllocationUnknown",
+        "CommitUnknown"
+      ]
+    },
+    "NativeEditorPhase": {
+      "type": "string",
+      "enum": [
+        "Loaded",
+        "Unsaved",
+        "AllocationPending",
+        "AllocationUnknown",
+        "Saving",
+        "Unknown",
+        "Saved",
+        "Conflict",
+        "Unavailable"
+      ]
+    },
+    "store::EndpointClass": {
+      "type": "string",
+      "enum": [
+        "Artifact",
+        "RecoveryReceipt"
+      ]
+    },
+    "store::FixtureErrorKind": {
+      "type": "string",
+      "enum": [
+        "InvalidProfile",
+        "Io",
+        "Corrupt",
+        "Unfenced",
+        "Capacity",
+        "Exhausted",
+        "Timeout"
+      ]
+    },
+    "store::IoPoint": {
+      "type": "string",
+      "enum": [
+        "CandidateIntent",
+        "CandidateBlobWrite",
+        "CandidateBlobSync",
+        "CandidateManifest",
+        "CandidateOwner",
+        "CandidateDirectorySync",
+        "CandidateReadback",
+        "JournalWrite",
+        "JournalSync",
+        "JournalRename",
+        "JournalDirectorySync",
+        "JournalReadback"
+      ]
+    },
+    "store::IoOutcome": {
+      "type": "string",
+      "enum": [
+        "Began",
+        "Completed",
+        "SimulatedFailure",
+        "ActualFailure"
+      ]
+    },
+    "EditorReceiptOutcomeV0": {
+      "type": "string",
+      "enum": [
+        "committed",
+        "definitive_noncommit"
+      ]
+    },
+    "EditorOperationStateV0": {
+      "type": "string",
+      "enum": [
+        "allocated",
+        "submitted",
+        "permitted",
+        "committed",
+        "noncommit"
+      ]
+    },
+    "EditorClosureV0": {
+      "type": "string",
+      "enum": [
+        "none",
+        "deadline",
+        "revoked",
+        "expired",
+        "service_retired"
+      ]
+    },
+    "EditorActorV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_id",
+        "session_id",
+        "session_generation",
+        "instance_id",
+        "instance_generation"
+      ],
+      "properties": {
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "session_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "session_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "instance_generation": {
+          "$ref": "#/$defs/u64"
+        }
+      }
+    },
+    "SelectedArtifactV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "owner_id",
+        "selected_object_id",
+        "selected_generation",
+        "revision",
+        "content_hash",
+        "byte_len",
+        "manifest_hash"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "byte_len": {
+          "$ref": "#/$defs/u32"
+        },
+        "manifest_hash": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "EditorSaveAllocationV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "actor",
+        "selected_object_id",
+        "selected_generation",
+        "operation_id",
+        "expected_revision",
+        "expected_content_hash"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "expected_content_hash": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "EditorSourceBindingV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_object_id",
+        "source_generation",
+        "byte_len",
+        "content_hash"
+      ],
+      "properties": {
+        "source_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "source_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "byte_len": {
+          "$ref": "#/$defs/u32"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "EditorSaveBindingV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "allocation",
+        "source"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "allocation": {
+          "$ref": "#/$defs/EditorSaveAllocationV0"
+        },
+        "source": {
+          "$ref": "#/$defs/EditorSourceBindingV0"
+        }
+      }
+    },
+    "EditorCommitPermitV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding",
+        "successor_revision",
+        "service_epoch",
+        "writer_id",
+        "admission_epoch"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "binding": {
+          "$ref": "#/$defs/EditorSaveBindingV0"
+        },
+        "successor_revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "writer_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "admission_epoch": {
+          "$ref": "#/$defs/u64"
+        }
+      }
+    },
+    "EditorSaveReceiptV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "total_len",
+        "outcome",
+        "reserved",
+        "owner_id",
+        "session_id",
+        "session_generation",
+        "original_instance_id",
+        "original_instance_generation",
+        "selected_object_id",
+        "selected_generation",
+        "operation_id",
+        "expected_revision",
+        "result_revision",
+        "backend_service_epoch",
+        "committed_at_ms",
+        "expected_content_hash",
+        "source_content_hash"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "total_len": {
+          "$ref": "#/$defs/u32"
+        },
+        "outcome": {
+          "$ref": "#/$defs/EditorReceiptOutcomeV0"
+        },
+        "reserved": {
+          "$ref": "#/$defs/u32"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "session_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "session_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_instance_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_instance_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "result_revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "backend_service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "committed_at_ms": {
+          "$ref": "#/$defs/u64"
+        },
+        "expected_content_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "source_content_hash": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "EditorOperationRecordV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allocation",
+        "allocated_service_epoch",
+        "binding",
+        "submitted_service_epoch",
+        "permit",
+        "closure",
+        "state",
+        "successor",
+        "receipt"
+      ],
+      "properties": {
+        "allocation": {
+          "$ref": "#/$defs/EditorSaveAllocationV0"
+        },
+        "allocated_service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorSaveBindingV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitted_service_epoch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "permit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorCommitPermitV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "closure": {
+          "$ref": "#/$defs/EditorClosureV0"
+        },
+        "state": {
+          "$ref": "#/$defs/EditorOperationStateV0"
+        },
+        "successor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SelectedArtifactV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorSaveReceiptV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "EditorSelectionJournalV0": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "owner_id",
+        "selected_object_id",
+        "selected_generation",
+        "signing_policy_hash",
+        "initial",
+        "current",
+        "service_epoch",
+        "operation_high_water",
+        "writer_high_water",
+        "transition_sequence",
+        "prior_journal_hash",
+        "operations"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "signing_policy_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "initial": {
+          "$ref": "#/$defs/SelectedArtifactV0"
+        },
+        "current": {
+          "$ref": "#/$defs/SelectedArtifactV0"
+        },
+        "service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_high_water": {
+          "$ref": "#/$defs/u64"
+        },
+        "writer_high_water": {
+          "$ref": "#/$defs/u64"
+        },
+        "transition_sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "prior_journal_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EditorOperationRecordV0"
+          },
+          "maxItems": 16
+        }
+      }
+    },
+    "BarrierSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "operation_id",
+        "entered",
+        "released",
+        "settled",
+        "permit_issued"
+      ],
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "entered": {
+          "type": "boolean"
+        },
+        "released": {
+          "type": "boolean"
+        },
+        "settled": {
+          "type": "boolean"
+        },
+        "permit_issued": {
+          "type": "boolean"
+        }
+      }
+    },
+    "StoreLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessions",
+        "selected_objects",
+        "original_instances",
+        "endpoints",
+        "shared_objects",
+        "active_io_workers",
+        "active_supervisors",
+        "held_service_producers",
+        "operations_per_object",
+        "cas_entries_per_object",
+        "bytes_per_object"
+      ],
+      "properties": {
+        "sessions": {
+          "$ref": "#/$defs/u32"
+        },
+        "selected_objects": {
+          "$ref": "#/$defs/u32"
+        },
+        "original_instances": {
+          "$ref": "#/$defs/u32"
+        },
+        "endpoints": {
+          "$ref": "#/$defs/u32"
+        },
+        "shared_objects": {
+          "$ref": "#/$defs/u32"
+        },
+        "active_io_workers": {
+          "$ref": "#/$defs/u32"
+        },
+        "active_supervisors": {
+          "$ref": "#/$defs/u32"
+        },
+        "held_service_producers": {
+          "$ref": "#/$defs/u32"
+        },
+        "operations_per_object": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/u64"
+              },
+              {
+                "$ref": "#/$defs/u32"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 3
+        },
+        "cas_entries_per_object": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/u64"
+              },
+              {
+                "$ref": "#/$defs/u32"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 3
+        },
+        "bytes_per_object": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/u64"
+              },
+              {
+                "$ref": "#/$defs/u64"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 3
+        }
+      }
+    },
+    "Exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor",
+        "endpoint_class",
+        "selected_object_id",
+        "request_wire",
+        "actual_reply_wire",
+        "reply_suppressed",
+        "operation_id",
+        "elapsed_us",
+        "observed_ms"
+      ],
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "endpoint_class": {
+          "$ref": "#/$defs/store::EndpointClass"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "request_wire": {
+          "type": "string",
+          "pattern": "[0-9a-f]{176}",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "actual_reply_wire": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "[0-9a-f]{176}",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reply_suppressed": {
+          "type": "boolean"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "elapsed_us": {
+          "$ref": "#/$defs/u64"
+        },
+        "observed_ms": {
+          "$ref": "#/$defs/u64"
+        }
+      }
+    },
+    "IoEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_object_id",
+        "operation_id",
+        "writer_id",
+        "sequence",
+        "point",
+        "outcome",
+        "artifact_hash"
+      ],
+      "properties": {
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "writer_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "point": {
+          "$ref": "#/$defs/store::IoPoint"
+        },
+        "outcome": {
+          "$ref": "#/$defs/store::IoOutcome"
+        },
+        "artifact_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ObjectEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected",
+        "operations",
+        "mutation_dispatch_count",
+        "permit_count",
+        "transition_count",
+        "journal_hash",
+        "journal_sequence",
+        "blob_hash",
+        "manifest_hash",
+        "ownership_hash",
+        "mutation_quarantined",
+        "pending_writer_id",
+        "service_epoch",
+        "reopen_witness"
+      ],
+      "properties": {
+        "selected": {
+          "$ref": "#/$defs/SelectedArtifactV0"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EditorOperationRecordV0"
+          },
+          "maxItems": 16
+        },
+        "mutation_dispatch_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "permit_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "transition_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "journal_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "journal_sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "blob_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "manifest_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "ownership_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "mutation_quarantined": {
+          "type": "boolean"
+        },
+        "pending_writer_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "reopen_witness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReopenWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ReopenWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fence_id",
+        "fence_snapshot_hash",
+        "selected_object_id",
+        "selected_generation",
+        "prior_service_epoch",
+        "actual_service_epoch",
+        "reopened_journal_sequence",
+        "reopened_journal_hash"
+      ],
+      "properties": {
+        "fence_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "fence_snapshot_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "prior_service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "actual_service_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "reopened_journal_sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "reopened_journal_hash": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "ProducerFence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "producer_generation",
+        "kind",
+        "native_pid",
+        "rust_thread_id",
+        "selected_object_id",
+        "request_id",
+        "operation_id",
+        "completed_join",
+        "join_outcome",
+        "settled_barrier",
+        "live_ownership_after_join"
+      ],
+      "properties": {
+        "producer_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "producer_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "kind": {
+          "$ref": "#/$defs/store::ProducerKind"
+        },
+        "native_pid": {
+          "$ref": "#/$defs/u32"
+        },
+        "rust_thread_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "x-maxUtf8Bytes": 64
+        },
+        "selected_object_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completed_join": {
+          "type": "boolean"
+        },
+        "join_outcome": {
+          "$ref": "#/$defs/store::ProducerJoinOutcome"
+        },
+        "settled_barrier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BarrierSnapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "live_ownership_after_join": {
+          "type": "boolean"
+        }
+      }
+    },
+    "OperationClosureWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allocation",
+        "submitted_binding",
+        "original_request_id",
+        "original_producer_id",
+        "original_producer_generation",
+        "closure"
+      ],
+      "properties": {
+        "allocation": {
+          "$ref": "#/$defs/EditorSaveAllocationV0"
+        },
+        "submitted_binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorSaveBindingV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_request_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_producer_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_producer_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "closure": {
+          "$ref": "#/$defs/EditorClosureV0"
+        }
+      }
+    },
+    "ObjectFenceWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_id",
+        "selected_object_id",
+        "selected_generation",
+        "service_epoch_at_fence",
+        "reserved_successor_epoch",
+        "durable_journal_sequence",
+        "durable_journal_hash",
+        "operation_high_water_min",
+        "writer_high_water_min",
+        "admission_epoch_min",
+        "known_durable_operations",
+        "issued_runtime_permits",
+        "original_closures"
+      ],
+      "properties": {
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "selected_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "service_epoch_at_fence": {
+          "$ref": "#/$defs/u64"
+        },
+        "reserved_successor_epoch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durable_journal_sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "durable_journal_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "operation_high_water_min": {
+          "$ref": "#/$defs/u64"
+        },
+        "writer_high_water_min": {
+          "$ref": "#/$defs/u64"
+        },
+        "admission_epoch_min": {
+          "$ref": "#/$defs/u64"
+        },
+        "known_durable_operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EditorOperationRecordV0"
+          },
+          "maxItems": 16
+        },
+        "issued_runtime_permits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EditorCommitPermitV0"
+          },
+          "maxItems": 16
+        },
+        "original_closures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OperationClosureWitness"
+          },
+          "maxItems": 16
+        }
+      }
+    },
+    "FenceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "namespace_id",
+        "fence_id",
+        "profile_hash",
+        "semantic_clock_min",
+        "identity_counter_min",
+        "service_producers",
+        "object_workers",
+        "objects",
+        "live_ownership_after_join"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "namespace_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "fence_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "profile_hash": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "semantic_clock_min": {
+          "$ref": "#/$defs/u64"
+        },
+        "identity_counter_min": {
+          "$ref": "#/$defs/u64"
+        },
+        "service_producers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProducerFence"
+          },
+          "maxItems": 64
+        },
+        "object_workers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProducerFence"
+          },
+          "maxItems": 2
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectFenceWitness"
+          },
+          "maxItems": 3
+        },
+        "live_ownership_after_join": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "NativeEditorObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor",
+        "document_id",
+        "bytes",
+        "cursor",
+        "selection",
+        "first_visible_line",
+        "text_generation",
+        "view_version",
+        "confirmed_revision",
+        "confirmed_hash",
+        "phase"
+      ],
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "bytes": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2}){0,4096}$",
+          "maxLength": 8192,
+          "$comment": "Actual decoded bytes must also be bounded ASCII/LF/tab."
+        },
+        "cursor": {
+          "$ref": "#/$defs/u32"
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/u32"
+                },
+                {
+                  "$ref": "#/$defs/u32"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "first_visible_line": {
+          "$ref": "#/$defs/u32"
+        },
+        "text_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "view_version": {
+          "$ref": "#/$defs/u64"
+        },
+        "confirmed_revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "confirmed_hash": {
+          "type": "string",
+          "pattern": "[0-9a-f]{64}",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "phase": {
+          "$ref": "#/$defs/NativeEditorPhase"
+        }
+      }
+    },
+    "NativeFrameObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor",
+        "document_id",
+        "text_generation",
+        "view_version",
+        "surface_id",
+        "surface_generation",
+        "mapping_generation",
+        "focus_epoch",
+        "sequence",
+        "app_crop_sha256"
+      ],
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "text_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "view_version": {
+          "$ref": "#/$defs/u64"
+        },
+        "surface_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "surface_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "mapping_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "focus_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "app_crop_sha256": {
+          "type": "string",
+          "pattern": "[0-9a-f]{64}",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "NativeSaveChromeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_frame_actor",
+        "original_actor",
+        "document_id",
+        "text_generation",
+        "view_version",
+        "frame_sequence",
+        "focus_epoch",
+        "attachment_version",
+        "status_version",
+        "label",
+        "current_document_phase",
+        "outstanding_original_count",
+        "pending_originals",
+        "record248"
+      ],
+      "properties": {
+        "current_frame_actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "original_actor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorActorV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text_generation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "view_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "frame_sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "focus_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "attachment_version": {
+          "$ref": "#/$defs/u64"
+        },
+        "status_version": {
+          "$ref": "#/$defs/u64"
+        },
+        "label": {
+          "$ref": "#/$defs/NativeEditorPhase"
+        },
+        "current_document_phase": {
+          "$ref": "#/$defs/NativeEditorPhase"
+        },
+        "outstanding_original_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "pending_originals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativePendingOriginalObservation"
+          },
+          "maxItems": 48
+        },
+        "record248": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "[0-9a-f]{496}",
+              "minLength": 496,
+              "maxLength": 496
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "NativePendingOriginalObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_actor",
+        "object_id",
+        "object_generation",
+        "intent_id",
+        "operation_id",
+        "original_backend_epoch",
+        "phase"
+      ],
+      "properties": {
+        "original_actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "object_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "intent_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_backend_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "phase": {
+          "$ref": "#/$defs/NativePendingOriginalPhase"
+        }
+      }
+    },
+    "NativeJoinObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "producer_generation",
+        "origin_id",
+        "kind",
+        "native_pid",
+        "rust_thread_id",
+        "outcome"
+      ],
+      "properties": {
+        "producer_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "producer_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "origin_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "kind": {
+          "$ref": "#/$defs/desktop::ProducerKind"
+        },
+        "native_pid": {
+          "$ref": "#/$defs/u32"
+        },
+        "rust_thread_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "x-maxUtf8Bytes": 64
+        },
+        "outcome": {
+          "$ref": "#/$defs/desktop::JoinOutcome"
+        }
+      }
+    },
+    "NativeSaveFenceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "base",
+        "original_tickets"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/u32"
+        },
+        "base": {
+          "$ref": "#/$defs/FenceSnapshot"
+        },
+        "original_tickets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OriginalTicketObservation"
+          },
+          "maxItems": 96
+        }
+      }
+    },
+    "OriginalTicketObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_request",
+        "origin_id",
+        "intent_id",
+        "kind",
+        "actor",
+        "object_id",
+        "original_epoch",
+        "allocation",
+        "binding",
+        "closed",
+        "commit_dispatched",
+        "completion"
+      ],
+      "properties": {
+        "original_request": {
+          "type": "string",
+          "pattern": "[0-9a-f]{176}",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "origin_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "intent_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "kind": {
+          "$ref": "#/$defs/OriginalTicketKind"
+        },
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "allocation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorSaveAllocationV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorSaveBindingV0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "closed": {
+          "type": "boolean"
+        },
+        "commit_dispatched": {
+          "type": "boolean"
+        },
+        "completion": {
+          "$ref": "#/$defs/OriginalTicketCompletion"
+        }
+      }
+    },
+    "ResourceLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessions",
+        "selected_objects",
+        "instances",
+        "endpoints",
+        "shared_objects",
+        "queued_keys",
+        "operations_per_object"
+      ],
+      "properties": {
+        "sessions": {
+          "$ref": "#/$defs/u32"
+        },
+        "selected_objects": {
+          "$ref": "#/$defs/u32"
+        },
+        "instances": {
+          "$ref": "#/$defs/u32"
+        },
+        "endpoints": {
+          "$ref": "#/$defs/u32"
+        },
+        "shared_objects": {
+          "$ref": "#/$defs/u32"
+        },
+        "queued_keys": {
+          "$ref": "#/$defs/u32"
+        },
+        "operations_per_object": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/u64"
+              },
+              {
+                "$ref": "#/$defs/u32"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 3
+        }
+      }
+    },
+    "RecordBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "run_nonce",
+        "case",
+        "scenario",
+        "scope",
+        "epoch_index"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "run_nonce": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$",
+          "minLength": 32,
+          "maxLength": 32
+        },
+        "case": {
+          "enum": [
+            "ui1_1_keyboard_edits_ascii_and_renders_owned_frame",
+            "ui1_1_ascii_bounds_preserve_prior_draft",
+            "ui1_1_focus_routes_reserved_keys_to_trusted_chrome",
+            "ui1_1_focus_epoch_reset_overflow_and_detach",
+            "ui1_1_surface_freeze_alias_quota_and_chrome_clip",
+            "ui1_1_wire_schema_descriptor_and_identity_fail_closed",
+            "ui1_1_editor_grants_are_exact_and_preview_single_use",
+            "ui1_1_volatile_save_and_reopen_are_explicitly_labeled",
+            "ui1_1_revoke_paused_key_frame_and_save",
+            "ui1_1_fault_restart_discards_unsaved_draft_and_old_grants",
+            "ui1_1_focus_compositor_restart_retires_old_epochs",
+            "ui1_1_stalled_session_leaves_other_session_usable",
+            "ui1_1_clock_capacity_and_counter_limits_fail_closed",
+            "ui1_1_store_commit_reopen_preserves_prior_blob",
+            "ui1_1_store_same_base_conflict_and_operation_reuse",
+            "ui1_1_store_lost_reply_reconciles_without_mutation_replay",
+            "ui1_1_store_recovery_validates_atomic_selection_and_receipt",
+            "ui1_1_unknown_save_survives_editor_recovery"
+          ]
+        },
+        "scenario": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "scope": {
+          "enum": [
+            "composition",
+            "direct-native",
+            "volatile-control",
+            "native-read-control"
+          ]
+        },
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "RawRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "kind",
+        "byte_len",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+          "maxLength": 128,
+          "not": {
+            "enum": [
+              ".",
+              ".."
+            ]
+          }
+        },
+        "kind": {
+          "enum": [
+            "text64",
+            "receipt176",
+            "wire88",
+            "journal",
+            "corrupt_journal",
+            "cas_blob",
+            "fixture_file",
+            "app_frame",
+            "composed_frame",
+            "chrome248",
+            "wire88_negative",
+            "text64_negative",
+            "grant464"
+          ]
+        },
+        "byte_len": {
+          "$ref": "#/$defs/u64"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "FileObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path",
+        "entry_kind",
+        "mode",
+        "byte_len",
+        "sha256",
+        "raw",
+        "symlink_target"
+      ],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "maxLength": 256,
+          "x-maxUtf8Bytes": 256
+        },
+        "entry_kind": {
+          "enum": [
+            "regular",
+            "directory",
+            "symlink",
+            "absent"
+          ]
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "byte_len": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RawRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "symlink_target": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096,
+              "x-maxUtf8Bytes": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "handle_kind",
+        "handle_index",
+        "handle_generation",
+        "object_generation",
+        "byte_len"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "SelectedText",
+            "DraftSource",
+            "Receipt"
+          ]
+        },
+        "handle_kind": {
+          "$ref": "#/$defs/u32"
+        },
+        "handle_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "handle_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "object_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "byte_len": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "Capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_id",
+        "kind",
+        "actor",
+        "object_id",
+        "object_generation",
+        "original_backend_epoch",
+        "original_request",
+        "original_reply",
+        "capture_request",
+        "capture_reply",
+        "operation_id",
+        "intent_id",
+        "descriptor",
+        "raw"
+      ],
+      "properties": {
+        "capture_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "kind": {
+          "enum": [
+            "SelectedTextCopy",
+            "DraftSourceFreeze",
+            "ReceiptCopy"
+          ]
+        },
+        "actor": {
+          "$ref": "#/$defs/EditorActorV0"
+        },
+        "object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "object_generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_backend_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "original_request": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "original_reply": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{176}$",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capture_request": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "capture_reply": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{176}$",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/u64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "descriptor": {
+          "$ref": "#/$defs/Descriptor"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawRef"
+        }
+      }
+    },
+    "Frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "session_id",
+        "instance_id",
+        "focus_epoch",
+        "sequence",
+        "raw",
+        "protected_crop_sha256",
+        "app_crop_sha256",
+        "expected_protected_label",
+        "expected_unknown_banner",
+        "draft",
+        "frame_join",
+        "chrome"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "session_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "focus_epoch": {
+          "$ref": "#/$defs/u64"
+        },
+        "sequence": {
+          "$ref": "#/$defs/u64"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawRef"
+        },
+        "protected_crop_sha256": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "app_crop_sha256": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "expected_protected_label": {
+          "anyOf": [
+            {
+              "enum": [
+                "LOADED",
+                "UNSAVED",
+                "SAVING",
+                "SAVED",
+                "CONFLICT",
+                "UNAVAILABLE"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_unknown_banner": {
+          "anyOf": [
+            {
+              "enum": [
+                "",
+                "SAVE UNKNOWN",
+                "ALLOCATION UNKNOWN",
+                "SAVE UNKNOWN | ALLOCATION UNKNOWN"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draft": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeEditorObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "frame_join": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeFrameObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chrome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveChromeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ExternalJoin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "rust_thread_id",
+        "joined",
+        "outcome",
+        "service_producer_claim"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "rust_thread_id": {
+          "type": "string",
+          "maxLength": 64,
+          "x-maxUtf8Bytes": 64
+        },
+        "joined": {
+          "const": true
+        },
+        "outcome": {
+          "enum": [
+            "Returned",
+            "Panicked"
+          ]
+        },
+        "service_producer_claim": {
+          "const": false
+        }
+      }
+    },
+    "RootIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "device",
+        "inode",
+        "mode",
+        "uid",
+        "gid"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "maxLength": 4096,
+          "x-maxUtf8Bytes": 4096
+        },
+        "device": {
+          "$ref": "#/$defs/u64"
+        },
+        "inode": {
+          "$ref": "#/$defs/u64"
+        },
+        "mode": {
+          "$ref": "#/$defs/u32"
+        },
+        "uid": {
+          "$ref": "#/$defs/u32"
+        },
+        "gid": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "NegativeWrite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offset",
+        "byte_len",
+        "status"
+      ],
+      "properties": {
+        "offset": {
+          "$ref": "#/$defs/u32"
+        },
+        "byte_len": {
+          "$ref": "#/$defs/u32"
+        },
+        "status": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "NegativeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_control",
+        "kind",
+        "raw",
+        "actual_denial_layer",
+        "actual_status",
+        "original_request",
+        "actual_reply",
+        "status_space",
+        "source_descriptor",
+        "actual_write"
+      ],
+      "properties": {
+        "source_control": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "kind": {
+          "enum": [
+            "wire88_negative",
+            "text64_negative"
+          ]
+        },
+        "raw": {
+          "$ref": "#/$defs/RawRef"
+        },
+        "actual_denial_layer": {
+          "enum": [
+            "wire_decoder",
+            "native_call_admission",
+            "native_source_consumption"
+          ]
+        },
+        "actual_status": {
+          "$ref": "#/$defs/u32"
+        },
+        "original_request": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{176}$",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_reply": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{176}$",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status_space": {
+          "enum": [
+            "DesktopStatus",
+            "StoreStatus"
+          ]
+        },
+        "source_descriptor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Descriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_write": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NegativeWrite"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "SnapshotIndex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_index",
+        "observation_index",
+        "purpose",
+        "record"
+      ],
+      "properties": {
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "record": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+          "maxLength": 128,
+          "not": {
+            "enum": [
+              ".",
+              ".."
+            ]
+          }
+        }
+      }
+    },
+    "ProducerCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "held",
+        "io",
+        "joining",
+        "joined_total"
+      ],
+      "properties": {
+        "held": {
+          "$ref": "#/$defs/u32"
+        },
+        "io": {
+          "$ref": "#/$defs/u32"
+        },
+        "joining": {
+          "$ref": "#/$defs/u32"
+        },
+        "joined_total": {
+          "$ref": "#/$defs/u64"
+        }
+      }
+    },
+    "ProducerObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "purpose",
+        "counts"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "counts": {
+          "$ref": "#/$defs/ProducerCounts"
+        }
+      }
+    },
+    "GrantObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "phase",
+        "raw",
+        "request",
+        "reply"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "phase": {
+          "enum": [
+            "Preview",
+            "Active"
+          ]
+        },
+        "raw": {
+          "$ref": "#/$defs/RawRef"
+        },
+        "request": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "reply": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        }
+      }
+    },
+    "UnitResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result",
+        "status_space",
+        "status"
+      ],
+      "properties": {
+        "result": {
+          "enum": [
+            "Ok",
+            "Err"
+          ]
+        },
+        "status_space": {
+          "enum": [
+            "DesktopStatus",
+            "StoreStatus"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        }
+      }
+    },
+    "NativeSaveInitObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "panicked",
+        "root",
+        "root_path",
+        "core_retained",
+        "issuer_retained"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "Validate",
+            "PrepareCore",
+            "CreateRoot",
+            "Provision",
+            "Enroll"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "panicked": {
+          "type": "boolean"
+        },
+        "root": {
+          "enum": [
+            "NotAttempted",
+            "AttemptUncertain",
+            "ReportedCreated"
+          ]
+        },
+        "root_path": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096,
+              "x-maxUtf8Bytes": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "core_retained": {
+          "type": "boolean"
+        },
+        "issuer_retained": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NativeSaveExposeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "pending_retained",
+        "inactive_store_grant_retained",
+        "active"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "Validate",
+            "ReserveStoreGrant",
+            "PrepareRecord",
+            "Activate",
+            "Deliver"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "pending_retained": {
+          "type": "boolean"
+        },
+        "inactive_store_grant_retained": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NativeSaveDeliveryObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "authorized_attempt",
+        "active",
+        "retired",
+        "pending_retained",
+        "launch_retained",
+        "bootstrap_delivered",
+        "confirm_delivered"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "Authorize",
+            "Validate",
+            "BuildReply",
+            "Expose"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "authorized_attempt": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "retired": {
+          "type": "boolean"
+        },
+        "pending_retained": {
+          "type": "boolean"
+        },
+        "launch_retained": {
+          "type": "boolean"
+        },
+        "bootstrap_delivered": {
+          "type": "boolean"
+        },
+        "confirm_delivered": {
+          "type": "boolean"
+        }
+      }
+    },
+    "InactiveSaveDesktopObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_requests",
+        "endpoint_replies",
+        "origin_status",
+        "bootstrap_status",
+        "grants_lease_status"
+      ],
+      "properties": {
+        "endpoint_requests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{176}$",
+            "minLength": 176,
+            "maxLength": 176
+          },
+          "maxItems": 3,
+          "minItems": 3
+        },
+        "endpoint_replies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{176}$",
+            "minLength": 176,
+            "maxLength": 176
+          },
+          "maxItems": 3,
+          "minItems": 3
+        },
+        "origin_status": {
+          "$ref": "#/$defs/UnitResult"
+        },
+        "bootstrap_status": {
+          "$ref": "#/$defs/UnitResult"
+        },
+        "grants_lease_status": {
+          "$ref": "#/$defs/UnitResult"
+        }
+      }
+    },
+    "InactiveSaveStoreObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_status"
+      ],
+      "properties": {
+        "grant_status": {
+          "$ref": "#/$defs/UnitResult"
+        }
+      }
+    },
+    "NativeSaveRegistrationObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_retained",
+        "producer_ids",
+        "request"
+      ],
+      "properties": {
+        "original_retained": {
+          "type": "boolean"
+        },
+        "producer_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/u64"
+          },
+          "maxItems": 2
+        },
+        "request": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        }
+      }
+    },
+    "ControlObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "purpose",
+        "call",
+        "kind",
+        "actual_status",
+        "request",
+        "init",
+        "expose",
+        "delivery",
+        "inactive_desktop",
+        "inactive_store",
+        "registration"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "call": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "kind": {
+          "enum": [
+            "unit_result",
+            "native_save_init",
+            "native_save_expose",
+            "native_save_delivery",
+            "inactive_save_desktop",
+            "inactive_save_store",
+            "native_save_registration"
+          ]
+        },
+        "actual_status": {
+          "$ref": "#/$defs/UnitResult"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{176}$",
+              "minLength": 176,
+              "maxLength": 176
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "init": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveInitObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expose": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveExposeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delivery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveDeliveryObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inactive_desktop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InactiveSaveDesktopObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inactive_store": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InactiveSaveStoreObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "registration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveRegistrationObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "SummaryRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "actual_store_epochs",
+        "frames",
+        "app_observations",
+        "source_case_requirement_ids",
+        "raw_inventory",
+        "record_inventory",
+        "terminal_kind",
+        "negative_inputs",
+        "store_snapshots",
+        "grant_observations",
+        "producer_observations",
+        "control_observations"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "actual_store_epochs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/u32"
+          },
+          "maxItems": 4
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Frame"
+          },
+          "maxItems": 128
+        },
+        "app_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeEditorObservation"
+          },
+          "maxItems": 512
+        },
+        "source_case_requirement_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 96,
+            "x-maxUtf8Bytes": 96
+          },
+          "maxItems": 64
+        },
+        "raw_inventory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RawRef"
+          },
+          "maxItems": 2048
+        },
+        "record_inventory": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "maxLength": 128,
+            "not": {
+              "enum": [
+                ".",
+                ".."
+              ]
+            }
+          },
+          "maxItems": 128
+        },
+        "terminal_kind": {
+          "enum": [
+            "normal-owned-close",
+            "expected-fenced-reopen-failure-owned-close"
+          ]
+        },
+        "negative_inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NegativeInput"
+          },
+          "maxItems": 256
+        },
+        "store_snapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SnapshotIndex"
+          },
+          "maxItems": 64
+        },
+        "grant_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GrantObservation"
+          },
+          "maxItems": 33
+        },
+        "producer_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProducerObservation"
+          },
+          "maxItems": 512
+        },
+        "control_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ControlObservation"
+          },
+          "maxItems": 1024
+        }
+      }
+    },
+    "DesktopExchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "reply"
+      ],
+      "properties": {
+        "request": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        },
+        "reply": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{176}$",
+          "minLength": 176,
+          "maxLength": 176
+        }
+      }
+    },
+    "DesktopRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "exchanges",
+        "ledger",
+        "permit_count",
+        "transition_count",
+        "mutation_dispatch_count",
+        "volatile_backend"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "exchanges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DesktopExchange"
+          },
+          "maxItems": 131072
+        },
+        "ledger": {
+          "$ref": "#/$defs/ResourceLedger"
+        },
+        "permit_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "transition_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "mutation_dispatch_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "volatile_backend": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ReopenError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/u32"
+        },
+        "reason": {
+          "$ref": "#/$defs/store::FixtureErrorKind"
+        }
+      }
+    },
+    "StoreEpochRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "phase",
+        "exchanges",
+        "objects",
+        "barriers",
+        "io_events",
+        "ledger",
+        "files",
+        "native_fence",
+        "reopen_error",
+        "observation_index",
+        "purpose"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "phase": {
+          "enum": [
+            "source_checkpoint",
+            "after_owned_join_before_transfer",
+            "actual_failed_reopen_closed",
+            "final_before_cleanup",
+            "before_storage_fault",
+            "after_storage_fault"
+          ]
+        },
+        "exchanges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Exchange"
+          },
+          "maxItems": 131072
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectEvidence"
+          },
+          "maxItems": 3
+        },
+        "barriers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BarrierSnapshot"
+          },
+          "maxItems": 64
+        },
+        "io_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IoEvent"
+          },
+          "maxItems": 65536
+        },
+        "ledger": {
+          "$ref": "#/$defs/StoreLedger"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FileObservation"
+          },
+          "maxItems": 2048
+        },
+        "native_fence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativeSaveFenceSnapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reopen_error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReopenError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        }
+      }
+    },
+    "CaptureBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_index",
+        "captures"
+      ],
+      "properties": {
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "captures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Capture"
+          },
+          "maxItems": 256
+        }
+      }
+    },
+    "ArtifactsRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "partial_copies_are_complete_captures",
+        "batches"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "partial_copies_are_complete_captures": {
+          "const": false
+        },
+        "batches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CaptureBatch"
+          },
+          "maxItems": 4
+        }
+      }
+    },
+    "OriginalTicketBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_index",
+        "original_tickets"
+      ],
+      "properties": {
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "original_tickets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OriginalTicketObservation"
+          },
+          "maxItems": 96
+        }
+      }
+    },
+    "JoinsRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "native_join_observations",
+        "external_callers",
+        "held_after",
+        "fence_original_ticket_batches"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "native_join_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeJoinObservation"
+          },
+          "maxItems": 65536
+        },
+        "external_callers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalJoin"
+          },
+          "maxItems": 128
+        },
+        "held_after": {
+          "$ref": "#/$defs/u32"
+        },
+        "fence_original_ticket_batches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OriginalTicketBatch"
+          },
+          "maxItems": 4
+        }
+      }
+    },
+    "NativeSaveCleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "root_identity",
+        "owner_relative",
+        "service_held_before_cleanup",
+        "service_held_after_join",
+        "external_callers",
+        "fences",
+        "root_close_result",
+        "root_absence_result",
+        "all_recording_reservations_settled",
+        "scope"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "root_identity": {
+          "$ref": "#/$defs/RootIdentity"
+        },
+        "owner_relative": {
+          "const": "owner"
+        },
+        "service_held_before_cleanup": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "service_held_after_join": {
+          "const": 0
+        },
+        "external_callers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalJoin"
+          },
+          "maxItems": 128
+        },
+        "fences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeSaveFenceSnapshot"
+          },
+          "maxItems": 4
+        },
+        "root_close_result": {
+          "const": "Ok"
+        },
+        "root_absence_result": {
+          "const": "NotFound"
+        },
+        "all_recording_reservations_settled": {
+          "const": true
+        },
+        "scope": {
+          "const": "owned host test fixture; no processkill/device/HIL or generic containment"
+        }
+      }
+    },
+    "NativeReadJoin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "outcome"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/u64"
+        },
+        "outcome": {
+          "const": 1
+        }
+      }
+    },
+    "NativeReadCleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "root_identity",
+        "owner_relative",
+        "held_after_join",
+        "external_callers",
+        "root_close_result",
+        "root_absence_result",
+        "store_fence",
+        "actual_join_records"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "root_identity": {
+          "$ref": "#/$defs/RootIdentity"
+        },
+        "owner_relative": {
+          "const": "owner"
+        },
+        "held_after_join": {
+          "const": 0
+        },
+        "external_callers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalJoin"
+          },
+          "maxItems": 128
+        },
+        "root_close_result": {
+          "const": "Ok"
+        },
+        "root_absence_result": {
+          "const": "NotFound"
+        },
+        "store_fence": {
+          "const": null
+        },
+        "actual_join_records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeReadJoin"
+          },
+          "maxItems": 64
+        }
+      }
+    },
+    "VolatileCleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "actual_controller_final_ledger",
+        "external_callers",
+        "consumer_holders_dropped",
+        "root_identity",
+        "store_fence",
+        "native_process_cleanup_claim"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RecordBinding"
+        },
+        "actual_controller_final_ledger": {
+          "$ref": "#/$defs/ResourceLedger"
+        },
+        "external_callers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalJoin"
+          },
+          "maxItems": 128
+        },
+        "consumer_holders_dropped": {
+          "const": true
+        },
+        "root_identity": {
+          "const": null
+        },
+        "store_fence": {
+          "const": null
+        },
+        "native_process_cleanup_claim": {
+          "const": false
+        }
+      }
+    },
+    "SourceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_index",
+        "observation_index",
+        "purpose",
+        "phase",
+        "durability"
+      ],
+      "properties": {
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "phase": {
+          "enum": [
+            "source_checkpoint",
+            "after_owned_join_before_transfer",
+            "actual_failed_reopen_closed",
+            "final_before_cleanup",
+            "before_storage_fault",
+            "after_storage_fault"
+          ]
+        },
+        "durability": {
+          "enum": [
+            "joined_checkpoint",
+            "live_checkpoint",
+            "negative_disk_fault"
+          ]
+        }
+      }
+    },
+    "SourceFileException": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_index",
+        "observation_index",
+        "snapshot_purpose",
+        "relative_path",
+        "raw_kind",
+        "reason",
+        "allow_empty"
+      ],
+      "properties": {
+        "epoch_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "snapshot_purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "relative_path": {
+          "type": "string",
+          "maxLength": 256,
+          "x-maxUtf8Bytes": 256
+        },
+        "raw_kind": {
+          "enum": [
+            "corrupt_journal",
+            "cas_blob",
+            "fixture_file"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "MissingJournal",
+            "TruncatedJournal",
+            "UnknownJournalVersion",
+            "ExtraJournalField",
+            "DuplicateJournalField",
+            "WrongJournalBinding",
+            "BrokenJournalChain",
+            "EarlierAllocatedOnlyJournal",
+            "CorruptBlob",
+            "UnsignedManifest",
+            "WrongSigningKey",
+            "UnboundPublicationIntent",
+            "UnsignedPublicationIntent",
+            "SymlinkEntry",
+            "EmptyAsciiObject",
+            "SourceDeclaredEmptyFixture"
+          ]
+        },
+        "allow_empty": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SourceRawLimit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "min_count",
+        "max_count"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "text64",
+            "receipt176",
+            "wire88",
+            "journal",
+            "corrupt_journal",
+            "cas_blob",
+            "fixture_file",
+            "app_frame",
+            "composed_frame",
+            "chrome248",
+            "wire88_negative",
+            "text64_negative",
+            "grant464"
+          ]
+        },
+        "min_count": {
+          "$ref": "#/$defs/u32"
+        },
+        "max_count": {
+          "$ref": "#/$defs/u32"
+        }
+      }
+    },
+    "SourceRowBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_exchanges",
+        "store_exchanges_per_snapshot",
+        "io_events_per_snapshot",
+        "barriers_per_snapshot",
+        "native_joins",
+        "app_observations",
+        "frames",
+        "negative_inputs",
+        "captures_per_core",
+        "tickets_per_core",
+        "files_per_snapshot",
+        "producer_observations",
+        "grant_observations",
+        "control_observations"
+      ],
+      "properties": {
+        "desktop_exchanges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "store_exchanges_per_snapshot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "io_events_per_snapshot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "barriers_per_snapshot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "native_joins": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "app_observations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 512
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "negative_inputs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "captures_per_core": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "tickets_per_core": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 96
+        },
+        "files_per_snapshot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2048
+        },
+        "producer_observations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 512
+        },
+        "grant_observations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 33
+        },
+        "control_observations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        }
+      }
+    },
+    "SourceNegative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_control",
+        "kind",
+        "actual_denial_layer",
+        "actual_status",
+        "status_space"
+      ],
+      "properties": {
+        "source_control": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "kind": {
+          "enum": [
+            "wire88_negative",
+            "text64_negative"
+          ]
+        },
+        "actual_denial_layer": {
+          "enum": [
+            "wire_decoder",
+            "native_call_admission",
+            "native_source_consumption"
+          ]
+        },
+        "actual_status": {
+          "$ref": "#/$defs/u32"
+        },
+        "status_space": {
+          "enum": [
+            "DesktopStatus",
+            "StoreStatus"
+          ]
+        }
+      }
+    },
+    "SourceInitialObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_id",
+        "object_id",
+        "generation",
+        "revision",
+        "body_sha256",
+        "body_len"
+      ],
+      "properties": {
+        "owner_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "object_id": {
+          "$ref": "#/$defs/u64"
+        },
+        "generation": {
+          "$ref": "#/$defs/u64"
+        },
+        "revision": {
+          "$ref": "#/$defs/u64"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "body_len": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        }
+      }
+    },
+    "SourceControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "call",
+        "kind",
+        "actual_status",
+        "min_count",
+        "max_count"
+      ],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "call": {
+          "type": "string",
+          "maxLength": 128,
+          "x-maxUtf8Bytes": 128
+        },
+        "kind": {
+          "enum": [
+            "unit_result",
+            "native_save_init",
+            "native_save_expose",
+            "native_save_delivery",
+            "inactive_save_desktop",
+            "inactive_save_store",
+            "native_save_registration"
+          ]
+        },
+        "actual_status": {
+          "$ref": "#/$defs/UnitResult"
+        },
+        "min_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "max_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        }
+      }
+    },
+    "SourceGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_index",
+        "phase"
+      ],
+      "properties": {
+        "observation_index": {
+          "$ref": "#/$defs/u32"
+        },
+        "phase": {
+          "enum": [
+            "Preview",
+            "Active"
+          ]
+        }
+      }
+    },
+    "SourceScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario",
+        "scope",
+        "source_leg",
+        "core_ordinals",
+        "requirements",
+        "record_names",
+        "store_snapshots",
+        "file_exceptions",
+        "raw_limits",
+        "row_bounds",
+        "negative_controls",
+        "control_sites",
+        "producer_sites",
+        "grant_sites",
+        "initial_objects",
+        "required_relations"
+      ],
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,96}$",
+          "minLength": 1,
+          "maxLength": 96,
+          "x-maxUtf8Bytes": 96
+        },
+        "scope": {
+          "enum": [
+            "composition",
+            "direct-native",
+            "volatile-control",
+            "native-read-control"
+          ]
+        },
+        "source_leg": {
+          "$ref": "#/$defs/u32"
+        },
+        "core_ordinals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/u32"
+          },
+          "maxItems": 4
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 96,
+            "x-maxUtf8Bytes": 96
+          },
+          "maxItems": 64
+        },
+        "record_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+            "maxLength": 128,
+            "not": {
+              "enum": [
+                ".",
+                ".."
+              ]
+            }
+          },
+          "maxItems": 128
+        },
+        "store_snapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceSnapshot"
+          },
+          "maxItems": 64
+        },
+        "file_exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceFileException"
+          },
+          "maxItems": 64
+        },
+        "raw_limits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceRawLimit"
+          },
+          "maxItems": 13
+        },
+        "row_bounds": {
+          "$ref": "#/$defs/SourceRowBounds"
+        },
+        "negative_controls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceNegative"
+          },
+          "maxItems": 256
+        },
+        "control_sites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceControl"
+          },
+          "maxItems": 1024
+        },
+        "producer_sites": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128,
+            "x-maxUtf8Bytes": 128
+          },
+          "maxItems": 512
+        },
+        "grant_sites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceGrant"
+          },
+          "maxItems": 33
+        },
+        "initial_objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceInitialObject"
+          },
+          "maxItems": 3
+        },
+        "required_relations": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "app_save_chain",
+              "reopened_selected_read",
+              "active_grant",
+              "preview_grant",
+              "saved_chrome",
+              "unknown_original",
+              "joined_fence",
+              "negative_source",
+              "negative_wire",
+              "capacity_boundary"
+            ]
+          },
+          "maxItems": 10
+        }
+      }
+    },
+    "SourceCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case",
+        "scenarios"
+      ],
+      "properties": {
+        "case": {
+          "enum": [
+            "ui1_1_keyboard_edits_ascii_and_renders_owned_frame",
+            "ui1_1_ascii_bounds_preserve_prior_draft",
+            "ui1_1_focus_routes_reserved_keys_to_trusted_chrome",
+            "ui1_1_focus_epoch_reset_overflow_and_detach",
+            "ui1_1_surface_freeze_alias_quota_and_chrome_clip",
+            "ui1_1_wire_schema_descriptor_and_identity_fail_closed",
+            "ui1_1_editor_grants_are_exact_and_preview_single_use",
+            "ui1_1_volatile_save_and_reopen_are_explicitly_labeled",
+            "ui1_1_revoke_paused_key_frame_and_save",
+            "ui1_1_fault_restart_discards_unsaved_draft_and_old_grants",
+            "ui1_1_focus_compositor_restart_retires_old_epochs",
+            "ui1_1_stalled_session_leaves_other_session_usable",
+            "ui1_1_clock_capacity_and_counter_limits_fail_closed",
+            "ui1_1_store_commit_reopen_preserves_prior_blob",
+            "ui1_1_store_same_base_conflict_and_operation_reuse",
+            "ui1_1_store_lost_reply_reconciles_without_mutation_replay",
+            "ui1_1_store_recovery_validates_atomic_selection_and_receipt",
+            "ui1_1_unknown_save_survives_editor_recovery"
+          ]
+        },
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceScenario"
+          },
+          "maxItems": 128
+        }
+      }
+    },
+    "AssertionSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path",
+        "byte_len",
+        "sha256"
+      ],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "maxLength": 256,
+          "x-maxUtf8Bytes": 256
+        },
+        "byte_len": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8388608
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash32"
+        }
+      }
+    },
+    "SourceInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "contract_sha256",
+        "recording_contract_sha256",
+        "assertion_sources",
+        "cases"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "status": {
+          "const": "SOURCE_AND_RECORDING_INVENTORY_INDEPENDENTLY_REVIEWED"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "recording_contract_sha256": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "assertion_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AssertionSource"
+          },
+          "maxItems": 1024
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceCase"
+          },
+          "maxItems": 18
+        }
+      }
+    }
+  },
+  "x-recording-proposal-sha256": "b994e45e0841c94508d0c15e3f2f4bb54d4b04f00094fa00af3fc6775d9c5227",
+  "x-contract-sha256": "f76a0cdb81ab94f003a484989661293ea2037640d981e8be7228e4fac5d410a9",
+  "x-source-inventory-required": true,
+  "x-source-inventory-max-bytes": 1048576,
+  "x-recording-global-files": 40960,
+  "x-recording-global-entries": 41115,
+  "x-inventory-definition": "SourceInventory",
+  "x-inventory-global-checks": [
+    "Exact original18 case order and unique (case, scenario stem, source_leg) tuples; total scenarios <=128.",
+    "Physical path cases/<case>/<stem>/<canonical decimal source_leg>/; runtime binding.scenario equals <stem>/<leg>.",
+    "Control rows match complete ordered source groups purpose/call/kind/status-space/result/status with bounded min_count/max_count; deterministic repetitions remain distinct exact1 sites.",
+    "Only Case12primarylegs0/1 StoreStatusNotReady6 paused_join_not_ready (1,2) and Case16allocate_lossleg0 StoreStatusStale4 control_main_020/source_for_intent (0,1) may vary; sum max_count <=1024 and source row bound. No count grants authority.",
+    "Producer purposes and grant index/phase match complete ordered source sites without deduplication.",
+    "Observation ordinals are consecutive per family per scenario; cross-family numbers never replace actual causal identities/traces.",
+    "Every snapshot phase/durability matches the exact source checkpoint; no class waives three-state journal or IO evidence validation.",
+    "File exceptions match exact source Core/snapshot/purpose/path/reason; absence, symlink and empty regular copies stay distinct.",
+    "Each case has at least one source scenario; all source fixed record names and snapshots are required.",
+    "NativeSave Core ordinals are exactly source-declared consecutive actual Core lifetimes, never original epochs.",
+    "Raw kinds are unique; 0<=min_count<=max_count<=2048; total files/entries/bytes retain global caps.",
+    "Source/contract/schema pins and record names are root-trusted and independently reviewed before acceptance.",
+    "Every required relation must have a concrete implemented checker; unknown/unimplemented relation denies."
+  ]
+}

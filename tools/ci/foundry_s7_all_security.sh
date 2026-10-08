@@ -10,6 +10,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+python3 "$ROOT_DIR/tools/ci/test_s7_signature_startup.py"
+
 echo "=== S7 Security Hardening Phase 3: All Security Gates ==="
 echo ""
 echo "This script runs all S7 security hardening Foundry gates:"

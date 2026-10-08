@@ -1,0 +1,1523 @@
+{
+  "schema_version": 1,
+  "kind": "DesktopEditorProcessV0",
+  "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+  "wire": {
+    "schema_version": 1,
+    "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+    "namespace": "portal.desktop_editor_process",
+    "version": 1,
+    "protocol_proposal": 384,
+    "protocol_allocation_owner": "Root; recheck complete registry beforefreeze",
+    "carrier": "Linux defaultoff SOCK_SEQPACKET; native semantics IDL-typed",
+    "outer": {
+      "bytes": 88,
+      "protocol_offset": 0,
+      "msg_type_offset": 4,
+      "handle_offset": 8,
+      "payload_len_offset": 16,
+      "payload_offset": 20,
+      "payload_capacity": 64,
+      "zero_tail_offset": 84,
+      "zero_tail_bytes": 4,
+      "payload_len": 64,
+      "encoding": "explicit little-endian; no repr(C) wire inference",
+      "length_prefix": "none for record-oriented carrier; packet mustbe exactly88"
+    },
+    "messages": [
+      {
+        "name": "bootstrap",
+        "msg_type": 1,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "document_binding_id",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "offer_id",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "selected_text_len",
+            "type": "u32",
+            "offset": 32,
+            "bytes": 4
+          },
+          {
+            "name": "width",
+            "type": "u32",
+            "offset": 36,
+            "bytes": 4
+          },
+          {
+            "name": "height",
+            "type": "u32",
+            "offset": 40,
+            "bytes": 4
+          },
+          {
+            "name": "stride",
+            "type": "u32",
+            "offset": 44,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes16",
+            "offset": 48,
+            "bytes": 16
+          }
+        ],
+        "exact_fd_roles": [
+          "sealed_selected_text",
+          "offered_text_state",
+          "offered_surface"
+        ],
+        "semantics": "Actual approved document row; request1 and offer1; width640/height480/stride2560. No editor work before owned process/channel installed."
+      },
+      {
+        "name": "deliver_input",
+        "msg_type": 2,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "input_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "focus_epoch",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "focus_service_epoch",
+            "type": "u64",
+            "offset": 32,
+            "bytes": 8
+          },
+          {
+            "name": "offer_id",
+            "type": "u64",
+            "offset": 40,
+            "bytes": 8
+          },
+          {
+            "name": "usage",
+            "type": "u32",
+            "offset": 48,
+            "bytes": 4
+          },
+          {
+            "name": "phase",
+            "type": "u32",
+            "offset": 52,
+            "bytes": 4
+          },
+          {
+            "name": "modifiers",
+            "type": "u32",
+            "offset": 56,
+            "bytes": 4
+          },
+          {
+            "name": "flags",
+            "type": "u32",
+            "offset": 60,
+            "bytes": 4
+          }
+        ],
+        "exact_fd_roles": [],
+        "semantics": "One genuine Focus event, no FDs. offer_id must be zero. Flags exactly 0 NORMAL, 1 RESET, 2 SAVE_CAPTURE. Child applies locally and acknowledges before the next event. SAVE_CAPTURE freezes state and permits only the immediately following matching RequestPublication, under the original Ctrl+S deadline."
+      },
+      {
+        "name": "input_ack",
+        "msg_type": 3,
+        "direction": "child_to_parent",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "input_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "text_generation",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "view_generation",
+            "type": "u64",
+            "offset": 32,
+            "bytes": 8
+          },
+          {
+            "name": "flags",
+            "type": "u32",
+            "offset": 40,
+            "bytes": 4
+          },
+          {
+            "name": "status",
+            "type": "u32",
+            "offset": 44,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes16",
+            "offset": 48,
+            "bytes": 16
+          }
+        ],
+        "exact_fd_roles": [],
+        "semantics": "Successful exact pending input acknowledgment has flags 0 UNCHANGED or 1 APPLIED_UNPUBLISHED. text_generation and view_generation each remain equal or increase by exactly one from the previous acknowledgment; text change requires view increase. No successful acknowledgment alone updates parent display or mints Save. Save capture acknowledgment requires an immediate publication request. Errors have only request_id/status nonzero and no FDs."
+      },
+      {
+        "name": "stop",
+        "msg_type": 4,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "reason",
+            "type": "u32",
+            "offset": 16,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes44",
+            "offset": 20,
+            "bytes": 44
+          }
+        ],
+        "exact_fd_roles": [],
+        "semantics": "reason1 close,2 revoke,3 expiry,4 fault,5 transport-invalid,6 deadline. Notification cannot replace actual wait/reap."
+      },
+      {
+        "name": "publish",
+        "msg_type": 5,
+        "direction": "child_to_parent",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "input_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "publication_sequence",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "text_generation",
+            "type": "u64",
+            "offset": 32,
+            "bytes": 8
+          },
+          {
+            "name": "view_generation",
+            "type": "u64",
+            "offset": 40,
+            "bytes": 8
+          },
+          {
+            "name": "offer_id",
+            "type": "u64",
+            "offset": 48,
+            "bytes": 8
+          },
+          {
+            "name": "text_state_len",
+            "type": "u32",
+            "offset": 56,
+            "bytes": 4
+          },
+          {
+            "name": "surface_len",
+            "type": "u32",
+            "offset": 60,
+            "bytes": 4
+          }
+        ],
+        "exact_fd_roles": [
+          "returned_offered_text_state",
+          "returned_offered_surface"
+        ],
+        "semantics": "Returns the exact pending Bootstrap or RequestPublication offered pair. input_sequence is the last actually acknowledged input, or zero for bootstrap; generations exactly match the latest accepted input acknowledgment. No later input may be delivered until publication terminal handling. Parent validates actual immutable state, not semantic edits inferred from generation claims."
+      },
+      {
+        "name": "publish_ack",
+        "msg_type": 6,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "publication_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "input_sequence",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "status",
+            "type": "u32",
+            "offset": 32,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes28",
+            "offset": 36,
+            "bytes": 28
+          }
+        ],
+        "exact_fd_roles": [],
+        "semantics": "Ok consumes genuinepending pair once; deniedreply zeroexceptrequest/status. ACK is not proof child closed every read alias."
+      },
+      {
+        "name": "receipt_notice",
+        "msg_type": 7,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "capture_input_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "operation_id",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "committed_revision",
+            "type": "u64",
+            "offset": 32,
+            "bytes": 8
+          },
+          {
+            "name": "capture_text_generation",
+            "type": "u64",
+            "offset": 40,
+            "bytes": 8
+          },
+          {
+            "name": "outcome",
+            "type": "u32",
+            "offset": 48,
+            "bytes": 4
+          },
+          {
+            "name": "phase",
+            "type": "u32",
+            "offset": 52,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes8",
+            "offset": 56,
+            "bytes": 8
+          }
+        ],
+        "exact_fd_roles": [],
+        "semantics": "Informational own original outcome after parentfull176receiptvalidation. outcome0 committed/1 definitive-noncommit; phase0 Saved-current/1 Saved-older-current-unsaved/2 definitive-noncommit. NoUnknownpretendreceipt. Parent retains genuine committedhash privately; child changes base revision onlyoncommittednotice forowncapture. No ordinarygrantrevival."
+      },
+      {
+        "name": "request_publication",
+        "msg_type": 8,
+        "direction": "parent_to_child",
+        "payload_bytes": 64,
+        "fields": [
+          {
+            "name": "request_id",
+            "type": "u64",
+            "offset": 0,
+            "bytes": 8
+          },
+          {
+            "name": "channel_generation",
+            "type": "u64",
+            "offset": 8,
+            "bytes": 8
+          },
+          {
+            "name": "last_input_sequence",
+            "type": "u64",
+            "offset": 16,
+            "bytes": 8
+          },
+          {
+            "name": "offer_id",
+            "type": "u64",
+            "offset": 24,
+            "bytes": 8
+          },
+          {
+            "name": "expected_text_generation",
+            "type": "u64",
+            "offset": 32,
+            "bytes": 8
+          },
+          {
+            "name": "expected_view_generation",
+            "type": "u64",
+            "offset": 40,
+            "bytes": 8
+          },
+          {
+            "name": "flags",
+            "type": "u32",
+            "offset": 48,
+            "bytes": 4
+          },
+          {
+            "name": "reserved",
+            "type": "bytes12",
+            "offset": 52,
+            "bytes": 12
+          }
+        ],
+        "exact_fd_roles": [
+          "offered_text_state",
+          "offered_surface"
+        ],
+        "semantics": "Parent-only flush bound to the latest genuine acknowledgment and fresh offered pair. flags exactly0 NORMAL or2 SAVE_CAPTURE. Flush at128 acknowledged deliveries OR64 key-down events including modifiers, whichever first, before any next input; releases count only toward delivery cap. Genuine Ctrl+S forces immediate capture flush under the original Instant/deadline; no later input until terminal handling."
+      }
+    ],
+    "ancillary": {
+      "credentials_records": 1,
+      "rights_records": "0 when noFD; exactly1whenFDrolesnonempty",
+      "max_received_fds": 3,
+      "unknown_or_duplicate_record": "retire channel; closeeveryactualreceivedFD via bounded owner; preservepriorcurrentoutput",
+      "required_recv_flags": "MSG_CMSG_CLOEXEC; reject MSG_TRUNC and MSG_CTRUNC",
+      "auth": "actual owned channel+SCM_CREDENTIALS sender PID/UID/GID; bootstrap,wirehandle,numericPID notstandaloneauthority"
+    },
+    "data": {
+      "selected_text": {
+        "bytes_min": 64,
+        "bytes_max": 4160,
+        "layout": "unchanged EditorTextHeaderV0 +body",
+        "sealed_before_offer": true
+      },
+      "text_state": {
+        "header_bytes": 128,
+        "body_max": 4096,
+        "total_max": 4224,
+        "header_fields": [
+          {
+            "offset": 0,
+            "bytes": 64,
+            "type": "existing EditorTextHeaderV0"
+          },
+          {
+            "offset": 64,
+            "bytes": 4,
+            "type": "u32",
+            "name": "cursor"
+          },
+          {
+            "offset": 68,
+            "bytes": 4,
+            "type": "u32",
+            "name": "selection_start"
+          },
+          {
+            "offset": 72,
+            "bytes": 4,
+            "type": "u32",
+            "name": "selection_end"
+          },
+          {
+            "offset": 76,
+            "bytes": 4,
+            "type": "u32",
+            "name": "first_visible_line"
+          },
+          {
+            "offset": 80,
+            "bytes": 8,
+            "type": "u64",
+            "name": "text_generation"
+          },
+          {
+            "offset": 88,
+            "bytes": 8,
+            "type": "u64",
+            "name": "view_generation"
+          },
+          {
+            "offset": 96,
+            "bytes": 32,
+            "type": "bytes32",
+            "name": "full_surface_sha256"
+          }
+        ],
+        "selection_absent": 4294967295,
+        "validation": "pairedsentinel or orderedrange<=bodylen,cursor<=bodylen,firstvisibleline<=bodylen+actualrenderlineinventory; headerASCII/hash/object/basevalid; nonzerogenerationsmatchcontrol"
+      },
+      "surface": {
+        "bytes": 1228800,
+        "width": 640,
+        "height": 480,
+        "stride": 2560,
+        "format": "opaqueBGRA8888",
+        "parent_composed_bytes": 1454080,
+        "parent_chrome_rows": 88
+      }
+    },
+    "generation_rules": "Bootstrap generations are one. Per genuine child-local event, acknowledgment generations remain equal or advance by checked one according to body/view changes. Publication generations equal the latest acknowledged pair. Batch publication threshold is128 acknowledged deliveries OR64 key-down events including modifiers, whichever first; it does not count only changed/applied inputs. Acknowledgments alone grant no Save/render authority; counters do not wrap.",
+    "reserved_fields": "allzero; anyunknownflag/value/unusedtail deniedbeforeeffects",
+    "no_new_grants": "existing permissions63 and endpoint classes remain; process endpoint isopaque attached carrier only",
+    "publication_policy": {
+      "delivery_fds": 0,
+      "flush_pair_fds": 2,
+      "pending_input": 1,
+      "pending_publication": 1,
+      "ctrl_s": "Immediate matching flush after all preceding input acknowledgments, under original captured 1000 ms deadline. No later input until capture acceptance or terminal failure.",
+      "4096_ascii_case": "Genuine selected empty artifact.4096 unmodified ASCII a presses and4096 releases produce8192 DeliverInput and8192 InputAck records.64 edit publications plus bootstrap and one immediate genuine Ctrl+S publication =66 pairs for edit+Save. One optional final state/chrome close-boundary publication may bring whole scenario to67, still below128. Ctrl down/S down triggers genuine capture; S up/Ctrl up are retained after terminal capture and do not mint another intent. No initial deletion/chords are omitted.",
+      "existing_core_queue_capacity": 64,
+      "publication_budget_exhaustion": "Retire truthfully with prior accepted state and original Save ownership retained; no silent refund. Interactive frame flushes consume real lifetime credits.",
+      "process_queue_ordinary_capacity": 64,
+      "process_queue_reserved_reset_capacity": 1,
+      "process_queue_total_capacity": 65,
+      "max_acknowledged_key_down_events_between_publications": 64,
+      "max_acknowledged_deliveries_between_publications": 128,
+      "batch_counter_rule": "Increment delivery count for every genuine acknowledged press/release/reset event. Increment key-down count for each actual key-down, including modifiers, whether text changes or not. Force flush when either reaches its cap, before the next event. Release events do not increment key-down count. Counters reset only after a terminal accepted publication, never refund lifetime offers."
+    },
+    "normative_destination": "docs/contracts/editor-process-v0.json#wire"
+  },
+  "authority": {
+    "schema_version": 1,
+    "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+    "Lang": {
+      "holders": {
+        "child": [
+          "consume onlygenuineparentdelivered focusedlocalkeys/reset forownapproveddocument",
+          "write onlyparentoffered apptext-state/surface objects thenseal+Publishonthatpendingrequest",
+          "receiveownselectedtext andownverifiedreceiptinformation",
+          "request noStoreoperations directly; noinputproduction/chrome/focusassignment/launch/restart/arbitraryFD/path/syscallcommand"
+        ],
+        "parent_broker": [
+          "authenticatetypedFocus/chrome events; launch exactpinnedactualchild afterfreshSavepreview/approval",
+          "reserve/offer boundedactualmemfdpair underprivatependingcredit",
+          "privatelyvalidate+adopt actualsealedpublication forcurrentdocument; mintNativeSaveIntent onlyforsingle-use genuineCtrlS captureticket",
+          "composeprotectedchrome andvalidateactualfullreceipt beforeSaved",
+          "stop/signal/waitonlyheldownedchild; retain genuineSaveoriginalafterchilddeath"
+        ],
+        "store": [
+          "unchanged actual issuer/Core/nativequery/allocatedoperation/source/permit/receipt/recovery; no child constructor authority"
+        ]
+      },
+      "linearization": [
+        "Reserve pendingcredit/intentInstant beforefallibleoffer/send.",
+        "No lockspansreceive/send/mmap/hash/raster/StoreIO/kill/wait/join; afterbytevalidation reacquireand recheckliveattachment/epochs/deadlineandconsumeprivatependingticketonce.",
+        "Ordinarypublication cannotmintintent. SaveCapture deadline min(originalCtrlS+1000ms, entry+1000ms); noreset.",
+        "Beforepermitdeath/revoke/timeout deniesnewadmission; aftergenuinepermit preserveoneboundtransitionandoriginalUnknown/reconcile withoutreplay."
+      ],
+      "opaque_types_proposed": [
+        "ProcessEditorEnrollment",
+        "OwnedEditorChild",
+        "DeliveredProcessInput",
+        "VerifiedProcessPublication",
+        "ProcessSaveCapture",
+        "OwnedEditorChildExitProof"
+      ],
+      "type_rules": "privatefields/nonClone; constructorinsideenforcingDesktopLinuxadapter; no fromActor/fromPID/frombody/publictraitwitness; Exact proposed Rust mapping/signatures in docs/DESKTOP_EDITOR_PROCESS_API_V0.md after independent review and Root adoption."
+    },
+    "ObsContract": {
+      "child_allowed": [
+        "ownselectedbody/baseandlogicalkeys",
+        "owndraft/cursor/selection/view/pixels",
+        "ownreceiptoperation/revision/outcomenotice; noforeignenumeration"
+      ],
+      "parent_evidence_allowed": [
+        "actualexecutableSHA/processPID/nativebirth/pidfdowner/waitexit",
+        "actualkernelpermessagecredentials/channelattachment",
+        "rawcanonical88controlbytes andactualFDdev/ino/length/seals/aliasowners",
+        "completeactualmappedtext/frame/composedcrops",
+        "actualfull176receipt/privateoriginalbinding/currentSavedcomparison",
+        "distinctactualchildreap andRustproducerjoins"
+      ],
+      "denied_claims": [
+        "wirePID/nonce/bootstrap/Actor ascapability",
+        "socketpairSO_PEERCREDaloneprovesexecchildsender",
+        "parentrender/parenteditwithobserverPIDproveschildeditor",
+        "F_SEAL_FUTURE_WRITE/mprotect/read-onlyalias provesimmutableobject",
+        "killrequested/pidfdready/EOF/Dropprovesreap",
+        "childreapprovesStoreIOjoin/noncommit/noallocation",
+        "retirementerasespreviouslyreadmappedbytes",
+        "trustedhostprocessfixtureproveshostile sameUIDcontainment/device/targetMMU/noninterference"
+      ],
+      "error_observations": "replyrequest_id+statusonly; otherdata/FDszero; malformedtransportmayclosechannelwithnoencodedreply",
+      "limits": "actualsameUIDambientresources andprivilegedcredentialexceptions outsidecontainment; finitebrokeroffer/lifetimebudgetscopeexplicit"
+    },
+    "process_state_machine": {
+      "states": [
+        "Prepared",
+        "OwnedUnadmitted",
+        "Bootstrapping",
+        "Ready",
+        "AwaitingInputAck",
+        "AwaitingPublication",
+        "Retiring",
+        "ExitedUnreaped",
+        "Reaped",
+        "QuarantinedUncertain"
+      ],
+      "transitions": [
+        "Prepared→OwnedUnadmitted onlyactualownedspawn; ensureprivateownerexistsbeforebootstrap.",
+        "OwnedUnadmitted→Bootstrapping onlyactualbirth/pidfd/channel/executablebindinginstalled.",
+        "Bootstrapping→Ready onlyvalidinitialsealedchildpublication; focusassignmentafterreadyframe.",
+        "Anyadmittedstate→Retiring onexpiry/revoke/close/resetrequiringrestart/transportfault/death; denynewordinaryeffectsfirst.",
+        "Retiring→ExitedUnreaped onlyactualownedprocess exitobservation;→Reaped onlysoleowningwaitsuccessful.",
+        "Anycleanupfailure→QuarantinedUncertain; retainactualowner/charges; gateINCOMPLETE.",
+        "Reaped neverrevives; restartfreshpreviewapprovalandnewowner/generation.",
+        "Ready → AwaitingInputAck only for a genuine parent Focus dequeue. No offered FDs or parent editing.",
+        "AwaitingInputAck → Ready only for the exact terminal child acknowledgment; retain unflushed generations and delivery and key-down counts. Errors cannot mint a Save intent.",
+        "Ready → AwaitingPublication only for Bootstrap or parent RequestPublication bound to the latest acknowledgment and exact offered pair; force at128 acknowledged deliveries OR64 key-downs including modifiers, whichever first and immediately for genuine Ctrl+S.",
+        "AwaitingPublication → Ready only after terminal publication handling; valid sealed pair replaces current state, denial preserves prior pair, protocol fault retires the channel."
+      ],
+      "independent_save_state": "Common parent app SaveChains retains existing original Allocate/Commit/Unknown/reconcile/source/IO owners across child death. Child reap never proves Store writer join."
+    },
+    "normative_destination": "docs/contracts/editor-process-v0.json#authority",
+    "process_wait_ownership": "ProcessSupervisor alone owns OwnedLinuxProcess fork-derived PID/birth/pidfd and waitpid. OwnedEditorChild owns opaque supervised record/channel/JoinHandle. Retire requests signal; join validates authentic terminal result then joins supervisor. Error returns sole owner and charges.",
+    "opaque_observation": "Public getter-only process/exit observations describe actual held owners; private fields/no constructors, never authority. No raw FD getter.",
+    "enrollment": "Genuine initialized NativeEditor consumed once; shared process-mode tag denies legacy step/render and repeat Read/take_editor; preparation failure returns unchanged editor.",
+    "public_signature_inventory": "docs/DESKTOP_EDITOR_PROCESS_API_V0.md after Root adoption; exact private candidate api-signatures.rs.txt."
+  },
+  "bounds": {
+    "schema_version": 1,
+    "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+    "process": {
+      "live_editor_children": 2,
+      "per_session": 1,
+      "watchdog_rust_handles": 2,
+      "watchdog_accounting": "SeparateactualownedProcessSupervisorHandle rows2; neverfabricatemembershipinexisting64NativeSaveproducerroster. ActualsupervisorjoinseparatefromchildwaitandStorejoins.",
+      "owned_negative_probe_helpers": 2,
+      "helpers_scope": "gaterunner-onlytrueheldchildren, notadmittededitors; max4OSchildrenincluding2editors; actualbirth/deadline/exit/reaprequired",
+      "child_budget_ms_min": 1,
+      "child_budget_ms_max": 5000,
+      "default_child_budget_ms": 5000,
+      "cleanup_reserve_ms": 2000,
+      "reserve_does_not_extend_execution": true,
+      "case_work_ms": 20000,
+      "case_cleanup_ms": 2000,
+      "whole_gate_ms": 1200000,
+      "wait_owner": "Only ProcessSupervisor owns internal OwnedLinuxProcess fork-derived PID, pidfd and waitpid authority. OwnedEditorChild owns opaque supervised record, channel and supervisor JoinHandle. Retire requests signal; consuming join validates authentic terminal result then joins supervisor. Uncertainty returns owner and all charges."
+    },
+    "transport": {
+      "record_bytes": 88,
+      "payload_bytes": 64,
+      "max_ancillary_fds_per_packet": 3,
+      "pending_input_per_child": 1,
+      "reset_slot_reserved": 1,
+      "queued_outbound_records_per_child": 1,
+      "charges": "Reserve before each actual create, dup, ancillary import or mmap. Every live parent-owned FD alias and data mapping counts individually. Transfer changes the authentic owner, never fabricates a release. Fixed-process and data ledgers are separate; combined cap is28 per child. Ambient host descriptors and fork-child aliases are outside this finite parent ledger claim.",
+      "offered_pairs_lifetime_per_child": 128,
+      "pair_object_bytes_max": 1233024,
+      "initial_selected_text_objects_per_child": 1,
+      "initial_selected_text_bytes_max": 4160,
+      "lifetime_object_ledger_rows_per_child": 257,
+      "lifetime_offered_bytes_per_child": 157831232,
+      "lifetime_offered_bytes_two_children": 315662464,
+      "no_lifetime_reuse": "ACK/drop/parentFDrelease/counterresetneverrefundscreatedobjectorbytecount; childreapreleasesowner; freshapprovedchildnewledgerunderlivequota.",
+      "request_and_generation_max": 18446744073709551615,
+      "counter_exhaustion": "retireexactowner; no wrap/eviction/reseed",
+      "child_stdout_bytes": 16384,
+      "child_stderr_bytes": 16384,
+      "diagnostic_overflow": "Retireactualownerandpreserverealpartialbytes; no truncationreportedcomplete.",
+      "existing_Core_queue_capacity_unchanged": 64,
+      "ascii_4096_case_pairs_max": 67,
+      "live_data_FD_and_mapping_owners_per_child": 12,
+      "live_data_owners_two_children": 24,
+      "fixed_process_FD_owners_per_child": 16,
+      "combined_process_parent_FD_and_map_owners_per_child": 28,
+      "combined_process_parent_owners_two_children": 56,
+      "queued_parent_input_ordinary": 64,
+      "queued_parent_input_reserved_reset": 1,
+      "queued_parent_input_total": 65,
+      "ascii4096_keypresses": 4096,
+      "ascii4096_keyreleases": 4096,
+      "ascii4096_input_deliveries": 8192,
+      "ascii4096_input_acknowledgments": 8192,
+      "key_down_events_between_publications_max": 64,
+      "acknowledged_deliveries_between_publications_max": 128
+    },
+    "existing_caps_preserved": {
+      "service_sessions": 2,
+      "selected_objects": 3,
+      "Store_data_live": 32,
+      "Store_pins": 16,
+      "pending_contexts": 16,
+      "original_tickets": 96,
+      "durable_rows": 48,
+      "query_origins": 64,
+      "native_Rust_producers": 64,
+      "Store_IO": 2,
+      "native_text_body": 4096,
+      "receipt_bytes": 176,
+      "c_original_assertions": 18,
+      "c_reader_semantic_assertions": 93,
+      "c_stalled_other_session_ms": 1000
+    },
+    "recording_proposed": {
+      "files": 16384,
+      "entries_including_directories": 17000,
+      "single_raw_leaf_bytes": 2097152,
+      "single_metadata_leaf_bytes": 33554432,
+      "source_manifest_bytes": 524288,
+      "source_rows": 1024,
+      "path_bytes": 256,
+      "path_depth": 16,
+      "raw_refs_per_scenario": 1024,
+      "controls_per_scenario": 32768,
+      "process_rows_per_scenario": 8,
+      "transport_object_rows_per_child": 257,
+      "assertion_families": 30,
+      "retained_child_binary_each_bytes": 1073741824,
+      "binary_retention_scope": "Separately charged from2GiB raw/control/metadata corpus. Exact registered child-feature-only Cargo artifact and held executable snapshot pin, at most1GiB per retained binary; no arbitrary artifact path opens.",
+      "zero_truncation": "OverflowfailsINCOMPLETEbeforegrowth; retainedpartialrealmetadata withactualcompletedcounts. No truncatedsamplepresentedascomplete.",
+      "controls_aggregate": 131072,
+      "control_JSONL_leaf_bytes": 16777216,
+      "control_storage": "One compact append-only controls JSONL leaf per scenario, no sampling or implicit segmentation. Every actual delivery, acknowledgment and control event has monotonic row index, direction, request/sequence, canonical bytes, credentials and FD-ledger references. Count and byte caps both enforce before append.",
+      "raw_leaf_class": "Raster/text/raw receipt leaves remain at most2MiB. Only controls JSONL has explicit16MiB leaf class. Metadata leaves at most32MiB. All retained raw/control/metadata files charge the2GiB corpus and16384 files/17000 entries caps; separately retained child binaries charge their explicit1GiB-per-binary budget.",
+      "controls_JSONL_row_bytes_max": 512,
+      "raw_ref_join": "Each scenario has exactly one complete controls JSONL leaf reference, not one raw leaf per event. Scenario metadata binds leaf size/hash/row count and monotonic row range; rows reference actual immutable FD/object ledger rows and separate raw text/raster/receipt leaves. raw_refs_per_scenario1024 bounds these file references; controls32768 bounds rows independently. No row is dropped, sampled or borrowed.",
+      "corpus_total_bytes": 2147483648,
+      "controls_row_layout": {
+        "encoding": "UTF-8 compact JSON object + LF; unique keys; canonical field order i,k,d,b,c,o,q,s,t,f,r; at most512 bytes including LF.",
+        "fields": {
+          "i": "u32 monotonic1..32768 scenario row index",
+          "k": "enum send/recv/kernel_reject",
+          "d": "u8 direction0 parent-to-child,1 child-to-parent,2 denied helper probe",
+          "b": "base64 of exact attempted or actual88 control bytes; exactly120 ASCII characters for a complete frame; malformed short/long control bytes use a separately bound raw leaf reference in r instead",
+          "c": "[u32 actual PID,u32 actual UID,u32 actual GID], or null for parent send without received credentials; credential provenance is explicit in k/d and actual process ledger",
+          "o": "array of0..3 u32 authentic object/FD-ledger references, not raw FD authority",
+          "q": "u64 request ID decoded from actual record,0 if malformed",
+          "s": "u64 actual input/publication sequence decoded or0 if malformed",
+          "t": "u64 actual monotonic timestamp offset from case start",
+          "f": "u32 actual syscall/ancillary flags",
+          "r": "bounded actual outcome enum or raw-leaf index, never sampled bytes"
+        },
+        "counting": "Exactly one canonical row per actual message transmission or denied send attempt, not duplicate sender+receiver rows. Parent outbound records actual send result; incoming records actual recv result/credentials; corresponding actual child acknowledgment binds input delivery. Further syscall/FD lifecycle evidence is retained in separate bounded actual ledgers, not silently discarded."
+      }
+    },
+    "feasibility": "Data peak10 plus bootstrap selected FD/map2 gives12; fixed FD inventory sums16, combined cap28 per child/56 for two. Lifetime257 objects and157831232 data bytes per child unchanged.4096 ASCII press/release requires8192 input deliveries plus8192 acknowledgments.128-delivery OR64-key-down threshold yields64 edit publications; bootstrap+CtrlS capture gives66, with at mostone final close-boundary publication gives67. Complete controls fit32768 rows/scenario and16MiB with512-byte maximum row. Every raw/control/metadata leaf also charges2GiB corpus cap.",
+    "fixed_process_FD_inventory": {
+      "registered_source": 1,
+      "sealed_executable": 1,
+      "socketpair_ends": 2,
+      "pidfd": 1,
+      "stdout_pipe_ends": 2,
+      "stderr_pipe_ends": 2,
+      "stdin_null": 1,
+      "exec_error_pipe_ends": 2,
+      "preexec_barrier_pipe_ends": 2,
+      "remap_scratch": 2,
+      "sum_cap": 16,
+      "scope": "Conservative simultaneous parent-owner cap, not fabricated occupancy. Source closes after verified copy. Parent-held sealed executable remains through actual reap. Transferred supervisor pidfd remains charged. Exact created aliases, closure and transfer times are retained."
+    },
+    "executable": {
+      "bytes_max": 1073741824,
+      "copy_buffer_bytes": 65536,
+      "mode_octal": "0500",
+      "source_open": "Only Root-registered artifact, O_NOFOLLOW|O_CLOEXEC, regular ELF source; exact registered build digest.",
+      "held_copy": "MFD_ALLOW_SEALING|MFD_CLOEXEC; bounded copy, held-byte digest, ELF validation, fchmod0500, WRITE|GROW|SHRINK|SEAL.",
+      "execution": "fork plus execveat(same held sealed FD, empty path, prepared argv/envp, AT_EMPTY_PATH). No path fallback, scripts or shell.",
+      "parent_retention": "Held sealed executable until genuine supervisor wait result and join; source FD closes after copy.",
+      "system_dependencies": "Dynamic loader/library dependencies are explicit host prerequisites; no whole-runtime containment claim."
+    }
+  },
+  "api": {
+    "schema_version": 1,
+    "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+    "scope": "Exact proposed signatures in api-signatures.rs.txt; maintained destination API document and closed contract. No implementation.",
+    "opaque_types": {
+      "ProcessEditorEnrollment": "Non-Clone, private genuine authority/document/approved attachment. Consuming NativeEditor changes shared document mode exactly once; repeat Read take_editor and legacy step/render deny process mode. Prepare error returns original editor unchanged.",
+      "PinnedProcessExecutable": "Non-Clone, private enrollment-bound Root-registered Cargo artifact snapshot. Held sealed ELF FD and registered digest, no caller path/FD/hash constructor.",
+      "OwnedEditorChild": "Non-Clone, private opaque supervised process record, authenticated channel, supervisor JoinHandle, data/fixed charges, publication/input state. Does not own waitpid authority directly.",
+      "OwnedLinuxProcess": "Internal supervisor-only fork-derived process PID/birth/pidfd/wait owner; no public constructor, process ID authority or second waiter.",
+      "DeliveredProcessInput": "Private genuine Focus event with actual sequence/current epochs; no consumer key injection.",
+      "VerifiedProcessPublication": "Private exact held offered FD pair, actual seals/maps/validated complete state.",
+      "ProcessSaveCapture": "Private genuine Ctrl+S original Instant and single-use ticket.",
+      "OwnedEditorChildExitProof": "Non-Clone authentic supervisor wait result plus joined supervisor and exact held executable/process binding. Distinct from NativeSave JoinedProducerProof.",
+      "ProcessPrepareFailure": "into_parts returns Status and consumed original NativeEditor.",
+      "ProcessLaunchFailure": "into_parts returns Status and Unspawned enrollment/executable or Spawned authentic OwnedEditorChild.",
+      "ProcessJoinFailure": "into_parts returns Status and sole authentic uncertain/unreaped OwnedEditorChild, including supervisor owner and all charges.",
+      "ProcessStepFailure": "Status only; caller retains borrowed child and original Save owners.",
+      "ProcessChildObservation": "Private fields, getter-only copies of actual fork PID/birth/held executable digest/acknowledged sequence/publication generation. No constructor, Clone witness or authority injection."
+    },
+    "parent_orchestration_proposed": [
+      {
+        "name": "HostDesktop::prepare_process_editor",
+        "arguments": [
+          "&self",
+          "editor:NativeEditor"
+        ],
+        "returns": "Result<ProcessEditorEnrollment,ProcessPrepareFailure>",
+        "checks": "Sameactualauthority/document/approvedattachment/genuineReadinitialization; consumeeditorandtagprocessmodebeforeexposure; cstep/renderdenyprocessmode; failurepreservesconsumededitorowner."
+      },
+      {
+        "name": "HostDesktop::spawn_process_editor",
+        "arguments": [
+          "&self",
+          "enrollment:ProcessEditorEnrollment",
+          "executable:PinnedProcessExecutable",
+          "budget:ChildBudget",
+          "now_ms:u64"
+        ],
+        "returns": "Result<OwnedEditorChild,ProcessLaunchFailure>",
+        "checks": "Actualopaqueenrollment/currentfreshapproval,pinnedartifact,1..5000budget,child/supervisorquotas; reserveownerbeforespawn; installnativebirth/pidfd/privatechannelbeforebootstrap."
+      },
+      {
+        "name": "HostDesktop::pump_process_editor",
+        "arguments": [
+          "&self",
+          "child:&mut OwnedEditorChild",
+          "now_ms:u64"
+        ],
+        "returns": "Result<ProcessEditorStep,ProcessStepFailure>",
+        "checks": "Input-first genuine Focus dequeue, individual child acknowledgments, publication at128 deliveries OR64 key-downs including modifiers, immediate genuine Ctrl+S capture, private verified adoption. No caller raw body/image/FD/key input."
+      },
+      {
+        "name": "HostDesktop::take_process_save_intent",
+        "arguments": [
+          "&self",
+          "child:&mut OwnedEditorChild"
+        ],
+        "returns": "Result<NativeSaveIntent,Status>",
+        "checks": "OnlyactualqueuedissuerintentmintedfromthischilddocumentgenuineCtrlScapture; consumedonce; sameactualNativeSaveIntenttypeandoriginalInstant."
+      },
+      {
+        "name": "HostDesktop::observe_process_editor",
+        "arguments": [
+          "&self",
+          "child:&OwnedEditorChild",
+          "now_ms:u64"
+        ],
+        "returns": "Result<NativeEditorObservation,Status>",
+        "checks": "Diagnosticboundedcopyonly; samecurrentdocument/attachment, no authority minting."
+      },
+      {
+        "name": "HostDesktop::retire_process_editor",
+        "arguments": [
+          "&self",
+          "child:&mut OwnedEditorChild",
+          "reason:ProcessRetireReason",
+          "now_ms:u64"
+        ],
+        "returns": "Result<(),ProcessStepFailure>",
+        "checks": "Deny new ordinary effects first, retain original Save owner, request signal/retirement from sole actual supervisor. Does not call waitpid or fabricate terminal result."
+      },
+      {
+        "name": "HostDesktop::join_process_editor",
+        "arguments": [
+          "&self",
+          "child:OwnedEditorChild"
+        ],
+        "returns": "Result<OwnedEditorChildExitProof,ProcessJoinFailure>",
+        "checks": "Consume authentic supervisor terminal result recording sole waitpid, then join actual supervisor JoinHandle. Failure returns opaque child/supervisor/charges. No second process waiter."
+      },
+      {
+        "name": "HostDesktop::observe_process_child",
+        "arguments": [
+          "&self",
+          "child:&OwnedEditorChild"
+        ],
+        "returns": "Result<ProcessChildObservation,Status>",
+        "checks": "Getter-only actual fork/birth/held digest/acknowledgment/publication observations, no authority constructor."
+      },
+      {
+        "name": "HostDesktop::registered_editor_process_executable",
+        "arguments": [
+          "&self",
+          "enrollment:&ProcessEditorEnrollment"
+        ],
+        "returns": "Result<PinnedProcessExecutable,Status>",
+        "checks": "Only Root-registered child-feature-only artifact; copy/verify/seal held ELF, enrollment binding, no caller path/hash/FD input."
+      },
+      {
+        "name": "HostDesktop::request_process_editor_frame",
+        "arguments": [
+          "&self",
+          "child:&mut OwnedEditorChild",
+          "now_ms:u64"
+        ],
+        "returns": "Result<(),ProcessStepFailure>",
+        "checks": "Early human flush of latest actually acknowledged state only; no raw data or capture ticket input. Charges actual fresh offer; cannot renew deadline."
+      }
+    ],
+    "private_adoption_proposed": {
+      "visibility": "Desktop-ownedmoduleprivate; no pubbodysetter/frombytes/fromActor/fromPID/traitwitness",
+      "name": "adopt_process_publication",
+      "arguments": [
+        "actual authority reference",
+        "actual mutable OwnedEditorChild",
+        "VerifiedProcessPublication",
+        "Option<ProcessSaveCapture>",
+        "now_ms:u64"
+      ],
+      "returns": "private acceptedstep / owner-preservingerror",
+      "requirements": [
+        "Match exact authority, process-mode shared document, current attachment/epochs, parent publication request and offered pair; validate maps outside Gate then recheck enforcing state.",
+        "Privately copy at most4096 validated body bytes into existing snapshot representation; no parent editing/rasterization and no public raw setter.",
+        "Only genuine Ctrl+S capture mints existing NativeSaveIntent; preserve original Instant/deadline and original-only recovery.",
+        "No Store constructor, permit, fence, ordinary grant or replay mechanism changes."
+      ]
+    },
+    "pure_editor_component_proposed": {
+      "location": "services/desktop_editor_core",
+      "features": {
+        "default": []
+      },
+      "dependencies": "No Desktop or Store dependency. Shared pure edit/font/raster extraction only; no issuer/capability/process/IO authority.",
+      "consumers": "Existing c Desktop fixture and independently built actual child; original c behavior/pixels remain covered.",
+      "functions": [
+        "Initialize bounded ASCII state from validated body/base.",
+        "Apply existing logical key/reset to own state.",
+        "Rasterize into exact supplied640x480 mapped byte view.",
+        "Snapshot own local state for genuine capture."
+      ]
+    },
+    "open_before_freeze": [],
+    "signature_file": "api-signatures.rs.txt",
+    "normative_destination": "docs/DESKTOP_EDITOR_PROCESS_API_V0.md",
+    "feature_graph": {
+      "libc": "Optional Linux-only libc0.2.180 already pinned in Cargo.lock.",
+      "desktop.host_editor_process_v0_dev": [
+        "editor_native_save_v0_dev",
+        "dep:desktop_editor_core",
+        "dep:libc"
+      ],
+      "app.host_editor_process_v0_dev": [
+        "host_native_save_v0_dev",
+        "desktop_service/host_editor_process_v0_dev"
+      ],
+      "app.host_editor_process_child_v0_dev": [
+        "dep:desktop_editor_core",
+        "dep:kernel_api",
+        "dep:libc"
+      ],
+      "child_binary": "apps/artifact_editor/src/bin/editor-process.rs; required-feature host_editor_process_child_v0_dev; built independently without parent feature. The child binary has only desktop_editor_core, kernel_api and libc as direct dependencies. The pure core may use the already-pinned sha2 0.10 and its existing lockfile transitives for text/surface hashes; the complete active graph must exclude Desktop and Store. No new hashing algorithm/version; kernel_api stays dependency-free. No parent-feature artifact accepted.",
+      "default": "All new features absent from default=[]; parent process carrier Linux-only."
+    },
+    "enrollment_and_save_trace": "Existing genuine Save Read creates NativeEditor through SaveGateGuard::initialize_editor. prepare consumes that same actual authority/DocumentLife and atomically tags shared document ProcessOwned once. Existing alias/repeated Read returns cannot mint a second NativeEditor after mode transfer; legacy step_native_editor/render_native_editor deny before dequeue/mutation. Process pump alone validates publication and privately adopts bounded snapshot/capture into existing NativeSaveIntent. apps/artifact_editor common SaveChains owns existing Read/Allocate/Commit/Status/Recovery and original source/IO independent of child death. ReceiptNotice is generated from parent-private genuine confirmed tuple, no public raw receipt/body setter.",
+    "process_observations": {
+      "getter_only": "process_id()->u32, birth_ticks()->u64, executable_sha256()->[u8;32], acknowledged_sequence()->u64, publication_generation()->u64",
+      "method": "HostDesktop::observe_process_child(&self, child:&OwnedEditorChild)->Result<ProcessChildObservation,Status>",
+      "exit_getters": "process_id, birth_ticks, executable_sha256, wait_outcome()->ProcessWaitOutcome, supervisor_joined()->bool",
+      "wait_enum": "ProcessWaitOutcome { Exited(i32), Signaled(i32) }",
+      "truth": "Native fork PID and parent-observed birth, held sealed ELF digest, accepted sequence/publication; wait outcome only supervisor actual waitpid. All observational copies, never authority."
+    },
+    "first_frame_route": "Private pump validates real first child pair, then genuine Surface.Create/Focus.Assign/Acquire/Present using actual Core bindings/CreateReply values. Preserve epochs/caps/error retention; no public IDs or raw setter. Consumer calls existing compose_native_save(compositor,now_ms).",
+    "child_budget": "ChildBudget::checked accepts1..=5000ms, otherwise Status::Invalid. Capture actual Instant before spawn, never renew through caller Core-time observations."
+  },
+  "assertions": {
+    "schema_version": 1,
+    "status": "FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED",
+    "gate_proposal": "foundry-desktop-editor-process-ui1-1d",
+    "inventory_count": 30,
+    "assertions": [
+      {
+        "id": "D01",
+        "name": "default_off_build_and_exports",
+        "given": "Build defaultapp/Desktop/Storeandattemptselectprocesschild/API.",
+        "required_behavior": "Childrequiredfeatureandprocessbrokerexportsabsent; c/nativefeaturesunchanged.",
+        "finite_denial_failure_controls": [
+          "defaultbinaryselection",
+          "defaultparentAPI",
+          "servicefeatureexclusion"
+        ],
+        "authorized_positive_control": "Explicitprocessfeature actualchildandparentconstructsuccess.",
+        "required_evidence": "actualCargo/rustcargv/log/exitandselectedartifacthash",
+        "feature_graph_control": "Independently build actual child with host_editor_process_child_v0_dev only; source/build graph excludes Desktop/Store. Parent feature or default build artifact is not accepted as child evidence."
+      },
+      {
+        "id": "D02",
+        "name": "pinned_actual_editor_and_private_channel",
+        "given": "Genuine approved initialized editor and independently built child-feature-only registered ELF artifact.",
+        "required_behavior": "Actual supervisor-owned fork-derived process, held sealed executable FD, pidfd and authenticated channel installed before preexec release/bootstrap; child performs edit/raster.",
+        "finite_denial_failure_controls": [
+          "wrong registered digest before snapshot",
+          "source symlink or nonregular source",
+          "script or invalid ELF",
+          "source replacement before verified snapshot causing digest mismatch",
+          "barrier-controlled source path replacement after final held verification before exec",
+          "barrier-controlled original inode mutation after held verification before exec",
+          "write/grow/shrink attempts on held sealed executable",
+          "executable memfd or execveat unavailable",
+          "birth/pidfd/supervisor installation failure"
+        ],
+        "authorized_positive_control": "Actual execveat of the same held sealed ELF succeeds despite post-snapshot source replacement or mutation; retained held bytes match registered build digest.",
+        "required_evidence": "Registered Cargo artifact/build graph, complete held ELF pin/seals/mode/FD identity, barrier events, actual fork PID/birth/pidfd association, exec errno pipe result and true supervisor wait/cleanup.",
+        "observation_control": "Getter-only ProcessChildObservation matches authentic fork PID/native birth and held sealed ELF digest, not child payload. Privately record held executable identity and actual postexec /proc/exe association before bootstrap; terminal exit proof reports only supervisor waitpid and actual supervisor join. No raw FD authority getter."
+      },
+      {
+        "id": "D03",
+        "name": "canonical_wire_exact_closed_inventory",
+        "given": "Exercise all eight typed message types and canonical88-byte frames with64-byte payloads through the actual carrier.",
+        "required_behavior": "Acceptonly88canonicalframeand64LEpayloadcorrectdirection/type.",
+        "finite_denial_failure_controls": [
+          "length87",
+          "length89",
+          "protocol0",
+          "wrongversionprotocol",
+          "msgtype0",
+          "msgtype9",
+          "nonzerotail84..87",
+          "wrongpayloadlen",
+          "reservedbytes",
+          "unknownflags",
+          "wrongdirection"
+        ],
+        "authorized_positive_control": "Canonicalpairedauthorizedinput/publicationworksaftereachnonretiringdecoderdenial.",
+        "required_evidence": "raw88bytes,actualdecoderstatus,noeffectbaseline"
+      },
+      {
+        "id": "D04",
+        "name": "actual_sender_credentials_not_bootstrap_pid",
+        "given": "Actual unprivileged unauthorized credential send and an actual owned helper with an intentionally inherited endpoint but wrong native PID.",
+        "required_behavior": "Kernel rejects unauthorized forged credentials; received kernel credentials from the wrong-PID helper are denied before mapping/adoption. Genuine approved child credentials succeed. Kernel rejection is not received wrong-UID parser evidence.",
+        "finite_denial_failure_controls": [
+          "unprivileged sendmsg with unauthorized forged PID/UID/GID returns actual kernel rejection",
+          "actual inherited-endpoint helper sends kernel-issued wrong PID credentials",
+          "missing or duplicate credentials where actually constructible",
+          "SO_PEERCRED creation-time creator used as child identity",
+          "payload PID/Actor copied from approved bootstrap"
+        ],
+        "authorized_positive_control": "Genuine owned child with expected real UID/GID sends actual accepted kernel credential record.",
+        "required_evidence": "Actual sendmsg return/errno, helper fork birth and genuine wait, received wrong-PID SCM_CREDENTIALS and no-effect counts. Privileged received-wrong-UID/GID parser behavior is explicitly separate and is not a required or claimed assertion."
+      },
+      {
+        "id": "D05",
+        "name": "ancillary_inventory_truncation_and_cleanup",
+        "given": "ActualsendmsgFDandcredentialmalformationswithboundedreceiver.",
+        "required_behavior": "MSG_TRUNC/CTRUNCandunknown/missing/extraFDdeny/retire; allactualreceivedFDsownedthenclosed.",
+        "finite_denial_failure_controls": [
+          "Bootstrap 0/1/2/4 FDs",
+          "DeliverInput any FD",
+          "RequestPublication 0/1/3 FDs",
+          "Publish 0/1/3 FDs",
+          "InputAck/Stop/PublishAck/ReceiptNotice any FD",
+          "unknown ancillary type",
+          "duplicate SCM_RIGHTS",
+          "MSG_CTRUNC",
+          "MSG_TRUNC"
+        ],
+        "authorized_positive_control": "Exact Bootstrap3, DeliverInput0, RequestPublication2, Publish2 and all other message types0 FDs, each with exactly one genuine kernel credential record.",
+        "required_evidence": "nativeFDcountbeforeafter,flags,ownedreceivedFDledger; nokernel-discardclosurefabrication"
+      },
+      {
+        "id": "D06",
+        "name": "genuine_selected_init_and_first_child_frame",
+        "given": "RealReadSelectedleasecurrentnote=oldrevision1; parentsealedinitialinputandactualchildbootstrap.",
+        "required_behavior": "ChildloadsactualText64mapping; firsttextstate/framepublicationacceptedbeforefocusassignment.",
+        "finite_denial_failure_controls": [
+          "wrongselectedhash",
+          "wrongselectedrevision",
+          "wrongobject",
+          "initialunsealedFD",
+          "focusbeforevalidframe"
+        ],
+        "authorized_positive_control": "FreshcorrectgenuineReadpin→childframe→focus.",
+        "required_evidence": "realStoreReadwire/lease,initmappedrawbytes,childexecandfirstframe/crop",
+        "process_mode_control": "Genuine Read.take_editor initializes once. Consuming prepare atomically transfers shared document to ProcessOwned. Retained legacy alias step/render and repeated genuine Read.take_editor deny before editing/reset/minting; prepare failure returns original editor unchanged."
+      },
+      {
+        "id": "D07",
+        "name": "child_local_keyboard_edit_raster_task",
+        "given": "AuthenticFocusqueueCtrlA+USkeysnote=newLFdeliveredtorealchild.",
+        "required_behavior": "Childlocaldraftnote=newLFandchildmappedpixelscorrect; parentonlyvalidates/composes.",
+        "finite_denial_failure_controls": [
+          "observeronlychild",
+          "parentediteddraftsubstitute",
+          "parentrenderedframewithchildreportedPID"
+        ],
+        "authorized_positive_control": "Source-pinnedchildenginehandleskeysandwritesfullmappedimage.",
+        "required_evidence": "actualchildinput/publicationcontrol+rawtext/frame+sourcepins+composedcrops",
+        "first_frame_focus_control": "Pump validates actual child pair then genuine Surface.Create/Focus.Assign/Acquire/Present using actual Core bindings/CreateReply; existing compositor compose_native_save consumes result. No parent raster, raw setter or public numeric surface witness."
+      },
+      {
+        "id": "D08",
+        "name": "ascii_and_4096_bounds_preserve_prior_draft",
+        "given": "Validcurrentdraftthenunsupportedbyte/keytranslationandboundaryedits.",
+        "required_behavior": "RejectunsupportedASCII/overflowwithoutreplacinglastcompleteacceptedtext/frame.",
+        "finite_denial_failure_controls": [
+          "body4097",
+          "nonASCII",
+          "NUL",
+          "unsupportedusage",
+          "contradictorymodifiers",
+          "invalidphase"
+        ],
+        "authorized_positive_control": "4096bytevaliddraftandsupportedUSkey.",
+        "required_evidence": "actualchildoutcome,prior/currentmappedhash,cursorbounds,authorizedwitness",
+        "publication_capacity_control": "Use a genuine selected empty ASCII artifact. Deliver4096 unmodified ASCII a key presses and4096 matching releases:8192 actual DeliverInput and8192 actual child InputAck records. Flush after128 acknowledged deliveries OR64 key-down events including modifiers, whichever first.64 edit publications+bootstrap+immediate genuine Ctrl+S capture=66 pairs; at mostone final close-boundary publication allows67 total. Include Ctrl down/S down/S up/Ctrl up controls and original1000ms capture deadline. Store complete canonical controls in one bounded JSONL file; no parent editing, dropped releases, injected body, refunded lifetime or arbitrary Unicode claim."
+      },
+      {
+        "id": "D09",
+        "name": "cursor_selection_scroll_exact_state_pixels",
+        "given": "ChildreceivesArrow/Home/End/Backspace/Tab/Enterandviewportscrollcorpus.",
+        "required_behavior": "Checkedcursor/selection/firstline/text/viewgensmatchexpectedchildraster.",
+        "finite_denial_failure_controls": [
+          "cursor>len",
+          "halfselection-sentinel",
+          "end<start",
+          "selection>len",
+          "line>actualinventory",
+          "wrongviewgeneration"
+        ],
+        "authorized_positive_control": "Canonicalselectionandscrollrender/crop.",
+        "required_evidence": "TextState128/body+actualimage/crops+expectedfrozenfont/corpus"
+      },
+      {
+        "id": "D10",
+        "name": "protected_chrome_and_reserved_input_routes",
+        "given": "ChildtriesappimageimitatingchromeandreservedCtrlEsc/CtrlQ/CtrlR/previewevents.",
+        "required_behavior": "Parent88protectedrowsclipped/unchangedexceptgenuinetrustedstate; reservedinputnotdeliveredchild.",
+        "finite_denial_failure_controls": [
+          "oversizedsurface",
+          "chromeobjectFD",
+          "reservedkeyforwarded",
+          "childSavedclaim"
+        ],
+        "authorized_positive_control": "Genuineparentchromeandlocalappkeypublication.",
+        "required_evidence": "complete640x568rawpixels/protectedcropsandtrustedinputroute"
+      },
+      {
+        "id": "D11",
+        "name": "actual_write_seals_and_retained_alias_ebusy",
+        "given": "KeepgenuineMAP_SHAREDwritablealiaswhileattemptingWRITEseal.",
+        "required_behavior": "ActualEBUSY; noacceptedpublication/currentmutation. FUTURE_WRITEorreadonlymprotectinsufficient.",
+        "finite_denial_failure_controls": [
+          "keptwritablealias",
+          "F_SEAL_FUTURE_WRITEonly",
+          "mprotectonly",
+          "missingGROW",
+          "missingSHRINK",
+          "missingSEAL",
+          "writeafterseal",
+          "growafterseal",
+          "shrinkafterseal"
+        ],
+        "authorized_positive_control": "Freshpairunmapallwritablealiases+allfourseals→acceptedread-onlyactualmapping.",
+        "required_evidence": "actualfcntlerrno/seals,FDidentity,mmap/write/truncateobservations,prioroutputhash"
+      },
+      {
+        "id": "D12",
+        "name": "offered_inode_pair_and_cross_child_denials",
+        "given": "ReturnsealedrightlengthFDsthatarenotthependingofferedpair.",
+        "required_behavior": "Denybeforedataeffect; rightfulpendingownerunconsumedandotherchildworks.",
+        "finite_denial_failure_controls": [
+          "foreignchildtext",
+          "foreignchildframe",
+          "swappedroles",
+          "duplicateoneFDtwiceroles",
+          "samecontentdifferentinode",
+          "staleofferID"
+        ],
+        "authorized_positive_control": "Exactpendingtwooffereddev/inoFDsaccepted.",
+        "required_evidence": "offered/returnednativeFDidentity+rawcontrol+quota/noeffectdelta"
+      },
+      {
+        "id": "D13",
+        "name": "complete_mapping_shape_hash_and_base",
+        "given": "ActualofferedFDswithwronglength/header/generation/body/framehash.",
+        "required_behavior": "Rejectpreexposureandretainpriorcompletepair.",
+        "finite_denial_failure_controls": [
+          "textlen127",
+          "textlen4225",
+          "controlsize!=fstat",
+          "frame1228799",
+          "frame1228801",
+          "badText64version/reserved/hash",
+          "wrongbase/object",
+          "state/controlgenmismatch",
+          "companionframehashmismatch",
+          "alpha/formatviolation"
+        ],
+        "authorized_positive_control": "Exact128..4224state+1228800BGRAactualpair.",
+        "required_evidence": "heldfstat/sealsbeforeafter,fullbytes/hash,status,noeffect"
+      },
+      {
+        "id": "D14",
+        "name": "sequence_epoch_ownership_and_single_use",
+        "given": "Replayorreorderactualchildrequest/publicationaroundfocus/servicechange.",
+        "required_behavior": "Rejectduplicate/stale/wrongattachment; onependingterminalresponseconsumedonce.",
+        "finite_denial_failure_controls": [
+          "oldrequest",
+          "futureinput",
+          "duplicatePublish",
+          "duplicateAck",
+          "wrongchannelgen",
+          "oldfocus",
+          "oldserviceepoch",
+          "forgeddocumentbinding",
+          "counterwraprequest/publication/text/view/channel"
+        ],
+        "authorized_positive_control": "Currentgenuinedeliveredsequence/newcheckedgenerationaccepted.",
+        "required_evidence": "actualtypedcontrolandprivatependingticket/epochobservations"
+      },
+      {
+        "id": "D15",
+        "name": "live_owner_pending_queue_and_save_caps",
+        "given": "Saturateactualchargedparentowners/pendinginput/queueandnativeoperationcaps.",
+        "required_behavior": "Allcap+1admissionfailsbeforeallocation/effect; reservedresetpreserved; norefundi/oauthority.",
+        "finite_denial_failure_controls": [
+          "13th data FD/map owner",
+          "17th fixed-process FD owner",
+          "29th combined process parent owner",
+          "second pending input",
+          "65th queued ordinary key",
+          "second reserved reset while first occupies reserved slot",
+          "66th total queued event",
+          "second inflight Save per child",
+          "third live editor",
+          "third actual ProcessSupervisor handle",
+          "existing Store32 data/16 pin/16 pending/64 query/64 producer/IO2 caps"
+        ],
+        "authorized_positive_control": "Releasegenuinemapping/FDorjoinrealownerthenauthorizedrequestwherecontractpermits.",
+        "required_evidence": "ownedFD/map/processsupervisorledger,reservedresetrecord,actualexistingservicecapswitnesses",
+        "publication_backpressure_control": "Queue64 ordinary+one separately reserved reset slot=65. Existing Core input queue capacity64 and its actual overflow-reset semantics remain unchanged. Deny ordinary65th and reset second separately; never overwrite. Publication threshold128 acknowledged deliveries OR64 key-downs including modifiers. Release changes are acknowledged but do not increment key-down count. Ctrl+S forces immediate flush before any later input under original1000ms deadline."
+      },
+      {
+        "id": "D16",
+        "name": "lifetime_offer_ledger_bytes_and_no_alias_reuse",
+        "given": "Useall128actualbrokercreatedpaircreditsincludingdeniedunusedoffers.",
+        "required_behavior": "129thpairExhaustedbeforememfdcreate; ledger<=257andbytes<=157831232perchild; noACK/droprefund.",
+        "finite_denial_failure_controls": [
+          "129thoffer",
+          "258thobject",
+          "bytecap+1",
+          "sameinodealiaspresentedasnewcredit",
+          "drop/reseed/counterresetreopenscredit"
+        ],
+        "authorized_positive_control": "128thwithinbudgetworks; separatelyfreshapprovedchildaftertruereapgetsnewboundedledger.",
+        "required_evidence": "actualcreationFDidentity/lifetimecounters/bytesandheldaliases,notchild-reportedFDcount"
+      },
+      {
+        "id": "D17",
+        "name": "genuine_ctrl_s_full_receipt_and_reopen",
+        "given": "Childcapturesnote=newongenuineCtrlS; parentprivateadoptsoriginalintentandSavechain.",
+        "required_behavior": "OneAllocate/Commit,actual176receiptvalidated,protectedSaved,currenttuple; freshpreviewnewchildReadloadsrevision2note=new.",
+        "finite_denial_failure_controls": [
+          "shortreceipt",
+          "wrongreceiptbinding/hash/revision",
+          "childreceiptsetter",
+          "copiedallocationclaim"
+        ],
+        "authorized_positive_control": "FullactualCore/issuer/originalreceiptandfreshchildreopen.",
+        "required_evidence": "capturedCtrlSInstant,pendingticket,sourcecopyexplicit,actualwire/binding/permit/journal/receipt176andnewchildbytes"
+      },
+      {
+        "id": "D18",
+        "name": "no_save_without_genuine_single_use_capture",
+        "given": "ChildsendsPublishwithSaveishpayloadorreplaysoldgenuinecaptureafterdeadline/consumption.",
+        "required_behavior": "NoNativeSaveIntent/Allocate/permit/effectwithoutactualcurrentparentCtrlSprivatecapture.",
+        "finite_denial_failure_controls": [
+          "ordinaryPublishSaveclaim",
+          "unsolicitedcapture",
+          "oldCtrlScopiedrequest",
+          "samecapturetwice",
+          "latecapture>1000ms",
+          "capturedeadline resetbyroundtrip"
+        ],
+        "authorized_positive_control": "FreshcurrentCtrlScapturewithinoriginaldeadlineadoptsonce.",
+        "required_evidence": "actualtypedFocusdequeue/Instant/privateintentIDsandmutationcounts"
+      },
+      {
+        "id": "D19",
+        "name": "newer_draft_keeps_unsaved_after_older_commit",
+        "given": "PauseauthenticparentStoreIOafterpermit; childeditsnewerlocaldraftandframe.",
+        "required_behavior": "Oldercommitgenuineoriginalreceiptretained; currentnewerdraftUnsavedandeditable; nosecondmutationduringSaving/Unknown.",
+        "finite_denial_failure_controls": [
+          "repeatCtrlSwhileSaving",
+          "repeatCtrlSwhileUnknown",
+          "olderreceiptmarksnewerdraftSaved"
+        ],
+        "authorized_positive_control": "OldsnapshotreceiptthenexplicitnewSaveaftersettlementvalid.",
+        "required_evidence": "twochilddraftgens/fullpixels,originalsnapshot/permit/receipt/currentSavedtuple"
+      },
+      {
+        "id": "D20",
+        "name": "lost_reply_original_only_recovery_no_replay",
+        "given": "Loseactualreplyaftergenuinepermittedtransitionandretireordinarychild.",
+        "required_behavior": "Unknownuntilgenuineoriginallookupvalidatesreceipt; noAllocate/Commitreplay; originalactorseparatefromrestartactor.",
+        "finite_denial_failure_controls": [
+          "ordinaryretiredlookup",
+          "forgedoriginalowner",
+          "newintentusedasreconcile",
+          "resetallocationcount"
+        ],
+        "authorized_positive_control": "Actualsameoriginalorigin+lookup176receiptthenfreshrestart.",
+        "required_evidence": "raworiginalrequest/receipt/control9/10,counts/joins,original/currentactortuples"
+      },
+      {
+        "id": "D21",
+        "name": "child_death_before_permit_retains_known_allocation",
+        "given": "Actualownedchildexitatpreallocation/postallocation-prepermitbarriers.",
+        "required_behavior": "Denynewpublication/Save; retainknownallocationandgenuineoriginalclosure; no inventedNoAllocation.",
+        "finite_denial_failure_controls": [
+          "deathbeforeacceptedcapture",
+          "deathafterAllocatebeforepermit",
+          "latequeuedpublicationafterdeath"
+        ],
+        "authorized_positive_control": "Supportedgenuineunpermittedclosureandnewapprovedchildafterreconciliation.",
+        "required_evidence": "actualnativeexit/waitproof,allocationoriginalrecord,zeroissuedpermit/noeffect,witness"
+      },
+      {
+        "id": "D22",
+        "name": "child_death_after_permit_original_writer_survives",
+        "given": "ActualchilddieswhileoriginalparentStorewriterheldafterprivatepermit.",
+        "required_behavior": "Childtruewaitdoesnotcancelwriter; parentretainsoriginal/source/permit/IOowner,Unknown→actualreceiptlookupwithoutreplay.",
+        "finite_denial_failure_controls": [
+          "dropchildowner",
+          "killsignalrequestedonly",
+          "childreapmistakenforStorejoin",
+          "ordinarygrantrevival"
+        ],
+        "authorized_positive_control": "Releaseauthenticwriter→actualRustjoins+diskvalidation+originalreceipt.",
+        "required_evidence": "distinctOwnedEditorChildExitProofandallnativeRustproducerIDs/joins,permit/journal/receipt/counts"
+      },
+      {
+        "id": "D23",
+        "name": "actual_fault_fresh_restart_approval",
+        "given": "Realchildfaultswithunsaveddraft; userCtrlR/previewfreshEnter.",
+        "required_behavior": "Faultvisible; unsaveddraftlostexplicitly; noautomaticnewgrant/child; unknownsaveunresolveddoesnotchoosebase.",
+        "finite_denial_failure_controls": [
+          "oldpreviewEnter",
+          "oldbootstrap",
+          "automaticrespawn",
+          "Unknownreopenold/newguess"
+        ],
+        "authorized_positive_control": "Freshapprovednewchildonconfirmedbase.",
+        "required_evidence": "actualfaultsignal/wait+chrome/restarttypedroute+newPIDbirth/generation"
+      },
+      {
+        "id": "D24",
+        "name": "stalled_child_unrelated_session_one_second",
+        "given": "ActualAchildstallswithoutpolling; independentwatchdogdeadlineandBordinarytask.",
+        "required_behavior": "Blocaledit/raster/taskrespondswithinunchanged1000msassertion; Aretiredandactualkill/wait; Storeoriginalaccountedseparately.",
+        "finite_denial_failure_controls": [
+          "globalGateheldacrossrecv",
+          "wait/killunderregistrylock",
+          "pollrequiredtoretireA",
+          "deadlineextendedbyB"
+        ],
+        "authorized_positive_control": "WorkingBactualchildwhileAstalledandAtruecleanup.",
+        "required_evidence": "actualA/Bnativebirth/control/pixels/timing+kill/waitandseparateIOjoins"
+      },
+      {
+        "id": "D25",
+        "name": "flood_eof_short_io_and_backpressure",
+        "given": "Realchildfloodsrecords/stdoutorcloseschannelmidprotocol; useactualnonblockingbackpressure.",
+        "required_behavior": "Boundedlogs/records/FDs; retireexactchannel; currentoutputpreserved; otherchildworks.",
+        "finite_denial_failure_controls": [
+          "32769th scenario control row or131073rd aggregate control row; append denied before growth",
+          "stdoutcap+1",
+          "stderr cap+1",
+          "EOFpendingoffer",
+          "shortrecord",
+          "sendEAGAIN",
+          "recvEINTR",
+          "sendEINTR"
+        ],
+        "authorized_positive_control": "Boundedvalidpacketafterordinaryretryonlywithinoriginaldeadline; transportfaultrequiresnewowner.",
+        "required_evidence": "Complete append-only JSONL controls, exact counts/bytes and cap+1 denial, actual syscall results/flags, authentic supervisor wait result plus supervisor join, unrelated session witness. No sampling or truncation marked complete."
+      },
+      {
+        "id": "D26",
+        "name": "revoke_fences_unpermitted_publication_preserves_permit",
+        "given": "Revokecurrentapprovedattachmentwhilechildworkpausedbeforevalidation/adoptionandafterStorepermitseparately.",
+        "required_behavior": "Prepermitnewkey/frame/intentdenied; permittedoriginalmaysettle; oldreadbytesnotclaimederased.",
+        "finite_denial_failure_controls": [
+          "lateframeafterrevoke",
+          "latecaptureafterrevoke",
+          "reviveoldgeneration",
+          "cancelissuedpermit"
+        ],
+        "authorized_positive_control": "Currentotherownerworks; original-onlyreceiptlookupgenuine.",
+        "required_evidence": "realbarriers,epoch/ticket/effectcounts,oldaliasreadlimitedclaim,actualjoins"
+      },
+      {
+        "id": "D27",
+        "name": "focus_compositor_service_reset_and_reserved_reset",
+        "given": "Resetactualfocus/service/compositorwhileinput/offerpending.",
+        "required_behavior": "Oldevents/pairsdeny; heldmodifierscleared; reservedresetnotconfirmation; freshapproval/surfacebeforefocus.",
+        "finite_denial_failure_controls": [
+          "queued65overflowreset",
+          "oldkeypressrelease",
+          "oldserviceepoch",
+          "oldsurfacegeneration",
+          "staleCtrlScapture"
+        ],
+        "authorized_positive_control": "Freshvalidresetandnewapprovedchild/currentreadyframe.",
+        "required_evidence": "actualroute/resetrecord/serviceepochs/objectidentity/pixels/noeffect"
+      },
+      {
+        "id": "D28",
+        "name": "absolute_expiry_death_deadline_no_reset",
+        "given": "Captureactualchilddeadlinebeforespawnwith1..5000msprofile; delaybootstrap/send/recv.",
+        "required_behavior": "Noexecutionrenewalfrompoll/input/frame/ACK; cleanupreserveonlywait; originalSave1000msremainsoriginalInstant.",
+        "finite_denial_failure_controls": [
+          "TTL0",
+          "TTL5001",
+          "spawnwaitreset",
+          "bootstrapreset",
+          "roundtripreset",
+          "requestintentreset",
+          "backdatedclock"
+        ],
+        "authorized_positive_control": "Withinoriginalbudgetchildworks; independentexpirytriggersactualcleanup.",
+        "required_evidence": "nativeclock/deadline/barrierlog/actualwaitandoriginalintentInstant"
+      },
+      {
+        "id": "D29",
+        "name": "real_reap_uncertainty_and_charge_retention",
+        "given": "Injectsupportedwait/cleanupfailurewithoutassertingactualchilddead.",
+        "required_behavior": "Only the supervisor may signal held pidfd and waitpid on its fork-derived PID. Retire requests cleanup, join consumes authentic supervisor terminal result then joins that actual Rust supervisor. Wait/kill/result uncertainty retains opaque owner and charges and reports INCOMPLETE; no second waiter or public PID action.",
+        "finite_denial_failure_controls": [
+          "waiterror",
+          "killerror",
+          "pidfdreadywithoutwait",
+          "EOFwithoutwait",
+          "Dropwithoutreap",
+          "foreignnumericPID",
+          "RustThreadJoinsubstitute"
+        ],
+        "authorized_positive_control": "Soleactualwaitthenactualsupervisorjoinreleasesexactcharge; secondchildunaffected.",
+        "required_evidence": "actualnativewaitstatus/birth/pidfdassociation/ownerreturnandquarantineledger"
+      },
+      {
+        "id": "D30",
+        "name": "unchanged_c_consumers_and_integration",
+        "given": "Assembleproposedprocessfeaturewithunchangedexistingcontracts/assertions.",
+        "required_behavior": "Originalc18/Reader93andLaunch17/Volatile13/Store7+16/Read9/Preview5passfreshsourcebound; canonical54/extended38unchangeduntilRootseparatedgateadmission.",
+        "finite_denial_failure_controls": [
+          "weakenedone-secondassertion",
+          "fabricatedjoin/fence",
+          "cachedresultacceptance",
+          "silentprotocolgrantchange",
+          "StoreIOinschema",
+          "DesktopdependsStore/App"
+        ],
+        "authorized_positive_control": "CompleteRootintegratedgateevidenceoncandidatewithprocessgateexplicitlyseparate.",
+        "required_evidence": "source/lockprepost,exactactualcommandinventories/results/fullrawreaderevidence andindependentreview"
+      }
+    ],
+    "all_denials": "Beforeeffectcaptureactualcurrentdraft/frame/artifact/focus/permit/resourcebaseline; afterdenycompareunchangedexceptownedtemporarycleanup/explicitretirement. Positiveauthorizedwitnessdemonstratesenforcingcomponentstillworks. Unknownisnotdefinitivenoncommit.",
+    "source_requirements": "Before handlers: executable tests at apps/artifact_editor/tests/process_task.rs target exact public signatures and every required assertion family; record actual missing-API compile RED separately from meaningful behavior RED. Contract at docs/contracts/editor-process-v0.json, plan at docs/plans/editor-process-v0.md, API at docs/DESKTOP_EDITOR_PROCESS_API_V0.md. Root owns source registry tools/ci/editor_process_sources_v0.json and complete semantic reader tools/ci/desktop_editor_process_result.py. No privileged fixture is required for the bounded unprivileged credential claim.",
+    "preserved_separate_evidence": "c18andReader93remainunmodified; newdclaimsrequireownrawconsumerand30assertions,notborrowedcproof.",
+    "normative_destination": "docs/contracts/editor-process-v0.json#assertions"
+  }
+}

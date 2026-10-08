@@ -78,18 +78,30 @@ class Sandbox:
 
     @staticmethod
     def _engine(args, deadline):
+        diagnostics = {'engine_command': args[0] if args and args[0] in ('create','inspect') else 'other'}
+
+        def retain_stderr(raw):
+            raw = raw or b''
+            diagnostics['engine_stderr'] = raw[:16384].decode(errors='replace')
+            diagnostics['engine_stderr_truncated'] = len(raw) > 16384
+
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise SandboxFailure('timeout')
+            raise SandboxFailure('timeout',diagnostics)
         try:
             result = subprocess.run(['docker',*args], capture_output=True, timeout=remaining)
         except subprocess.TimeoutExpired as error:
-            raise SandboxFailure('timeout') from error
+            retain_stderr(error.stderr)
+            raise SandboxFailure('timeout',diagnostics) from error
         if len(result.stdout) + len(result.stderr) > 262144:
-            raise SandboxFailure('engine_output_limit')
+            diagnostics['engine_returncode'] = result.returncode
+            retain_stderr(result.stderr)
+            raise SandboxFailure('engine_output_limit',diagnostics)
         if result.returncode:
             # Trusted diagnostics stay out of agent-visible errors.
-            raise SandboxFailure('engine_failure')
+            diagnostics['engine_returncode'] = result.returncode
+            retain_stderr(result.stderr)
+            raise SandboxFailure('engine_failure',diagnostics)
         return result.stdout
 
     def run(self, command, *, input_bytes=b'', wall_ms=10000, allow_nonzero=False, invocation_id=None):
@@ -107,6 +119,7 @@ class Sandbox:
                     'wall_ms':wall_ms,'removed':False,'created':False}
         cli = None
         failure = None
+        phase = 'prepare'
         stdout = bytearray()
         stderr = bytearray()
         ledger = None
@@ -131,6 +144,7 @@ class Sandbox:
                 ledger = Ledger(ledger_root,scope)
                 ledger.begin(invocation_id,self.image)
                 evidence['lifecycle_invocation'] = invocation_id
+            phase = 'create'
             output = self._engine([*args,self.image,*command],deadline)
             evidence['created'] = True
             container_id = output.strip().decode('ascii')
@@ -139,6 +153,7 @@ class Sandbox:
             evidence['container_id'] = container_id
             if ledger is not None:
                 ledger.acknowledge(invocation_id,container_id)
+            phase = 'inspect'
             config = json.loads(self._engine(['inspect','--type','container',name],deadline))[0]
             if scope is not None and (config['Config'].get('Labels') or {}).get('org.ramenos.evaluator-session') != scope:
                 raise SandboxFailure('configuration_mismatch')
@@ -162,6 +177,7 @@ class Sandbox:
                   'PidsLimit','Memory','MemorySwap','NanoCpus','PidMode','IpcMode','Tmpfs','Privileged']}
             evidence['mounts'] = config['Mounts']
             evidence['user'] = config['Config']['User']
+            phase = 'attach'
             cli = subprocess.Popen(['docker','start','--attach','--interactive',name],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     start_new_session=True, close_fds=True)
@@ -214,8 +230,15 @@ class Sandbox:
                     raise SandboxFailure('command_failed')
         except SandboxFailure as error:
             failure = error.reason
+            evidence['failure_reason'] = failure
+            evidence['failure_phase'] = phase
+            for key in ('engine_command','engine_returncode','engine_stderr','engine_stderr_truncated'):
+                if key in error.evidence:
+                    evidence[key] = error.evidence[key]
         except (LedgerError,OSError):
             failure = 'lifecycle_error'
+            evidence['failure_reason'] = failure
+            evidence['failure_phase'] = phase
         finally:
             evidence['invocation_elapsed_ms'] = round((time.monotonic()-start)*1000)
             cleanup_start = time.monotonic()
@@ -229,6 +252,7 @@ class Sandbox:
                     cli.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     failure = 'cleanup_failed'
+                    evidence['cleanup_failure_reason'] = failure
             if cli is not None:
                 for stream in [cli.stdin,cli.stdout,cli.stderr]:
                     if stream and not stream.closed:
@@ -244,6 +268,10 @@ class Sandbox:
                     ledger.removed(invocation_id)
             except (subprocess.TimeoutExpired,SandboxFailure,LedgerError,OSError):
                 failure = 'cleanup_failed'
+                evidence['cleanup_failure_reason'] = failure
+            if failure and 'failure_reason' not in evidence:
+                evidence['failure_reason'] = failure
+                evidence['failure_phase'] = 'cleanup'
             evidence['cleanup_elapsed_ms'] = round((time.monotonic()-cleanup_start)*1000)
             if not evidence['created']:
                 # A timed-out create RPC may still be in flight in the daemon;

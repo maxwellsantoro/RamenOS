@@ -1,7 +1,248 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-10-04
+**Last Updated:** 2026-10-06
 **Status:** Active
+
+## 2026-10-06 — Isolate the agent CI lane and preserve genuine fixture joins; integration pending
+
+Move the existing agent-task suite into an independent CI job with its own
+Docker, prerequisite, pinned-toolchain and generation bootstrap. Preserve local
+preflight's 54 stages and the extended sequence's 38 stages, including every
+argument and environment override. Partition the extended runtime bodies into
+24 host, one agent and 13 QEMU stages; keep each body serialized. The required
+Foundry aggregate takes all four results explicitly: successful code
+classification requires four successes, and successful docs-only classification
+requires four skips. Missing, failed, cancelled or unknown results deny acceptance.
+Keep agent downloads/toolchain caching separate from host compiler-target reuse;
+no job restores acceptance evidence. This can overlap independent work at the
+cost of an extra runner/bootstrap. Eighteen isolated mocked controls pass after
+retained expected RED. Hosted elapsed-time savings remain unmeasured; the final
+combined candidate still requires affected checks and complete Linux preflight.
+
+For the app_unknown test fixture's deliberately incomplete quiesce, retain at
+most 64 genuine current-Core producer aliases before the existing controller
+call. Retrieve and record only authentic returned proof projections, preserve
+unfinished tokens, and drain the already closed Core before final proof transfer.
+Check final service-fence coverage against those recorded proofs; never construct
+a caller proof from a fence snapshot or retrieve a proof after ownership transfer.
+Preserve the original eighteen cases, requirements and 1000 ms assertions, and
+leave services, native APIs, Reader and recording schema unchanged. Source review
+and private component controls support this bounded fixture repair; fresh formal
+task recordings and complete integration remain required for acceptance.
+
+## 2026-10-06 — Optimize only sha2 in development builds; integrated validation pending
+
+Adopt the workspace package override `[profile.dev.package.sha2]` with
+`opt-level = 3`, supported by the isolated comparison and independent review.
+Root adopted exactly the reviewed 42-byte Cargo.toml addition, yielding SHA-256
+`8625264c7e417b2a313edba4a1e251a2ddd3abd6f19d9b543d87df0037f7ea83`.
+Change only the existing sha2 package's development optimization;
+preserve its locked version/checksum, the pinned toolchain, service/native-crate
+profiles, debug information, debug assertions and overflow checks. Do not change
+assertions, real deadlines, recording bytes, hashes, quotas or producer ownership.
+Actual A/B Cargo artifacts each contain 86 compiler units. Only sha2 changes from
+opt-level 0 to 3; its `debug_assertions = true`, `overflow_checks = true` and
+debuginfo 2 remain, and the native/service profiles retain opt-level 0. The profile
+and paired diagnostic artifact is SHA-256
+`4a64536c92578d8885bf9ba72a8df6b002dc0253608c637615f4920f98786eeb`.
+Configuration or compiler environment must not silently widen that difference.
+Independent paired review SHA-256:
+`b3cf708d31f9f5cd4236cfbfbe6204137a54abe0667e05d5e95ada47aefdc506`.
+The build setting is adopted; diagnostic support and recorder instrumentation
+are not adopted. Fresh validation of the five affected consumers, formal Task21
+and complete Linux 54 is pending. These pending checks establish no success claim.
+
+Preserve the twentieth formal macOS task failure: seventeen cases pass and one
+fails the unchanged stalled-session 1000 ms assertion, with native test time
+226.02 seconds and actual exit/reap evidence. A separate instrumented A diagnostic
+uses a private source copy, the same original assertion and a retained-file load
+copied from nine earlier cases. One paired observation measures support intervals
+451.574/468.450 ms in A and 132.091/98.957 ms in B. Existing raw-hash updates plus
+protected/app crop digests measure 267.937/279.907 ms in A and 17.082/17.518 ms in B;
+six scans measure 50.034/51.810 ms and 49.583/52.249 ms respectively. These nested
+measurements attribute the diagnostic's work; they do not establish the sole
+cause of the earlier formal failure. Reported focused test duration is 3.63 seconds
+in A and 3.57 in B, while compilation takes 17.877 and 19.148 seconds respectively.
+B's one focused case passes with seventeen filtered; it is not a fresh full task.
+The copied cases are load, not fresh case outcomes. Both diagnostic processes
+return with retained exit/reap evidence. Retain A/B actual compiler profiles,
+fresh binary/source hashes and complete bounded logs; separate build time from
+test/recording time and preserve this as one observation, not a whole-CI result.
+
+Keep the proposed two-output frame batch held unless later measurements justify
+that separate recorder change. No hosted-CI or whole-preflight speedup follows
+from this comparison. A root manifest change invalidates the task and all five
+affected Mac consumer source closures, so the adopted profile requires a fresh
+unfiltered eighteen-case task gate, all strict checks, complete 93 recording and
+final source verification, five current affected consumer gates and independent
+evidence reviews. Complete fresh Linux 54 validation and its independent review
+remain prerequisites for milestone acceptance. This decision grants no editor
+process, target persistence, containment or release claim.
+
+## 2026-10-05 — Freeze a pure Save data prerequisite before live authority
+
+The current Read grant grammar fixes Artifact rights1, and its current-status
+format denies operation-bearing outcomes. Keep both validators unchanged.
+Prepare separate Save grant schema3 in464 bytes with rights1/1/15/7 and original
+Commit outcome schema2 in248 bytes. Their version distinction does not grant
+mutation authority. Reuse the existing text64, receipt176, typed352/368 controls
+and plain EditorSaveBinding records; do not duplicate operation serialization.
+
+Use a closed outcome grammar: NoSave0, Unknown1, Committed2,
+DefinitiveNoncommit3 and Unavailable4. Unknown in this prerequisite requires a
+complete submitted Commit source, with no result or receipt. Allocation-only
+uncertainty needs its own exact live publisher contract before the Save bridge;
+do not encode it as noncommit or invent a Commit source. Complete Binding
+correlation checks source handle, generation, body length and hash in addition
+to the tuple present in the176-byte receipt. Validate the original backend epoch
+without equating it to a later current Store epoch. Checked successor arithmetic,
+canonical16/32 references and initialized LE output remain pure data checks.
+
+Outcome records name the original operation actor. The current protected frame
+and displayed draft require a separate genuine publisher and snapshot join,
+especially after retirement or recovery. Logical editor draft generation stays
+private and is distinct from SHM generation. Committed data cannot establish that
+a newer displayed draft is Saved. Matching supplied receipts establishes data
+correlation, not permit provenance, durability or current authority.
+
+Freeze eight behavior/denial families as an inventory, then require independently
+reviewed executable assertions and a retained actual API-absence RED before a
+schema implementation worker starts. Gate registration, source closure and
+combined producer/consumer validation follow that handoff. This packet accepts
+no live mutation API, one-shot permit, source closure, combined producer/IO cap,
+original-only recovery, full eighteen-case task or editor process implementation.
+
+## 2026-10-05 — Integrate the native Store preview Read precursor
+
+Use the existing typed 352/368 controls and schema2 data in an explicit,
+default-off trusted host fixture. Desktop owns actual input/selection/instance
+lifetimes; Store owns IO and its actual inactive Read grant. Pure same-issuer
+witness validation precedes IO. Actual inactive origin/grant probes reserve the
+same enforcing row; activation revalidates Registry → Object → Gate after the
+lock-free pause. Settlement follows guard release and grants no authority.
+
+Capture the original accepted Produce Instant before validation and forward it
+unchanged through the private request lifetime; effective logical time is
+monotonic. Undelivered setup checks the exact original pin identity and real/logical
+bounds. Pre-instance composition captures that same pin/plan/revision/object and
+rechecks it under State → Gate after rasterization or pause. Delivered Active
+uses its original instance lifetime; consumed setup alone cannot retire it.
+Genuine Pending and error holders retain both attachment and separate setup refs.
+Delivered paired/context owners retain no consumed setup refs. Foreign failures
+retain no rightful authority, and all native error replies are canonical redacted
+replies with INVALID handles; legacy reply construction remains unchanged.
+
+Preserve the initial missing-API compile and both behavioral failures. The 0/5 run
+identified native reply, Cancel reserved-field and foreign lease-order defects.
+The corrected 4/1 run exposed a test comparing counts across rightful delivery.
+The reviewed repair explicitly requires live pins 1-to-0 with all other counts
+unchanged, then checks foreign pairing against the delivered snapshot while
+preserving the carrier and its wire bytes. It does not change the handlers.
+
+Register a separate 278-source gate while preserving the older feature-scoped
+272-source NativeRead closure. Eleven actual commands use the reviewed held-child
+runner; the five-case executable and its native birth/exit/reap records, bounded
+logs and source/binary hashes remain retained. Failure command records are emitted
+before outcome acceptance, with coordinator post-checks on failed runs. Assertion
+checks cover wire, bytes, literal pixels, races and actual thread joins in the
+pinned binary; no universal exported transcript or per-thread native identity is
+claimed. The original Produce validation-wait obligation is checked in source,
+without a new injected wait API or exclusive-clock runtime claim.
+
+The Mac and fresh Linux focused runs use identical source and explicit ignored
+Cargo.lock inputs. Bootstrap ignored NativeRunner bindings with normal codegen
+before preflight's initial formatting check; the failed initial assembly attempt
+is preserved, and all five generated files match Mac. No hand-edited generated
+content or OS-code repair supplies that prerequisite.
+Strict integrated Linux preflight passes with `RAMEN_CI_STRICT=1` and `RUST_TEST_THREADS=1`.
+Save needs separate native mutation/operation/lease/permit/recovery and combined
+producer/IO contracts plus a real composition consumer. This Read precursor does
+not complete Save, full UI1.1c, editor-process, target/device or containment work.
+
+## 2026-10-05 — Observe genuine inactive preview rows before activation
+
+Stage the actual inactive Store grant and private Desktop origin before the
+lock-free activation pause, then revalidate under Registry → Object → Gate before
+making the attachment Active. Privileged fixture probes return fixed observations
+from the same production admission helpers; they expose no inactive carrier or
+fabricated call. Unexpected success remains a test failure. The probe must not
+acquire Registry or Object while already holding a SelectionGuard.
+
+Bind literal protected pixels and optional producer-authored 248-byte status to
+the same final frame publication. Pre-instance rendering uses actual 464-byte
+preview metadata and returns no actor status record. Unavailable248 requires a
+genuine confirmed and delivered actor before its real object fault. Reuse the
+existing shared producer roster and actual joins; retain genuine query owners to
+exercise query capacity separately. An own-entry immutable ID getter is historical
+observation only, so tests can check pruning without gaining a witness or issuer.
+
+Ordinary own canonical Prepare/Confirm dispatch in this mode is Unsupported:
+it supplies no opaque ticket. Own inactive Cancel succeeds and retires that
+attempt; Active Cancel is NotReady and does not replace real Revoke. These are
+frozen assertion requirements; handlers and runtime evidence remain pending.
+StatusVersion exhaustion preserves the real object fault and retirement before
+returning the exact Exhausted status/reason; composition is Exhausted and prior
+held reads and chrome observations are Stale.
+
+Review the five executable assertions independently and retain the real initial
+API-absence compile before handlers. Preserve the first mixed failure and its
+three typed-handle corrections separately. The planned five-case host gate uses
+the existing native Read evidence profile: pinned source, actual executable,
+exact serialized outcomes, process birth/reap and bounded logs. Its assertions
+check genuine wire, copied bytes, frames and owned joins in the executable. It
+does not export a complete wire/pixel/lease/barrier/cleanup corpus or establish a
+universal transcript validator. Any stronger exported evidence profile needs
+its own bounded producer/consumer contract; this finite gate does not complete
+Save, recovery, IO2 or the original eighteen-case task.
+
+## 2026-10-05 — Land the pure preview codec before native service consumers
+
+Keep the shared 464-byte preview and 248-byte current-status formats in
+`artifact_store_schema::editor_preview`. Checked packing rejects oversized handle
+parts before packing; logical identities keep their full u64 width. Fixed arrays
+and checked byte access support no-std without IO, allocation or authority.
+Seven gate-first assertion families use independent literal golden bytes and
+whole-input denial mutations. The initial missing-module RED demonstrates API
+absence; passing cases demonstrate canonical data behavior, not service effects.
+The old schema1 client guard remains static review evidence.
+
+Register the pure gate in extended Foundry and expand the affected native Read
+source registry to include the new compiled module and contracts. Preserve the
+existing save-schema and Read assertions. Full Linux validation uses the
+serialized Rust test profile and retains its actual dependency lock separately
+from Mac; Cargo.lock is ignored and the source archive alone did not pin it.
+Future source assemblies must explicitly include that input. The first preflight
+failed at an existing sandbox cleanup check. Its partial record confirms container
+creation and removal not confirmed, with invocation and cleanup around ten seconds;
+it does not retain detailed cleanup CLI outcomes. A fresh focused run and subsequent
+complete preflight passed with no source change; this does not diagnose the initial
+failure or establish general cleanup
+reliability. Frozen contract objects retain their creation-stage metadata, while
+CURRENT_STATUS.md records implementation progress.
+
+## 2026-10-05 — Freeze native Store preview Read before the Save bridge
+
+Use a bounded Read-only precursor to connect actual keyboard approval, current
+Store selection and protected chrome before introducing the live Save ledger.
+The [API contract](docs/contracts/editor-native-preview-read-v0.json) retains
+five current cases and the eight planned identities; the Save, recovery and IO2
+legs remain explicit dependencies. This preparation grants no runtime evidence.
+
+Actual accepted input produces opaque one-use tickets. A Selector deadline bounds
+Prepare, and a separate fresh Approval deadline bounds activation and delivery.
+Successful delivery occurs under the Desktop State/Gate lock; subsequent pairing
+borrows the launch holder until same-row Store validation succeeds. Foreign
+denial preserves the rightful holder. Consumed setup expiry alone does not revoke
+an already delivered instance, whose original configured lifetime still applies.
+Each Read additionally retains its original entry deadline.
+
+The [pure codec contract](docs/contracts/editor-native-preview-codec-v0.json)
+defines strict fixed-size shared data separately from the unchanged generated
+352/368 messages. Pure records cannot prove issuer, current epoch, time or IO
+authority. Canonical packed handle widths do not truncate logical generations.
+The existing actor remains non-Copy; the new status record does not alter it.
+The old client's schema guard is static review evidence until an actual consumer
+run establishes more. Gate-first assertions precede codecs and service handlers.
 
 ## 2026-10-04 — Recover StoreClient transports without replaying uncertain effects
 
@@ -1184,3 +1425,1130 @@ contracts, historical results, and authority boundaries remain in force.
 pending. Early integration may expose missing runtime, driver, or storage work;
 record it as a dependency rather than weakening a gate. This is a scheduling and
 documentation change, not a speed measurement or new OS/hardware readiness claim.
+
+## 2026-10-04 — First desktop consumer and offline usage accounting
+
+Accept the independently reviewed [desktop v0 design](docs/plans/desktop-v0.md)
+as UI0 design completion. Use a bounded Rust ASCII artifact editor, keyboard-only
+trusted launcher/recovery chrome and CPU-rendered shared-memory surfaces for the
+first human task. Choose a static `no_std` x86_64 ELF64 application for target
+execution; its loader, authenticated user-mode traps, private memory and actual
+interrupt deadline are implementation prerequisites. Existing init bytecode and
+host Wasmtime do not satisfy target execution. The compositor owns reserved
+chrome pixels and the confirmation route; an app can still imitate UI inside its
+own region, so no general anti-spoofing claim follows.
+
+Split the first executable host packet (UI1.0) at permission preview, single-use
+confirmation, exact grants and instance lifetime with a real non-rendering
+witness. Editor/surface/Store behavior follows in UI1.1; target and persistence
+joins retain their distinct gates. Register concrete typed fields/rights and
+initial useful/denial/failure assertions before handlers. The accepted design is
+not a desktop implementation, an IDL allocation or an executable gate.
+
+For SW-E, freeze an accounting plan separately from the externally frozen
+comparison study. `accounting_study_sha256` hashes the entire plan, including
+the opaque release study digest, avoiding circular hashes or excluded fields.
+The portable ledger prices two trusted uncached-token categories with integer
+micro-USD estimates and retains failed, unknown, over-budget and pending rows.
+Incomplete usage cannot certify the declared ceiling. This is deterministic
+offline accounting, not a statistical study freeze, provider attestation,
+invoice or authority to spend. Actual provider capture/supervision and independent
+private-bank/funded-run controls remain prerequisites for model collection.
+
+## 2026-10-04 — Attribute finite host-file authority to the consumer process
+
+Measure one unrelated owner-only canary at three lifetime points for each arm.
+RT/LT observations name the actual trusted Python evaluator/host consumer that
+issues Session calls; LS observations name the contained Python consumer. Actual
+PID/UID/GID and mount/PID/network namespace identities bind those actors. The
+canary lives outside inspected task mounts and retained evidence contains only
+its hash or recognized denial errno.
+
+Bind the accompanying successful and denied reads to the issued/revoked handles,
+exact generations and the same logical resource, including a successful renewed
+read. Independent review found that mismatched handles or resources could otherwise
+attribute an ordinary scope denial to a lifetime transition; negative regressions
+now reject those traces.
+
+This is a finite observation of consumer authority, not adapter or model-interface
+authority. The Linux/Docker gates pass, while whole-authority inclusion, continuous
+lifetime certification, noninterference, target enforcement and full A2 remain
+unproved. It grants no spending or provider-collection authority.
+
+## 2026-10-04 — Execute the first desktop grant/lifetime contract on a host
+
+Register protocol 336 for `portal.desktop_session` version 1 and gate its exact
+17-case inventory before handlers. The `desktop_v0_dev` feature enables a trusted
+Unix host broker, private verified executable snapshot and real Rust witness.
+An opaque per-registry context binds chrome/child endpoint classes to owner,
+session and instance identity. One synthetic Enter event authorizes exactly one
+plan; the child receives only its own observation endpoint.
+
+Separate pipe IO from the Child-owning supervisor and capture the absolute deadline
+before spawn. Kill and reap independently of later service calls. Reserve 16 total
+instance slots, including live children, so all eventual terminal evidence fits
+without eviction; stop and reap at the 64-exchange bound. Clamp controlled time
+under the enforcing lock for expiry and TTL origins. Independent review exposed a
+backward-time confirmation inconsistency, now covered by a failing-then-passing
+regression.
+
+The gate retains actual PID/hash/bootstrap/canonical exchanges and independent
+OS disappearance evidence, with strict named-case and artifact checks. Cache only
+the immutable expected test-witness identity to remove redundant test setup from
+the responsiveness measurement; service-side verification remains independent.
+Preserve earlier failed runs. Passing host fixtures do not provide scheduler
+latency guarantees, process containment, native kernel enforcement, real keyboard
+routing, display/editor/Store behavior or target execution. UI1.1 and RUN0 retain
+those separate contracts and evidence joins.
+
+## 2026-10-04 — Validate boot-pool admission before changing firmware ownership
+
+Land an allocation-free numeric selector and its 17 gate-first assertions before
+wiring the legacy UEFI handoff or allocator. Expand the maintained boot map to
+256 descriptors and preserve a private sticky flag on lost insertion. Public
+count changes cannot erase overflow evidence; the selector checks completeness
+and count before indexing. Validate every descriptor, including non-candidates,
+and require all seven retention reasons inside non-usable descriptors. Compare
+complete eligible intervals before clipping to the existing 131072-frame limit,
+with stable lowest-base ties and no descriptor merging or rounding up.
+
+The actual exit result, raw EFI classification, complete retained-object sources
+and CPU mapping observations remain adapter responsibilities. Synthetic stage
+and retention records cannot supply those observations. In particular, a raw
+RAM descriptor and low physical address do not establish readable identity
+mapping for the first page-table dereference. Obtain a bounded Reference Vault/
+Oracle profile before hardware glue, then separately prove actual final-map
+ownership, safe allocation/write/read/reuse and the S8 consumer in QEMU.
+
+Independent review accepted the pure source and strict inventory/evidence gate;
+focused kernel consumers, both target/UEFI builds and affected integration gates
+pass. Keep their claims separate from the earlier strict Linux preflight for
+`a44993e`. No firmware transition, allocator installation, target execution or
+physical-machine claim is added by this prerequisite.
+
+## 2026-10-04 — Split editor evidence and order saves against authority retirement
+
+Keep protocol 336's observation-only host witness unchanged. Prepare a separately
+allocated editor contract with four bounded joins: volatile in-process editor,
+real Store-owned selection/receipt transaction, integrated human task, and actual
+host editor process. Registry-checked shared-object leases and a logical keyboard
+corpus provide host boundary evidence; they do not establish raw mapping
+revocation or native controller execution. Freeze the concrete shared contracts
+and exact assertion inventories before dependent handlers.
+
+Independent review found that a watchdog cannot cancel journal rename/fsync
+already in progress. Order one immutable per-object commit permit against
+revocation/deadline under a short state lock before irreversible IO. Without a
+permit, paused work cannot publish. A prior permit can finish only its bound
+original transition, with Unknown and mutation quarantine until receipt
+reconciliation. Do not infer noncommit or automatically retry. Require prior
+writer quiescence and journal validation before service-epoch recovery. Gate both
+sides of this boundary while keeping unrelated objects usable.
+
+The companion Oracle proposal uses a distinct CPU-inspection trace rather than
+forged PCI/MMIO events. External hardware-breakpoint observation and bounded RAM
+reads prepare initial-access evidence; they do not execute guest loads/stores or
+prove firmware exit. The actual relocated EFI entry resolution is still a required
+input before capture. Review accepts these as proposed dependency packets, not
+runtime, Store durability or target qualification evidence.
+
+## 2026-10-04 — Register editor wire types and separate build from server readiness
+
+Allocate input 802, focus 832, surface 833, editor session 352 and artifact 368
+according to the reviewed UI1.1 proposal. One writer authored the canonical IDLs;
+the coordinator registered and generated all five modules, and independent
+review checked all 43 messages against their definitions. Keep protocol 336
+unchanged. Generated types prepare consumers but do not enforce codecs or
+authority. Freeze opaque peer/lease APIs, the keyboard corpus and executable
+RED assertions before UI1.1 handlers.
+
+A fresh strict Linux preflight exposed a Store S0 smoke-gate cold-start failure:
+its ten-second readiness budget included compiling the server. Compile
+synchronously, fail closed unless Cargo reports success and exactly one absolute
+non-test server executable, then launch that executable and own its actual PID.
+Preserve the readiness budget, explicit development mode and task assertions.
+Independent parser regressions and a real cold Linux build with a deliberate
+twelve-second delay verify the boundary. This changes gate reliability, not Store
+runtime authority or target persistence.
+
+## 2026-10-04 — Freeze host editor authority and observable race assertions
+
+Accept the independently reviewed UI1.1a shared API and logical US-key fixture.
+Keep producer pressed/modifier state distinct from focus delivery state: consume
+old-focus releases without forwarding them, and require an actual Enter release
+before a fresh confirmation press. Reserve the concrete surface identity at
+confirmation and backing buffers at Create. Checked copy leases retire every
+writer alias before Present/Consume; they are host registry enforcement.
+
+Freeze explicit endpoint-class/bit/operation meanings and bounded observable
+pause entry/settlement before implementing race tests. Save claims retain live
+per-object admission state, sharing the retirement mutex with permit admission;
+snapshot permissions cannot admit a later effect. Owned live SaveStatus and
+original recovery reads may reconcile Unknown without replay. Retired or foreign
+new requests expose no operation data.
+
+Pin an upstream public-domain ASCII bitmap font without a runtime dependency,
+convert its documented bit order once, and independently prepare old/new crop
+digests and samples before handlers. These are assertion inputs, not rendering
+proof. The 13 gate-first cases and scoped implementations are the next packet.
+
+## 2026-10-05 — Bound the editor Store transaction profile and recovery witnesses
+
+Choose a default-off Store-owned Artifact368 consumer for UI1.1b, with one private
+CAS namespace and one IO writer per selected object. Two sessions selecting the
+same object share admission state; unrelated objects have separate workers. Use
+existing Store publication and ownership helpers within this finite profile.
+Cross-object deduplication, shared-root locking and general quota integration
+remain successors. UI1.1c separately freezes the authoritative live admission
+bridge from the desktop; b does not reuse a copied volatile authorization verdict.
+
+Keep selection and the original receipt in one bounded whole journal. Fenced
+reopen requires a joined supported writer and a private retained owner witness
+covering durable allocations, submitted/permit bindings, transitions, counter
+minima and issued permit/closure state. Preserve all sixteen operation records
+across reopen and durably reserve fresh checked ID ranges before exposure.
+Authenticate bounded pending CAS intents, manifests and ownership against the
+permitted operation or initial provisioning binding before calling helpers that
+automatically recover publications. Corrupt or unauthenticated input cannot gain
+metadata effects through recovery. Exact schema/service signatures and seven
+reviewed RED assertions precede implementation; this design supplies no cold-start
+anti-rollback, device-flush or target persistence evidence.
+
+Freeze the exact UI1.1b schema/service API before assertions. After durable
+Submitted metadata completes, a pre-permit pause releases namespace IO ownership
+while retaining active admission. Sticky timeout closure releases that unpermitted
+admission; a fresh serialized metadata owner persists its bound noncommit and new
+allocation. The old dispatcher cannot publish a stale journal snapshot. One
+open Submitted or unsettled issued permit reserves mutation admission per object.
+Earlier metadata IO pauses still require supported settlement.
+
+Public response completion releases only the endpoint invocation guard. Every
+held dispatcher/supervisor remains charged to the combined 64-producer limit until
+actual join, alongside at most two object IO workers. Opaque quiescence tokens
+expose bounded diagnostic fence snapshots with actual join identities and retained
+state minima. A checked reserved epoch is distinct from the actual reopened epoch;
+new-owner evidence binds its real journal publication to the prior fence digest.
+
+
+The pure UI1.1b prerequisite implements payload validation before Store handlers.
+Canonical journals use exact declaration order, explicit null options and bounded
+integer arrays; an independent golden fixes that encoding. Typed deserialization
+rejects a seventeenth operation before allocating its payload. Revision validation
+replays each committed base/hash and successor against the evolving selection;
+individually coherent fork and gap records still fail. Schema constructors and
+permit-shaped records are data only and cannot mint runtime authority.
+
+For a valid live context, per-object operation, writer or journal counter
+exhaustion returns Exhausted on repeated mutation/issuance attempts. It does not
+invent endpoint or instance retirement; Stale requires actual lifetime retirement.
+Writer MAX seeding forbids new permits immediately. Draft construction creates
+no permit and may precede the first writer-admission attempt. That failed
+admission fences subsequent fresh mutation/source issuance; already authorized
+selected reads retain their independent observation rights. Shared identity/time-origin MAX fixtures
+retain their separate healthy-registry controls. This is the bounded default for
+the seven service assertions, not evidence that an ordinary lifetime reached MAX.
+
+## 2026-10-05 — Accept the finite host Store owner and preserve evidence lifetimes
+
+Implement UI1.1b as an explicit, default-off `editor_store_v0_dev` service
+fixture using the existing Artifact368 wire contract. Store owns CAS IO,
+authenticated publication, atomic selection/receipt journals and bounded
+per-object admission; schema records remain data and cannot issue authority.
+Reuse the volatile desktop fixture through a Store test-only dependency, with its
+existing development feature enabled explicitly. It supplies separately stamped
+UI controls and does not integrate desktop save authorization with Store.
+
+Gate the original seven behavior cases and sixteen recording assertions across
+48 fixture legs. The root controller freezes an exact 260-file source manifest,
+binds actual native test identity and fresh nonce, and checks captured authorized
+lease bytes, original epochs, supported joins/fences and explicit TempDir close
+plus absence. A separate native Rust helper decodes captured text, receipts and
+eligible journals; all 131 actual invocations must return successfully and be
+reaped. No artifact PID or deleted fixture path can select execution or cleanup.
+The caller observes the runner's exit as well as its result. The gate is in
+extended Foundry and strict assembled Linux preflight passes.
+
+Closing an allocation without a permit always produces Noncommit state. Without
+a submitted source binding it retains no permit, receipt or successor; closure
+cannot fabricate evidence of an attempted save. A supported directory-sync
+failure after journal rename leaves the original epoch Permitted without a
+receipt. Reopen may establish the committed receipt from that journal, preserving
+the complete allocation/binding/permit, original backend epoch and closure. The
+reader therefore checks the actual temporal sequence, one original Commit,
+recovery-only SaveStatus, unchanged historical counters and no mutation replay.
+The tracked recording contract preserves the original assertion identity as a
+baseline and explicitly records this independently reviewed correction.
+
+On macOS, create the actual fixture beneath
+`/System/Volumes/Data/private/tmp` after checking its ownership/mode, then verify
+the live held root identity and writable native mount prefix before Store
+authority is created. Unsupported layouts fail closed. Linux retains its normal
+temporary-root creation. Observed paths and filesystem strings are never rewritten
+to satisfy an assertion. This is a host fixture requirement, not a containment
+boundary or a portability claim for arbitrary filesystem layouts.
+
+This acceptance covers trusted in-process host CAS and supported joined-owner
+reopen. Actual editor PID, cold-start anti-rollback, device flush, power loss,
+target execution and runtime containment remain unproved. UI1.1c must separately
+freeze a live editor/Store admission bridge; copied volatile verdicts cannot
+authorize a commit. Its request deadline closes the original operation/ticket and
+source, while only actual revoke/TTL/service fault retires instance authority.
+Exact bridge signatures and its eighteen-case consumer remain future work.
+
+## 2026-10-05 — Establish native Read before the integrated Save bridge
+
+Split a bounded native Read prerequisite from UI1.1c's remaining Save and task
+work. Use an actual UI1.1a-approved Artifact peer, a private Desktop lifetime gate
+and opaque original calls to connect protocol-368 ReadSelected to a real Store
+owner. Store's default-off native feature may depend on Desktop's default-off
+native module and the shared artifact schema. Desktop does not depend on Store;
+its authority objects do not retain a State back-reference. This is a trusted
+in-process host fixture, with no process or target containment claim.
+
+Do not use a copied verdict or readiness marker as Store authority. The fresh
+Store constructor consumes actual opaque bindings, checks its profile against
+them before IO and rechecks all bindings under one held gate before exposing any
+native grant. A second-binding accessor uses that existing guard rather than
+relocking the mutex. Native grants deny legacy dispatch and shared-data bypasses.
+Desktop retirement runs State-to-Gate before State is released; Store copies
+check Object-to-Gate-to-Data. IO, pause waits and actual joins hold no enforcing
+locks. Each Read preserves its original checked 1000 ms deadline, and closing an
+expired query does not retire a still-live instance.
+
+Charge actual dispatcher and supervisor handles to one 64-row roster, including
+the at-most-two IO subset; this Read step has zero IO producers. Unjoined handles
+remain charged after timeout. Opaque IDs and actual finished joins provide
+cleanup evidence without numeric proof constructors. Checked counter overflow is
+sticky and identities are never reused. Constructor errors or caught unwinds
+retain the consumed witness and any actual partial Core; setup does not spawn
+producers, delete a partial root, or reopen it.
+
+Freeze and independently review nine Read assertions before handlers, then run
+the affected volatile editor and host Store consumers. The original eighteen
+integrated-task cases remain later work after the live Save/shared-data bridge
+is frozen. The API preparation itself establishes no native Read runtime, Save,
+recovery, editor PID, device persistence or target execution.
+
+## 2026-10-05 — Preserve actual NativeRead ownership through aliases and retirement
+
+Expose a same-witness `duplicate_producer(&ProducerId)` operation for legitimate
+Store references to installed Desktop producer rows. It returns another opaque
+reference to the same identity, never a new row, charge, numeric mint or service
+provenance claim. Foreign references are denied and retired rows are unavailable;
+actual unfinished joins remain NotReady. Retired ID aliases retain only weak
+origin references, allowing capacity to return after the real handles and entry
+owner leave. One actual witness owns the shared roster across both services.
+
+When the existing time-origin exhaustion hook advances Desktop time to its maximum,
+retire affected native lifetimes under State-to-Gate before releasing State. A
+retained selected-data copy must observe Stale immediately, without another
+Desktop call. Native Store owners deny the legacy quiescence shortcut because
+an empty legacy roster cannot certify native handle cleanup. Constructor errors
+map unused native Read statuses to Internal while preserving their actual held
+owner and partial Core.
+
+The nine assertions preceded implementation and independently reproduced old
+alias-capacity, time-origin and quiescence behavior failures. Reviewed fixes pass
+on both host platforms. Each NativeRead gate uses a fresh private build target:
+sharing one target between different source snapshots produced inconclusive
+mixed-artifact evidence. Source and binary hashes, actual process birth, exit and
+reaping bind accepted runs; optional fixture exports are not a universal
+transcript consumer. Save admission and the full UI1.1c task remain separate.
+
+The integrated Linux check uses the source candidate's canonical `target/` path,
+normal code generation, imported base Git metadata and the existing pinned S2
+compatibility kernel. These assembly prerequisites do not change OS code. A
+parallel launch-test run reported two NotReady confirmations; its original spawn
+errno was not retained. A subsequent traced run passed all seventeen cases and
+did not reproduce the cause. The accepted strict preflight uses
+`RUST_TEST_THREADS=1`, matching the dedicated launch gate's serialized profile.
+Preserve the failed runs and trace alongside the passing integrated run; do not
+claim that this establishes parallel spawn reliability or a diagnosed OS fix.
+
+## 2026-10-05 — Separate warm iteration from complete Foundry acceptance
+
+Use one canonical complete stage inventory for local preflight and isolated
+quality, host/Docker and QEMU CI lanes. Keep the stable required Foundry aggregate
+fail closed on every failed, cancelled or unexpectedly skipped lane. Track the
+already accepted Cargo dependency resolution rather than generating different
+ignored locks per runner. Install only the manifest-pinned toolchain and retain
+actual monotonic stage timings before further consolidation.
+
+Codegen renders every output with one actual Cargo-selected generator executable
+and preserves identical file bytes and mtimes. One successful broker proxy run
+supplies both its exit and snapshot assertion. Baseline and all sixteen strict
+package checks remain: actual pinned Cargo unit graphs for batched tranches 1, 2
+and 6 omit old dependency feature units, so diagnostic equivalence is unproved.
+
+The existing NativeRead fresh-target decision remains the local default. Add an
+explicit opt-in compiler-cache profile with frozen source/toolchain/platform/lock/
+configuration/environment/feature keys, separate exclusion and enabled targets,
+private ownership and exclusive locks. Every Cargo command, probe, test inventory,
+behavior case and fresh evidence check still runs. An abandoned in-flight marker
+denies target reuse; capacity exhaustion is explicit. CI caches compilation only.
+This is trusted host tooling, not hostile cache/compiler attestation or containment.
+
+The warm developer loop intentionally keeps its target across source edits, uses
+Cargo's live rebuild checks, and labels records development rather than acceptance.
+Its feature/profile cache cannot be admitted by a Foundry adapter. The maintained
+[execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md) owns these limits and cleanup.
+No OS API, Save authority, merge authority or hardware claim changes.
+
+Cache configuration and the process umask are checked before expensive suites,
+using the same permission policy as admission and immediately restoring the
+queried mask. A private Cargo home avoids accepting a shared writable config
+ancestor. Complete Linux preflight uses `umask 022`: stricter focused-cache masks
+can leave fixture inputs or reused validator executables inaccessible to SW0's
+Docker identity. Retain such failures and restore only owned temporary output
+permissions or regenerate them; do not relax cache validation or change a user's
+global Cargo permissions.
+
+## 2026-10-06 — Preserve pure native Save data as a distinct prerequisite
+
+Implement the independently frozen schema3 464-byte Save grants and schema2
+248-byte original Commit outcomes as fixed-array, no_std-compatible codecs.
+Keep full-width logical counters distinct from packed references, require all
+Active IPC handles to be pairwise distinct, and validate the entire record before
+an expected-phase comparison. Preserve Read codecs and typed control schemas.
+
+Original outcome correlation requires the complete supplied Binding, original
+backend epoch and canonical 176-byte receipt bytes. The currently observed Store
+epoch may differ; a Committed record cannot establish that a current draft is
+Saved. Commit-source-bound Unknown excludes allocation-only uncertainty. Future
+live owners must enforce admission, retained originals, actual publication and
+recovery without replay through a separately frozen contract.
+
+Independent assertion review preceded actual missing-module RED and separate
+implementation. Repair fixture iteration inference before accepting that RED;
+retain the mixed compiler failure and all reviewed source predecessors. The new
+Foundry gate uses pinned compiler/lock inputs, a fresh private target, all compiled
+schema sources and exact eight native outcomes with actual owned exit/reap.
+Register it without removing existing CI stages or changing their overrides.
+
+
+## 2026-10-06 — Freeze the full native Save task boundary before handlers
+
+Use the independently reviewed [live Save/task API](docs/contracts/editor-native-save-task-v0.json)
+for the original eighteen-case UI1.1c task. Place the concrete Rust composition
+consumer in `apps/artifact_editor`, default-off, depending on both service opt-ins.
+Desktop remains independent of Store. Actual editable state is private to the
+Desktop Gate and advances from genuine typed keys; Store alone owns IO and
+original outcomes. Saved requires receipt, immutable submitted snapshot, current
+draft and actual current frame to join. New edits stay Unsaved while old receipts
+remain Committed. A protected own-session original banner survives retirement
+and unrelated-object launch; mixed allocation/Commit uncertainty displays both.
+
+Reserve additive Artifact 368 ObserveAllocation9/reply10 with exact 32-byte typed
+payloads. SaveStatus7 needs a known operation and cannot safely observe a lost
+Allocate reply. Real retained original execution authority governs the new lookup;
+request IDs are correlation, never enumeration or replay authority. Preserve all
+old 43 messages and shared codecs. The schema2 outcome getter returns NotReady
+for current allocation-only uncertainty rather than inventing a source/receipt.
+IDL/codegen integration follows reviewed assertions and actual missing-API RED.
+
+Capture one CtrlS-wide absolute 1000 ms intent deadline before validation; first
+Allocate and first Commit inherit it. A later observation does not renew mutation
+authority. Use actual shared-roster asynchronous execution and one deadline/result
+slot, independent of polling and IO settlement. Concurrent polls cannot consume
+twice, partial startup retains actual handles, and synchronous execution wraps the
+same claim. Reserve and install IO before issuing the immutable permit; expiry or
+retirement after issue cannot cancel that one transition. Closure and permit use
+Object-to-Gate; held-Gate admission helpers never relock. No enforcing lock spans IO,
+rendering, pause waits or joins.
+
+Use a fixed Save-only profile: three objects/two sessions, 131072 trace exchanges,
+128 total successful composed frames and 16 pending reservations. Existing modes
+keep two objects, 256 exchanges and 16 total frames even when Save is compiled.
+The old 256 trace cannot drive the required 4096-byte keyboard edge. Rendering is
+explicit at meaningful batches; history overflow retains prior evidence. Store
+live data capacity of 32 and durable history capacity of 48 are distinct: prune actual released leases,
+never history. IO2 is inside the combined 64 cap. A third unrelated object under
+fresh approval can demonstrate real global IO denial while two original writers
+remain held, without guessing a stalled object's restart base.
+
+Native fence closes this Core and joins only its actual producers. Prevalidate
+all joined proofs and checked successor epochs before recovery/new-epoch IO;
+update the fenced Gate lineage only after authentic disk readback. Failed reopen
+retains the same owner; old actors/epochs/receipts never rebase. No empty legacy
+roster, cancellation flag or diagnostic boolean establishes quiescence.
+
+This is contract preparation. The assertion author next derives exact source-bound
+case/fixture/epoch/emission counts within finite budgets; independent review and
+real RED precede handlers. Planning gates do not prove the native Save task.
+Actual editor process, target/device/power-loss and containment claims remain
+separate, and the broader roadmap goal stays active.
+
+## 2026-10-06 — Admit source-derived native Save recording bounds and own-token diagnostics
+
+The independently reviewed eighteen-case assertion source contains 93 scenarios
+and can emit at most 36,576 regular evidence files plus 155 directories under its
+source-fixed templates. The earlier global 2,048-file ceiling cannot retain that
+complete evidence. Raise the recording ceiling to 40,960 regular files and 41,115
+entries; retain the 2 GiB total, 512 MiB aggregate JSON, 128 MiB per-case JSON,
+32 MiB individual file and narrower raw codec bounds. Keep 2,048 raw files per
+scenario. These are source-derived upper bounds, not observed runtime counts.
+Required evidence must remain complete; sampling or truncation cannot satisfy
+acceptance. The final reader derives exact emitted names from genuine recorded
+identities and compares the complete file and directory sets.
+
+Bound the trusted source inventory and native compact base-fence serialization
+separately at 1 MiB each. The closed fence type calculation has a conservative
+379,488-byte maximum; this changes no 131,072-byte journal limit or runtime
+capacity. Preserve the historical contract and source pins attached to the actual
+initial RED. Future gate admission uses the amended contract and its updated
+schema/inventory projection pins.
+
+Expose `ProducerId::producer_id(&self) -> u64` only with the default-off native
+Save fixture feature. Request authority is the caller's already-held genuine
+opaque token. Observable authority is that token's private immutable historical
+row ID for request, barrier and closure correlation. The getter takes no numeric
+argument and performs no lookup, admission, allocation, release, join or grant.
+The number establishes no liveness or completion; installation and joins still
+require actual same-Authority opaque owners and proofs. Preserve the older
+NativeRead public API.
+
+Independent reviews accepted these recording and diagnostic changes as source
+preparation. The retained repeat compile failed solely at missing frozen APIs
+and their inference fallout after narrowly reviewed assertion type repairs;
+this admitted implementation. It does not establish any of the eighteen runtime
+outcomes. The reader, verifier callback, concrete bridges and editor require
+integrated validation before task acceptance or gate registration.
+
+## 2026-10-06 — Complete the native Save Core publication and ownership glue
+
+Add one default-off, issuer-held `publish_original_delivery` operation with closed
+ReplyLost, AllocateRejected and NoAllocation outcomes. A lost result can precede
+the original deadline, so it must publish conservative uncertainty without
+pretending the deadline expired. Definitive Allocate rejection requires actual
+no-effect closure under Object-to-Gate, a canonical correlated reply and no late
+publisher. NoAllocation requires complete genuine original installed-owner join
+proofs and validated canonical journal absence. A generic error, missing receipt,
+empty live roster or diagnostic ID is insufficient. None renews mutation
+rights, fabricates a receipt or releases actual producer charges. An authentic
+positive allocation lookup clears its own uncertainty without reopening an
+expired intent; a full genuine receipt copy resolves its own Commit outcome.
+
+The Core may privately retain an authentic same-Authority joined proof before
+returning the public non-Clone proof to its caller. Retention copies only that
+actual opaque join evidence, accepts no numeric or diagnostic substitute, and
+changes no grant, counter, handle or ownership charge. Keep retained evidence
+bounded by existing original/fence inventories and compact terminal metadata.
+This lets recovery work after the caller drops its own proof without weakening
+the complete-proof requirement.
+
+A recovered allocation's original-only lookup call cannot authorize a source
+write. Add issuer-held `admit_bound_source` for the genuine opaque bound source,
+checking its original intent, ordinary current instance, TTL, absolute deadline,
+retirement and sticky consumption. Store retains its actual source owners and
+Registry-to-Object-to-Gate-to-Data checks. The helper returns unit admission;
+it neither changes the submitted snapshot nor grants a recovery query mutation
+rights.
+
+The existing IO reservation operation admits a genuine original-only 7/9 lookup
+for canonical readback under its own fresh lookup deadline. It still reserves
+and installs a real owner in the same shared producer/IO limits. This permits
+validated journal absence after the original writers join; lookup IO cannot
+authorize a mutation, renew the original intent or replace the original's join
+proofs. Ordinary Allocate/Commit IO keeps ordinary live admission.
+
+Keep one public `NativeSelectedRead` wrapper with private concrete Read and Save
+owners, preserving both existing APIs and their mode-specific checks. Compacted
+terminal original metadata must preserve immutable recovery binding while live
+quota accounting continues to charge actual exposed intents, calls, sources,
+unresolved work and unjoined producers. Historical metadata alone is not a new
+live owner; dropping a reply is not a join.
+
+The closed publisher also accepts `AllocatedSourceRejected` only from the actual
+installed Allocate claim after matching known allocation and no first Commit,
+mutating IO, permit, receipt or live source ownership are independently proved
+under Object and Gate. It retains the positive allocation and real operation,
+closes only the original source continuation, and preserves sticky Unsaved on
+later positive lookup. Source rejection does not fabricate a Store closure cause;
+a later actual deadline or retirement remains responsible for durable closure.
+Actual held recovery calls charge their genuine original intent by pointer
+identity, including source and write aliases; compact metadata alone does not.
+
+Before any fenced reopen metadata IO, the issuer may return the exactly-one
+actual enrolled owner/session relation for each requested genuine fenced object
+after full existing epoch/roster/join validation. This includes inactive enrolled
+owners. Store pairs those relations with actual readback and repeats final
+reenrollment checks; activated Store sessions cannot substitute for enrollment.
+The bounded view grants no session, grant, mutation, epoch or producer authority.
+
+The trusted Save fixture Core can observe its monotonic time through the same
+claimed issuer Gate. Require genuine Save enrollment before updating the maximum
+of Core, Gate and Preview observations, and expire with that exact effective
+value before reporting successful advance. Lower observations cannot revive
+expired owners. This default-off fixture operation changes no original Instant
+deadline, grant, ID, IO or producer charge; Host-local time may temporarily lag.
+It establishes no globally synchronized clock or target clock-setting API.
+
+Save-only diagnostic active fields read actual installed handles under the held
+roster lock. Finished, joining and uninstalled reservation rows remain charged
+until real join or cancellation, while active observations count only installed
+handles that have not finished. These observations cannot authorize IO or infer
+release; existing Read-only fields and behavior remain unchanged.
+
+Independent source reviews accepted the new Core glue for the already frozen
+behavior assertions. Source inventory counts, native capacities, wire layouts
+and historical initial RED remain unchanged. Service handoffs and the full
+integrated task and affected-consumer gates are still required; this decision
+records no native task runtime acceptance.
+
+## 2026-10-06 — Repair native task choreography without relaxing authority checks
+
+Fresh integration failures exposed test actions that contradicted the frozen
+input and protected-observation contracts. Use the already-held Ctrl for the
+Launcher Esc stroke, then release it. After service restart, deny the old input
+endpoint, obtain a genuine replacement through `reattach_keyboard`, and execute
+typed Attach before mirroring the new queue's sequence 1. Fresh approval still
+requires live enrollment; old actors and bindings stay retired.
+
+A receipt alone invalidates the previous protected frame. Require exact Stale
+from that outdated Chrome observation before a fresh render and compose establish
+Saved. Unknown getters also require actual current protected publication: render
+the genuine live editor, or compose Unavailable for a retired attachment. Move
+existing compositions where possible. Nine additional recorded compositions
+require corresponding exact frame and Chrome raw counts in seven scenario rows;
+the eighteen case identities, capacities and required denials remain unchanged.
+
+The history fixture's continuous input polling exhausted its fixed trace budget.
+The diagnosis combines actual Exhausted responses and the source path; the
+numeric trace count was not observed. A real 1 ms sleep between unsuccessful
+`until` polls reduces CPU and IPC traffic while preserving its original 1500 ms
+observation deadline, the separate 1000 ms Save deadline, predicates, failures
+and actual producer joins. Keep the trace ceiling and fail-closed overflow.
+
+Independent source reviews accepted these bounded corrections. Each failed run
+retains its original sources and process evidence; new admissions bind the
+updated assertions and inventory. Runtime, complete recording and affected
+consumer acceptance remain required.
+
+Failed native Save quiesce may have already joined real finished entry producers
+while a writer remains paused. Preserve those authentic proofs for the final
+fence and allow one caller delivery through the existing issuer retention helper,
+after the opaque token matches the genuine completed proof. Repeated delivery
+returns NotReady; internal quiesce does not consume caller delivery. Bound the
+union of retained proofs and in-progress join bookkeeping to 64. Authenticate
+before numeric reservations, release evidence locks before the actual join and
+retain an unfinished reservation on bookkeeping failure so fencing fails closed.
+This transfers evidence of an existing join; it neither performs another join
+nor changes grants, producer charges or actual completion counts.
+
+## 2026-10-06 — Keep Desktop surface capacity separate from Store data capacity
+
+The native Save contract requires a sixteen-context saturation assertion without
+an earlier resource ceiling masking it. Gate 08 opened ten contexts, then the
+actual Desktop ledger held 31 objects and Surface Create denied two additional
+buffers. Each context owns one grants object and two surface buffers. The generic
+Desktop limit of 32 therefore masked the intended context ceiling of 16.
+
+Use a private Desktop shared-object ceiling of 64 only for the native Save mode;
+retain the existing ceiling of 32 for other modes. Apply it consistently before
+object allocation. Sixteen Save contexts require 48 grants/buffer objects, with
+at most two current preview objects in this fixture. Its six base endpoints plus
+48 instance endpoints fit the unchanged endpoint ceiling of 64. The independent
+Store shared-data ceiling remains 32, and context, document, instance and producer
+limits remain unchanged. This is a bounded host implementation choice, pending
+independent source review and fresh integrated runtime evidence.
+
+Keep malformed reserved-field encoder rejection and exercise handler denial with
+an actual canonical request whose reserved wire field is then corrupted. A typed
+encoder refusal alone cannot establish handler behavior. Likewise, direct Save
+composition must copy the genuine complete receipt before requiring Saved; a
+completed worker and join alone do not establish receipt publication. Preserve
+all current-draft, frame, binding and receipt assertions.
+
+The actual Desktop trace retains the malformed request. Preserve its complete
+88-byte representation rather than dropping or repairing that row. Recording
+and reader support exactly one otherwise-canonical ProduceKey with reserved 1
+in the ASCII primary scenario, accompanied by the actual Invalid reply with
+correct sequence correlation and zero denied fields. Strict canonical encoding
+and decoding remain unchanged elsewhere. Fifteen focused reader controls pass;
+complete recording validation still requires fresh runtime acceptance.
+
+## 2026-10-06 — Preserve shared time and original receipt authority during recovery
+
+After an actual Core clock advance, a new permission preview must use the shared
+Gate and Preview highwater rather than a lower host input time. The lost-reply
+expiry case exposed a fresh preview expiring at 30003 while shared authority time
+was already 600002. Clamp native Save setup and confirmation to that highwater
+before validation and logical expiry derivation. Release the temporary Gate before
+State expiry can retire holders, then recheck shared time under the final Gate.
+Keep each captured Produce Instant, ticket deadline, pin deadline and original
+Approval-based instance expiry unchanged; this does not renew old authority.
+
+A failed quiesce closes ordinary Core admission while a previously permitted
+original writer remains owned. Original-only recovery still needs its genuine
+completed receipt. Allow only an authenticated recovery receipt copy past the
+closed-Core check after actual original-call admission. Preserve actor, object,
+generation, intent, descriptor, live data, full receipt binding and backend epoch
+checks. Ordinary selected-text copies remain closed. The change grants no new
+operation, IO, producer, deadline or ordinary instance authority. Source review
+and fresh integrated runtime acceptance remain required.
+
+## 2026-10-06 — Exercise real Store data ownership and pause the requested operation
+
+The native Save capacity assertion retains 32 selected-text replies to exercise
+the Store data ceiling. Gate 09 instead observed one live data object: selected
+reads reused the cached object, so the assertion never reached that ceiling.
+For the actual native Save Core only, give each authenticated selected-text read
+its own real data object and descriptor. Keep the existing owner pruning and
+32-object admission check before allocation. Preserve cached selected reads in
+older modes, receipt identity and the separate durable-operation limits. No
+synthetic ledger entries or new public interfaces are needed. Independent source
+review accepts the change; fresh integrated capacity evidence remains required.
+
+An operation-specific pause hook must enter on that operation's message. Gate 09
+showed AfterCommitPermit installed on an earlier Allocate request, allowing the
+real Commit to finish without entering the intended barrier. Select the existing
+Read, Allocate or Commit message according to the requested pause point before
+latching the first eligible request. Preserve endpoint/object matching, operation
+identity, installation ordering and settlement. Lookup requests cannot consume
+these hooks. This fixture routing change keeps the application's once-only Save
+behavior intact. Independent source review accepts it; the next full task gate
+must demonstrate actual Commit entry and Unknown recovery.
+
+## 2026-10-06 — Reconcile an installed original receipt through read-only validation
+
+Gate 09 reached an Unknown original after DirectorySync failed following the
+actual journal rename. The installed journal could contain the terminal receipt
+while the live selection still held the previous revision. Original receipt
+lookup only inspected live state, so it could not recover that installed result.
+
+Use the authenticated original-only lookup to perform a bounded JournalReadback
+after all original writers have actually joined. Retain their issuer-owned join
+proofs and authenticated opaque producer tokens while that Commit is unresolved;
+numeric identities and a returned reply do not substitute for owned joins.
+Read outside enforcement locks through the existing owned IO path. Reuse the
+same private canonical journal, permit-history, signed artifact and CAS validator
+as reopen. Recheck original authority, the fresh original-only lookup call's
+deadline, producer completion and the live baseline before installing the
+validated terminal selection. Preserve local
+closure state through the existing installation helper. The lookup performs no
+Commit replay and grants no new mutation permit or renewed deadline.
+
+Freeze the failure assertion before implementation: an injected JournalReadback
+failure must produce actual failed IO evidence, leave the original Unknown with
+no receipt, and preserve selected revision, mutation counts, files and captures.
+The next valid lookup must recover the installed receipt and selection without
+another Commit. The copied complete receipt and fresh protected frame remain
+necessary to publish Saved. The independently reviewed assertion produced actual
+behavioral RED against the previous implementation's admitted libraries; source
+review and full task acceptance of
+the implementing candidate remain pending.
+
+## 2026-10-06 — Give native Save data fresh checked generations
+
+Gate 10 reaches 32 real retained selected-data leases and denies the next read
+with Exhausted. After those leases are released, the next admitted data object
+still has generation 1. The original assertion requires its generation to exceed
+the retained highwater, and the frozen retention contract forbids generation
+reuse. Advancing only the handle index does not meet that generation requirement.
+
+For newly allocated shared-memory Data in a genuinely native Save-attached Core,
+derive generation from the same private checked allocation identity used for its
+index. The existing identity range 1 through 65535 fits both canonical handle
+fields, remains monotonic through the retained reopen minimum, and introduces no
+second counter or slot recycling. Apply the rule consistently to selected text,
+draft sources and receipts, including the source handle predicted before binding.
+Pruning, capacity and authority checks still precede actual allocation; failed
+admission cannot advance the identity. Keep IPC handles and older or unattached
+Store, Read and Preview modes at their existing generation policy. Independent
+source review accepts the allocator. Gate 11 reaches the generation, IO-capacity
+and capture/frame-capacity positives before failing the Document counter boundary;
+full task and remaining counter evidence are still required.
+
+## 2026-10-06 — Preserve the bootstrap Document exhaustion as a Rust error
+
+Gate 11's Document MAX diagnostic receives a canonical redacted Exhausted reply
+inside an Ok native execution result. Actual selected, allocation and receipt
+owners are absent, and selected revision and mutation counts are preserved. The
+frozen counter table nevertheless requires Rust Err(StoreStatus::Exhausted) from
+execute_native_save at this authentic first-document initialization boundary.
+
+Privately tag only the actual initialize_editor Exhausted failure. Keep the same
+canonical redacted wire reply, recorded exchange, original Core and real producer
+owners, but carry the tag through the existing single ready mutex and once-only
+completion path. The first poll returns the required Rust error and consumes that
+outcome; subsequent polls return NotReady. Retain its genuine reply owners until
+the execution state is dropped, and keep installed handles charged until actual
+join. Ordinary backend wire denials remain reply carriers, including Data capacity
+Exhausted. Preserve the existing supervisor/dispatcher winner and actual suppressed
+Disconnected reply behavior. No public type, new lock, deadline or authority is
+introduced. Independent source review accepts the private result channel and
+Gate 12 passes the Document error assertion. Full task evidence remains pending.
+
+## 2026-10-06 — Compare StatusVersion failure against its actual pre-seed state
+
+Gate 12 preserves every compared document field except phase in the StatusVersion
+control. Its fixture captures Saved after a historical successful compose, then
+performs a new valid render before seeding MAX. That render correctly invalidates
+the old current frame and changes the phase to Unsaved. The frozen counter table
+places the seed after this render, so requiring the failed compose to restore the
+older Saved phase crosses an authorized state transition.
+
+Capture a real document observation immediately after the existing render and
+before seeding StatusVersion. Keep full document equality against that baseline,
+including phase, and retain all three exact Exhausted checks, historical frame
+bytes, disk/count equality, allowed Read/receipt controls and authority retirement.
+The fixture getter records one additional observation in the existing native_max
+leg 5; its source-derived observation bound increases from 3 to 4. No extra
+render, compose, scenario or production behavior is introduced. Independent
+candidate review accepted the precise observation and bound change. The fresh
+thirteenth complete task run passes those checks and fails later at actual owner
+quiescence; task acceptance remains pending.
+
+## 2026-10-06 — Complete authentic cleanup after display and original-record exhaustion
+
+The thirteenth full task run reaches final cleanup of the StatusVersion MAX
+control and fails. A private copied assertion linked to its exact admitted
+libraries confirms quiescence returns Exhausted with zero held, IO or joining
+producers. Desktop source retirement already marks its real pins and attachments
+retired and faulted before reporting display-counter exhaustion. Keep that
+ordinary status error, but let the fence-specific retirement path continue after
+this exact completed retirement. Preserve every other failure, actual enrollment
+and held-owner capture, all requested object retirement and genuine Store joins.
+No display version, frame, proof or fence may be fabricated.
+
+A second probe of the unchanged later counter bodies against those same libraries
+passes SourceBinding and reaches OriginalRecord registration failure. Its actual
+error exposes zero producer tokens where the frozen assertion requires the two
+genuine Desktop entry owners. Retain that authenticated call's real pair on the
+exact original-capacity or claim-counter Exhausted path, after enforcing guards
+have dropped. Core retention and metadata must refer to those same real owners
+until actual joins. Do not create an original, execution claim, ticket, Store
+dispatch, IO or mutation, and keep successful registration and all foreign,
+malformed and other denial paths unchanged.
+
+These are gate-first production repairs with actual retained failure evidence.
+Their narrow source changes require independent review and a fresh unfiltered
+eighteen-case run, strict checks and complete recording validation before task
+acceptance. The focused probes are diagnostic evidence only.
+
+## 2026-10-06 — Test sticky writer exhaustion with a fresh admitted intent
+
+The private Store-counter probe reaches the WriterHighWater control after its
+first Commit has returned exact Exhausted without a permit. That definitive
+pre-permit rejection closes the real original intent. A second source request
+using the same intent correctly returns Stale at authentic snapshot admission,
+before capacity admission. Do not move the capacity error ahead of sticky
+closure or revive that source.
+
+Keep the primary Commit Exhausted, counts1/0/0 and permitted selected Read.
+Require exact Stale from the already closed source, then use actual key release
+and a fresh CtrlS to obtain a distinct immutable intent. Its fresh Allocate must
+return canonical Exhausted with operation0 and no allocated operation. Join all
+four real Desktop/Store producer owners, retain one durable operation and
+counts1/0/0, and compare actual IO-event count and fixture files before and after
+the rejected new admission. This proves sticky writer fencing without weakening
+authority precedence or reusing the closed original.
+
+The independent source review accepts that precise bounded correction. Only the
+existing store_max leg1 denial purpose/status and support source pin change in
+the recording inventory; its current large trace/join/ticket bounds already cover
+the additional genuine allocation exchange and owners. All eighteen cases and
+93 scenarios remain required. Fresh integrated runtime and recording validation
+remain pending.
+
+## 2026-10-06 — Validate actual owner timestamps and retain later failure evidence
+
+The fourteenth fresh task runtime passes all eighteen assertions. Its three
+strict logs complete successfully, then recording validation fails because it
+requires final ownership ingestion to equal zero. The first actual initial
+sidecar contains Unix timestamp1791301622; its committed successor contains
+1791301623. Both final publishers call DomainArtifactRegistry::register_artifact,
+which writes actual SystemTime seconds. The zero field belongs to a temporary
+publication Intent and is separate from the fixture's logical origin1.
+
+Keep final owner ingestion a strict u64, including zero, without treating that
+timestamp as authority. Preserve exact keys, content ID/domain/private ownership,
+full raw-byte hashes, signed manifest, CAS body and complete fixture joins. No
+production sidecar, logical clock or request authority changes. The independently
+reviewed reader correction requires complete retained-corpus diagnostic and
+fresh full-gate evidence before task acceptance.
+
+The failed outer gate also exposes an evidence-preservation gap: its interim
+runtime snapshot contains eight returned commands, while the later three strict
+observations remain only in memory when the reader raises. Preserve that
+exclusive interim file. On later failure, publish a distinct bounded incomplete
+record containing every genuinely returned command; mark an unreturned command
+only while a real OwnedCommand call has not returned. Set full-gate acceptance
+only after all final checks. Never synthesize the missing historic PID, exit or
+reap information from logs. This reviewed reporting correction does not change
+commands, assertions, authority, budgets or gate acceptance requirements.
+
+
+## 2026-10-06 — Carry original closure proofs across actual Core reopen
+
+The retained fourteenth corpus contains committed ServiceRetired history in a
+new canonical journal. Reopen intentionally retains the old operation and creates
+no new original request pointer for it. A current-Core closure array cannot prove
+that earlier cause. Validate all reopened objects, including inactive profile
+peers, through one declared earlier fence ID/native-Serde digest, namespace,
+profile, object ownership/generation and checked successor epoch. Use complete
+actual input and reopened canonical journal suppliers. Preserve full allocation,
+original epochs and every non-null immutable binding, permit, receipt and
+successor. Require the exact deterministic supported reopen settlement of
+Submitted/Permitted to Noncommit, with the original-epoch pure receipt; preserve
+terminal Committed and Noncommit outcomes.
+
+Authenticate the transferred closure rows before live checkpoint validation.
+First causes join the authentic prior original ticket and genuine producer;
+wire request correlation and private execution origin are distinct identities
+and join through that ticket. Later carries use only the validated full row on
+that same bounded lineage. Every new current closure retains its current actual
+witness requirement. Do not invent successor producers, duplicate original
+owners or require an already joined owner in the base retirement roster.
+
+A real allocation retired before any submission has no Commit original pointer.
+For the finite ServiceRetired case, require its complete allocated canonical
+predecessor, real successful Allocate reply, exact completed ticket, returned
+dispatcher join and genuine whole-Core fence, with no submitted or permitted
+supplier. The source-fixed allocation-loss deadline case additionally requires
+its actual retained Allocate observation, suppressed original reply, authenticated
+source continuation Stale control, no Commit and zero mutation counts. Its
+original runtime assertion waits the real intent deadline. Recorded clock values
+or a closed ticket alone cannot establish arbitrary Deadline, Revoked or Expired.
+The recording check does not independently measure wall-clock expiry.
+
+Independent source reviews accept this bounded reader repair. The retained
+corpus diagnostic then reaches a separate Saved recording omission. It does not
+establish complete 93-scenario or fresh full-gate acceptance.
+
+## 2026-10-06 — Retain already observed Saved frame owners in their existing record
+
+Two Saved frames in the original generic-Present control already pass the full
+publication assertion with actual borrowed current draft, private rendered owner
+and composed frame. The general compose recorder has stored the frame without
+those optional witnesses. Preserve the reader's Saved requirement. After all
+existing publication assertions, enrich only the most recent matching frame row
+from those held references. Check exact session/instance/focus/sequence, complete
+raw-byte length/hash, actual chrome actor/document/text/view and render crop.
+Fill only null or identical draft/frame fields; conflicting retained observations
+fail. Do not add a render, compose, query, raw file or observation row.
+
+The intervening generic Present frame remains Unsaved with no private render
+join. Source review and actual isolated compilation plus the complete original
+surface case pass; both legs keep the same frame/file/app-observation counts,
+real producer cleanup and root absence. Root adopts the exact reviewed sources
+and only their assertion/inventory pins. The original eighteen cases and
+93 scenarios remain mandatory in the next fresh combined gate.
+
+
+## 2026-10-06 — Admit each composed frame and its optional chrome in one reservation
+
+A scoped Mac diagnostic attributed roughly half of the stalled-application B
+interval to six recorder inventory scans. That single instrumented run does not
+establish a sole cause, a fixed deadline failure or a measured CI speedup. Select
+the smallest recorder change: admit one actual 1,454,080-byte composed frame and
+its optional actual 248-byte chrome record together. Keep singleton exports,
+raw filenames, ordering, bytes, hashes, crops and frame JSON unchanged.
+
+Validate both descriptors, raw and combined row limits, distinct fresh targets,
+and checked aggregate file, entry and byte capacity before the first output.
+Use the existing exclusive reservation marker and one complete inventory scan.
+Each leaf keeps its own reserved writer, remaining length, incremental digest,
+flush, complete-length check, directory identity and regular single-link file
+checks after writing and at the final path. Preserve a genuinely completed first
+RawRef, any actual second-file partial bytes and the reservation after failure;
+remove the marker only after both outputs complete. Keep every output operation
+inside the unchanged original responsiveness assertion interval.
+
+The combined decimal reservation marker can be four bytes larger than the old
+second singleton marker. Accept conservative denial within those four bytes of
+the aggregate cap; do not relax a cap or claim identical transient edge behavior.
+Theoretical scan reduction is six to four for the measured two-frame sequence.
+Actual original eighteen-case execution, strict checks, complete recording
+validation, affected consumers and canonical Linux Foundry remain the acceptance
+requirements. The isolated eight-family component controls establish only their
+recorded filesystem and arithmetic scope; they do not establish runtime
+containment, target persistence, hardware qualification or release readiness.
+
+## 2026-10-06 — Accept UI1.1c only on complete final-source host evidence
+
+Accept the default-off trusted in-process UI1.1c task only after canonical Linux
+run `native-save-final-linux54-6f6e8667343a8e996c7fedc708a4378c` binds all54 stages and the separately retained55th outer
+timing row, and separate supplemental result `1a3c3af1f6ac534bd51990054755593bc3a9995b05484fd29d0a68ba9ef206f2`
+plus independent review `3c2c6740c3fdfd5d0f56b7079b4dbe49403c158d6c7a525e9a263611806666ac` establish acceptance.
+Keep raw wrapper result `3fe759b5e4a2ca76983f02b16f08f5675279edb80775ae4799f64e03e0787e2b` INCOMPLETE and actual exit 1
+unchanged: line478 includes nested CI test lane labels in its shared-stdout
+classification. Independent terminal-metadata review `f68882546cfcbeef041954eef11aaaceebc8846f4f59d3cba2bf03c7eec68679`
+accepts actual54 plus outer55 execution facts in 827.595754605 seconds and unchanged
+745 sources. This acceptance-only refusal is not a sixth canonical execution
+failure, and the terminal review is not the supplemental acceptance. Canonical stage records supply actual argv/PID/exit/reap, without
+inventing native birth fields in stage_timer; actual outer and Task command birth
+identities are retained separately. Require unchanged before/after745-source
+snapshot `e3f16a3ce97cd87c90d1eb7474629b3546142039bf11c76e42f95db4c7ad0c36` and lock `846c4662dd8e7bd59cc606f3b2e7887d0ff6f30e1d80fe682c198e6828f04ff4`.
+The integrated task `aMpP1aQU`, result `6dcfa3fc1ea09a727191cad54a267506e6bcec67086e7a5f5887a9862a45db8d`
+and review `38ea2526b181baae9f04149e810d3f6962da60f7aed7763d97cad3ccd3ab8369` must match exact final Task source
+`8f8fb22911c2696f323f36935a3920e1f1f6a0f4dc52be659b1a1c43954a6a4f` and establish original18/strict3/Reader93,
+all eleven actual command returns/reaps and genuine verifier callbacks. Counts
+are observed values, never inferred fixed acceptance constants.
+Require final-source Mac Task `24` packet
+`pQFwONsI`, actual result `be9d403723a32acc1b5aa3a2f8b38b6bd640e068b810500bc018e4a7663f35e4` and independent
+review `76386e9f955592a9b2f8973c257d82aa4c00c831f836aa0550b7d413eaa6d89d`. Fresh focused Linux successor result
+`107c90a4fd7e5fed08f2120e613290ac05566d0033a009749a1ac2e0f549ee84` and review
+`ff14ecb95a2e420d730dffb7c6a4f8704b814b3d48c7cdc521c7faf2c943b55d` must bind that same final Task source.
+Accepted historical Task21, Mac23 and focused Linuxv8/v9 cannot substitute after
+the formatting successor changes source pins.
+Current Linux affected results `4e3996984e2963fd7d85ef53bc72c889e6468b455cd9f8b39466974115af6825`,
+`7e5b0c4539bef513a423132c44e9b664f1af079aa9c011e4a6c8879d4f0dfd0a`, `ea33d2a083b34274c3186d165cd2bc361a12ad58ca1ec4089ae3203f8540ba89`,
+`78f2374eb36e7e39617a1b60841c314c94f6a23205ad54d5182ce14cc908e057`, `0ebd85edd71246d816a86c9979682dba87e519b42ba6b1680369ca0cf112eb91`
+and complete compact current-source metadata/log review
+`bff3a0be5f64cf1735dae772cd24178f537d06feb8a245af5580dcee4d75a636` bind trusted fresh outcomes for allfive
+consumers. That compact review does not independently revalidate omitted launch
+children or legacy case raw trees.
+Keep all failed predecessor evidence, including Mac20/Mac22 and allfive partial
+canonical Linux attempts with `d86568dfa0c211fbd085213c8f98c9ed2044970961cd9c02832b52578e1579d7`; acceptance
+neither erases those failures nor fabricates missing historical process rows.
+
+The earlier CI4 source decision and focused61-Python/seven-Rust controls are
+implemented tooling, not measured hosted acceleration. After this combined
+acceptance, preserve all54 local and38 extended stages, exact argv/env/bootstrap,
+source/lock finally checks, bounded failure artifacts, fresh outcomes and
+fail-closed quality/host/agent/QEMU aggregation. Keep isolated agent-task execution
+and cache/feature exclusions intact. Further hosted scheduling/cache measurement
+is separate; no whole-CI speedup follows from uncontrolled historical task times.
+
+Advance UI1.1d to contract freeze only, with independently reviewed gate-first
+assertions before implementation. Specify authentic child/channel ownership,
+child-local editing/raster, typed control, actual immutable shared-memory
+publication and private snapshot/frame adoption. Parent Store original/permit
+owners survive child death for original-only observation without replay; current
+Rust thread proofs cannot authenticate a child. No child process boundary,
+containment, target persistence, device/power-loss durability, hardware, release
+or merge claim follows from this trusted-host in-process milestone. Preserve the
+Constitution and default-off service boundaries.
+
+
+## 2026-10-06 — Freeze the Linux editor process boundary before handlers
+
+Use the independently reviewed editor-process-v0 contract and getter-only API
+inventory for UI1.1d. Child-local edit/raster code lives in an acyclic pure
+services/desktop_editor_core crate; the child feature activates only that core,
+kernel_api and optional host libc. Desktop and Store authority remain in the parent.
+Genuine Read enrollment consumes the editor into a one-way process mode. Existing
+parent step/render and repeated Read extraction cannot become alternate writers.
+
+Bind execution to copied, hashed and WRITE/GROW/SHRINK/SEAL-sealed ELF bytes held
+through execveat(AT_EMPTY_PATH), with reviewed async-safe fork setup and no path
+fallback. The supervisor alone owns wait authority; consuming join returns actual
+child reap plus supervisor join, separately from NativeSave Rust producer proofs.
+Kernel SCM_CREDENTIALS bind each received message to that owned child. Publication
+adoption is private and requires the exact offered object identities, complete
+seals and current input/generation lineage. A genuine Ctrl+S preserves the original
+broker Instant and 1000ms deadline; parent original permits and recovery survive
+child death without replay.
+
+Account publication FD/maps separately from fixed spawn resources, reserve before
+growth, and retain complete bounded input/ack records. Preserve original eighteen
+in-process assertions, 93 recording scenarios and all affected consumers. Reserve
+protocol384 without implementing IDL/generated output yet. Independently review
+executable assertion source and obtain actual missing-API RED before handlers.
+The frozen contract is not child runtime acceptance, same-UID containment, target
+persistence, hardware qualification or measured hosted CI acceleration.
+
+Accept RUN0 relocated-entry analysis only as source-derived preparation. A single
+prior-run diagnostic hint must later bind to a fresh actual C0 stop and pinned
+PE/code/ABI observations; missing or missed hints remain INCOMPLETE. Collector,
+profile/schema, actual tool/firmware/input pins and CPU dossier remain prerequisites.
+Guest first-access, stack lifetime, final map/retention and one-shot installation
+remain separate from external inspection. No capture or firmware ownership
+transition has occurred in this packet.
+
+## 2026-10-06 — Stage pure editor data before the Linux process carrier
+
+Register process protocol384/version1 as `desktop_editor_process_v1` and generate
+its fixed data types from IDL. Keep explicit little-endian framing, field validation
+and numeric direction/FD-count checks in `desktop_editor_core::wire`; these helpers
+hold no credentials, real descriptors or authority. The model shares bounded ASCII
+editing and exact raster algorithms, with explicit initializer/reset policies to
+preserve current legacy/native differences. SaveRequested is a local hint only.
+The crate has an empty default feature set, kernel_api data as its sole runtime
+dependency and the existing pinned sha2 only for tests. Existing Desktop adapters
+remain unchanged until their own gate-first migration; activate the optional core
+dependency through desktop_v0_dev at that step.
+
+Retain actual missing-export compiler RED before implementation. Run the focused
+26-assertion prerequisite and rely on existing complete workspace-test discovery
+without changing the canonical54/extended38 stage inventories. Keep the codegen
+stability test roster explicit and independent from the implementation script;
+register the new output there and compare actual renders with the expected roster
+length so missing, extra or reordered outputs still fail. The original seven test
+families and all earlier expected output entries remain, with only the reviewed
+roster addition and expected-count expression changed. Refresh the native
+task source registry for legitimate new IDL/generated/test/workspace inputs; its
+historical203 closure is not a permanent allowlist. Pure tests establish neither
+actual child execution nor authenticated IPC, sealed mappings, Save or target
+acceptance. Hosted CI speedup remains unmeasured.
+
+## 2026-10-06 — Shared-core adapter migration and supplemental gate
+
+**Accepted adapter preservation.** Final macOS adapter4 and the unchanged
+pure-core26/quality checks have independent actual-outcome reviews. CI62 Python
+and seven Rust controls pass, including the missing-stage RED/GREEN control.
+Fresh strict Linux55 passes on runtime source snapshot
+`86c3ac3e20743cafe47604e69276396d3c8ada0c99517d3ff7d8ffe1202bc694`,
+with original13/18, strict3, complete Reader93, all actual exits/reaps and stable
+source/S2 inputs. Raw result
+`f9342ae11a4d1187ec733fb4ad6647cd5ad21204732212b89c739aa4291fa760`
+and independent review
+`d266a33e9baf5078e704f5c40b7d9e2f6c4a99c89893ee1638b99d15151ed0e8`
+bind this acceptance. Existing agent-task evidence remains limited to offline
+synthetic provider accounting; Linux provider controls/reconciliation remain
+INCOMPLETE. Required planning checks on the four-document successor will be recorded
+separately from this runtime snapshot.
+
+Select checked scratch conversion for both existing adapters.
+
+Both existing `EditorClient` and `NativeTextEditor` adapters delegate pure
+editing, navigation, scrolling and rasterization to the shared editor core.
+Checked snapshots transfer all seven fields: body, cursor, selection, first
+visible line, selection anchor, preferred column and text generation. Preserve
+legacy/native initialization, reset, overflow and Save policies. Private native
+construction and rasterization propagate errors; native editing computes in
+detached scratch and checks actual owner admission and view-generation increment
+before committing. The optional acyclic core dependency is enabled through
+default-off `desktop_v0_dev`; the core holds no Desktop, Store, Focus or Save
+authority. A local SaveRequested hint cannot create Save authority.
+
+Four unchanged supplemental gate-first assertions cover both real adapters'
+selected snapshot continuation, including nonzero scroll, and actual native
+text/view MAX rejection with hidden owner state unchanged. They use genuine
+Read/input fixtures and separately enabled private owner controls. The explicit
+`just foundry-editor-adapter-migration-ui1-1d` host stage runs both required-feature
+targets without filtering; ordinary default-feature workspace tests cannot stand
+in for them. The deliberate insert after `desktop-editor-task` gives55 full/39
+extended stages while preserving every original54/38 name, relative order, argv
+and environment. The actual Task source registry successor adds ten legitimate
+adapter/core/test/font paths,207→217, with no removals or historical-count
+allowlist. Source membership does not establish execution. Original13/18 and
+Reader93 requirements remain unchanged.
+
+The accepted pure-core54 milestone remains valid for its source snapshot.
+Its failures and all migration/CI predecessor failures remain retained. The
+Linux55 run freshly executes the required feature targets and affected consumers;
+Task217 source manifest
+`42537d43fd8ce8b3afa2a0b55d30313c8d0428d3c135f25fc99cd513d0221817`
+is exact and unchanged by these four documentation updates. The separate required
+planning checks do not rerun or relabel the accepted runtime snapshot.
+
+The ten actual closure additions comprise four adapter fixture/assertion paths and
+six core source/test/font paths. No public body/frame, PID, counter or authority
+setter is introduced. Keep actual Surface/Focus/Store and original receipt owners
+in their services. Preserve source/lock guards, fail-closed aggregation and fresh
+outcomes. This bounded migration grants no merge, release or hardware authority
+and asserts no hosted speedup.
+
+The next process packet completes all thirty executable assertion families and
+ownership-safe runtime staging before dependent carrier/child/Save handlers.
+Private cleanup-v5 is independently source-reviewed preparation only. Genuine
+constructor/setup, Read/reopen, consuming-join bounds/non-unwinding owner return,
+Save-pause panic and uncertain parent-death controls remain required. Retain actual
+owners and charges when quiescence is unproved, preserve original cleanup
+deadlines, and never infer child reap from watchdog parent death. Actual child
+execution, authenticated channels, sealed publications and retained original Save
+owners after child death remain pending. Target/QEMU ports, HIL and hosted CI
+performance measurement remain separate; adapter preservation establishes no
+process runtime or containment acceptance.

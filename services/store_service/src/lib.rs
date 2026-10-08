@@ -20,6 +20,9 @@ pub mod audit;
 pub mod capability;
 pub mod dev_mode;
 pub mod domain_visibility;
+// Default-off trusted UI1.1b host fixture; no production desktop dependency.
+#[cfg(feature = "editor_store_v0_dev")]
+pub mod editor_store;
 pub mod projection_cow;
 pub mod projection_index;
 pub mod projection_vfs;

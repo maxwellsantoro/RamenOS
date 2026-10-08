@@ -10,7 +10,10 @@ members = [
   "store_cli",
   "artifact_store_core",
   "artifact_store_schema",
+  "apps/artifact_editor", # UI1.1c: default-off in-process native Save task consumer
   "services/portals",
+  "services/desktop", # UI1.0: opt-in typed host preview/launch lifetime
+  "services/desktop_editor_core", # UI1.1d: bounded edit/raster and typed process data
   "services/domain_manager",
   "services/capsule_relay",
   "services/semantic_state",
@@ -29,3 +32,11 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
+
+[profile.dev.package.sha2]
+opt-level = 3
+
+# LT hashes the selected worker inside its wall budget. Omit debug metadata
+# from native_runner dev executables without changing runtime optimization.
+[profile.dev.package.native_runner]
+strip = "debuginfo"

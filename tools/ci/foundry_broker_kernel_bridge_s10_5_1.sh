@@ -69,11 +69,14 @@ if [[ ! -d services/kernel_harness_proxy ]]; then
     "create services/kernel_harness_proxy (see S10.5.1 design §3)"
 fi
 
-cargo test -p kernel_harness_proxy proxy_get_snapshot_roundtrip --quiet \
-  || fail "PROXY_ROUNDTRIP" "proxy_get_snapshot_roundtrip failed"
+# Run once: its exit status and captured output are both required.
+if ! PROXY_OUTPUT="$(cargo test --locked -p kernel_harness_proxy proxy_get_snapshot_roundtrip --quiet -- --nocapture 2>&1)"; then
+  printf '%s\n' "$PROXY_OUTPUT" >&2
+  fail "PROXY_ROUNDTRIP" "proxy_get_snapshot_roundtrip failed"
+fi
+printf '%s\n' "$PROXY_OUTPUT"
 
-# Assert deterministic sha256 prefix contract.
-PROXY_OUTPUT="$(cargo test -p kernel_harness_proxy proxy_get_snapshot_roundtrip --quiet -- --nocapture 2>&1)"
+# Assert deterministic sha256 prefix from that same successful execution.
 grep -q '9c0de4419f03f426' <<<"$PROXY_OUTPUT" \
   || fail "SHA256_PREFIX_MISMATCH" "proxy snapshot must match S10.5.0 prefix 9c0de4419f03f426"
 

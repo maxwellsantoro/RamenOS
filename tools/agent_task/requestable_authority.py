@@ -71,6 +71,124 @@ def matrix_summary(rows, policy):
     )
 
 
+def host_canary_summary(records, expected_sha256, traces):
+    """Validate nine named consumer observations, never adapter/model authority."""
+    import errno
+    import re
+
+    arms = ("RT", "LT", "LS")
+    phases = ("before_expiry", "after_expiry", "after_revocation")
+    cases = dict(zip(phases, ("short_read", "expired_first_read", "revoked_renewed_read")))
+
+    def require(condition):
+        if not condition:
+            raise ValueError("named host consumer canary evidence mismatch")
+
+    require(type(expected_sha256) is str and re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is not None)
+    require(type(records) is list and len(records) == 9)
+    require(type(traces) is dict and set(traces) == set(arms))
+    seen, actors = set(), {}
+    indexed = {}
+    for arm in arms:
+        require(type(traces[arm]) is list and 0 < len(traces[arm]) <= 64)
+        by_case = {}
+        for item in traces[arm]:
+            require(type(item) is dict and type(item.get("case")) is str
+                    and item["case"] not in by_case)
+            by_case[item["case"]] = item
+        indexed[arm] = by_case
+
+    def witness(arm, case, operation, statuses):
+        item = indexed[arm].get(case)
+        require(type(item) is dict and type(item.get("request")) is dict
+                and type(item.get("response")) is dict)
+        request, response = item["request"], item["response"]
+        require(type(request.get("schema_version")) is int and request["schema_version"] == 1
+                and type(response.get("schema_version")) is int and response["schema_version"] == 1
+                and type(request.get("request_id")) is str and request["request_id"] == response.get("request_id")
+                and type(request.get("call")) is dict and request["call"].get("operation") == operation
+                and response.get("status") in statuses)
+        require(type(response.get("result")) is dict if response["status"] == "ok"
+                else response.get("result") is None)
+        return request, response["result"]
+
+    for row in records:
+        require(type(row) is dict and set(row) == {
+            "schema_version", "arm", "phase", "actor", "backend_case", "outcome",
+            "content_sha256", "denial_errno",
+        })
+        require(type(row["schema_version"]) is int and row["schema_version"] == 1
+                and type(row["arm"]) is str and row["arm"] in arms
+                and type(row["phase"]) is str and row["phase"] in phases)
+        arm, phase = row["arm"], row["phase"]
+        require((arm, phase) not in seen and row["backend_case"] == cases[phase])
+        seen.add((arm, phase))
+        actor = row["actor"]
+        require(type(actor) is dict and set(actor) == {"role", "pid", "uid", "gid", "namespaces"})
+        require(actor["role"] == ("contained-python-shell-consumer" if arm == "LS"
+                                  else "trusted-python-evaluator-host-consumer"))
+        for key in ("pid", "uid", "gid"):
+            require(type(actor[key]) is int and 0 <= actor[key] <= (1 << 63) - 1)
+        require(actor["pid"] > 0)
+        namespaces = actor["namespaces"]
+        require(type(namespaces) is dict and set(namespaces) == {"mnt", "pid", "net"})
+        for kind, identity in namespaces.items():
+            require(type(identity) is str and re.fullmatch(kind + r":\[[0-9]+\]", identity) is not None)
+        if arm in actors:
+            require(actors[arm] == actor)
+        else:
+            actors[arm] = actor
+        if arm == "LS":
+            require(row["outcome"] == "blocked" and row["content_sha256"] is None
+                    and type(row["denial_errno"]) is int
+                    and row["denial_errno"] in (errno.ENOENT, errno.EACCES, errno.EPERM))
+        else:
+            require(row["outcome"] == "allowed" and row["content_sha256"] == expected_sha256
+                    and row["denial_errno"] is None)
+        witness(arm, cases[phase], "read_input", ("ok",) if phase == "before_expiry" else ("denied", "expired"))
+    for arm in arms:
+        short, _ = witness(arm, "short_read", "read_input", ("ok",))
+        expired, _ = witness(arm, "expired_first_read", "read_input", ("denied", "expired"))
+        revoked, _ = witness(arm, "revoked_renewed_read", "read_input", ("denied", "expired"))
+        renewed_read, _ = witness(arm, "renewed_read", "read_input", ("ok",))
+        fresh_read, _ = witness(arm, "fresh_generation_read", "read_input", ("ok",))
+        grant_request, grant = witness(arm, "short_grant", "request_grant", ("ok",))
+        renewed_request, renewed = witness(arm, "renewed_grant", "request_grant", ("ok",))
+        _, clock = witness(arm, "expiry_clock", "get_task_state", ("ok",))
+        revoke_request, revoke = witness(arm, "generation_revoke", "revoke_grant", ("ok",))
+        fresh_request, fresh = witness(arm, "policy_after_revocation", "request_grant", ("ok",))
+        caps = [grant.get("task_cap"), renewed.get("task_cap"), fresh.get("task_cap")]
+        require(all(type(cap) is str and 0 < len(cap) <= 128 for cap in caps))
+        require(short["call"].get("task_cap") == expired["call"].get("task_cap") == caps[0])
+        require(renewed_read["call"].get("task_cap") == revoked["call"].get("task_cap")
+                == revoke_request["call"].get("task_cap") == caps[1])
+        require(fresh_read["call"].get("task_cap") == caps[2])
+        resources = [request["call"].get("resource")
+                     for request in (grant_request, renewed_request, fresh_request)]
+        require(all(type(resource) is str and re.fullmatch(r"resource:[0-9a-f]{16}", resource) is not None
+                    for resource in resources) and resources[0] == resources[1] == resources[2])
+        for read, resource in ((short, resources[0]), (expired, resources[0]),
+                               (renewed_read, resources[1]), (revoked, resources[1]),
+                               (fresh_read, resources[2])):
+            require(read["call"].get("resource") == resource)
+        require(type(clock.get("state")) is dict)
+        numbers = [grant.get("expires_at_ms"), clock["state"].get("now_ms"),
+                   grant.get("generation"), revoke.get("generation"),
+                   renewed.get("generation"), fresh.get("generation")]
+        require(all(type(n) is str and re.fullmatch(r"[0-9]{1,20}", n) is not None
+                    and int(n) <= (1 << 64) - 1 for n in numbers))
+        require(int(numbers[1]) >= int(numbers[0]) and int(numbers[3]) > int(numbers[2])
+                and int(numbers[4]) == int(numbers[2]) and int(numbers[5]) == int(numbers[3]))
+    return dict(
+        schema_version=1, claim="named-python-consumer-unmounted-canary-lifetime-points",
+        observations=9, phases=list(phases), allowed_arms=["RT", "LT"], blocked_arms=["LS"],
+        canary_sha256=expected_sha256, actor_scope="actual-scripted-python-consumer",
+        adapter_authority_measured=False, model_interface_authority_measured=False,
+        whole_authority_relation="unknown", continuous_envelope_certified=False,
+        noninterference_certified=False, full_a2_conformance=False,
+    )
+
+
 def consume(call, bootstrap, kind, masks=(), policy=31, extra=None):
     started = time.monotonic()
     trace = []

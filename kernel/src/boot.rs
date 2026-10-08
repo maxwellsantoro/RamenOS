@@ -28,10 +28,14 @@ pub enum RegionKind {
 
 /// A fixed-size memory map passed from the bootloader.
 /// S8 Phase 3 constraint: Static array to avoid heap dependency in bootloader glue.
+pub const MAX_BOOT_REGIONS: usize = 256;
+
 #[derive(Copy, Clone)]
 pub struct BootMemoryMap {
-    pub regions: [MemoryRegion; 64],
+    pub regions: [MemoryRegion; MAX_BOOT_REGIONS],
     pub count: usize,
+    // Descriptor loss remains visible even if a caller changes the public count.
+    overflowed: bool,
 }
 
 impl BootMemoryMap {
@@ -43,23 +47,32 @@ impl BootMemoryMap {
                 start: unsafe { PhysAddr::new(0) },
                 len_bytes: 0,
                 kind: RegionKind::Reserved,
-            }; 64],
+            }; MAX_BOOT_REGIONS],
             count: 0,
+            overflowed: false,
         }
     }
 
     pub fn add(&mut self, start: u64, len_bytes: u64, kind: RegionKind) {
-        if self.count < self.regions.len() {
-            self.regions[self.count] = MemoryRegion {
-                // SAFETY: PhysAddr::new is safe here because:
-                // - For valid addresses, UEFI guarantees the memory map entries are correct
-                // - The address comes from UEFI boot services which validates memory regions
-                start: unsafe { PhysAddr::new(start) },
-                len_bytes,
-                kind,
-            };
-            self.count += 1;
+        if self.overflowed || self.count >= self.regions.len() {
+            self.overflowed = true;
+            return;
         }
+        self.regions[self.count] = MemoryRegion {
+            // SAFETY: This stores the bootloader's physical address without
+            // accessing memory. Boot pool admission checks the numeric range
+            // before producing a pool; actual access needs separate evidence.
+            start: unsafe { PhysAddr::new(start) },
+            len_bytes,
+            kind,
+        };
+        self.count += 1;
+    }
+
+    /// False after any lost insertion or a currently out-of-bounds public count.
+    /// Changing `count` cannot clear the private sticky overflow state.
+    pub const fn is_complete(&self) -> bool {
+        !self.overflowed && self.count <= self.regions.len()
     }
 }
 
