@@ -402,6 +402,11 @@
   no target desktop or device behavior.
 
 ### Fixed
+- The S7 Store signature gate builds synchronously and launches the selected
+  service binary directly, keeping compiler work outside its unchanged startup
+  windows. Six orchestration controls cover build failure, delayed compilation,
+  invalid abort exits, live production startup and missing security markers;
+  failed probes print their logs and owned children are killed and reaped.
 - Preserve bounded operator diagnostics for sandbox launch failures, including
   the original phase/reason when cleanup requires reconciliation. Agent responses,
   deadlines, isolation and fail-closed cleanup remain unchanged.
