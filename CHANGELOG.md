@@ -402,6 +402,10 @@
   no target desktop or device behavior.
 
 ### Fixed
+- Strip debug metadata from `native_runner` development executables to reduce
+  the worker bytes hashed inside LT's existing wall budget. Runtime optimization,
+  features, security controls and deadlines are unchanged; rich host debugging
+  requires restoring this package's debug metadata.
 - The S7 Store signature gate builds synchronously and launches the selected
   service binary directly, keeping compiler work outside its unchanged startup
   windows. Six orchestration controls cover build failure, delayed compilation,

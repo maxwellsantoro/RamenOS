@@ -34,6 +34,22 @@ reap, elapsed time and bounded output observations, and are labelled
 
 ## Complete acceptance and lanes
 
+The `native_runner` development package profile strips debug metadata from its
+executables, including the private validator worker. LT hashes the complete
+selected worker inside its existing 2500 ms wall budget; omitted debug sections
+reduce those pinned bytes without changing runtime code optimization, features,
+Wasmtime configuration or the 1500 ms guest / 1000 ms host-call limits. This
+applies to package outputs, not only the worker, and reduces rich host debugging
+metadata. Set this package override to `strip = "none"` when that metadata is
+needed; acceptance still hashes and supervises the actual selected executable.
+
+A paired Linux experiment on the same source and fixture observed worker size
+falling from 182,820,408 to 42,777,632 bytes. One invalid and one valid request per
+build, with no retries or warmup, took 384/369 ms before and 292/288 ms after.
+This small sample does not isolate hash cost, explain every hosted Docker attach
+timeout or establish stable latency or whole-CI speedup. Existing functional and
+timeout/containment assertions remain required on the selected build.
+
 `tools/ci/ci_lanes.py` owns one canonical inventory. `just preflight` executes the
 complete 55-stage serial sequence: proof and compiler-cache input prerequisites,
 generation before formatting, tooling regressions, IDL lint, target builds,
