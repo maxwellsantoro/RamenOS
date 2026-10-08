@@ -84,6 +84,13 @@ failure invalidates the gate. A timed-out create RPC without confirmed creation
 cannot certify cleanup and fails as `creation_not_confirmed`. There is no hard
 real-time guarantee for the host scheduler or Docker daemon.
 
+Failure records retain the original launch phase and reason even when cleanup
+requires a stronger final failure. Engine errors retain only the command verb,
+optional return code and at most 16384 bytes of stderr, with an explicit truncation
+flag. These diagnostics remain in trusted operator evidence, outside agent
+responses. Four pure regression controls cover retention and response redaction;
+the real Linux probes remain required. Deadlines and isolation are unchanged.
+
 ## Authority and evidence
 
 `out/agent-task-linux-control/report.json` records fixture/worker/image pins,

@@ -232,6 +232,7 @@ class AggregateWorkflowTests(unittest.TestCase):
             self.assertIn("needs: changes", jobs[job])
             self.assertIn("needs.changes.outputs.os_code == 'true'", jobs[job])
             self.assertIn(f"ci_lanes.py lane {lane}", jobs[job])
+            self.assertRegex(jobs[job], r"sudo apt-get install -y [^\n]*\bripgrep\b")
             if job in ("quality", "qemu"):
                 self.assertIn("ci_lanes.py install-toolchain", jobs[job])
             self.assertIn("actions/upload-artifact@v4", jobs[job])

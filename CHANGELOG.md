@@ -402,6 +402,11 @@
   no target desktop or device behavior.
 
 ### Fixed
+- Preserve bounded operator diagnostics for sandbox launch failures, including
+  the original phase/reason when cleanup requires reconciliation. Agent responses,
+  deadlines, isolation and fail-closed cleanup remain unchanged.
+- Install ripgrep explicitly in all four hosted Foundry lanes and document it
+  for Linux setup; gate scripts require `rg` even when the runner image omits it.
 - Own and bound Store/supervisor teardown in the compatibility gate, enabling
   SIGTERM child kill/reap and reporting forced or unproved cleanup as `UNKNOWN`.
   Require all three fresh serial markers independently; missing either of the

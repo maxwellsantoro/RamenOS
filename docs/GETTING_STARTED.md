@@ -34,7 +34,7 @@ packages include:
 
 ```bash
 sudo apt-get install qemu-system-x86 qemu-system-arm ovmf \
-  python3 python3-jsonschema gcc cpio gzip e2fsprogs curl
+  python3 python3-jsonschema gcc cpio gzip e2fsprogs curl ripgrep
 ```
 
 Install rustup and `just` separately if unavailable. Full preflight additionally
