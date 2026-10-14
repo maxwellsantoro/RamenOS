@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-10-14 — hosted qualification and merge
+
+- PR #36 merged host editor reliability repairs, Foundry iteration/CI streamlining
+  and focused Repomix tooling as `a9e2394314c040c3c5aa692bfdc7b9363a28b57e`.
+- Fresh five-lane hosted PR qualification passed all nine jobs and all 68 canonical
+  lane/preparation timing records on exact head `8e2869e`, with independent review
+  and separate bot-author/human-approver identities.
+- Retained the push run's initial LT attachment timeout and successful cleanup;
+  a manual failed-job rerun passed on unchanged code, assertions and deadlines.
+- Closed the stale hosted qualification prerequisite in the task queue. Process
+  assertion/contracts remain prerequisites for real editor process implementation;
+  no provider/model, target persistence, physical or release claim is added.
+
 ## [Unreleased]
 
 ### Complete strict Linux56 qualification — 2026-10-13

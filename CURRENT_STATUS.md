@@ -1,8 +1,8 @@
 # Current Status
 
-**Last Updated:** 2026-10-13
+**Last Updated:** 2026-10-14
 **Status:** Active and authoritative for landed state
-**Current Slice:** UI1.1 repaired host editor qualification, then UI1.1d process boundary
+**Current Slice:** UI1.1d real editor process boundary after qualified host repairs
 **Physical Lane:** S12.4 HIL appliance observation/actuation awaits setup
 **Software Lane:** SW0 foundations through A2.9; full A2 and comparison pending
 
@@ -41,7 +41,7 @@ pass freshly on macOS, as do volatile13, Store7, Preview codec7, Save codec8,
 NativeRead9, NativePreview5 and adapter4 with their strict/feature checks.
 [The review resolution](docs/plans/editor-reliability-review-2026-10-13.md)
 retains regression, negative-control and integration evidence. Complete Linux56
-preflight now passes; hosted merge qualification remains pending. These repairs do
+preflight and fresh five-lane hosted merge qualification now pass. These repairs do
 not establish editor-child execution, target persistence, crash-orphan cleanup,
 CAS temporary-file recovery or physical durability.
 
@@ -50,7 +50,7 @@ controls), S11/S12/S13, appliance docs/manifest and org-governance passed on tha
 source revision. S12 GOP and S13 block each required an unchanged retry after an
 initial missing boot marker; those failures and successful runs remain retained.
 The streamlining successor below records fresh checks and reviewed registry
-successors. Complete Linux56 now passes; hosted qualification remains separate.
+successors. Complete Linux56 and the fresh five-lane hosted qualification now pass.
 
 ### UI1.1d shared adapter migration — accepted host preservation
 
@@ -146,7 +146,7 @@ binary hashes remained intact. Temporary Linux preparation was removed after
 retaining its evidence. [The streamlining resolution](docs/plans/build-streamlining-2026-10-13.md)
 records measurements, preserved failures, review and scope. Complete Linux56 now passes on the exact current runtime candidate. The pinned
 proof image is installed locally and verified on the native Linux host. Fresh
-five-lane hosted qualification remains pending. Earlier source-bound PASS reports
+five-lane hosted qualification passes on the reviewed head. Earlier source-bound PASS reports
 remain historical evidence.
 
 The full strict `just preflight` completed all 56 canonical stages on native
@@ -160,8 +160,22 @@ The initial output-permission failure is retained; only qualification-environmen
 permissions/setup required correction. No product-code change or assertion
 waiver was needed. [The qualification](docs/plans/linux56-qualification-2026-10-13.md)
 records the complete evidence and separates the subsequent documentation-only
-update from the tested runtime snapshot. Five-lane hosted execution remains
-pending; provider/model, process, target and physical scopes remain unchanged.
+update from the tested runtime snapshot. Fresh five-lane hosted execution passes;
+provider/model, process, target and physical scopes remain unchanged.
+
+PR [#36](https://github.com/maxwellsantoro/RamenOS/pull/36) merged on October 14
+as `a9e2394314c040c3c5aa692bfdc7b9363a28b57e` after independent exact-head review,
+separate bot-author/human-approver identities and required checks. The
+[PR run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38511257813)
+passed all nine jobs; all 68 isolated-runner preparation/lane records match the
+canonical five-lane plans, with exit 0, actual reap and no uncertain cleanup.
+The [push run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38511253161)
+also passed after a manual failed-job rerun on the unchanged reviewed head. Its
+first LT validator attachment timeout and successful cleanup remain retained;
+no code, assertion or deadline changed. Editor was the longest PR job at 652
+seconds including setup, artifact and cache work; this is one run, not a measured
+speedup. Post-merge main execution is a separate workflow, and these results do
+not widen the scripted host/Docker/QEMU claim.
 
 ## Implemented foundations and their boundaries
 
