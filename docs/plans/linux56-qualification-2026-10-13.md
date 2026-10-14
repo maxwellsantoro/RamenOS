@@ -88,8 +88,37 @@ closures or relabel the tested fingerprint. The isolated Linux checkout remains
 available for inspection and warm follow-up; accepted local evidence is retained
 separately.
 
-Complete Linux56 is now qualified. Fresh execution of the five-lane GitHub
-workflow remains a separate hosted requirement. Provider accounting remains
+Complete Linux56 is now qualified. The subsequent five-lane GitHub qualification
+also passed on the reviewed head, as recorded below. Provider accounting remains
 offline synthetic; no actual provider/model comparison, general containment,
 editor child, target persistence, physical actuation or metal graduation follows
 from this run. Merge/release authority is unchanged.
+
+## Hosted and merge successor — 2026-10-14
+
+Exact reviewed head `8e2869ec296e4b094e6d39c6f85036ef5ce8ac69` passed all nine
+jobs in [PR run 38511257813](https://github.com/maxwellsantoro/RamenOS/actions/runs/38511257813).
+Its 68 retained timing records match all canonical five-lane commands and order,
+including isolated-runner preparation. Actual exits/reaps and cleanup checks pass;
+independent exact-commit and hosted evidence reviews found no actionable issues.
+This does not relabel the earlier 795-file Linux56 runtime fingerprint.
+
+[Push run 38511253161](https://github.com/maxwellsantoro/RamenOS/actions/runs/38511253161)
+attempt 1 failed at LT validator attachment after 2,437 ms; its container was
+created and removed, with 39 ms cleanup. The same unchanged candidate passed the
+complete PR agent lane, and a manually requested failed-job rerun passed the push
+agent lane and both aggregates. No code, deadline or assertion changed. Original
+failed logs and actual attempt 2 records remain under `out/merge-all/`.
+
+[PR #36](https://github.com/maxwellsantoro/RamenOS/pull/36) was authored by
+`ramen-implementer[bot]`, approved through the separately verified `maxwellsantoro`
+identity and squash-merged as `a9e2394314c040c3c5aa692bfdc7b9363a28b57e` after
+required checks passed. Local main was synced to that merge. The longest PR job
+was editor at 652 seconds including setup, artifact and cache work; this single
+run does not establish a hosted speedup. Post-merge main execution is separate.
+
+Retained successor evidence: `out/merge-all/pr-run.json`,
+`hosted-qualification.json`, `hosted-review.json`, `pr-timings/`,
+`push-attempt-1.json`, `push-agent.log`, `push-attempt-2.json`,
+`push-agent-attempt-2/` and `merged-pr.json`. The existing host/Docker/QEMU,
+provider/model, process, target and physical claim limits remain unchanged.

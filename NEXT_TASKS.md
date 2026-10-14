@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-13
+**Last Updated:** 2026-10-14
 **Status:** Authoritative ready work and acceptance dependencies
 
 [Current Status](CURRENT_STATUS.md) records landed behavior; [Roadmap](ROADMAP.md)
@@ -10,7 +10,7 @@ handoff; do not copy this queue into instructions or skills.
 
 ## Ready work front
 
-**Now:** qualify the reviewed host reliability repairs and five-lane build/test successor through fresh hosted checks (Linux56 passed), then complete the real editor process; advance RUN0/input/storage preparation independently.
+**Now:** complete the real editor process after qualified host reliability repairs and the five-lane build/test successor (Linux56 and hosted checks passed); advance RUN0/input/storage preparation independently.
 
 The first product checkpoint remains one keyboard-first human editing task that
 works without a model. Preserve its in-process control, then cross a real process
@@ -46,9 +46,9 @@ macOS/Linux regression evidence. The new `just foundry-editor-reliability-ui1-1`
 executes Desktop7, Store5 and the complete app-private1 inventory; reviewed
 registry successors preserve all old inputs. The unchanged original 18/Reader93
 passed freshly on macOS. [The resolution](docs/plans/editor-reliability-review-2026-10-13.md)
-records behavior and evidence. Complete Linux56 passes; remaining qualification is fresh
-hosted merge checks before dependent runtime integration; focused Linux repair
-evidence does not substitute for those checks. The affected volatile13, Store7,
+records behavior and evidence. Complete Linux56 and fresh five-lane hosted merge
+checks pass on the reviewed candidate, now merged through PR #36. Preserve the
+source-bound evidence before dependent runtime integration. The affected volatile13, Store7,
 Preview codec7, Save codec8, NativeRead9, NativePreview5 and adapter4 controls also
 pass freshly on macOS with strict/feature checks; preserve them. Do not bake historical source row counts into future
 closure acceptance; legitimate additions require reviewed registry/pin successors.
@@ -60,9 +60,9 @@ handoff. The complete 56/40 inventory remains unchanged across five required CI
 lanes. Warm compiler preparation, selected union executions, optional agent-only
 WAT, fresh QEMU variables and explicit compiler-entry retirement are accepted in
 the local scope recorded in [the resolution](docs/plans/build-streamlining-2026-10-13.md).
-No cross-gate PASS reuse was introduced. Complete Linux56 passes; fresh hosted
-qualification remains a ready prerequisite for dependent runtime integration;
-local focused evidence cannot replace them. Keep the original 18/Reader93 and all
+No cross-gate PASS reuse was introduced. Complete Linux56 and fresh five-lane
+hosted qualification pass; that prerequisite for dependent runtime integration
+is complete on the reviewed candidate. Keep the original 18/Reader93 and all
 consumer assertions fresh when their inputs change.
 
 Strict Linux56 qualification is complete on the exact assembled runtime
@@ -70,9 +70,9 @@ candidate: all 56 canonical stages pass, including actual Linux evaluator and
 reconciliation controls, original18/Reader93 and regression13. The pinned image
 is installed and verified; initial environment-permission failures are retained.
 [The qualification](docs/plans/linux56-qualification-2026-10-13.md) records source,
-commands, environment and scope. Fresh five-lane hosted execution remains before
-qualification-dependent runtime integration; P0 contract/assertion work may
-proceed in its independent scope. Do not repeat the unchanged full preflight for
+commands, environment and scope. Fresh five-lane hosted execution and required
+merge checks passed for PR #36. P0 contract/assertion work is ready; dependent
+implementation still requires its reviewed assertions and frozen contracts. Do not repeat the unchanged full preflight for
 this documentation-only evidence update.
 
 ### Process successor: split at real ownership boundaries
