@@ -1,6 +1,6 @@
 # Vertical Slices
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Reference summary
 
 A slice delivers a usable capability across boundaries: an OS behavior or typed
@@ -31,12 +31,12 @@ whole-product readiness.
 | S12 | First-metal golden machine and HIL appliance | Active at S12.4 |
 | S13 | Persistent storage from Oracle capture to metal graduation | QEMU loop complete; metal pending |
 | S14 | USB xHCI and HID interactivity | Design/contract work ready; device implementation and qualification pending |
-| S15 | Native compositor and desktop integration | Trusted in-process host editing/Save task and shared core landed; reliability repairs, editor child and target integration pending |
+| S15 | Native compositor and desktop integration | Trusted in-process host editing/Save task, shared core and qualified reliability repairs landed; editor child and target integration pending |
 
 ## Current Slice: S12.4
 
-This is the current physical slice. The active software checkpoint is UI1.1 host
-reliability followed by the actual editor process; see [Next Tasks](NEXT_TASKS.md).
+This is the current physical slice. The active software checkpoint is the actual
+editor process after qualified host reliability repairs; see [Next Tasks](NEXT_TASKS.md).
 
 **Goal:** Make physical HIL repeatable through a dedicated appliance rather than
 manual serial-log handling.

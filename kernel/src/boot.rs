@@ -26,6 +26,21 @@ pub enum RegionKind {
     LoaderData,
 }
 
+/// Provenance of a bootstrap-only pool assertion supplied by trusted boot glue.
+/// Neither variant establishes the RUN0 firmware-exit ownership transition.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum BootstrapProvenance {
+    FirmwareAllocation,
+    QemuFixture,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct BootstrapAllocation {
+    pub base: u64,
+    pub len_bytes: u64,
+    pub provenance: BootstrapProvenance,
+}
+
 /// A fixed-size memory map passed from the bootloader.
 /// S8 Phase 3 constraint: Static array to avoid heap dependency in bootloader glue.
 pub const MAX_BOOT_REGIONS: usize = 256;
@@ -36,6 +51,7 @@ pub struct BootMemoryMap {
     pub count: usize,
     // Descriptor loss remains visible even if a caller changes the public count.
     overflowed: bool,
+    bootstrap_allocation: Option<BootstrapAllocation>,
 }
 
 impl BootMemoryMap {
@@ -50,6 +66,7 @@ impl BootMemoryMap {
             }; MAX_BOOT_REGIONS],
             count: 0,
             overflowed: false,
+            bootstrap_allocation: None,
         }
     }
 
@@ -67,6 +84,33 @@ impl BootMemoryMap {
             kind,
         };
         self.count += 1;
+    }
+
+    /// Attach trusted bootstrap ownership evidence; numeric admission happens in mm.
+    ///
+    /// # Safety
+    /// For FirmwareAllocation, the caller must hold the exact successful firmware
+    /// AllocatePages allocation and keep it allocated for every use of the kernel
+    /// allocator, including while boot services remain active. The complete final
+    /// probe-time map must describe it as LoaderData. For QemuFixture, the caller
+    /// must establish this entire synthetic RAM extent is disjoint from every
+    /// loaded object in its supported QEMU profile. No runtime caller may mint
+    /// either assertion; this API is trusted single-threaded boot glue only.
+    pub unsafe fn claim_bootstrap_allocation(
+        &mut self,
+        base: u64,
+        len_bytes: u64,
+        provenance: BootstrapProvenance,
+    ) {
+        self.bootstrap_allocation = Some(BootstrapAllocation {
+            base,
+            len_bytes,
+            provenance,
+        });
+    }
+
+    pub(crate) const fn bootstrap_allocation(&self) -> Option<BootstrapAllocation> {
+        self.bootstrap_allocation
     }
 
     /// False after any lost insertion or a currently out-of-bounds public count.
@@ -415,9 +459,17 @@ pub fn boot_main() -> ! {
         // MEM_MAP_SET ensures we see all writes from set_memory_map().
         let map = unsafe { &MEM_MAP };
         kprintln!("boot: memory map has {} regions", map.count);
-        mm::init(map);
+        if let Err(error) = mm::init(map) {
+            kprintln!("boot: bootstrap allocator denied: {:?}", error);
+            loop {
+                arch::halt();
+            }
+        }
     } else {
-        kprintln!("boot: warning: no memory map provided");
+        kprintln!("boot: no memory map; allocator unavailable, init denied");
+        loop {
+            arch::halt();
+        }
     }
 
     if INIT_SET.load(Ordering::Acquire) {

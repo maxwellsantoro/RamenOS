@@ -57,7 +57,7 @@
 //! **REMAINING DEBT**: Per-domain MMU operations must ensure proper memory barriers
 //! for SMP when programming page tables across multiple CPUs.
 
-use crate::boot::{BootMemoryMap, RegionKind};
+use crate::boot::BootMemoryMap;
 use crate::kprintln;
 use spin::Mutex;
 
@@ -67,6 +67,7 @@ pub mod bitmap;
 pub mod boot_pool;
 #[cfg(test)]
 mod boot_pool_contract_tests;
+pub mod bootstrap;
 pub mod bump;
 pub mod constants;
 pub mod frame;
@@ -139,87 +140,27 @@ pub static FRAME_ALLOCATOR: Mutex<Option<BitmapAllocator>> = Mutex::new(None);
 /// - Safe for concurrent access from multiple threads after SMP is enabled
 pub static ADDRESS_SPACE_TABLE: Mutex<Option<AddressSpaceTable>> = Mutex::new(None);
 
-/// Initialize the global frame allocator from the boot memory map.
+/// Install only the explicitly held bootstrap allocation, exactly once.
 ///
-/// This function:
-/// 1. Finds the largest usable region for the allocator
-/// 2. Initializes the BitmapAllocator with that region
-/// 3. Marks all reserved regions that fall within the managed range as allocated
-///
-/// # Safety
-///
-/// MUST be called exactly once during kernel boot, before any frame allocations.
-/// MUST NOT be called after the allocator has been used.
-///
-/// # Panics
-///
-/// Panics if called more than once (allocator already initialized).
-pub fn init(map: &BootMemoryMap) {
-    // Find the largest usable region
-    let mut best_region = None;
-    let mut max_len = 0u64;
-
-    for i in 0..map.count {
-        let region = &map.regions[i];
-        if region.kind == RegionKind::Usable && region.len_bytes > max_len {
-            max_len = region.len_bytes;
-            best_region = Some(region);
-        }
-    }
-
-    if let Some(region) = best_region {
-        kprintln!(
-            "mm: initializing bitmap allocator with region [{:?}, +{} bytes]",
-            region.start,
-            region.len_bytes
-        );
-        let base_frame = PhysFrame::from_start_address(region.start);
-        let total_frames = (region.len_bytes as usize).div_ceil(4096);
-        let mut allocator_guard = FRAME_ALLOCATOR.lock();
-        *allocator_guard = Some(BitmapAllocator::new(base_frame, total_frames));
-        if let Some(ref alloc) = *allocator_guard {
-            kprintln!(
-                "mm: allocator ready. total_frames={} available={}",
-                alloc.total_frames(),
-                alloc.available_frames()
-            );
-        }
-        drop(allocator_guard); // Release lock before logging reserved regions
-    } else {
-        kprintln!("mm: warning: no usable memory region found");
-    }
-
-    // Mark reserved regions as allocated
-    // This ensures boot memory regions are excluded from allocation
-    // Note: Since BitmapAllocator's base_frame is private, we track it separately
-    // since base_frame() is not a public method
-    // For now, we'll just log the reserved regions
-    {
-        let allocator_guard = FRAME_ALLOCATOR.lock();
-        if let Some(ref alloc) = *allocator_guard {
-            // We need to track the base frame and total frames separately
-            // since base_frame() is not a public method.
-            for i in 0..map.count {
-                let region = &map.regions[i];
-                if region.kind == RegionKind::Reserved
-                    || region.kind == RegionKind::LoaderCode
-                    || region.kind == RegionKind::LoaderData
-                {
-                    kprintln!(
-                        "mm: reserved region [{:?}, +{} bytes] kind={:?}",
-                        region.start,
-                        region.len_bytes,
-                        region.kind
-                    );
-                }
-            }
-
-            kprintln!(
-                "mm: after processing reserved regions. available={}",
-                alloc.available_frames()
-            );
-        }
-    }
+/// Firmware remains active on the current x86 path. Conventional memory and
+/// boot-services regions are never selected here. The trusted boot-only claim
+/// and complete numeric map are validated before state publication; any denial
+/// preserves the existing allocator and its outstanding frame ownership.
+/// This is separate from RUN0 final-map/retained-range admission.
+pub fn init(map: &BootMemoryMap) -> Result<(), bootstrap::BootstrapError> {
+    let mut guard = FRAME_ALLOCATOR.lock();
+    bootstrap::install_into(&mut guard, map)?;
+    let allocator = guard
+        .as_ref()
+        .expect("successful install publishes allocator");
+    kprintln!(
+        "mm: allocator ready. total_frames={} available={} bootstrap={:?}",
+        allocator.total_frames(),
+        allocator.available_frames(),
+        map.bootstrap_allocation()
+            .map(|allocation| allocation.provenance)
+    );
+    Ok(())
 }
 
 /// Initialize the global address space table with the kernel page table root.

@@ -6,9 +6,9 @@ edition = "2021"
 [[bin]]
 name = "kernel_uefi"
 path = "src/main.rs"
-test = false
+test = true
 bench = false
 
 [dependencies]
-kernel = { path = "../kernel", features = ["test_protocols"] }
+kernel = { path = "../kernel" }
 uefi = { version = "0.27", default-features = false }

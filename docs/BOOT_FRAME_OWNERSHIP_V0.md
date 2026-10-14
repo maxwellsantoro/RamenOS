@@ -4,6 +4,15 @@
 reviewed; 17 named assertions pass. Firmware adapter, actual ownership transition
 and QEMU allocator acceptance remain pending.
 
+The October 14 follow-up uses a distinct active-firmware bootstrap path: one
+actual 16 MiB `AllocatePages(LOADER_DATA)` allocation remains held while the
+legacy consumers run. Its complete map admits only that explicitly owned pool;
+boot-services and unrelated conventional pages remain excluded. Failed capture
+releases the exact allocation, or retains it and halts if release is uncertain.
+This closes unchecked bootstrap admission without claiming this document's
+firmware-exit transition, seven retained-range collectors or access validation.
+The AArch64 fixed QEMU pool is explicitly identified as a synthetic fixture.
+
 The pure prerequisite admits a checked, bounded pool from supplied typed map and
 retention records. The successor adapter must obtain the actual map returned by
 successful firmware exit and connect admission to the physical-frame allocator.
@@ -13,7 +22,7 @@ shared-memory consumer continues working. This establishes one boot ownership
 boundary. It does not establish target application execution, user-mode isolation,
 native device access, interrupt recovery, or physical-machine qualification.
 
-## Source and prerequisites
+## Historical source observation and successor prerequisites
 
 At base `f80d017e4ce2d2db472a2658ba0c23b298bdce09`,
 `kernel_uefi/src/main.rs::efi_main` enters `boot_main` with boot services active.

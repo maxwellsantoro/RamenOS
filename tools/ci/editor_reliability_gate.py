@@ -23,7 +23,7 @@ BUILD_PROFILE_SHA = 'e8f60acf9871604e998e7f39dcdae26b17bd2ae1ad6dbaecee8a14eaef2
 COLLECTOR = 'tools/ci/native_save_task_sources.py'
 COLLECTOR_SHA = '3fa310f06ee74638944c6dfabd9d70ea2f817b825534f47081a3c45e6b4af671'
 REGISTRY = 'tools/ci/editor_reliability_sources_v0.json'
-REGISTRY_SHA = 'dd4ab6331293e5b195b211656fb62fe5be5b20d1782384ed44eda22267f9a306'
+REGISTRY_SHA = '56724bc8a873bbb14faacad008077d99954df8ce693c7c41fedb69018a701b3c'
 EXTRAS = (REGISTRY, 'tools/ci/editor_reliability_gate.py',
           'tools/ci/foundry_editor_reliability_ui1_1.sh', 'tools/ci/test_ci_lanes.py')
 TARGETS = (

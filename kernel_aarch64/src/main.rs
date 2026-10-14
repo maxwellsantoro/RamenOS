@@ -6,7 +6,7 @@ use core::arch::global_asm;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 #[cfg(not(test))]
-use kernel::boot::{BootMemoryMap, RegionKind};
+use kernel::boot::{BootMemoryMap, BootstrapProvenance, RegionKind};
 
 #[cfg(not(test))]
 extern "C" {
@@ -44,14 +44,18 @@ pub extern "C" fn rust_start() -> ! {
         len: INIT_IMAGE_MAX_LEN,
     });
 
-    // S8 Phase 3: Hardcode memory map for QEMU virt
-    // RAM starts at 0x4000_0000.
-    // Kernel is at 0x4008_0000.
-    // Init image is at 0x4400_0000.
-    // We declare a safe usable region starting at 0x5000_0000 (256MB mark) for 256MB.
-    // This avoids overlapping with kernel code, stack, or init image.
+    // Explicit QEMU virt fixture only, not firmware inventory or metal ownership.
+    // The supported 512MiB profile loads kernel/stack near0x4008_0000 and init
+    // at0x4400_0000. This bounded16MiB fixture excludes both complete extents.
     let mut map = BootMemoryMap::new();
-    map.add(0x5000_0000, 256 * 1024 * 1024, RegionKind::Usable);
+    const POOL_BASE: u64 = 0x5000_0000;
+    const POOL_LEN: u64 = 16 * 1024 * 1024;
+    map.add(POOL_BASE, POOL_LEN, RegionKind::Usable);
+    // SAFETY: The fixed QEMU virt profile reserves this unoccupied RAM extent
+    // for this allocator. This synthetic assertion grants no physical profile.
+    unsafe {
+        map.claim_bootstrap_allocation(POOL_BASE, POOL_LEN, BootstrapProvenance::QemuFixture);
+    }
     kernel::boot::set_memory_map(map);
 
     kernel::boot::boot_main();

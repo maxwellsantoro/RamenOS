@@ -926,7 +926,7 @@
           "child:OwnedEditorChild"
         ],
         "returns": "Result<OwnedEditorChildExitProof,ProcessJoinFailure>",
-        "checks": "Consume authentic supervisor terminal result recording sole waitpid, then join actual supervisor JoinHandle. Failure returns opaque child/supervisor/charges. No second process waiter."
+        "checks": "Return promptly without unwinding after consuming ownership. Nonterminal or uncertain completion returns ProcessJoinFailure owning the sole child/supervisor/charges; NotReady never blocks or renews the original cleanup deadline. Only an authentic supervisor terminal result recording sole waitpid and is_finished() permit joining the actual supervisor JoinHandle. No second process waiter."
       },
       {
         "name": "HostDesktop::observe_process_child",
@@ -1485,7 +1485,7 @@
         "id": "D29",
         "name": "real_reap_uncertainty_and_charge_retention",
         "given": "Injectsupportedwait/cleanupfailurewithoutassertingactualchilddead.",
-        "required_behavior": "Only the supervisor may signal held pidfd and waitpid on its fork-derived PID. Retire requests cleanup, join consumes authentic supervisor terminal result then joins that actual Rust supervisor. Wait/kill/result uncertainty retains opaque owner and charges and reports INCOMPLETE; no second waiter or public PID action.",
+        "required_behavior": "Only the supervisor may signal held pidfd and waitpid on its fork-derived PID. Retire requests cleanup. Consuming join returns promptly without unwinding and returns sole opaque child ownership on every nonterminal/uncertain path; NotReady does not renew cleanup. Authentic terminal result and a finished supervisor are both required before its actual Rust join. Wait/kill/result uncertainty retains owner and charges and reports INCOMPLETE; no second waiter or public PID action.",
         "finite_denial_failure_controls": [
           "waiterror",
           "killerror",
@@ -1493,7 +1493,9 @@
           "EOFwithoutwait",
           "Dropwithoutreap",
           "foreignnumericPID",
-          "RustThreadJoinsubstitute"
+          "RustThreadJoinsubstitute",
+          "consumingjoinnonunwindingownerreturn",
+          "nonblockingNotReady"
         ],
         "authorized_positive_control": "Soleactualwaitthenactualsupervisorjoinreleasesexactcharge; secondchildunaffected.",
         "required_evidence": "actualnativewaitstatus/birth/pidfdassociation/ownerreturnandquarantineledger"
@@ -1502,7 +1504,7 @@
         "id": "D30",
         "name": "unchanged_c_consumers_and_integration",
         "given": "Assembleproposedprocessfeaturewithunchangedexistingcontracts/assertions.",
-        "required_behavior": "Originalc18/Reader93andLaunch17/Volatile13/Store7+16/Read9/Preview5passfreshsourcebound; canonical54/extended38unchangeduntilRootseparatedgateadmission.",
+        "required_behavior": "Originalc18/Reader93andLaunch17/Volatile13/Store7+16/Read9/Preview5passfreshsourcebound; acceptedcanonical56/extended40unchangeduntilRootseparatedgateadmission. Historical54/38countsarenotcurrentinventory.",
         "finite_denial_failure_controls": [
           "weakenedone-secondassertion",
           "fabricatedjoin/fence",

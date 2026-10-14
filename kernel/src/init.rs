@@ -308,8 +308,14 @@ fn do_ping_pong(writer: &trace_ring::TraceWriter) {
         kprintln!("init: ping encode failed");
     }
 
-    // V-05/V-06: Pass capability table for handle validation
-    let table = cap_table::StaticCapTable::new();
+    let mut table = cap_table::StaticCapTable::new();
+    env.handle = match table.allocate_for_domain(0) {
+        Ok(handle) => handle,
+        Err(_) => {
+            kprintln!("init: ping capability allocation failed");
+            return;
+        }
+    };
     let reply = with_fresh_shmem_table(|shmem_table| {
         ipc_v0::handle_envelope(writer, &table, shmem_table, &env)
     });
@@ -330,9 +336,17 @@ fn do_ping_pong(writer: &trace_ring::TraceWriter) {
 }
 
 fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
-    let table = cap_table::StaticCapTable::new();
+    let mut table = cap_table::StaticCapTable::new();
+    let ipc_cap = match table.allocate_for_domain(0) {
+        Ok(handle) => handle,
+        Err(_) => {
+            kprintln!("init: badlen capability allocation failed");
+            return;
+        }
+    };
     with_fresh_shmem_table(|shmem_table| {
         let mut bad_small = Envelope::empty(PROTOCOL_PING, MSG_PING);
+        bad_small.handle = ipc_cap;
         bad_small.payload_len = 0;
         let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_small);
         if reply.payload_len == 0 {
@@ -342,6 +356,7 @@ fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
         }
 
         let mut bad_large = Envelope::empty(PROTOCOL_PING, MSG_PING);
+        bad_large.handle = ipc_cap;
         bad_large.payload_len = (bad_large.payload.len() as u32) + 1;
         let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_large);
         if reply.payload_len == 0 {
@@ -350,7 +365,8 @@ fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
             kprintln!("init: ipc badlen large fail");
         }
 
-        let bad_proto = Envelope::empty(0xBEEF, MSG_PING);
+        let mut bad_proto = Envelope::empty(0xBEEF, MSG_PING);
+        bad_proto.handle = ipc_cap;
         let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_proto);
         if reply.payload_len == 0 {
             kprintln!("init: ipc unknown proto ok");
@@ -570,7 +586,14 @@ fn do_iommu_inventory_report() {
 fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
     kprintln!("harness.net: ready");
 
-    let table = cap_table::StaticCapTable::new();
+    let mut table = cap_table::StaticCapTable::new();
+    let ipc_cap = match table.allocate_for_domain(0) {
+        Ok(handle) => handle,
+        Err(_) => {
+            kprintln!("harness.net: packet_io failed reason=capability_allocation");
+            return;
+        }
+    };
 
     with_fresh_shmem_table(|shmem_table| {
         let (_region_id, shm_cap, phys_addr) = match shmem_table.create_region(
@@ -596,6 +619,7 @@ fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
         }
 
         let mut send_env = Envelope::empty(NET_V1_PROTOCOL_ID, MSG_NET_V1_SEND_PACKET);
+        send_env.handle = ipc_cap;
         let send_req = SendPacket {
             request_id: S11_ORACLE_SEND_REQUEST_ID,
             data_shm_cap: shm_cap.pack(),
@@ -631,6 +655,7 @@ fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
         kprintln!("harness.net: send_packet ok");
 
         let mut recv_env = Envelope::empty(NET_V1_PROTOCOL_ID, MSG_NET_V1_RECEIVE_PACKET);
+        recv_env.handle = ipc_cap;
         let recv_req = ReceivePacket {
             request_id: S11_ORACLE_RECV_REQUEST_ID,
             buffer_shm_cap: shm_cap.pack(),
@@ -690,7 +715,14 @@ fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
 fn do_block_io_test(writer: &trace_ring::TraceWriter) {
     kprintln!("persistent_storage: ready");
 
-    let table = cap_table::StaticCapTable::new();
+    let mut table = cap_table::StaticCapTable::new();
+    let ipc_cap = match table.allocate_for_domain(0) {
+        Ok(handle) => handle,
+        Err(_) => {
+            kprintln!("persistent_storage: block_io failed reason=capability_allocation");
+            return;
+        }
+    };
 
     with_fresh_shmem_table(|shmem_table| {
         let (_region_id, shm_cap, phys_addr) = match shmem_table.create_region(
@@ -716,6 +748,7 @@ fn do_block_io_test(writer: &trace_ring::TraceWriter) {
         }
 
         let mut read_env = Envelope::empty(BLOCK_V1_PROTOCOL_ID, MSG_BLOCK_V1_READ_BLOCKS);
+        read_env.handle = ipc_cap;
         let read_req = ReadBlocks {
             request_id: S13_ORACLE_READ_REQUEST_ID,
             lba: S13_ORACLE_READ_LBA,
@@ -765,6 +798,7 @@ fn do_block_io_test(writer: &trace_ring::TraceWriter) {
         kprintln!("persistent_storage: block_read ok");
 
         let mut write_env = Envelope::empty(BLOCK_V1_PROTOCOL_ID, MSG_BLOCK_V1_WRITE_BLOCKS);
+        write_env.handle = ipc_cap;
         let write_req = WriteBlocks {
             request_id: S13_ORACLE_WRITE_REQUEST_ID,
             lba: S13_ORACLE_WRITE_LBA,

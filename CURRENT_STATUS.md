@@ -72,10 +72,10 @@ exit map, allocator installation and target application execution remain pending
 Native USB/HID input and device-backed storage also remain pending. Independent
 software preparation proceeds without SW0 model trials or physical H0–H3.
 
-### Foundation review successor — local repairs
+### Foundation review successor — merged and hosted-qualified
 
-The October 14 review's seven behavior defects are repaired in the working
-candidate: one live broker grant generation per domain, retained failed-revoke
+The October 14 review's seven behavior defects were repaired in PR #38, merged
+as `f3fa057`: one live broker grant generation per domain, retained failed-revoke
 and rollback owners, actual-frame physical-span checks for the test-protocol
 net/block providers, whole-event trace reads and actual per-domain cursors,
 empty ring no-ops, and fail-closed explicit runner configuration with node/domain
@@ -91,11 +91,44 @@ NativePreview5 and adapter4 controls pass. Both bare-metal targets build, and S8
 integration, S11/S12/S13, boot admission, broker bridge, execution fabric, IDL lint
 and org-governance pass in their named host/QEMU scopes. CI tooling passes on an
 unchanged-source serial rerun; the initial concurrent run's two timing-sensitive
-boot-observer fixture failures are retained without deadline or assertion changes. Validation results below
-for Linux56 and hosted PR #36 belong to the preceding source snapshot; they do
-not qualify this working candidate. General target broker enforcement, arbitrary
+boot-observer fixture failures are retained without deadline or assertion changes.
+Both reviewed-head hosted runs passed all nine jobs; PR qualification retained
+68 passing stage/preparation records. Earlier agent-lane Docker create/attach
+timeouts remain retained; retries changed no source, assertions or deadlines.
+The [post-merge main run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38591283628)
+passed all nine jobs and 68 stage/preparation records on its first attempt.
+The separate strict Linux56 `just preflight` result below belongs to the preceding
+source snapshot; that wrapper was not repeated for PR #38. General target broker enforcement, arbitrary
 fragmented scatter/gather transfer, trace data transport, editor-child execution,
 physical durability and release readiness remain separate.
+
+### Follow-up review — bootstrap and authority repairs
+
+The follow-up replaces unchecked largest-region allocation with a
+single held 16 MiB firmware `LOADER_DATA` allocation. Complete supported map
+conversion preserves reserved/loader descriptors and keeps active boot-services
+and runtime pages unavailable. Numeric admission rejects malformed, incomplete,
+unbacked and oversized claims before one-shot installation; denial preserves
+live allocations. Failed map capture frees the exact pool or retains it and
+halts if release is uncertain. AArch64 labels its bounded synthetic pool as a
+QEMU fixture. This is separate from the pending RUN0 firmware-exit, retained-range
+collection and physical-access adapter.
+
+Default boot crates no longer enable Oracle protocols implicitly. Every ordinary
+IPC envelope, including opt-in net/block fixtures, validates its IPC capability.
+Both trace dispatch entrypoints bind creation to that capability's domain before
+allocating or resetting state. Trace bearer read/info/destroy behavior remains
+separate; generic IPC handles do not yet have protocol-specific rights.
+
+P0 preparation adds two genuine in-process Read/reopen and permitted-writer
+pause/unwind controls, plus three authored consumers of the frozen process API.
+The process APIs remain absent: their actual compiler RED is preparation, never
+runtime acceptance or completion of the thirty assertion families. Consuming join
+must return promptly without unwinding and return the sole child on uncertainty.
+Private native negative controls and shared app Save ownership remain required
+before P1/P2 handlers. Source and validation scope are tracked in the follow-up
+review resolution. Those local results remain source-bound; hosted qualification
+must identify its matching revision.
 
 ## Foundry development and CI execution
 

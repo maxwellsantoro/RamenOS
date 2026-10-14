@@ -332,15 +332,19 @@ impl TraceClient {
         Ok(result)
     }
 
-    /// Create a trace capability for another domain
+    /// Request a trace buffer through the configured transport.
     ///
-    /// This requires admin rights on the current capability.
+    /// The current transport is a host mock; this method does not establish an
+    /// administrative grant or authorize cross-domain creation. A live adapter
+    /// must carry an IPC capability bound to the requested domain. The kernel
+    /// rejects a foreign-domain creation request independently of Trace bearer
+    /// rights used for read, info and destroy.
     ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - Client is not connected
-    /// - Current capability lacks admin rights
+    /// - The transport rejects the creation authority
     /// - Target domain doesn't exist
     pub fn create_capability(
         &self,

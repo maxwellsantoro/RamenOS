@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 python3 tools/ci/test_review_boundaries.py
+python3 tools/ci/test_boot_feature_authority.py
 python3 tools/agent_task/test_lt_staging.py
 python3 tools/hil/test_provenance.py
 cargo test -p kernel create_region_rejects_unsupported_power_of_two_page_sizes --quiet
@@ -29,4 +30,12 @@ python3 tools/ci/selected_test_runner.py --package domain_manager \
 python3 tools/ci/selected_test_runner.py --package runtime_supervisor \
   --filter review_launch_invalid_explicit --filter review_launch_node_selection \
   --output "$REVIEW_RUN/supervisor"
+python3 tools/ci/selected_test_runner.py --package kernel \
+  --filter ipc_v0::review_authority --filter mm::bootstrap::tests:: \
+  --output "$REVIEW_RUN/boot-authority-default"
+python3 tools/ci/selected_test_runner.py --package kernel --features test_protocols \
+  --filter ipc_v0::review_authority \
+  --output "$REVIEW_RUN/boot-authority-oracle"
+python3 tools/ci/selected_test_runner.py --package kernel_uefi \
+  --filter bootstrap::tests:: --output "$REVIEW_RUN/firmware-conversion"
 echo "FOUNDRY_REVIEW_BOUNDARIES: PASS"

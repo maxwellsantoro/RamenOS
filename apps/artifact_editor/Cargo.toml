@@ -21,6 +21,14 @@ host_editor_adapter_assertions_v0_dev = [
   "desktop_service/editor_adapter_assertions_v0_dev",
 ]
 
+# Genuine owner setup controls; absent from existing task/adapter features.
+host_editor_process_setup_v0_dev = ["host_native_save_v0_dev"]
+# Frozen API consumers intentionally fail to compile until process APIs exist.
+host_editor_process_v0_dev = [
+  "host_native_save_v0_dev",
+  "desktop_service/host_editor_process_v0_dev",
+]
+
 [dependencies]
 desktop_service = { path = "../../services/desktop", default-features = false, optional = true }
 store_service = { path = "../../services/store_service", default-features = false, optional = true }
@@ -46,3 +54,13 @@ required-features = ["host_native_save_v0_dev"]
 name = "editor_adapter_migration"
 path = "tests/editor_adapter_migration.rs"
 required-features = ["host_editor_adapter_assertions_v0_dev"]
+
+[[test]]
+name = "process_setup_control"
+path = "tests/process_support/setup_control.rs"
+required-features = ["host_editor_process_setup_v0_dev"]
+
+[[test]]
+name = "process_task"
+path = "tests/process_task.rs"
+required-features = ["host_editor_process_v0_dev"]
