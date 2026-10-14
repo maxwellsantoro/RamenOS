@@ -354,6 +354,8 @@ pub struct NativeDraftSnapshot {
 pub(super) struct IntentLife {
     pub(super) id: u64,
     pub(super) exposed: std::sync::atomic::AtomicBool,
+    pub(super) closed_before_admission: std::sync::atomic::AtomicBool,
+    pub(super) entry_admitted: std::sync::atomic::AtomicBool,
     pub(super) snapshot: NativeDraftSnapshot,
     pub(super) entered: Instant,
     pub(super) deadline: Instant,
@@ -1414,6 +1416,12 @@ impl SaveGateGuard<'_> {
             .as_ref()
             .ok_or(Status::Denied)?
             .admit_instance(i.life.attachment.id)?;
+        if i.life
+            .closed_before_admission
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return Err(Status::Stale);
+        }
         if Instant::now() >= i.deadline() {
             return Err(Status::Timeout);
         }
@@ -2216,6 +2224,53 @@ impl Drop for NativeSaveIntent {
     }
 }
 impl SaveGate {
+    // Only the authenticated entry owner calls this before installing any call.
+    // Caller timeout never substitutes for the actual absence of admitted work.
+    pub(super) fn close_unadmitted_intent(
+        &mut self,
+        intent: &Arc<IntentLife>,
+    ) -> Result<(), Status> {
+        if intent
+            .entry_admitted
+            .load(std::sync::atomic::Ordering::Acquire)
+            || self
+                .calls
+                .values()
+                .filter_map(|row| row.life.upgrade())
+                .any(|call| call.intent.as_ref().is_some_and(|i| Arc::ptr_eq(i, intent)))
+            || self
+                .originals
+                .values()
+                .filter_map(Weak::upgrade)
+                .any(|original| {
+                    original
+                        .intent
+                        .as_ref()
+                        .is_some_and(|i| Arc::ptr_eq(i, intent))
+                })
+            || self
+                .sources
+                .values()
+                .filter_map(Weak::upgrade)
+                .any(|source| Arc::ptr_eq(&source.intent, intent))
+        {
+            return Ok(());
+        }
+        intent
+            .closed_before_admission
+            .store(true, std::sync::atomic::Ordering::Release);
+        let document = intent.snapshot.data.view.document_id;
+        if let Some(row) = self.documents.get_mut(&document) {
+            if Arc::ptr_eq(&row.attachment, &intent.attachment)
+                && row.last_intent_id == Some(intent.id)
+                && row.view.phase == NativeEditorPhase::AllocationPending
+            {
+                row.queued_intent = None;
+                row.view.phase = NativeEditorPhase::Unsaved;
+            }
+        }
+        Ok(())
+    }
     fn intent_unresolved(&self, intent: &Arc<IntentLife>) -> Result<bool, Status> {
         let mut unresolved_commit = false;
         let mut terminal_commit = false;

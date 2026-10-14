@@ -1420,8 +1420,14 @@ pub(super) struct NativeRequest {
     call: std::sync::Weak<NativeSaveCall>,
     source: Mutex<Option<Arc<SourceOwner>>>,
     admission: Mutex<Option<NativeCommitAdmission>>,
+    // The actual dispatcher owns published reply bytes until build_reply
+    // transfers them into a lease. Numeric wire descriptors own no data.
+    reply_data: Mutex<Option<Arc<Data>>>,
 }
 impl NativeRequest {
+    pub(super) fn retain_reply_data(&self, data: Arc<Data>) {
+        *lock(&self.reply_data) = Some(data);
+    }
     pub(super) fn authorize(&self, state: &ObjectState) -> Result<(), StoreStatus> {
         let call = self.call.upgrade().ok_or(StoreStatus::Stale)?;
         if let Some(target) = &self.observed {
@@ -1961,6 +1967,12 @@ fn respond(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    // Taking the pin into this stack frame keeps it alive through registry
+    // lookup and lease construction, including concurrent reclamation.
+    let _reply_data = lock(&execution.request)
+        .as_ref()
+        .and_then(|request| request.native_save.as_ref())
+        .and_then(|native| lock(&native.reply_data).take());
     let canonical = build_reply(
         core,
         original,
@@ -2298,6 +2310,7 @@ impl StoreHost {
             call: Arc::downgrade(call),
             source: Mutex::new(source.clone()),
             admission: Mutex::new(None),
+            reply_data: Mutex::new(None),
         });
         let execution = Arc::new(ExecutionState {
             request: Mutex::new(None),
@@ -2329,7 +2342,7 @@ impl StoreHost {
             let result=(|| {
                 {let object=worker_core.object(request.grant.object)?;let state=checked_lock(&object.state)?;request_auth(&worker_core,&request,&state)?;}
                 if let Some(target)=request.native_save.as_ref().and_then(|n|n.observed.as_ref()) {return lookup_wire(&worker_core,target,&worker_call,&request)}
-                match host.fast(&request.grant,&request.wire)? {
+                match host.fast(&request.grant,&request.wire,Some(&request))? {
                     Some(reply)=>{
                         if request.wire.msg_type==5&&u32::from_le_bytes(reply.payload[32..36].try_into().unwrap())==StoreStatus::Conflict as u32 {
                             let object=worker_core.object(request.grant.object)?;
@@ -2376,6 +2389,7 @@ impl StoreHost {
             respond(&worker_core,&worker_original,&worker_call,&worker_execution,wire);
             if let Some(native)=&request.native_save {
                 lock(&native.source).take();
+                lock(&native.reply_data).take();
                 if let Ok(object)=worker_core.object(request.grant.object) {
                     if let Some(runtime)=lock(&object.state).runtime.get_mut(&op_of(&request.wire)) {runtime.source=None;}
                 }
@@ -3653,6 +3667,9 @@ fn lookup_wire_once(
         registry.data.insert(handle.pack(), data.clone());
         data
     };
+    if let Some(native) = &request.native_save {
+        native.retain_reply_data(data.clone());
+    }
     {
         let mut original = checked_lock(&target.state)?;
         original.binding = Some(binding.clone());

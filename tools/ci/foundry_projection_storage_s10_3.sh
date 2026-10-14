@@ -7,16 +7,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "=== S10.3 Projection Storage Foundry Gate ==="
+mkdir -p "$ROOT_DIR/out/foundry/selected-tests"
+SELECTED_RUN_ROOT="$(mktemp -d "$ROOT_DIR/out/foundry/selected-tests/projection-storage.XXXXXX")"
+RUNNER="$ROOT_DIR/tools/ci/selected_test_runner.py"
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=idl_contract"
 test -f idl/harness/semantic_store_v1.toml
 test -f kernel_api/src/generated/semantic_store_v1.generated.rs
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=schema_tests"
-cargo test -p artifact_store_schema projection_storage --quiet
+python3 "$RUNNER" --package artifact_store_schema --filter projection_storage --include-doc-tests \
+  --output "$SELECTED_RUN_ROOT/schema"
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=kernel_api_wire"
-cargo test -p kernel_api semantic_store_v1 --quiet
+python3 "$RUNNER" --package kernel_api --filter semantic_store_v1 --include-doc-tests \
+  --output "$SELECTED_RUN_ROOT/kernel-api"
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=store_cli_validation"
 TMP_INDEX="$(mktemp)"
@@ -46,23 +51,30 @@ cargo run -p store_cli -- validate-projection-index --src "$TMP_INDEX" >/dev/nul
 rm -f "$TMP_INDEX"
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=store_service_projection_query"
-cargo test -p store_service projection_index --quiet
+# One Cargo-selected lib/bin build and one union execution per matching harness.
+python3 "$RUNNER" --package store_service --include-doc-tests \
+  --filter projection_index --filter durable_index_roundtrip \
+  --filter corrupt_index_fail_closed --filter read_only_override_rejects_mutation \
+  --filter ingest_artifact_updates_projection_index --filter read_only_vfs_projection \
+  --filter materialize_rejects_parent_dir_escape \
+  --filter projection_cow_commit_repoints_path_preserves_prior_blob \
+  --filter review_projection_cow --output "$SELECTED_RUN_ROOT/store-service"
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=durable_index_roundtrip"
-cargo test -p store_service durable_index_roundtrip --quiet
-cargo test -p store_service corrupt_index_fail_closed --quiet
-cargo test -p store_service read_only_override_rejects_mutation --quiet
+# Covered by the nonempty intended union above.
+# Covered by the nonempty intended union above.
+# Covered by the nonempty intended union above.
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=ingest_updates_projection_index"
-cargo test -p store_service ingest_artifact_updates_projection_index --quiet
+# Covered by the nonempty intended union above.
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=read_only_vfs_projection"
-cargo test -p store_service read_only_vfs_projection --quiet
-cargo test -p store_service materialize_rejects_parent_dir_escape --quiet
+# Covered by the nonempty intended union above.
+# Covered by the nonempty intended union above.
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: INFO step=projection_cow_commit"
-cargo test -p store_service projection_cow_commit_repoints_path_preserves_prior_blob --quiet
-cargo test -p store_service review_projection_cow --quiet
+# Covered by the nonempty intended union above.
+# Covered by the nonempty intended union above.
 
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: PASS"
 echo "FOUNDRY_PROJECTION_STORAGE_S10_3: ok"

@@ -64,6 +64,7 @@ struct SaveChain {
     binding: Option<EditorSaveBindingV0>,
     stage: Stage,
     continuation_allowed: bool,
+    allocation_admitted: bool,
 }
 
 impl NativeArtifactEditor {
@@ -155,31 +156,46 @@ impl NativeArtifactEditor {
                 return Err(NativeEditorError::Exhausted);
             }
             let intent = self.desktop.take_save_intent(&self.editor)?;
-            let view = intent.snapshot().view();
-            let request = canonical(
-                artifact::AllocateSaveId {
-                    request_id: self.request_id()?,
-                    session_id: view.actor.session_id,
-                    session_generation: view.actor.session_generation,
-                    expected_revision: view.expected_revision,
-                }
-                .encode(self.launch.endpoint().handle)?,
-            )?;
-            let mut chain = SaveChain {
-                intent,
-                allocation_request: request,
-                original: None,
-                flight: None,
-                source: None,
-                binding: None,
-                stage: Stage::Allocate,
-                continuation_allowed: true,
-            };
-            let start = self.start_allocate(&mut chain, now);
-            self.pending.push(chain);
-            start?;
+            self.start_intent(intent, now)?;
         }
         Ok(step)
+    }
+
+    fn start_intent(
+        &mut self,
+        intent: desktop::NativeSaveIntent,
+        now: u64,
+    ) -> Result<(), NativeEditorError> {
+        let view = intent.snapshot().view();
+        let request = canonical(
+            artifact::AllocateSaveId {
+                request_id: self.request_id()?,
+                session_id: view.actor.session_id,
+                session_generation: view.actor.session_generation,
+                expected_revision: view.expected_revision,
+            }
+            .encode(self.launch.endpoint().handle)?,
+        )?;
+        let mut chain = SaveChain {
+            intent,
+            allocation_request: request,
+            original: None,
+            flight: None,
+            source: None,
+            binding: None,
+            stage: Stage::Allocate,
+            continuation_allowed: true,
+            allocation_admitted: false,
+        };
+        let start = self.start_allocate(&mut chain, now);
+        // Only a failure before Desktop entry admission can be definitive here.
+        // Once admitted, retain the original chain for owner reconciliation.
+        if !matches!(start, Err(NativeEditorError::Desktop(Status::Timeout)))
+            || chain.allocation_admitted
+        {
+            self.pending.push(chain);
+        }
+        start
     }
 
     pub fn render(
@@ -263,6 +279,7 @@ impl NativeArtifactEditor {
             &chain.allocation_request,
             now,
         )?;
+        chain.allocation_admitted = true;
         self.start_flight(chain, entry, chain.allocation_request)
     }
     fn start_flight(
@@ -594,3 +611,7 @@ fn status(value: u32) -> Result<StoreStatus, NativeEditorError> {
         _ => return Err(NativeEditorError::InvalidReceipt),
     })
 }
+
+#[cfg(test)]
+#[path = "native_tests.rs"]
+mod tests;

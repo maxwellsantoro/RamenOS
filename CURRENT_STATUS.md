@@ -1,8 +1,8 @@
 # Current Status
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-13
 **Status:** Active and authoritative for landed state
-**Current Slice:** UI1.1 host editor reliability, then UI1.1d process boundary
+**Current Slice:** UI1.1 repaired host editor qualification, then UI1.1d process boundary
 **Physical Lane:** S12.4 HIL appliance observation/actuation awaits setup
 **Software Lane:** SW0 foundations through A2.9; full A2 and comparison pending
 
@@ -23,15 +23,34 @@ on macOS/Linux. This is a trusted in-process host consumer. An actual editor chi
 authenticated process transport, target execution and target persistence remain
 unfinished. Models are unnecessary for this task.
 
-External review of merged `d3a95551` reports four runtime defects, supported by
-subsequent independent static inspection: concurrent Store reply reclamation,
-abandoned surface acquisitions, render-time focus reassignment and a Save left
-pending after definitive pre-admission timeout. Existing green gates do not cover
-those scenarios. A `JournalSync` staging-file failure path also needs a focused
-reproduction. These are current reliability limitations, not repaired behavior;
-[the ready queue](NEXT_TASKS.md#ready-work-front) makes them prerequisites to process
-integration. They concern the default-off host fixture and do not establish a
-target exploit or physical durability failure.
+The four host reliability packets from external review are implemented and
+independently reviewed. Store requests retain their actual reply data through
+native lease transfer without disabling bounded reclamation. Abandoned rendering
+retires its exact acquisition/frozen frame; approved launch assigns focus once,
+and background rendering preserves launcher focus. Definitive pre-admission
+expiry closes the authentic intent and releases the app Save chain while admitted
+uncertainty retains original reconciliation. JournalSync reproduction led to
+bounded cleanup of held, verified owner-created pre-rename staging; foreign,
+corrupt, symlink and replacement files deny, and post-rename recovery preserves
+the original outcome without mutation replay.
+
+`just foundry-editor-reliability-ui1-1` passes thirteen new assertions (Desktop7,
+Store5, app-private1) and strict Clippy for all three regression targets on macOS
+and Linux on the same source snapshot. The unchanged original eighteen-case task and complete Reader93
+pass freshly on macOS, as do volatile13, Store7, Preview codec7, Save codec8,
+NativeRead9, NativePreview5 and adapter4 with their strict/feature checks.
+[The review resolution](docs/plans/editor-reliability-review-2026-10-13.md)
+retains regression, negative-control and integration evidence. Complete Linux56
+preflight now passes; hosted merge qualification remains pending. These repairs do
+not establish editor-child execution, target persistence, crash-orphan cleanup,
+CAS temporary-file recovery or physical durability.
+
+At initial reliability-repair acceptance, CI tooling (71 Python/seven Rust
+controls), S11/S12/S13, appliance docs/manifest and org-governance passed on that
+source revision. S12 GOP and S13 block each required an unchanged retry after an
+initial missing boot marker; those failures and successful runs remain retained.
+The streamlining successor below records fresh checks and reviewed registry
+successors. Complete Linux56 now passes; hosted qualification remains separate.
 
 ### UI1.1d shared adapter migration — accepted host preservation
 
@@ -56,8 +75,8 @@ software preparation proceeds without SW0 model trials or physical H0–H3.
 ## Foundry development and CI execution
 
 [The execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md) provides a locked warm
-`just dev-check`, content-stable codegen, one canonical 55-stage local inventory
-and four isolated CI lanes. Required Foundry/merge aggregates reject failed,
+`just dev-check`, content-stable codegen, one canonical 56-stage local inventory
+and five isolated CI lanes (quality, host, agent, QEMU and editor). Required Foundry/merge aggregates reject failed,
 cancelled, missing or unexpectedly skipped results. Compiler reuse never restores
 acceptance results; assertions, source checks and evidence execution remain fresh.
 Historical 52/54-stage results apply only to their recorded source snapshots.
@@ -74,12 +93,16 @@ contracts/fixtures and gate-consumed Markdown require Foundry, including deletio
 ordinary prose and governed org packets keep their inexpensive path. NativeRead
 and NativePreview retain their old inventories and add conservative transitive
 crate/include coverage (351/353 inputs), with pinned helper admission and rejection
-of unsupported explicit Cargo target layouts. The existing collector, canonical
-55/39 stages, runtime assertions, real deadlines and cache policies are unchanged.
+of unsupported explicit Cargo target layouts. At CI0 acceptance, the collector,
+canonical 55/39 stages, runtime assertions,
+real deadlines and cache policies were unchanged. The initial reliability successor added
+one host stage (56 full/40 extended), preserving every existing stage and order.
+At that acceptance, reviewed registries added three regression sources: task220, NativeRead354
+and NativePreview356; the reliability gate closes over 224 paths.
 
-The assembled Linux candidate passes the CI tooling gate (including seven Rust
-codegen controls), policy regressions and actual nine-case NativeRead/five-case
-NativePreview gates with strict checks and feature exclusions. Its source remains
+At CI0 acceptance, the Linux candidate passed the CI tooling gate (including seven
+Rust codegen controls), policy regressions and actual nine-case NativeRead/five-case
+NativePreview gates with strict checks and feature exclusions. Its source remained
 unchanged during execution. Gate-first failures and independent review findings
 are retained. The affected gates passed; the complete Linux preflight and a new
 hosted run were not repeated for this patch. Required S11/S12/S13, appliance docs
@@ -90,6 +113,55 @@ The dev `sha2` optimization and `native_runner` debug stripping have focused
 measurements in the execution profile and historical snapshot. Neither establishes
 stable whole-CI latency. No model-comparison, metal or release claim follows from
 hosted green checks.
+
+The 2026-10-13 streamlining successor adds focused `dev-test`, `dev-compile`
+and `dev-lint` modes with shared package/feature compilation state and admitted
+1..32 Cargo jobs (default two). Store's WAT parser is agent-feature-only. Task and
+reliability acceptance now reuse exact source/configuration compiler targets while
+all case lists, assertions, Clippy, recordings and readers execute freshly. The
+paired local Cargo measurements were reliability 100.105→1.217 seconds and
+Task 88.605→1.451 seconds; original Task runtime still took 83.895/88.444 seconds.
+These are fixed-source local preparation measurements with uncontrolled host load,
+not hosted or end-to-end performance claims.
+
+The same final source passes thirteen reliability assertions on macOS/Linux;
+macOS cold/warm Task runs pass the original eighteen cases and complete Reader93.
+All affected editor consumers pass freshly. Selected NativeRunner/Semantic/Projection
+gates pass with actual artifact metadata, exact nonempty test unions and eligible
+library doctests. Binary-only packages record an explicit no-doctest decision.
+Fresh firmware variables and held-parent QEMU cleanup preserve the 30-second
+budgets; S11/S12/S13 each booted on their first launch in 2.2–2.5 seconds. Tooling 130
+Python/seven Rust controls, formatting and source-registry admission pass. Registry
+successors retain all old paths: Task223, reliability227, Read356 and Preview358.
+
+The editor lane moves eleven existing stages onto its own runner; canonical 56/40
+coverage, commands, relative order and overrides are preserved, and Foundry now
+requires all five lanes. Cross-source CI restores compiler candidates only; inner
+exact admission remains required. A measured 1.065-second duplicate NativeRunner
+invocation does not justify a cross-gate result broker, so standalone assertions
+remain fresh. Explicit cache inspection/retirement denies uncertain ownership.
+Five superseded completed entries created during this task were retired,
+representing 3,016,239,361 logical bytes, while evidence inventories and retained
+binary hashes remained intact. Temporary Linux preparation was removed after
+retaining its evidence. [The streamlining resolution](docs/plans/build-streamlining-2026-10-13.md)
+records measurements, preserved failures, review and scope. Complete Linux56 now passes on the exact current runtime candidate. The pinned
+proof image is installed locally and verified on the native Linux host. Fresh
+five-lane hosted qualification remains pending. Earlier source-bound PASS reports
+remain historical evidence.
+
+The full strict `just preflight` completed all 56 canonical stages on native
+Linux `bigman`, with builtin Docker seccomp, the exact pinned image, verified S2
+kernel, two Cargo jobs and serialized tests. All stage exits/reaps and the frozen
+source/lock checks pass; original18/Reader93, all editor consumers, regression13,
+agent evaluator/reconciliation and required QEMU paths execute freshly. The
+795-file candidate fingerprint is
+`f2fb768a3309a922be4fad73588f2782636d6736a6b7d79156953dc21caa1f04`.
+The initial output-permission failure is retained; only qualification-environment
+permissions/setup required correction. No product-code change or assertion
+waiver was needed. [The qualification](docs/plans/linux56-qualification-2026-10-13.md)
+records the complete evidence and separates the subsequent documentation-only
+update from the tested runtime snapshot. Five-lane hosted execution remains
+pending; provider/model, process, target and physical scopes remain unchanged.
 
 ## Implemented foundations and their boundaries
 

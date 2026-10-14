@@ -1,0 +1,38 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "idl/**/*",
+    "CONSTITUTION.md",
+    "AGENTS.md",
+    "hardware/**/*",
+    "kernel_api/src/**/*.rs",
+    "artifact_store_schema/src/**/*.rs"
+  ],
+  "output": {
+    "filePath": "repomix-output.contracts.xml",
+    "style": "xml",
+    "compress": false,
+    "removeEmptyLines": true,
+    "truncateBase64": true,
+    "tokenBudget": 200000,
+    "topFilesLength": 15,
+    "headerText": "RamenOS contracts pack: IDL, constitution, kernel_api surface, artifact schemas, hardware manifests.",
+    "includeFullDirectoryStructure": false,
+    "patterns": [
+      { "pattern": "**/generated/**", "directoryStructureOnly": true },
+      { "pattern": "**/*.generated.rs", "directoryStructureOnly": true },
+      { "pattern": "**/tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/*_tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/test_support.rs", "directoryStructureOnly": true }
+    ]
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "kernel_api/src/generated/**",
+      "kernel_api/src/mock.rs"
+    ]
+  }
+}

@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('native_read_gate_primitives', hel
 h = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(h)
 REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-REGISTRY_SHA = '67888adceacf5e08d84e6fd0efec4d24832c546bc35dfc49ba422b13e727c24e'
+REGISTRY_SHA = 'bbf99a79e97cd78262c5e186843ca2e300a4a4009b30b35ebe17468739d21a20'
 CONTRACT_SHA = 'b28134e814f25b1b51ee1124509e971fed38b70c6682fe6d79a8baa13512f2bd'
 CASES = (
     'native_read_positive', 'native_read_identity_denials',
@@ -30,10 +30,10 @@ CASES = (
     'native_read_counters_domains',
 )
 CACHE_HELPER = 'tools/ci/build_cache.py'
-CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
+CACHE_HELPER_SHA = '014ba0d352578b155565cd0d232fef30771e1aaf9e8ecfdf18b595820f6e37f2'  # Root freezes reviewed helper and source registry before opt-in use.
 
 INVENTORY_HELPER = 'tools/ci/editor_source_inventory.py'
-INVENTORY_HELPER_SHA = 'b13e7bda229678467e31ecea01577d341b30a8e1c19aa276e43937bdf9974639'
+INVENTORY_HELPER_SHA = 'd0d827960ca28a588ab6cde05dfbe79dd81365d12388f96915fb9c611f6444c8'
 
 FEATURE = 'editor_native_read_v0_dev'
 

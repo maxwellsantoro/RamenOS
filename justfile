@@ -1,5 +1,14 @@
 set shell := ["bash", "-euxo", "pipefail", "-c"]
 
+# --- AI review packs (Repomix) ---
+# Compressed whole-repo structure map (default config).
+repomix:
+	bash ./tools/repomix/pack.sh map
+
+# Focused full/detail packs: contracts | kernel | store | desktop | all
+repomix-pack profile:
+	bash ./tools/repomix/pack.sh {{quote(profile)}}
+
 # --- Basics ---
 fmt:
 	cargo fmt --all
@@ -35,8 +44,17 @@ preflight:
 	bash ./tools/ci/foundry_preflight.sh
 
 # Focused, exclusive warm loop; this is development evidence.
-dev-check package test="lib" features="":
-	python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}}
+dev-check package test="lib" features="" jobs="":
+	set --; if [[ -n {{quote(jobs)}} ]]; then set -- --jobs {{quote(jobs)}}; fi; python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}} "$@"
+
+dev-test package test="lib" features="" jobs="":
+	set --; if [[ -n {{quote(jobs)}} ]]; then set -- --jobs {{quote(jobs)}}; fi; python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}} --mode test "$@"
+
+dev-compile package test="lib" features="" jobs="":
+	set --; if [[ -n {{quote(jobs)}} ]]; then set -- --jobs {{quote(jobs)}}; fi; python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}} --mode check "$@"
+
+dev-lint package test="lib" features="" jobs="":
+	set --; if [[ -n {{quote(jobs)}} ]]; then set -- --jobs {{quote(jobs)}}; fi; python3 tools/ci/dev_check.py --package {{quote(package)}} --test {{quote(test)}} --features {{quote(features)}} --mode lint "$@"
 
 foundry-ci-optimization:
 	bash ./tools/ci/foundry_ci_optimization.sh
@@ -424,6 +442,10 @@ foundry-editor-native-preview-read-ui1-1c:
 foundry-desktop-editor-task-ui1-1c:
 	bash ./tools/ci/foundry_desktop_editor_task_ui1_1c.sh
 
+# Additive host ownership/focus/timeout/staging regressions; no process/target claim.
+foundry-editor-reliability-ui1-1:
+	bash ./tools/ci/foundry_editor_reliability_ui1_1.sh
+
 # Named forced lifecycle and explicit interrupted-commit receipt recovery.
 foundry-agent-task-reconciliation:
 	bash ./tools/ci/foundry_agent_task_reconciliation.sh
@@ -435,3 +457,10 @@ foundry-agent-task-requestable-authority:
 # RUN0.0 pure boot pool admission; real firmware handoff remains separately gated.
 foundry-boot-frame-pool-run0-0:
 	bash ./tools/ci/foundry_boot_frame_pool_run0_0.sh
+
+# Inspection is read-only; retirement requires an exact completed entry and context.
+compiler-cache-inspect scope="acceptance":
+	python3 tools/ci/compiler_cache_control.py inspect --scope {{quote(scope)}}
+
+compiler-cache-retire key context scope="acceptance":
+	python3 tools/ci/compiler_cache_control.py retire --scope {{quote(scope)}} --key {{quote(key)}} --expected-context-sha256 {{quote(context)}}

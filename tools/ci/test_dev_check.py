@@ -34,6 +34,72 @@ class DevCheckTests(unittest.TestCase):
         self.assertIn('--no-default-features', cmds[0])
         self.assertEqual(scope['label'], 'development_not_acceptance')
 
+    def test_modes_select_only_requested_cargo_work(self):
+        scope = dev.select_scope(HERE.parents[1], 'store_service', 'editor_native_read', ['editor_native_read_v0_dev'])
+        for mode, verbs in [('all', ['test','clippy','test']), ('check',['check']), ('test',['test']), ('lint',['clippy'])]:
+            with self.subTest(mode=mode):
+                commands = dev.commands(scope, 'nightly-2026-02-08', mode=mode, jobs=3)
+                self.assertEqual([c[2] for c in commands], verbs)
+                for command in commands:
+                    self.assertIn('--locked', command)
+                    self.assertIn('--no-default-features', command)
+                    self.assertEqual(command[command.index('--test')+1], 'editor_native_read')
+                    self.assertEqual(command[command.index('--jobs')+1], '3')
+                if mode == 'test':
+                    self.assertNotIn('--no-run', commands[0])
+                    self.assertEqual(commands[0][-1], '--test-threads=1')
+        for mode in ('build', '', 'test;echo'):
+            with self.assertRaises(dev.DevelopmentDenied):
+                dev.commands(scope, 'nightly-2026-02-08', mode=mode)
+
+    def test_jobs_are_bounded_and_preserve_approved_override(self):
+        self.assertEqual(dev.resolve_jobs(None, {}), 2)
+        self.assertEqual(dev.resolve_jobs(None, {'CARGO_BUILD_JOBS':'7'}), 7)
+        self.assertEqual(dev.resolve_jobs('3', {'CARGO_BUILD_JOBS':'7'}), 3)
+        self.assertEqual(dev.resolve_jobs('4', {'CARGO_BUILD_JOBS':'invalid'}), 4)
+        for value in ('0','33','-1','auto','002','2.0','2;echo',' 2','2 ','', True):
+            with self.subTest(jobs=value):
+                with self.assertRaises(dev.DevelopmentDenied): dev.resolve_jobs(value, {})
+                with self.assertRaises(dev.DevelopmentDenied): dev.resolve_jobs(None, {'CARGO_BUILD_JOBS':value})
+        scope = dev.select_scope(HERE.parents[1], 'kernel_api', 'lib', [])
+        for jobs in (0,33,-1,True,'3'):
+            with self.assertRaises(dev.DevelopmentDenied):
+                dev.commands(scope, 'nightly-2026-02-08', jobs=jobs)
+        actual = dev.sanitized_environment({'CARGO_BUILD_JOBS':'7','RUSTC_WRAPPER':'hook'}, self.root)
+        self.assertEqual(actual['CARGO_BUILD_JOBS'], '7')
+        self.assertNotIn('RUSTC_WRAPPER', actual)
+        override = dev.sanitized_environment({'CARGO_BUILD_JOBS':'invalid'}, self.root, jobs=3)
+        self.assertEqual(override['CARGO_BUILD_JOBS'], '3')
+
+    def test_compilation_identity_excludes_only_target_and_mode(self):
+        first = dev.select_scope(HERE.parents[1], 'store_service', 'editor_native_read', ['editor_native_read_v0_dev'])
+        second = dev.select_scope(HERE.parents[1], 'store_service', 'lib', ['editor_native_read_v0_dev'])
+        self.assertEqual(dev.compilation_identity(first), dev.compilation_identity(second))
+        features = dev.select_scope(HERE.parents[1], 'store_service', 'lib', ['editor_native_save_v0_dev'])
+        package = dev.select_scope(HERE.parents[1], 'kernel_api', 'lib', [])
+        self.assertNotEqual(dev.compilation_identity(first), dev.compilation_identity(features))
+        self.assertNotEqual(dev.compilation_identity(first), dev.compilation_identity(package))
+        self.assertNotIn('test', dev.compilation_identity(first))
+        self.assertNotIn('mode', dev.compilation_identity(first))
+
+    def test_compilation_cache_tracks_actual_compiler_config_and_lock(self):
+        (self.root/'Cargo.lock').write_text('initial lock')
+        env = {'CARGO_HOME':str(self.root/'cargo-home'), 'PATH':'pinned-path'}
+        identity = {'package':'fixture','features':[], 'default_features':False}
+        digest = dev.hashlib.sha256(dev.cache.compact(identity)).hexdigest()
+        def key(**overrides):
+            return dev.cache.key_for(dev.cache.key_inputs(self.root, digest, 'development-fixture', overrides.get('features', []), overrides.get('rustc','compiler one'), 'cargo one', overrides.get('env',env), scope='development'))
+        original = key()
+        self.assertNotEqual(original, key(rustc='compiler two'))
+        self.assertNotEqual(original, key(features=['std']))
+        self.assertNotEqual(original, key(env=dict(env, RUSTFLAGS='--cfg changed')))
+        config = self.root/'.cargo';config.mkdir()
+        (config/'config.toml').write_text('[build]\nincremental=false\n')
+        changed = key()
+        self.assertNotEqual(original, changed)
+        (self.root/'Cargo.lock').write_text('successor lock')
+        self.assertNotEqual(changed, key())
+
     def test_unknown_injected_and_missing_required_scopes_rejected(self):
         for p, t, f in [('unknown', 'test', []), ('store_service;echo', 'editor_native_read', []),
                         ('store_service', '../editor_native_read', []),
@@ -164,6 +230,69 @@ class DevCheckTests(unittest.TestCase):
         self.assertEqual(len({r['cache']['key_sha256'] for r in results}),1)
         self.assertEqual(sorted(r['cache']['hit'] for r in results),[False,True])
         self.assertTrue(all(r['acceptance'] is False and len(r['commands'])==3 for r in results))
+
+    def test_cli_modes_targets_and_changed_source_share_warm_compilation(self):
+        repo=self.root/'workspace';repo.mkdir()
+        (repo/'Cargo.toml').write_text('[workspace]\nmembers=["fixture"]\n')
+        (repo/'Cargo.lock').write_text('# synthetic fixture lock\n')
+        (repo/'rust-toolchain.toml').write_text('[toolchain]\nchannel="nightly-2026-02-08"\n')
+        pkg=repo/'fixture';(pkg/'src').mkdir(parents=True);(pkg/'tests').mkdir()
+        (pkg/'Cargo.toml').write_text('[package]\nname="fixture_pkg"\nversion="0.0.0"\n')
+        source=pkg/'src/lib.rs';source.write_text('// source one; synthetic only\n')
+        for name in ('first','second'): (pkg/'tests'/(name+'.rs')).write_text('// synthetic test\n')
+        outcome=repo/'outcome';outcome.write_text('7')
+        calls=repo/'calls.jsonl'
+        tool_calls=repo/'all-tools.jsonl'
+        bins=self.root/'bin';bins.mkdir()
+        for name in ('cargo','rustc'):
+            script=bins/name
+            script.write_text('#!'+sys.executable+'\nimport sys,pathlib,os,json\n'
+                              'args=sys.argv[1:]\n'
+                              'with pathlib.Path('+repr(str(tool_calls))+').open("a") as f: f.write(json.dumps({"tool":pathlib.Path(sys.argv[0]).name,"argv":args})+"\\n")\n'
+                              'if "--version" in args or "-vV" in args: print("synthetic tool profile");raise SystemExit(0)\n'
+                              'with pathlib.Path('+repr(str(calls))+').open("a") as f: f.write(json.dumps({"argv":args,"target":os.environ["CARGO_TARGET_DIR"],"jobs":os.environ["CARGO_BUILD_JOBS"],"source":pathlib.Path('+repr(str(source))+').read_text()})+"\\n")\n'
+                              'raise SystemExit(int(pathlib.Path('+repr(str(outcome))+').read_text()))\n')
+            script.chmod(0o700)
+        driver=self.root/'mock-cli.py'
+        driver.write_text('import sys,pathlib\nsys.path.insert(0,'+repr(str(HERE))+')\n'
+                          'import dev_check as d\nd.REPO=pathlib.Path('+repr(str(repo))+')\n'
+                          'with d.interruption_handlers(): raise SystemExit(d.main())\n')
+        env=dict(os.environ,PATH=str(bins)+os.pathsep+os.environ['PATH'],CARGO_HOME=str(self.root/'cargo-home'),CARGO_BUILD_JOBS='3')
+        runs=[('test','first',7),('check','lib',0),('lint','second',0),('test','second',0)]
+        for index,(mode,target,status) in enumerate(runs):
+            outcome.write_text(str(status))
+            if index == 1: source.write_text('// source two; changed inputs require a fresh Cargo invocation\n')
+            result=subprocess.run([sys.executable,str(driver),'--package','fixture_pkg','--test',target,'--mode',mode],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+            self.assertEqual(result.returncode,status,result.stderr)
+        records=[json.loads(p.read_text()) for p in (repo/'out/ci-optimization').glob('dev-check-*/result.json')]
+        self.assertEqual(len(records),4)
+        self.assertEqual(len({r['cache']['key_sha256'] for r in records}),1)
+        self.assertEqual(sorted(r['cache']['hit'] for r in records),[False,True,True,True])
+        self.assertEqual({(r['mode'],r['scope']['test']) for r in records},{(mode,target) for mode,target,_ in runs})
+        for record in records:
+            self.assertFalse(record['acceptance'])
+            self.assertEqual(record['jobs'],3)
+            self.assertEqual(len(record['commands']),1)
+            actual=record['commands'][0]
+            self.assertTrue(actual['reaped']);self.assertIsNone(actual['fault'])
+            self.assertEqual(actual['mode'],record['mode'])
+            self.assertEqual(actual['selected_target'],record['scope']['test'])
+        actual_calls=[json.loads(row) for row in calls.read_text().splitlines()]
+        self.assertEqual(len(actual_calls),4)
+        self.assertEqual(len({r['target'] for r in actual_calls}),1)
+        self.assertEqual({r['jobs'] for r in actual_calls},{'3'})
+        self.assertIn('source one',actual_calls[0]['source'])
+        self.assertTrue(all('source two' in r['source'] for r in actual_calls[1:]))
+        for call, (mode,target,_) in zip(actual_calls, runs):
+            self.assertEqual(call['argv'][1], {'test':'test','check':'check','lint':'clippy'}[mode])
+            self.assertEqual(call['argv'][call['argv'].index('--jobs')+1], '3')
+            if target == 'lib': self.assertIn('--lib',call['argv'])
+            else: self.assertEqual(call['argv'][call['argv'].index('--test')+1],target)
+        all_tools_before = tool_calls.read_text()
+        denied=subprocess.run([sys.executable,str(driver),'--package','fixture_pkg','--mode','test','--jobs','0'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+        self.assertNotEqual(denied.returncode,0)
+        self.assertEqual(len(calls.read_text().splitlines()),4, 'invalid jobs must not start a Cargo child')
+        self.assertEqual(tool_calls.read_text(),all_tools_before, 'invalid jobs must not start profile children either')
 
     def test_sanitized_compiler_environment(self):
         e = dev.sanitized_environment({'RUSTFLAGS':'bad','RUSTC_WRAPPER':'bad','CARGO_BUILD_RUSTFLAGS':'bad','RAMEN_DESKTOP_X':'bad','PATH':'ok'},self.root)

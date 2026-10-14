@@ -6,7 +6,9 @@
     "apps/artifact_editor/Cargo.toml",
     "apps/artifact_editor/src/lib.rs",
     "apps/artifact_editor/src/native.rs",
+    "apps/artifact_editor/src/native_tests.rs",
     "apps/artifact_editor/tests/adapter_native_fixture/mod.rs",
+    "apps/artifact_editor/tests/desktop_reliability.rs",
     "apps/artifact_editor/tests/editor_adapter_migration.rs",
     "apps/artifact_editor/tests/native_task.rs",
     "apps/artifact_editor/tests/native_task_support/mod.rs",
@@ -198,6 +200,7 @@
     "services/store_service/tests/editor_native_preview_read_support/mod.rs",
     "services/store_service/tests/editor_native_read.rs",
     "services/store_service/tests/editor_native_read_support/mod.rs",
+    "services/store_service/tests/editor_reliability.rs",
     "services/store_service/tests/editor_store.rs",
     "services/store_service/tests/ingest_transport.rs",
     "services/store_service/tests/support/editor_store.rs",
@@ -209,6 +212,8 @@
     "tools/agent_task/fixtures/policy.json",
     "tools/agent_task/fixtures/schema.json",
     "tools/agent_task_adapter/Cargo.toml",
+    "tools/ci/acceptance_build.py",
+    "tools/ci/build_cache.py",
     "tools/ci/ci_lanes.py",
     "tools/ci/desktop_editor_task_result.py",
     "tools/ci/editor_store_runner.py",
@@ -217,6 +222,7 @@
     "tools/ci/native_save_task_recording.py",
     "tools/ci/native_save_task_sources.py",
     "tools/ci/native_save_task_sources_v0.json",
-    "tools/ci/owned_manifest_verifier.py"
+    "tools/ci/owned_manifest_verifier.py",
+    "tools/ci/test_timing.py"
   ]
 }

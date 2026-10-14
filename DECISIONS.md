@@ -1,6 +1,6 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-13
 **Status:** Active
 
 
@@ -2424,7 +2424,7 @@ identities are retained separately. Require unchanged before/after745-source
 snapshot `e3f16a3ce97cd87c90d1eb7474629b3546142039bf11c76e42f95db4c7ad0c36` and lock `846c4662dd8e7bd59cc606f3b2e7887d0ff6f30e1d80fe682c198e6828f04ff4`.
 The integrated task `aMpP1aQU`, result `6dcfa3fc1ea09a727191cad54a267506e6bcec67086e7a5f5887a9862a45db8d`
 and review `38ea2526b181baae9f04149e810d3f6962da60f7aed7763d97cad3ccd3ab8369` must match exact final Task source
-`8f8fb22911c2696f323f36935a3920e1f1f6a0f4dc52be659b1a1c43954a6a4f` and establish original18/strict3/Reader93,
+`8f8fb22911c2696f323f36935a3920e1f1f6a0f4dc52be659b1a1c43954a6a4f` and establish original 18/strict3/Reader93,
 all eleven actual command returns/reaps and genuine verifier callbacks. Counts
 are observed values, never inferred fixed acceptance constants.
 Require final-source Mac Task `24` packet
@@ -2594,3 +2594,85 @@ execution, authenticated channels, sealed publications and retained original Sav
 owners after child death remain pending. Target/QEMU ports, HIL and hosted CI
 performance measurement remain separate; adapter preservation establishes no
 process runtime or containment acceptance.
+
+## 2026-10-13 — Host editor transition ownership repairs
+
+R1–R4 repair the default-off trusted host task before process integration. Store
+reply descriptors retain their actual data owner through producer completion and
+lease construction; bounded reclamation continues to discard only registry-only
+rows. Pending delivery and issued leases consume capacity until their owners
+release it. This does not serialize independent clients or replay mutations.
+
+Approved launch exposure assigns focus under the existing trusted handoff.
+Rendering requires current focus and cannot assign it. An abandoned render owns
+one exact surface/buffer/mapping generation; its cleanup retires that generation
+and any matching unpublished frozen frame, preserving other live acquisitions.
+Expired queued Save keys create no intent. An authenticated intent that expires
+before any entry was admitted closes its owner-side pending state; sticky
+admission history prevents dropped call metadata from turning uncertain admitted
+work into a definitive rejection. The app retains admitted chains for original
+outcome reconciliation.
+
+JournalSync injection reproduces an owner-created pre-rename selection.next file
+that prevented joined-owner reopen. The Store retains the actual file descriptor
+and exact canonical journal through quiescence/reopen. Only that regular,
+single-link, identity- and content-checked staging file may be removed before
+another publication. Post-rename outcomes retain their existing uncertainty and
+reconciliation. This in-memory owner rule does not establish crash-orphan cleanup,
+CAS temporary-file recovery, device persistence or power-loss durability.
+
+An additive editor-reliability host stage preserves every prior 55/39 stage and
+requires fresh regression outcomes with reviewed source/assertion pins. Original
+eighteen-case task, Reader93, volatile13, adapter4, codec, Read and Preview checks
+remain required. Local focused host/Linux checks do not replace the complete
+Linux preflight or hosted merge gates, and grant no merge or hardware authority.
+
+## 2026-10-13 — Fresh assertions with bounded build/test preparation
+
+Keep fast developer modes distinct from acceptance. Development compilation
+identity binds package/features, toolchain, platform, lock/configuration and
+compiler environment while excluding target/mode and allowing Cargo to recheck
+live edits. Every command gets a new development record. Accept only canonical
+1..32 build jobs, default two; restore the admitted limit after gate environment
+sanitation without restoring compiler hooks.
+
+Acceptance compilation binds the complete reviewed source closure. Task default
+off, enabled and manifest-verifier phases remain distinct, including explicit
+no-default std verifier flags. Reuse compiler targets only; actual lists, cases,
+Clippy, postchecks, nonces, recordings and readers run freshly. Publish success
+before clearing phase ownership; uncertain failures remain quarantined. Retain
+actual selected binaries outside compiler entries. Source-registry successors
+add the three executed helpers without removing old inputs or changing original
+assertion inventories. Config candidates sort by full path string to match the
+existing canonical key, including private Cargo homes beside `.cargo`.
+
+Selected suites enumerate actual Cargo harnesses and execute the exact union
+once per harness; every intended filter must have successful nonignored cases.
+Authoritative target metadata distinguishes library crate types, compile-only
+helpers and explicit integration targets; actual library doctest flags preserve
+unqualified Cargo coverage. Native Runner requires its genuine Wasm fixture.
+A warm duplicate scope measured 1.065 seconds overall and 0.141 seconds runtime.
+Retain fresh standalone/cross-gate assertions rather than introduce a result
+broker for that bounded saving. This records a measured scope decision.
+
+QEMU stages copy fresh firmware variables and stage actual inputs in private
+runs, retain their original 30-second marker budgets, and stop the actual owned
+group before consuming parent wait. Selected commands have a 600-second work
+budget; even a zero exit observed late denies. Diagnostics expose timings and
+failure phases without supplying acceptance or containment authority. Synthetic
+Linux orphan-disappearance controls need a functional init reaper or the retained
+controlled child-subreaper supervisor; they do not confer OS isolation claims.
+
+Move eleven existing editor stages onto an independent fifth CI lane. Preserve
+every canonical stage, argv, environment override and relative order; require
+all five successful lane results for code and five expected skips for docs.
+Outer compiler-only fallback restores candidates, while exact inner admission
+remains mandatory. Hosted qualification is separate from local measurements.
+
+Compiler cache inspection is read-only. Explicit retirement requires exact
+completed key/context, locks, bounded owned nonsymlink trees and quarantine on
+interruption; no active/abandoned reset, PID signaling or automatic eviction.
+Only the five superseded completed entries created in this task were retired,
+with evidence inventories and retained binary hashes preserved. Historical and
+unrelated outputs remain untouched. Complete Linux56/hosted gates and actual
+editor-process/target/hardware evidence remain required in their own scopes.

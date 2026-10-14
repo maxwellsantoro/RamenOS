@@ -1,6 +1,6 @@
 # Foundry development and CI execution profile v0
 
-**Date:** 2026-10-08
+**Date:** 2026-10-13
 **Scope:** Host tooling and CI orchestration; no OS authority or hardware graduation
 
 This profile supports the ready editor and runtime packets in
@@ -19,14 +19,24 @@ just dev-check store_service editor_native_read editor_native_read_v0_dev
 just dev-check store_service editor_native_preview_read editor_native_preview_v0_dev
 ```
 
-`dev-check` validates workspace membership, actual test targets, declared and
+`dev-check` and the fast modes validate workspace membership, actual test targets, declared and
 required features. It disables default features, uses the manifest-pinned
 compiler, and runs a real build, strict Clippy and serialized tests. Host-ineligible
 architecture packages are rejected. Parameters are shell-quoted before validation.
-The persistent private target is keyed by package/test/features, actual compiler,
+The persistent private target is keyed by package/features, actual compiler,
 platform, lockfile, Cargo configuration and compiler environment. Its identity
 intentionally persists across source edits; Cargo rechecks the live checkout.
-Only one command owner can hold a target. An ordinary failed command with a known reap preserves its nonzero exit and can
+The requested target and mode remain in each fresh command record; switching
+between targets or modes shares only compilation state. `just dev-test` runs one
+actual Cargo test command, `just dev-compile` one selected Cargo check, and
+`just dev-lint` one strict Clippy command. `dev-check` retains the complete
+three-command build/lint/test sequence. All four recipes accept an optional fourth
+`jobs` argument. CLI jobs override canonical `CARGO_BUILD_JOBS`, then default to 2;
+values must be 1..32. Invalid values deny before any tool profile/compiler child.
+All ancestor and Cargo-home config candidates retain canonical full-string
+ordering, including a private `.cargo-root` sibling of `.cargo`. Missing candidates
+remain bound as absent rows; ownership and write-mode checks still apply.
+Compiler hooks remain sanitized. Only one command owner can hold a target. An ordinary failed command with a known reap preserves its nonzero exit and can
 reuse the warm target after a source fix. Interrupted or uncertain work quarantines
 the entry. New command records retain actual exit,
 reap, elapsed time and bounded output observations, and are labelled
@@ -51,28 +61,44 @@ timeout or establish stable latency or whole-CI speedup. Existing functional and
 timeout/containment assertions remain required on the selected build.
 
 `tools/ci/ci_lanes.py` owns one canonical inventory. `just preflight` executes the
-complete 55-stage serial sequence: proof and compiler-cache input prerequisites,
+complete 56-stage serial sequence: proof and compiler-cache input prerequisites,
 generation before formatting, tooling regressions, IDL lint, target builds,
-baseline and six strict lint tranches, workspace tests, the umbrella and all 39
+baseline and six strict lint tranches, workspace tests, the umbrella and all 40
 extended stages. The supplemental `editor-adapter-migration` host stage is inserted
-immediately after `desktop-editor-task`; removing that one stage reproduces every
-original 54-stage name, argument, order and environment override. It executes two
+immediately after `desktop-editor-task` in the prior 55-stage inventory; removing
+it from that inventory reproduces every original 54-stage name, argument, order
+and environment override. It executes two
 explicit, unfiltered required-feature Cargo test targets with default features
 disabled, checks all four adapter assertion names and both actual MAX rejection
 markers, and rejects incomplete fixtures. The default-feature workspace test stage
 does not establish execution of these supplemental targets. The original 38
 extended stages, including the earlier original 36, remain required.
-`just ci-lane quality`, `just ci-lane host`, `just ci-lane agent` and
-`just ci-lane qemu` select the four CI lanes. Quality retains its 13 stages.
-The extended runtime bodies partition exactly into 25 host, one agent and 13 QEMU
-stages. QEMU also runs generation and the umbrella; host and agent each run the
+`just ci-lane quality`, `just ci-lane host`, `just ci-lane agent`,
+`just ci-lane qemu`, and `just ci-lane editor` select the five CI lanes. Quality retains its 13 stages.
+The additive `editor-reliability` host stage runs after the previous extended
+inventory. Removing it reproduces the prior 55-stage/39-extended inventory exactly.
+It executes explicit default-off Desktop and Store regression targets, verifies
+their reviewed source closure and assertion pins before compilation and after
+execution, and rejects missing, ignored, filtered or extra test results. The
+existing bounded command owner retains logs and actual command exits/reaps.
+Fresh regression compilation defaults to two Cargo jobs; an explicit caller
+value is preserved. This preparation limit changes no assertion deadline.
+Regression recordings are diagnostics; the original task and Reader 93 gates
+remain required for their own acceptance. A passed regression stage does not
+establish a child process, target persistence or containment.
+
+The extended runtime bodies partition exactly into15 host,11 editor, one agent
+and13 QEMU stages. The editor lane moves the eleven existing UI bodies to an
+independent runner; canonical stage names, arguments, environments and serial
+ordering remain intact. Its bootstrap checks compiler inputs, installs the pinned
+toolchain and runs codegen; editor gates require no Docker/proof-image bootstrap. QEMU also runs generation and the umbrella; host and agent each run the
 same five preparation stages before their runtime bodies. These isolated
 preparations do not add stages to local `preflight` or `extended`. Historical
 54-stage evidence describes its original source snapshot and does not validate
-this 55-stage successor or an adapter migration.
+the current successor, adapter migration or reliability regressions.
 No CI job additionally executes the full or extended sequence. Gates within a
 lane remain serialized. CI selects `RUST_TEST_THREADS=1`, matching the accepted
-integration profile, and executes the four lanes on separate runners with
+integration profile, and executes the five lanes on separate runners with
 separate output and compiler paths.
 Local users must also use separate checkouts/output resources when running lanes
 simultaneously. A tracked source fingerprint and Cargo.lock hash are checked
@@ -91,10 +117,10 @@ compatibility package cache uses its exact digest and the gate still checks the
 bytes. Superseded PR runs may be cancelled within their event/PR group. The stable
 required `foundry` job runs after every lane and fails closed on failure,
 cancellation, unknown result or an unexpected skip. A successful docs-only
-classification permits exactly four skipped lanes; OS-code classification requires
-all four lane results to be successful. The policy and CLI require every result
-in the order `changes, os_code, quality, host, agent, qemu`, with no optional
-agent default. Missing results or failed classification deny acceptance.
+classification permits exactly five skipped lanes; OS-code classification requires
+all five lane results to be successful. The policy and CLI require every result
+in the order `changes, os_code, quality, host, agent, qemu, editor`, with no
+optional lane defaults. Missing results or failed classification deny acceptance.
 `merge-gate` also requires
 successful classification and separate org governance; author/reviewer authority
 is unchanged.
@@ -145,9 +171,10 @@ probes and deadlines are unchanged.
 
 ## Opt-in acceptance compiler cache
 
-NativeRead and NativePreview default to the existing fresh-target profile. Setting
+NativeRead, NativePreview, the original editor task and reliability regressions
+default to a fresh-target profile. Setting
 `RAMEN_FOUNDRY_BUILD_CACHE=1` admits private compilation state from
-`out/ci-optimization/compiler-cache`; CI's host lane explicitly selects this
+`out/ci-optimization/compiler-cache`; CI's editor lane explicitly selects this
 profile. Every cache key binds the independently frozen source manifest, actual
 Rust/Cargo versions, host platform, repository, lockfile, ancestor/Cargo-home
 configuration, compiler environment, features, default-feature setting and phase.
@@ -179,8 +206,11 @@ binary checks, new process birth identities, exits/reaps, nonces and fixture
 cleanup remain fresh. Cached-profile runs also retain a separate, size/hash-checked copy of the actual
 test executable in their private run directory, preserving historical bytes when
 compiler targets are later rebuilt or removed. Results explicitly record cache
-admission and hits. Only CI's host lane restores these compilation directories,
-with an exact outer key and no fallback; no lane restores acceptance evidence. Compiler caching is a trusted host tooling
+admission and hits. Only CI's editor lane restores these compilation directories,
+with a v2 outer source key and a platform/architecture/toolchain-bound fallback;
+restored files are only compiler candidates. Every inner frozen source/config/
+feature/phase key and exclusive ownership check still applies. A changed source
+gets a new exact inner target, and no lane restores acceptance evidence. Compiler caching is a trusted host tooling
 optimization, not a containment or hostile compiler/cache attestation boundary.
 
 ## Consolidation limits
@@ -200,7 +230,7 @@ than infer equivalence from similar command flags.
 
 Use focused checks during editing, then affected consumer gates and one complete
 canonical lane set or its serial preflight equivalent on a fixed candidate. Mac host checks cannot certify the
-Linux/Docker/QEMU profile. The four-lane configuration has executed successfully on GitHub: the reviewed
+Linux/Docker/QEMU profile. The historical four-lane configuration executed successfully on GitHub: the reviewed
 pre-merge source and post-merge run
 [37730644587](https://github.com/maxwellsantoro/RamenOS/actions/runs/37730644587)
 passed all eight jobs. In that post-merge run, job durations were host 820 s,
@@ -230,5 +260,71 @@ separate. Re-run affected checks after a change or failure, then reserve one
 integrated candidate run with joined producers and fixed source bytes. Additional
 unmodified repetitions need a concrete unresolved concern. Cached builds,
 planning documents and timing estimates supply no metal, release, target editor,
-or process-isolation evidence. The scripted host editor proof and its remaining
-reliability repair work are described in the authoritative status/task pair.
+or process-isolation evidence. The scripted host editor proof and its reviewed
+reliability repairs are described in the authoritative status/task pair.
+
+
+## Streamlining successor and retained diagnostics
+
+Store's WAT parser is optional under `agent_task_v1_dev`; editor/default builds
+retain all their required tests while avoiding that unrelated parser dependency.
+The agent fixture and export example still consume the parser under their
+explicit feature. No dependency version or lockfile update is required.
+
+The original task and reliability gate use the reviewed compilation adapter with
+bounded build jobs even after environment sanitation. App default-off exclusion,
+enabled app and manifest-verifier phases retain distinct cached targets. Regression
+targets share only their exact package/features phase. Actual Cargo, Clippy, exact
+case lists, complete test outcomes, source/binary postchecks and new recording
+nonces execute every run. Cached binaries are retained in each fresh run outside
+the compilation entry before the entry can be retired. A failed gate/publication
+leaves cache ownership quarantined. Compiler reuse grants no cached acceptance.
+
+`selected_test_runner.py` builds actual Cargo-selected harnesses once per package
+invocation, enumerates their real cases and executes the exact selector union once
+per lib/bin/integration harness. Required filters must match successful outcomes;
+zero selected or ignored/missing cases deny. Genuine library crate types and
+explicit test-enabled examples are admitted from Cargo's actual metadata.
+Unqualified package scopes preserve actual doctests with a whole-package doc run
+when authoritative library metadata enables them. Binary-only packages record
+that Cargo has no eligible doctest library; doc-generation and unit-test flags
+cannot substitute for the doctest setting.
+Semantic State verifies its named subsets inside one full suite. Projection Store
+uses one build for its nine selector families. Native Runner requires the actual
+Wasm fixture, rather than admitting a test's missing-file skip. Standalone gates
+remain complete; cross-gate runtime result reuse is not inferred from compilation. A warm macOS invocation of the duplicated Native Runner scope
+took 1.065 seconds: metadata 0.177, Cargo preparation 0.461, discovery 0.115 and
+three actual tests 0.141 seconds. All exits/reaps were observed and source, binary,
+fixture and environment identities retained. Keep both standalone runtime
+assertions fresh: the measured saving does not justify adding a cross-gate result
+sharing authority. This is a measured scope decision, not an unexamined duplicate.
+Each selected runner command has a 600-second work limit with bounded cleanup;
+a successful exit first observed after its deadline still denies.
+
+The original 18 test invocation and Reader 93 semantics remain unchanged. Optional
+stream observations record each case's prefix-to-completion interval and command
+phases, plus recording-reader elapsed time, in `phase-timings.json`. These are
+bounded diagnostics with `acceptance:false`, not CPU-time measurements or proof
+of successful behavior. Diagnostic parsing failure does not change captured test
+bytes, child authority or the independent complete-outcome checks.
+
+Net/block/GOP QEMU probes keep their 30-second marker budgets and existing UART,
+transfer and display assertions. Each creates a fresh private run, stages the
+actual EFI/init inputs, copies firmware variables from the selected template,
+and records boot markers, input identities and actual stop/exit/reap. No retry or
+longer deadline is introduced. Old mutable variables cannot seed a later probe.
+These observations remain QEMU evidence, not device/HIL/metal qualification.
+
+`just compiler-cache-inspect acceptance` (or `development`) is read-only.
+`just compiler-cache-retire KEY CONTEXT_SHA acceptance` requires an exact completed
+entry/context, allocation and owner locks, and a bounded nonsymlink owned compiler
+tree. Active/abandoned entries, changed contexts and unknown ownership deny.
+Only that compiler entry is removed; evidence and retained binaries remain outside
+its scope. Interrupted retirement is quarantined. There is no automatic eviction,
+PID-based kill, abandoned-owner reset or whole-out deletion.
+
+The five-lane successor needs fresh hosted qualification. Historical durations
+above do not establish its performance. Focused cold/warm gate measurements must
+record actual source/configuration/features, exits/reaps and complete assertions;
+compiler warmup never reuses a PASS report. Full Linux 56 qualification remains a
+separate integration requirement.

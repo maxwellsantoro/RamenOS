@@ -1,0 +1,47 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "idl/**/*",
+    "CONSTITUTION.md",
+    "AGENTS.md",
+    "README.md",
+    "hardware/**/*",
+    "Cargo.toml",
+    "*/Cargo.toml",
+    "*/*/Cargo.toml",
+    "kernel/src/**/*.rs",
+    "kernel_api/src/**/*.rs",
+    "artifact_store_schema/src/**/*.rs"
+  ],
+  "output": {
+    "filePath": "repomix-output.map.xml",
+    "style": "xml",
+    "compress": true,
+    "removeEmptyLines": true,
+    "truncateBase64": true,
+    "tokenBudget": 200000,
+    "topFilesLength": 20,
+    "includeFullDirectoryStructure": true,
+    "headerText": "RamenOS structure map: full IDL/constitution/hardware; Tree-sitter-compressed kernel + schemas; Cargo.toml anchors; full directory tree. Use just repomix-pack contracts|kernel|store|desktop for focused full-detail packs.",
+    "patterns": [
+      { "pattern": "idl/**/*" },
+      { "pattern": "CONSTITUTION.md" },
+      { "pattern": "AGENTS.md" },
+      { "pattern": "README.md" },
+      { "pattern": "hardware/**/*" },
+      { "pattern": "**/Cargo.toml" },
+      { "pattern": "**/generated/**", "directoryStructureOnly": true },
+      { "pattern": "**/*.generated.rs", "directoryStructureOnly": true },
+      { "pattern": "kernel_api/src/mock.rs", "directoryStructureOnly": true }
+    ]
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "kernel_api/src/generated/**",
+      "artifact_store_schema/src/tests.rs"
+    ]
+  }
+}

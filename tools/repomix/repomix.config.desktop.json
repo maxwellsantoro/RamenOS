@@ -1,0 +1,37 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "services/desktop/**/*",
+    "services/desktop_editor_core/**/*",
+    "services/portals/**/*",
+    "apps/artifact_editor/**/*",
+    "idl/portals/**/*",
+    "idl/services/desktop_*.toml",
+    "CONSTITUTION.md",
+    "AGENTS.md"
+  ],
+  "output": {
+    "filePath": "repomix-output.desktop.xml",
+    "style": "xml",
+    "compress": true,
+    "removeEmptyLines": true,
+    "truncateBase64": true,
+    "tokenBudget": 200000,
+    "topFilesLength": 15,
+    "headerText": "RamenOS desktop pack: portal/service IDL full; desktop services compressed. Unpack specific files via MCP for deep review.",
+    "patterns": [
+      { "pattern": "idl/**/*" },
+      { "pattern": "CONSTITUTION.md" },
+      { "pattern": "AGENTS.md" },
+      { "pattern": "apps/artifact_editor/**/*" },
+      { "pattern": "services/desktop_editor_core/**/*" },
+      { "pattern": "**/tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/*_tests.rs", "directoryStructureOnly": true }
+    ]
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true
+  }
+}

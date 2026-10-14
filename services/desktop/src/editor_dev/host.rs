@@ -207,6 +207,62 @@ impl Drop for FrameReservation {
         }
     }
 }
+// Own one actual native render acquisition until its document-frame join.
+// Cleanup checks every identity before retiring a mapping or frozen frame.
+#[cfg(feature = "editor_native_save_v0_dev")]
+struct NativeFrameAcquisition {
+    state: Arc<Mutex<State>>,
+    instance: u64,
+    instance_generation: u64,
+    surface: u64,
+    surface_generation: u64,
+    buffer_index: u32,
+    buffer: u64,
+    mapping: u64,
+    sequence: u64,
+    published: bool,
+}
+#[cfg(feature = "editor_native_save_v0_dev")]
+impl Drop for NativeFrameAcquisition {
+    fn drop(&mut self) {
+        if self.published {
+            return;
+        }
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let Some(instance) = state.instances.get(&self.instance) else {
+            return;
+        };
+        if instance.generation != self.instance_generation
+            || instance.surface.id != self.surface
+            || instance.surface.generation != self.surface_generation
+            || instance.surface.buffers[self.buffer_index as usize] != self.buffer
+        {
+            return;
+        }
+        let Some(object) = state.objects.get(&self.buffer) else {
+            return;
+        };
+        let Data::Mutable(data) = &object.data else {
+            return;
+        };
+        let mut data = data.lock().unwrap_or_else(|p| p.into_inner());
+        if data.mapping != self.mapping {
+            return;
+        }
+        // Old write aliases fail closed; a subsequent Acquire gets a fresh mapping.
+        data.mapping = 0;
+        data.writable = false;
+        data.frozen = false;
+        drop(data);
+        let surface = &mut state.instances.get_mut(&self.instance).unwrap().surface;
+        if surface.frozen.as_ref().is_some_and(|(index, sequence, _)| {
+            *index == self.buffer_index && *sequence == self.sequence
+        }) {
+            surface.frozen = None;
+        }
+    }
+}
+
 struct RequestLife {
     ticket: Arc<()>,
     #[cfg(feature = "editor_native_preview_v0_dev")]
@@ -4687,10 +4743,16 @@ impl HostDesktop {
                 },
             };
             observation.stage = PreviewDeliveryStage::BuildReply;
-            s.objects.get_mut(&grants).ok_or(Status::Stale)?.data =
-                Data::Immutable(Arc::new(bytes));
+            // Check focus exhaustion and every publication destination before mutation.
+            // The same State lock keeps these destinations live through exposure.
+            let launch_focus = s.next_focus(chrome.session)?;
+            if !s.objects.contains_key(&grants) || !s.sessions.contains_key(&chrome.session) {
+                return Err(Status::Stale);
+            }
             // All fallible construction is complete while the actual State/Gate
             // retain the same current admission. The visible carrier follows.
+            s.objects.get_mut(&grants).unwrap().data = Data::Immutable(Arc::new(bytes));
+            s.focus_counter = launch_focus;
             r.delivered = true;
             if let Some(pin) = p.pins.get_mut(&pending.life.pin) {
                 pin.consumed = true;
@@ -4701,9 +4763,13 @@ impl HostDesktop {
             {
                 s.preview_pins.remove(&chrome.session);
             }
-            let session = s.sessions.get_mut(&chrome.session).ok_or(Status::Stale)?;
+            let session = s.sessions.get_mut(&chrome.session).unwrap();
+            // Trusted approved handoff assigns focus once. Redraw has no focus authority.
+            session.focus = launch_focus;
             session.route = Route::App;
-            session.focused = None;
+            session.focused = Some(id);
+            session.keys.clear();
+            session.suppressed = session.pressed.clone();
             session
                 .object
                 .inner
@@ -6145,6 +6211,9 @@ impl HostDesktop {
             if !Arc::ptr_eq(&i.attachment, &attachment)
                 || i.snapshot.data.view.actor != actor
                 || q64(q, 24) != i.snapshot.data.view.expected_revision
+                || i.snapshot.data.view.object_id != object_id
+                || i.snapshot.data.view.object_generation != object_generation
+                || i.snapshot.data.view.original_store_epoch != epoch
             {
                 return Err(Status::Denied);
             }
@@ -6164,6 +6233,19 @@ impl HostDesktop {
                 return Err(Status::Denied);
             }
         }
+        if let Some(i) = &actual_intent {
+            let save = gate.save.as_ref().ok_or(Status::Denied)?;
+            if !save
+                .intents
+                .get(&i.id)
+                .is_some_and(|row| std::sync::Weak::ptr_eq(row, &Arc::downgrade(i)))
+            {
+                return Err(Status::Denied);
+            }
+            if i.closed_before_admission.load(Ordering::Acquire) {
+                return Err(Status::Stale);
+            }
+        }
         let deadline = actual_intent.as_ref().map(|i| i.deadline).unwrap_or(
             entered
                 .checked_add(Duration::from_millis(1000))
@@ -6171,6 +6253,14 @@ impl HostDesktop {
         );
         let started = actual_intent.as_ref().map(|i| i.entered).unwrap_or(entered);
         if Instant::now() >= deadline {
+            if kind == 3 {
+                if let Some(i) = &actual_intent {
+                    gate.save
+                        .as_mut()
+                        .ok_or(Status::Denied)?
+                        .close_unadmitted_intent(i)?;
+                }
+            }
             return Err(Status::Timeout);
         }
         if authority.prune_save_calls(&mut gate)? >= 64 {
@@ -6222,6 +6312,10 @@ impl HostDesktop {
                 closed: false,
             },
         );
+        if let Some(intent) = &actual_intent {
+            // Sticky admission history survives dropped/compacted call metadata.
+            intent.entry_admitted.store(true, Ordering::Release);
+        }
         let barrier = if save.armed.as_ref().is_some_and(|(sid, p, _)| {
             *sid == actor.session_id && *p == NativeSavePausePoint::BeforeEntryAdmission
         }) {
@@ -6575,6 +6669,9 @@ impl HostDesktop {
                 .entered
                 .checked_add(Duration::from_millis(1000))
                 .ok_or(Status::Exhausted)?;
+            if Instant::now() >= deadline {
+                return Err(Status::Timeout);
+            }
             let snapshot = NativeDraftSnapshot {
                 data: Arc::new(SnapshotData {
                     body: before.bytes.clone(),
@@ -6595,6 +6692,8 @@ impl HostDesktop {
             intent = Some(Arc::new(IntentLife {
                 id,
                 exposed: std::sync::atomic::AtomicBool::new(false),
+                closed_before_admission: std::sync::atomic::AtomicBool::new(false),
+                entry_admitted: std::sync::atomic::AtomicBool::new(false),
                 snapshot,
                 entered: queued.entered,
                 deadline,
@@ -6738,7 +6837,7 @@ impl HostDesktop {
         now: u64,
     ) -> Result<super::NativeFrameObservation, Status> {
         use super::native_save::*;
-        use kernel_api::generated::{desktop_focus_v1 as focus, desktop_surface_v1 as surface};
+        use kernel_api::generated::desktop_surface_v1 as surface;
         let a = self.save_authority()?;
         if !same(&a, &editor.authority) {
             return Err(Status::Denied);
@@ -6746,7 +6845,6 @@ impl HostDesktop {
         let (
             view,
             endpoint,
-            focus_endpoint,
             created,
             surface_id,
             surface_gen,
@@ -6793,8 +6891,9 @@ impl HostDesktop {
             }
             let focused = state.sessions[&actor.session_id].focused == Some(actor.instance_id);
             let initial_focus = state.sessions[&actor.session_id].focus;
-            let chrome_endpoint =
-                self.endpoint_locked(&state, state.sessions[&actor.session_id].chrome)?;
+            if !focused {
+                return Err(Status::NotReady);
+            }
             let view = d.view.clone();
             let text = super::client::NativeTextEditor::from_native(
                 &view,
@@ -6817,7 +6916,6 @@ impl HostDesktop {
             (
                 view,
                 self.endpoint_locked(&state, endpoints[2])?,
-                chrome_endpoint,
                 created,
                 sid,
                 sg,
@@ -6825,7 +6923,7 @@ impl HostDesktop {
                 sequence,
                 [last - 3, last - 2, last - 1, last],
                 pixels,
-                if focused { Some(initial_focus) } else { None },
+                initial_focus,
             )
         };
         let mut reservation = FrameReservation {
@@ -6855,25 +6953,7 @@ impl HostDesktop {
                 return Err(Status::Denied);
             }
         }
-        let focus_epoch = if let Some(epoch) = initial_focus {
-            epoch
-        } else {
-            let q = focus::Assign {
-                request_id: requests[1],
-                session_id: actor.session_id,
-                session_generation: actor.session_generation,
-                instance_id: actor.instance_id,
-                instance_generation: actor.instance_generation,
-                surface_id,
-                surface_generation: surface_gen,
-            }
-            .encode(focus_endpoint.handle)?;
-            let r = focus::AssignReply::decode(&self.dispatch(&focus_endpoint.peer, &q, now))?;
-            if r.status != 0 {
-                return Err(status_from_u32(r.status));
-            }
-            r.focus_epoch
-        };
+        let focus_epoch = initial_focus;
         let q = surface::Acquire {
             request_id: requests[2],
             surface_id,
@@ -6886,6 +6966,18 @@ impl HostDesktop {
         if acquired.status != 0 {
             return Err(status_from_u32(acquired.status));
         }
+        let mut acquisition = NativeFrameAcquisition {
+            state: self.state.clone(),
+            instance: actor.instance_id,
+            instance_generation: actor.instance_generation,
+            surface: surface_id,
+            surface_generation: surface_gen,
+            buffer_index: index,
+            buffer: acquired.buffer_shm,
+            mapping: acquired.mapping_generation,
+            sequence,
+            published: false,
+        };
         if acquired.mapping_generation == 0 || acquired.byte_len != FRAME_BYTES as u32 {
             return Err(Status::Invalid);
         }
@@ -6995,6 +7087,7 @@ impl HostDesktop {
         doc.frame = Some(observation.clone());
         state.pending_frames -= 1;
         reservation.finished = true;
+        acquisition.published = true;
         Ok(observation)
     }
     fn take_save_frame_barrier(

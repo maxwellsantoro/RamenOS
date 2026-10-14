@@ -21,7 +21,7 @@ CONTRACT_SHA = 'd646b73b52772589e0aa3ac02ecea214f9b85e76d2a320f6d11f86f11f222969
 ASSERTIONS = 'artifact_store_schema/tests/editor_native_save_codec.rs'
 ASSERTIONS_SHA = '2a98d569813172129b8ced6548571be6c95cd11f1383820c3bdced1eb263cd59'
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
-PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
+PRIMITIVES_SHA = '3aeba4be230cfcd972ee8939e183d6e1cb9a14c60ebeec2e96368e16e143a787'
 CASES = (
     'native_save_grants_literal_le_464',
     'native_save_grants_phase_versions_and_rights',

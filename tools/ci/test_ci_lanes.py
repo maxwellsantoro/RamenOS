@@ -72,6 +72,7 @@ EXTENDED_PATHS = (
     "tools/ci/foundry_s13_replay.sh",
     "tools/ci/foundry_s13_block_sector_oracle_s13_4.sh",
     "tools/ci/foundry_s13_runtime_block_s13_6.sh",
+    "tools/ci/foundry_editor_reliability_ui1_1.sh",
 )
 
 
@@ -82,7 +83,7 @@ class LaneTests(unittest.TestCase):
     def test_exact_extended_coverage_order_and_overrides(self):
         stages = self.lanes.extended_plan()
         self.assertEqual(tuple(s.argv[-1] for s in stages), EXTENDED_PATHS)
-        self.assertEqual(len({s.name for s in stages}), 39)
+        self.assertEqual(len({s.name for s in stages}), 40)
         by_path = {s.argv[-1]: s for s in stages}
         self.assertEqual(dict(by_path["tools/ci/foundry_native_runner_s10_1.sh"].env), {"SKIP_E2E_ASSERTIONS": "1"})
         self.assertEqual(dict(by_path["tools/ci/foundry_s11_reference_vault_s11_3.sh"].env), {"REQUIRE_LIVE_ORACLE_TRACE": "1"})
@@ -91,6 +92,7 @@ class LaneTests(unittest.TestCase):
         quality = self.lanes.lane_plan("quality")
         host = self.lanes.lane_plan("host")
         qemu = self.lanes.lane_plan("qemu")
+        editor = self.lanes.lane_plan("editor")
         agent = self.lanes.lane_plan("agent")
         self.assertEqual(quality[0].name, "codegen")
         self.assertLess([s.name for s in quality].index("codegen"), [s.name for s in quality].index("fmt-check"))
@@ -98,7 +100,7 @@ class LaneTests(unittest.TestCase):
         self.assertEqual(host[2].argv, ("python3", "tools/ci/build_cache.py", "--check-inputs"))
         self.assertEqual(host[3].argv, ("python3", "tools/ci/ci_lanes.py", "install-toolchain"))
         self.assertEqual(qemu[0].name, "codegen")
-        paths = [s.argv[-1] for s in host + agent + qemu if s in self.lanes.extended_plan()]
+        paths = [s.argv[-1] for s in host + agent + qemu + editor if s in self.lanes.extended_plan()]
         self.assertCountEqual(paths, EXTENDED_PATHS)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertIn("foundry-umbrella", [s.name for s in qemu])
@@ -115,9 +117,9 @@ class LaneTests(unittest.TestCase):
         self.assertEqual(full[0].name, "proof-prerequisites")
         self.assertEqual(full[1].name, "compiler-cache-prerequisites")
         self.assertEqual(full[1].argv, ("python3", "tools/ci/build_cache.py", "--check-inputs"))
-        self.assertEqual(len(full), 55)
+        self.assertEqual(len(full), 56)
         self.assertEqual(full[2:2 + len(self.lanes.quality_plan())], self.lanes.quality_plan())
-        self.assertEqual(full[-39:], self.lanes.extended_plan())
+        self.assertEqual(full[-40:], self.lanes.extended_plan())
         for script, command in (("foundry_preflight.sh", "all"), ("foundry_ci_extended.sh", "extended")):
             source = (ROOT / "tools/ci" / script).read_text()
             self.assertIn(f"ci_lanes.py {command}", source)
@@ -213,22 +215,22 @@ class AggregateWorkflowTests(unittest.TestCase):
         allowed = getattr(POLICY, "foundry_allowed", None)
         self.assertTrue(callable(allowed), "missing fail-closed Foundry aggregate")
         states = ("success", "failure", "cancelled", "skipped", "", "unknown")
-        for results in itertools.product(states, repeat=4):
-            self.assertEqual(allowed("success", "true", *results), results == ("success",) * 4)
-            self.assertEqual(allowed("success", "false", *results), results == ("skipped",) * 4)
+        for results in itertools.product(states, repeat=5):
+            self.assertEqual(allowed("success", "true", *results), results == ("success",) * 5)
+            self.assertEqual(allowed("success", "false", *results), results == ("skipped",) * 5)
         for change in states[1:]:
-            self.assertFalse(allowed(change, "true", "success", "success", "success", "success"))
-            self.assertFalse(allowed(change, "false", "skipped", "skipped", "skipped", "skipped"))
+            self.assertFalse(allowed(change, "true", "success", "success", "success", "success", 'success'))
+            self.assertFalse(allowed(change, "false", "skipped", "skipped", "skipped", "skipped", 'skipped'))
         for invalid in ("", "TRUE", "unknown"):
-            self.assertFalse(allowed("success", invalid, "success", "success", "success", "success"))
+            self.assertFalse(allowed("success", invalid, "success", "success", "success", "success", 'success'))
         self.assertFalse(POLICY.merge_allowed("success", "true", "skipped", "success"))
 
     def test_workflow_parallel_lanes_required_aggregate_and_safe_caches(self):
         source = (ROOT / ".github/workflows/ci.yml").read_text()
         import re
         jobs = dict(re.findall(r"^  ([\w-]+):\n(.*?)(?=^  [\w-]+:|\Z)", source, re.M | re.S))
-        self.assertTrue({"quality", "host-docker", "agent-task", "qemu", "foundry", "merge-gate"} <= jobs.keys())
-        for job, lane in (("quality", "quality"), ("host-docker", "host"), ("agent-task", "agent"), ("qemu", "qemu")):
+        self.assertTrue({"quality", "host-docker", "agent-task", "qemu", "editor", "foundry", "merge-gate"} <= jobs.keys())
+        for job, lane in (("quality", "quality"), ("host-docker", "host"), ("agent-task", "agent"), ("qemu", "qemu"), ("editor", "editor")):
             self.assertIn("needs: changes", jobs[job])
             self.assertIn("needs.changes.outputs.os_code == 'true'", jobs[job])
             self.assertIn(f"ci_lanes.py lane {lane}", jobs[job])
@@ -239,7 +241,7 @@ class AggregateWorkflowTests(unittest.TestCase):
             self.assertIn("if: always()", jobs[job])
             self.assertIn("out/foundry/timings/", jobs[job])
             self.assertNotRegex(jobs[job], r"path:.*target")
-        self.assertIn("needs: [changes, quality, host-docker, agent-task, qemu]", jobs["foundry"])
+        self.assertIn("needs: [changes, quality, host-docker, agent-task, qemu, editor]", jobs["foundry"])
         self.assertIn("if: always()", jobs["foundry"])
         self.assertIn("change_policy.py foundry", jobs["foundry"])
         self.assertIn("needs: [changes, foundry, org-governance]", jobs["merge-gate"])
@@ -249,9 +251,9 @@ class AggregateWorkflowTests(unittest.TestCase):
         self.assertIn("hashFiles('rust-toolchain.toml')", source)
         self.assertNotIn("continue-on-error", source)
         self.assertNotIn("paths-ignore", source)
-        compiler_cache = jobs["host-docker"].split("Cache isolated compiler targets", 1)[1].split("- name:", 1)[0]
+        compiler_cache = jobs["editor"].split("Cache isolated compiler targets", 1)[1].split("- name:", 1)[0]
         self.assertIn("path: out/ci-optimization/compiler-cache", compiler_cache)
-        self.assertNotIn("restore-keys", compiler_cache)
+        self.assertIn("restore-keys", compiler_cache)
         self.assertNotIn("out/desktop", compiler_cache)
         self.assertIn('RAMEN_FOUNDRY_BUILD_CACHE: "1"', jobs["host-docker"])
         self.assertIn('just ', jobs["quality"])
@@ -269,8 +271,9 @@ EXPECTED_EXTENDED_NAMES = (
     "host-target", "broker-kernel", "qemu-ipc", "driver-factory", "net-replay",
     "net-vault", "runtime-net", "golden-machine", "gop-probe", "hil-appliance",
     "org-governance", "persistent-storage", "blk-oracle", "block-replay",
-    "sector-oracle", "runtime-block",
+    "sector-oracle", "runtime-block", "editor-reliability",
 )
+EDITOR_EXTENDED_INDICES = (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 39)
 QEMU_EXTENDED_INDICES = (23, 24, 25, 28, 29, 30, 31, 32, 34, 35, 36, 37, 38)
 UMBRELLA_ENVIRONMENT = (
     ("S7_MIN_PROTOCOL_EVENTS", "6"), ("S7_MIN_PROTOCOL_PAIRS", "3"),
@@ -312,17 +315,76 @@ def workflow_jobs():
     return dict(re.findall(r"^  ([\w-]+):\n(.*?)(?=^  [\w-]+:|\Z)", source, re.M | re.S))
 
 
-class FourLaneTests(unittest.TestCase):
+class FiveLaneTests(unittest.TestCase):
     def setUp(self):
         self.lanes = load("ci_lanes")
 
-    def test_four_lane_exact_partition(self):
+    def test_editor_reliability_is_additive_required_editor_stage(self):
+        stages = self.lanes.extended_plan()
+        matching = [s for s in stages if s.name == "editor-reliability"]
+        self.assertEqual(len(matching), 1, "missing R1-R4 regression stage")
+        stage = matching[0]
+        self.assertEqual((stage.lane, stage.argv, stage.env), (
+            "editor", ("bash", "tools/ci/foundry_editor_reliability_ui1_1.sh"), ()))
+        self.assertEqual(stages[-1], stage)
+        for lane in ("quality", "agent", "qemu"):
+            self.assertNotIn(stage.name, [s.name for s in self.lanes.lane_plan(lane)])
+        self.assertEqual([s.name for s in self.lanes.lane_plan("editor")].count(stage.name), 1)
+
+    def test_editor_reliability_rejects_incomplete_test_results(self):
+        gate = load("editor_reliability_gate")
+        class Checks:
+            @staticmethod
+            def require(condition, reason):
+                if not condition:
+                    raise ValueError(reason)
+        valid = b"test regression_one ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0s\n"
+        gate.exact_tests(Checks, valid, ["regression_one"])
+        for invalid in (valid.replace(b"0 ignored", b"1 ignored"),
+                        valid.replace(b"0 filtered out", b"1 filtered out"),
+                        valid.replace(b"regression_one", b"wrong_case"),
+                        valid + b"test extra_case ... ok\n", b"", valid + valid):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                gate.exact_tests(Checks, invalid, ["regression_one"])
+        gate.exact_tests(Checks, b"regression_one: test\n1 tests, 0 benchmarks\n",
+                         ["regression_one"], listing=True)
+        with self.assertRaises(ValueError):
+            gate.exact_tests(Checks, b"regression_one: test\nextra_case: test\n2 tests, 0 benchmarks\n",
+                             ["regression_one"], listing=True)
+
+    def test_editor_reliability_rejects_empty_registry_acceptance(self):
+        gate = load("editor_reliability_gate")
+        class Checks:
+            @staticmethod
+            def require(condition, reason):
+                if not condition:
+                    raise ValueError(reason)
+        import copy
+        paths = sorted(spec[3] for spec in gate.TARGETS)
+        valid = dict(schema_version=1, paths=paths,
+                     assertion_sources={path: "a" * 64 for path in paths},
+                     targets=[dict(package=p, target=t, features=f, kind=k, cases=[t + "_case"])
+                              for p, t, f, _, k in gate.TARGETS])
+        gate.admit_registry(Checks, valid)
+        for field in ("paths", "assertion_sources", "targets"):
+            invalid = copy.deepcopy(valid)
+            invalid[field] = {} if field == "assertion_sources" else []
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                gate.admit_registry(Checks, invalid)
+        for cases in ([], ["duplicate", "duplicate"]):
+            invalid = copy.deepcopy(valid)
+            invalid["targets"][0]["cases"] = cases
+            with self.subTest(cases=cases), self.assertRaises(ValueError):
+                gate.admit_registry(Checks, invalid)
+
+    def test_five_lane_exact_partition(self):
         extended = self.lanes.extended_plan()
         self.assertEqual(stage_projection(extended), expected_extended_projection())
         self.assertEqual(tuple(s.name for s in extended), EXPECTED_EXTENDED_NAMES)
         bodies = {
             "agent": self.lanes.lane_plan("agent")[5:],
             "host": self.lanes.lane_plan("host")[5:],
+            "editor": self.lanes.lane_plan("editor")[3:],
             "qemu": self.lanes.lane_plan("qemu")[2:],
         }
         self.assertEqual(tuple(s.name for s in bodies["agent"]), ("agent-task",))
@@ -330,11 +392,13 @@ class FourLaneTests(unittest.TestCase):
                          tuple(EXPECTED_EXTENDED_NAMES[i] for i in QEMU_EXTENDED_INDICES))
         self.assertEqual(tuple(s.name for s in bodies["host"]), tuple(
             name for i, name in enumerate(EXPECTED_EXTENDED_NAMES)
-            if i != 1 and i not in QEMU_EXTENDED_INDICES))
+            if i != 1 and i not in QEMU_EXTENDED_INDICES and i not in EDITOR_EXTENDED_INDICES))
+        self.assertEqual(tuple(s.name for s in bodies["editor"]), tuple(EXPECTED_EXTENDED_NAMES[i] for i in EDITOR_EXTENDED_INDICES))
         expected = expected_extended_projection()
         self.assertEqual(stage_projection(bodies["agent"]), (expected[1],))
         self.assertEqual(stage_projection(bodies["host"]), tuple(
-            row for i, row in enumerate(expected) if i != 1 and i not in QEMU_EXTENDED_INDICES))
+            row for i, row in enumerate(expected) if i != 1 and i not in QEMU_EXTENDED_INDICES and i not in EDITOR_EXTENDED_INDICES))
+        self.assertEqual(stage_projection(bodies["editor"]), tuple(expected[i] for i in EDITOR_EXTENDED_INDICES))
         self.assertEqual(stage_projection(bodies["qemu"]), tuple(
             expected[i] for i in QEMU_EXTENDED_INDICES))
         self.assertEqual(stage_projection(self.lanes.lane_plan("quality")), expected_quality_projection())
@@ -343,26 +407,26 @@ class FourLaneTests(unittest.TestCase):
             ("foundry-umbrella", ("tools/ci/foundry_all_s0_s1_s2_s3_s4_s5_s6.sh",), UMBRELLA_ENVIRONMENT),
         ))
         seen = [s.name for body in bodies.values() for s in body]
-        self.assertEqual(len(seen), 39)
-        self.assertEqual(len(set(seen)), 39)
+        self.assertEqual(len(seen), 40)
+        self.assertEqual(len(set(seen)), 40)
         self.assertCountEqual(seen, EXPECTED_EXTENDED_NAMES)
         self.assertIn("desktop-editor-task", seen)
         for lane, body in bodies.items():
             self.assertTrue(all(s.lane == lane for s in body))
 
-    def test_adapter_required_feature_targets_explicit_host_only(self):
+    def test_adapter_required_feature_targets_explicit_editor_only(self):
         # This assertion must fail against the old stage inventory before adoption.
         stages = self.lanes.extended_plan()
         matching = [s for s in stages if s.name == "editor-adapter-migration"]
         self.assertEqual(len(matching), 1, "missing explicit required-feature adapter stage")
         stage = matching[0]
         self.assertEqual((stage.lane, stage.argv, stage.env), (
-            "host", ("bash", "tools/ci/foundry_editor_adapter_migration_ui1_1d.sh"), ()))
+            "editor", ("bash", "tools/ci/foundry_editor_adapter_migration_ui1_1d.sh"), ()))
         self.assertEqual([s.name for s in stages][10:13], (
             ["desktop-editor-task", "editor-adapter-migration", "boot-frame-pool"]))
         for lane in ("quality", "agent", "qemu"):
             self.assertNotIn(stage.name, [s.name for s in self.lanes.lane_plan(lane)])
-        self.assertEqual([s.name for s in self.lanes.lane_plan("host")].count(stage.name), 1)
+        self.assertEqual([s.name for s in self.lanes.lane_plan("editor")].count(stage.name), 1)
         source = (ROOT / stage.argv[-1]).read_text()
         commands = [shlex.split(line.split(" >", 1)[0]) for line in source.splitlines()
                     if line.startswith("cargo ")]
@@ -398,7 +462,7 @@ class FourLaneTests(unittest.TestCase):
             ("proof-prerequisites", ("bash", "tools/ci/foundry_agent_task_suite.sh", "--check"), ()),
             ("compiler-cache-prerequisites", ("python3", "tools/ci/build_cache.py", "--check-inputs"), ()),
         ) + quality + (("foundry-umbrella", ("tools/ci/foundry_all_s0_s1_s2_s3_s4_s5_s6.sh",), UMBRELLA_ENVIRONMENT),) + expected_extended_projection()
-        self.assertEqual(len(full), 55)
+        self.assertEqual(len(full), 56)
         self.assertEqual(stage_projection(self.lanes.preflight_plan()), full)
         for script, mode in (("foundry_preflight.sh", "all"), ("foundry_ci_extended.sh", "extended")):
             source = (ROOT / "tools/ci" / script).read_text()
@@ -414,14 +478,14 @@ class FourLaneTests(unittest.TestCase):
         listed = json.loads(output.getvalue())
         self.assertEqual([r["name"] for r in listed], [s.name for s in self.lanes.lane_plan("agent")])
 
-    def test_four_result_fail_closed_aggregate(self):
+    def test_five_result_fail_closed_aggregate(self):
         signature = inspect.signature(POLICY.foundry_allowed)
-        self.assertEqual(tuple(signature.parameters), ("changes", "os_code", "quality", "host", "agent", "qemu"))
+        self.assertEqual(tuple(signature.parameters), ("changes", "os_code", "quality", "host", "agent", "qemu", "editor"))
         self.assertTrue(all(p.default is inspect.Parameter.empty for p in signature.parameters.values()))
         with self.assertRaises(TypeError):
             POLICY.foundry_allowed("success", "true", "success", "success", "success")
         # Distinct tokens detect swapped CLI forwarding; symmetric success matrices cannot.
-        sentinels = ("change-token", "class-token", "quality-token", "host-token", "agent-token", "qemu-token")
+        sentinels = ("change-token", "class-token", "quality-token", "host-token", "agent-token", "qemu-token", "editor-token")
         with patch.object(sys, "argv", ["change_policy.py", "foundry", *sentinels]), patch.object(POLICY, "foundry_allowed", return_value=True) as allowed, contextlib.redirect_stdout(io.StringIO()) as output:
             POLICY.main()
         allowed.assert_called_once_with(*sentinels)
@@ -431,14 +495,14 @@ class FourLaneTests(unittest.TestCase):
                 POLICY.main()
             self.assertEqual(missing.exception.code, 2)
             allowed.assert_not_called()
-        with patch.object(sys, "argv", ["change_policy.py", "foundry", "success", "true", "success", "success", "success", "success", "extra"]), patch.object(POLICY, "foundry_allowed") as allowed, contextlib.redirect_stderr(io.StringIO()):
+        with patch.object(sys, "argv", ["change_policy.py", "foundry", "success", "true", "success", "success", "success", "success", "success", "extra"]), patch.object(POLICY, "foundry_allowed") as allowed, contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit) as extra:
                 POLICY.main()
             self.assertEqual(extra.exception.code, 2)
             allowed.assert_not_called()
-        for results in (("success",) * 4, ("skipped",) * 4, ("success", "success", "cancelled", "success")):
+        for results in (("success",) * 5, ("skipped",) * 5, ("success", "success", "cancelled", "success", "success")):
             for os_code in ("true", "false"):
-                expected = results == (("success",) * 4 if os_code == "true" else ("skipped",) * 4)
+                expected = results == (("success",) * 5 if os_code == "true" else ("skipped",) * 5)
                 with self.subTest(results=results, os_code=os_code), patch.object(sys, "argv", ["change_policy.py", "foundry", "success", os_code, *results]), contextlib.redirect_stdout(io.StringIO()):
                     if expected:
                         POLICY.main()
@@ -446,17 +510,17 @@ class FourLaneTests(unittest.TestCase):
                         with self.assertRaises(SystemExit) as rejected:
                             POLICY.main()
                         self.assertEqual(rejected.exception.code, "foundry: FAIL")
-        with patch.object(sys, "argv", ["change_policy.py", "foundry", "failure", "false", "skipped", "skipped", "skipped", "skipped"]), contextlib.redirect_stdout(io.StringIO()):
+        with patch.object(sys, "argv", ["change_policy.py", "foundry", "failure", "false", "skipped", "skipped", "skipped", "skipped", "skipped"]), contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaises(SystemExit) as failed_classification:
                 POLICY.main()
             self.assertEqual(failed_classification.exception.code, "foundry: FAIL")
         jobs = workflow_jobs()
         aggregate = jobs["foundry"]
-        self.assertIn("needs: [changes, quality, host-docker, agent-task, qemu]", aggregate)
-        for name, value in (("CHANGES", "needs.changes.result"), ("OS_CODE", "needs.changes.outputs.os_code"), ("QUALITY", "needs.quality.result"), ("HOST", "needs.host-docker.result"), ("AGENT", "needs.agent-task.result"), ("QEMU", "needs.qemu.result")):
+        self.assertIn("needs: [changes, quality, host-docker, agent-task, qemu, editor]", aggregate)
+        for name, value in (("CHANGES", "needs.changes.result"), ("OS_CODE", "needs.changes.outputs.os_code"), ("QUALITY", "needs.quality.result"), ("HOST", "needs.host-docker.result"), ("AGENT", "needs.agent-task.result"), ("QEMU", "needs.qemu.result"), ("EDITOR", "needs.editor.result")):
             self.assertIn(name + ": ${{ " + value + " }}", aggregate)
         self.assertIn("AGENT: ${{ needs.agent-task.result }}", aggregate)
-        self.assertIn('change_policy.py foundry "$CHANGES" "$OS_CODE" "$QUALITY" "$HOST" "$AGENT" "$QEMU"', aggregate)
+        self.assertIn('change_policy.py foundry "$CHANGES" "$OS_CODE" "$QUALITY" "$HOST" "$AGENT" "$QEMU" "$EDITOR"', aggregate)
         self.assertIn("if: always()", aggregate)
         self.assertIn("needs: [changes, foundry, org-governance]", jobs["merge-gate"])
 
@@ -531,12 +595,12 @@ class FourLaneTests(unittest.TestCase):
 
     def test_cache_and_exclusion_preservation(self):
         jobs = workflow_jobs()
-        host = jobs["host-docker"]
+        host = jobs["editor"]
         compiler = host.split("Cache isolated compiler targets", 1)[1].split("- name:", 1)[0]
         self.assertIn("path: out/ci-optimization/compiler-cache", compiler)
-        self.assertNotIn("restore-keys", compiler)
+        self.assertIn("restore-keys", compiler)
         self.assertIn("hashFiles('Cargo.lock', 'rust-toolchain.toml', '**/*.rs', '**/Cargo.toml', 'idl/**', 'tools/**', 'docs/**', 'justfile', '.cargo/**', '.github/**', 'services/**/fixtures/**')", compiler)
-        for lane in ("quality", "host-docker", "agent-task", "qemu"):
+        for lane in ("quality", "host-docker", "agent-task", "qemu", "editor"):
             body = jobs[lane]
             self.assertNotIn("actions/download-artifact", body)
             self.assertNotRegex(body, r"(?m)^\s+(?:path|run):.*out/desktop")
@@ -551,7 +615,7 @@ class FourLaneTests(unittest.TestCase):
         self.assertIn("~/.rustup/toolchains", agent)
         self.assertIn("hashFiles('rust-toolchain.toml')", agent)
         self.assertIn("hashFiles('Cargo.lock', '**/Cargo.toml')", agent)
-        host_paths = {s.argv[-1] for s in self.lanes.lane_plan("host")[5:]}
+        host_paths = {s.argv[-1] for s in self.lanes.lane_plan("editor")[3:]}
         self.assertTrue({EXTENDED_PATHS[8], EXTENDED_PATHS[9], EXTENDED_PATHS[10]} <= host_paths)
 
     def test_timing_artifact_failure_retention(self):
@@ -575,7 +639,7 @@ class FourLaneTests(unittest.TestCase):
                 self.assertEqual(kwargs["env"]["RUST_TEST_THREADS"], "1")
                 self.assertEqual(kwargs["env"]["RUSTUP_TOOLCHAIN"], "nightly-2026-02-08")
         names = []
-        for job in ("quality", "host-docker", "agent-task", "qemu"):
+        for job in ("quality", "host-docker", "agent-task", "qemu", "editor"):
             body = workflow_jobs()[job]
             upload = body.split("uses: actions/upload-artifact@v4", 1)
             self.assertEqual(len(upload), 2)
@@ -586,10 +650,10 @@ class FourLaneTests(unittest.TestCase):
             self.assertIn("${{ github.run_id }}", name)
             self.assertIn("${{ github.run_attempt }}", name)
             names.append(name)
-        self.assertEqual(len(set(names)), 4)
+        self.assertEqual(len(set(names)), 5)
         # Upload during cancellation is best effort; missing artifacts never turn
         # an actual cancelled lane into accepted Foundry execution.
-        self.assertFalse(POLICY.foundry_allowed("success", "true", "success", "success", "cancelled", "success"))
+        self.assertFalse(POLICY.foundry_allowed("success", "true", "success", "success", "cancelled", "success", 'success'))
 
     def test_suite_consumer_behavior_unchanged(self):
         source = (ROOT / "tools/ci/foundry_agent_task_suite.sh").read_text()
@@ -607,7 +671,7 @@ class FourLaneTests(unittest.TestCase):
         self.assertLess(source.index("Sandbox(readonly={}, writable={})"), source.index('if [[ "${1:-}" == --check ]]'))
         self.assertEqual(source.count('bash "tools/ci/foundry_agent_task_${gate}.sh"'), 1)
         jobs = workflow_jobs()
-        for job, lane in (("quality", "quality"), ("host-docker", "host"), ("agent-task", "agent"), ("qemu", "qemu")):
+        for job, lane in (("quality", "quality"), ("host-docker", "host"), ("agent-task", "agent"), ("qemu", "qemu"), ("editor", "editor")):
             body = jobs[job]
             commands = re.findall(r"(?m)^\s+run: python3 tools/ci/ci_lanes\.py (.+)$", body)
             self.assertEqual(commands.count("lane " + lane), 1)

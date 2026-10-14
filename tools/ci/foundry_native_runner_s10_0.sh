@@ -2,6 +2,10 @@
 # Foundry gate for S10.0 Native Runner.
 
 set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
+mkdir -p "$ROOT_DIR/out/foundry/selected-tests"
+SELECTED_RUN_ROOT="$(mktemp -d "$ROOT_DIR/out/foundry/selected-tests/native-runner.XXXXXX")"
 
 echo "=== S10.0 Native Runner Foundry Gate ==="
 echo
@@ -17,7 +21,7 @@ rustup target add wasm32-unknown-unknown
 
 # Assertion 1: native_runner binary builds
 echo "Asserting native_runner builds..."
-if cargo build -p native_runner 2>&1 >/dev/null; then
+if cargo build --locked -p native_runner 2>&1 >/dev/null; then
     pass "native_runner builds"
 else
     fail "native_runner builds"
@@ -26,7 +30,7 @@ fi
 # Assertion 2: hello_wasm.wasm builds
 echo
 echo "Asserting hello_wasm builds..."
-if cargo build -p hello_wasm --target wasm32-unknown-unknown 2>&1 >/dev/null; then
+if cargo build --locked -p hello_wasm --target wasm32-unknown-unknown --target-dir "$ROOT_DIR/target" 2>&1 >/dev/null; then
     pass "hello_wasm builds"
 else
     fail "hello_wasm builds"
@@ -35,7 +39,10 @@ fi
 # Assertion 3-5: Run integration tests
 echo
 echo "Running integration tests..."
-if cargo test -p native_runner --test integration_test 2>&1 >/dev/null; then
+if python3 "$ROOT_DIR/tools/ci/selected_test_runner.py" \
+    --package native_runner --test integration_test \
+    --required-input "$ROOT_DIR/target/wasm32-unknown-unknown/debug/hello_wasm.wasm" \
+    --output "$SELECTED_RUN_ROOT/integration"; then
     pass "integration tests pass"
 else
     fail "integration tests"

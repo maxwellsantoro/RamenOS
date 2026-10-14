@@ -26,6 +26,11 @@ name = "editor_native_preview_read"
 path = "tests/editor_native_preview_read.rs"
 required-features = ["editor_native_preview_v0_dev"]
 
+[[test]]
+name = "editor_reliability"
+path = "tests/editor_reliability.rs"
+required-features = ["editor_native_save_v0_dev"]
+
 [dependencies]
 kernel_api = { path = "../../kernel_api" }
 desktop_service = { path = "../desktop", default-features = false, optional = true }
@@ -45,11 +50,13 @@ base64 = "0.21"  # V-007 Phase 6: Base64 encoding for public keys
 memmap2 = "0.9" # SW0 host data-plane mappings (not target kernel evidence)
 tempfile = "3" # Anonymous backing files for bounded host mappings
 rand = "0.8" # Service-owned opaque task objects
+# Only agent task fixture tests/example require WAT-to-Wasm parsing.
+wat = { version = "1", optional = true }
 
 [features]
 default = []
 # WARNING: opt-in host fixture authority/mappings; no public endpoint or production authentication.
-agent_task_v1_dev = []
+agent_task_v1_dev = ["dep:wat"]
 # Default-off trusted editor transaction fixture; no deployed Store endpoint.
 editor_store_v0_dev = []
 editor_native_read_v0_dev = ["editor_store_v0_dev", "dep:desktop_service", "desktop_service/editor_native_read_v0_dev"]
@@ -64,7 +71,6 @@ dev_insecure = []
 desktop_service = { path = "../desktop", default-features = false, features = ["desktop_v0_dev"] }
 tempfile = "3"  # V-007 Phase 5: For testing domain visibility registry
 rand = "0.8"  # V-007 Phase 6: For generating test keypairs
-wat = "1"
 
 [lib]
 # V-007 Phase 2: Export client library for use by other services
