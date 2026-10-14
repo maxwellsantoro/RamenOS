@@ -72,6 +72,31 @@ exit map, allocator installation and target application execution remain pending
 Native USB/HID input and device-backed storage also remain pending. Independent
 software preparation proceeds without SW0 model trials or physical H0–H3.
 
+### Foundation review successor — local repairs
+
+The October 14 review's seven behavior defects are repaired in the working
+candidate: one live broker grant generation per domain, retained failed-revoke
+and rollback owners, actual-frame physical-span checks for the test-protocol
+net/block providers, whole-event trace reads and actual per-domain cursors,
+empty ring no-ops, and fail-closed explicit runner configuration with node/domain
+separation. The README, security status and index now reflect the accepted editor
+reliability batch. New assertions include rejection followed by a successful
+operation, retained revocation retry, and unrelated-domain/frame progress.
+
+The additive `just foundry-review-boundaries` stage passes fifteen new nonempty
+assertions on macOS, including typed grant/trace consumers. Strict Clippy and
+kernel/API/broker/supervisor/trace-client suites pass. Fresh original18/Reader93,
+regression13, volatile13, Store7, Preview codec7, Save codec8, NativeRead9,
+NativePreview5 and adapter4 controls pass. Both bare-metal targets build, and S8
+integration, S11/S12/S13, boot admission, broker bridge, execution fabric, IDL lint
+and org-governance pass in their named host/QEMU scopes. CI tooling passes on an
+unchanged-source serial rerun; the initial concurrent run's two timing-sensitive
+boot-observer fixture failures are retained without deadline or assertion changes. Validation results below
+for Linux56 and hosted PR #36 belong to the preceding source snapshot; they do
+not qualify this working candidate. General target broker enforcement, arbitrary
+fragmented scatter/gather transfer, trace data transport, editor-child execution,
+physical durability and release readiness remain separate.
+
 ## Foundry development and CI execution
 
 [The execution profile](docs/FOUNDRY_CI_OPTIMIZATION_V0.md) provides a locked warm
@@ -144,7 +169,7 @@ Five superseded completed entries created during this task were retired,
 representing 3,016,239,361 logical bytes, while evidence inventories and retained
 binary hashes remained intact. Temporary Linux preparation was removed after
 retaining its evidence. [The streamlining resolution](docs/plans/build-streamlining-2026-10-13.md)
-records measurements, preserved failures, review and scope. Complete Linux56 now passes on the exact current runtime candidate. The pinned
+records measurements, preserved failures, review and scope. Complete Linux56 passes on the recorded pre-review runtime candidate. The pinned
 proof image is installed locally and verified on the native Linux host. Fresh
 five-lane hosted qualification passes on the reviewed head. Earlier source-bound PASS reports
 remain historical evidence.

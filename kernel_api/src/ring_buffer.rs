@@ -201,6 +201,9 @@ impl RingBuffer {
     ///
     /// Caller must be the designated producer domain.
     pub fn try_write(&mut self, data: &[u8]) -> Result<(), WriteError> {
+        if data.is_empty() {
+            return Ok(());
+        }
         // SAFETY: header pointer is valid by construction
         let header = unsafe { &*self.header };
 
@@ -268,6 +271,9 @@ impl RingBuffer {
     ///
     /// Caller must be the designated consumer domain.
     pub fn try_read(&mut self, buf: &mut [u8]) -> Result<usize, ReadError> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
         // SAFETY: header pointer is valid by construction
         let header = unsafe { &*self.header };
 
@@ -584,5 +590,34 @@ mod tests {
             let mut data = [0u8; 1];
             let _rb = RingBuffer::from_raw_parts(&mut header, data.as_mut_ptr());
         }
+    }
+}
+
+#[cfg(test)]
+mod review_empty_operations {
+    use super::*;
+    #[test]
+    fn review_ring_empty_operations_preserve_cursors_and_next_transfer() {
+        let mut header = RingBufferHeader {
+            producer_head: AtomicU64::new(0),
+            consumer_head: AtomicU64::new(0),
+            capacity: 16,
+            flags: 0,
+        };
+        let mut data = [0u8; 16];
+        let mut ring = unsafe { RingBuffer::from_raw_parts(&mut header, data.as_mut_ptr()) };
+        ring.try_write(&[1, 2, 3, 4]).unwrap();
+        let mut first = [0; 4];
+        assert_eq!(ring.try_read(&mut first), Ok(4));
+        assert_eq!(ring.try_write(&[]), Ok(()));
+        assert_eq!(ring.try_read(&mut []), Ok(0));
+        ring.try_write(&[5, 6]).unwrap();
+        assert_eq!(ring.try_read(&mut []), Ok(0));
+        assert_eq!(header.producer_head.load(Ordering::Acquire), 6);
+        assert_eq!(header.consumer_head.load(Ordering::Acquire), 4);
+        let mut next = [0; 2];
+        assert_eq!(ring.try_read(&mut next), Ok(2));
+        assert_eq!(next, [5, 6]);
+        assert!(ring.is_empty());
     }
 }

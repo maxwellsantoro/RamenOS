@@ -75,6 +75,15 @@ merge checks passed for PR #36. P0 contract/assertion work is ready; dependent
 implementation still requires its reviewed assertions and frozen contracts. Do not repeat the unchanged full preflight for
 this documentation-only evidence update.
 
+The October 14 foundation review successor addresses the seven behavior findings
+and maintained-entry documentation drift. Its additive boundary assertions cover
+broker rejection/revocation retry, fragmented physical spans, trace preservation
+and metadata, empty ring operations, and runner admission/identity. Preserve the
+fresh affected host/QEMU evidence for this successor. The preceding Linux56 and
+hosted results remain source-bound history; fresh required integration checks on
+this changed candidate precede merge. The process assertion/contract packet stays
+ready within its existing scope and dependencies.
+
 ### Process successor: split at real ownership boundaries
 
 Repair acceptance joins here. Assertion/contract work can proceed in a disjoint

@@ -39,10 +39,6 @@ struct TraceBuffer {
     domain_id: DomainId,
     /// Size of the buffer (in bytes)
     size: u32,
-    /// Read offset (for tracking position)
-    read_offset: u64,
-    /// Write offset (for tracking position)
-    write_offset: u64,
     /// Whether this buffer is active
     active: bool,
 }
@@ -126,7 +122,7 @@ impl TraceService {
         }
 
         // Validate size (must be non-zero and power of two for ring buffer)
-        if size == 0 || !size.is_power_of_two() {
+        if size < core::mem::size_of::<Event>() as u32 || !size.is_power_of_two() {
             return Ok((TRACE_STATUS_INVALID_SIZE, Handle::INVALID));
         }
 
@@ -136,12 +132,12 @@ impl TraceService {
             .allocate(domain_id, TRACE_RIGHT_READ | TRACE_RIGHT_ADMIN)
             .map_err(|_| ())?;
 
+        // A new capability generation must not observe an old stream's events.
+        self.trace_ring.reset_buffer(domain_id);
         // Create trace buffer entry
         self.buffers[idx] = Some(TraceBuffer {
             domain_id,
             size,
-            read_offset: 0,
-            write_offset: 0,
             active: true,
         });
 
@@ -268,16 +264,14 @@ impl TraceService {
             None => return Ok((TRACE_STATUS_BUFFER_NOT_FOUND, 0)),
         };
 
-        // Validate offset
-        if offset >= buffer.size as u64 {
-            return Ok((TRACE_STATUS_INVALID_OFFSET, 0));
+        // Return complete events only. A sub-event request is denied without
+        // consuming data; zero-length requests are harmless at the current cursor.
+        const EVENT_BYTES: usize = core::mem::size_of::<Event>();
+        const _: [(); 24] = [(); EVENT_BYTES];
+        let read_len = (length as usize).min(out.len()).min(buffer.size as usize);
+        if read_len > 0 && read_len < EVENT_BYTES {
+            return Ok((TRACE_STATUS_INVALID_SIZE, 0));
         }
-
-        // Calculate actual read length
-        let available = buffer.size as u64 - offset;
-        let length_u64 = length as u64;
-        let out_len_u64 = out.len() as u64;
-        let read_len = length_u64.min(available).min(out_len_u64) as u32;
 
         // Read from trace ring buffer
         let mut events = [Event {
@@ -286,30 +280,25 @@ impl TraceService {
             arg1: 0,
         }; 64]; // Max 64 events per read
 
-        let event_count = self.trace_ring.read(domain_id, &mut events);
-
-        // Convert events to bytes
-        let bytes_to_copy = (event_count * core::mem::size_of::<Event>()) as u32;
-        let actual_bytes = bytes_to_copy.min(read_len);
-
-        // Copy event data to output buffer
-        let src_bytes = unsafe {
-            core::slice::from_raw_parts(
-                events.as_ptr() as *const u8,
-                event_count * core::mem::size_of::<Event>(),
-            )
+        let count = (read_len / EVENT_BYTES).min(events.len());
+        let Some(event_count) = self
+            .trace_ring
+            .read_at(domain_id, offset, &mut events[..count])
+        else {
+            return Ok((TRACE_STATUS_INVALID_OFFSET, 0));
         };
-
-        let actual_bytes_usize = actual_bytes as usize;
-        let copy_len = actual_bytes_usize.min(out.len());
-        out[..copy_len].copy_from_slice(&src_bytes[..copy_len]);
-
-        // Update read offset
-        if let Some(ref mut b) = self.buffers[idx] {
-            b.read_offset = offset + actual_bytes as u64;
+        // Preserve the supported 24-byte Event layout with initialized padding;
+        // never expose Rust struct padding through a raw byte slice.
+        for (event, bytes) in events[..event_count]
+            .iter()
+            .zip(out.chunks_exact_mut(EVENT_BYTES))
+        {
+            bytes[..4].copy_from_slice(&event.tag.to_le_bytes());
+            bytes[4..8].fill(0);
+            bytes[8..16].copy_from_slice(&event.arg0.to_le_bytes());
+            bytes[16..24].copy_from_slice(&event.arg1.to_le_bytes());
         }
-
-        Ok((TRACE_STATUS_OK, copy_len as u32))
+        Ok((TRACE_STATUS_OK, (event_count * EVENT_BYTES) as u32))
     }
 
     /// Get trace buffer information
@@ -397,11 +386,12 @@ impl TraceService {
             }
         };
 
+        let (read_offset, write_offset) = self.trace_ring.positions(domain_id);
         let info = TraceBufferInfo {
             domain_id: buffer.domain_id,
             size: buffer.size,
-            read_offset: buffer.read_offset,
-            write_offset: buffer.write_offset,
+            read_offset,
+            write_offset,
         };
 
         Ok((TRACE_STATUS_OK, info))
@@ -851,5 +841,123 @@ mod tests {
             .destroy_trace_buffer(trace_cap)
             .expect("destroy_trace_buffer failed");
         assert_eq!(status, TRACE_STATUS_OK);
+    }
+}
+
+#[cfg(test)]
+mod review_stream {
+    use super::*;
+    fn service() -> (TraceService, Handle) {
+        let mut s = TraceService::new();
+        s.init_kernel();
+        let (_, cap) = s.create_trace_buffer(0, 4096).unwrap();
+        (s, cap)
+    }
+    #[test]
+    fn review_trace_short_and_zero_reads_preserve_remaining_events() {
+        let (mut s, cap) = service();
+        s.trace_ring_mut().emit(0, 10, 20, 30);
+        s.trace_ring_mut().emit(0, 11, 21, 31);
+        assert_eq!(
+            s.read_trace(cap, 0, 0, &mut []).unwrap(),
+            (TRACE_STATUS_OK, 0)
+        );
+        assert_eq!(
+            s.read_trace(cap, 0, 1, &mut [0u8; 1]).unwrap(),
+            (TRACE_STATUS_INVALID_SIZE, 0)
+        );
+        let mut out = [0u8; 24];
+        assert_eq!(
+            s.read_trace(cap, 0, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        assert_eq!(u32::from_le_bytes(out[..4].try_into().unwrap()), 10);
+        assert_eq!(&out[4..8], &[0; 4]);
+        assert_eq!(
+            s.read_trace(cap, 24, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        assert_eq!(u32::from_le_bytes(out[..4].try_into().unwrap()), 11);
+        s.trace_ring_mut().emit(0, 12, 22, 32);
+        assert_eq!(
+            s.read_trace(cap, 48, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+    }
+    #[test]
+    fn review_trace_metadata_and_offsets_follow_actual_stream_and_reopen() {
+        let (mut s, cap) = service();
+        s.register_domain(1, "other").unwrap();
+        let (_, other) = s.create_trace_buffer(1, 4096).unwrap();
+        s.trace_ring_mut().emit(1, 55, 0, 0);
+        s.trace_ring_mut().emit(0, 10, 20, 30);
+        s.trace_ring_mut().emit(0, 11, 21, 31);
+        let (_, info) = s.get_trace_info(cap).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (0, 48));
+        let mut out = [0u8; 24];
+        assert_eq!(
+            s.read_trace(cap, 1, 24, &mut out).unwrap(),
+            (TRACE_STATUS_INVALID_OFFSET, 0)
+        );
+        assert_eq!(
+            s.read_trace(cap, 0, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        let (_, info) = s.get_trace_info(cap).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (24, 48));
+        assert_eq!(
+            s.read_trace(cap, 24, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        let (_, info) = s.get_trace_info(cap).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (48, 48));
+        assert_eq!(s.destroy_trace_buffer(cap).unwrap(), TRACE_STATUS_OK);
+        let (_, next) = s.create_trace_buffer(0, 4096).unwrap();
+        assert_eq!(
+            s.read_trace(cap, 0, 24, &mut out).unwrap().0,
+            TRACE_STATUS_INVALID_CAPABILITY
+        );
+        let (_, info) = s.get_trace_info(next).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (0, 0));
+        let (_, other_info) = s.get_trace_info(other).unwrap();
+        assert_eq!((other_info.read_offset, other_info.write_offset), (0, 24));
+        assert_eq!(
+            s.read_trace(other, 0, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        assert_eq!(u32::from_le_bytes(out[..4].try_into().unwrap()), 55);
+        s.trace_ring_mut().emit(0, 12, 22, 32);
+        assert_eq!(
+            s.read_trace(next, 0, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+    }
+    #[test]
+    fn review_trace_overflow_requires_resync_and_continues_beyond_capacity() {
+        let (mut s, cap) = service();
+        let mut out = [0u8; 24];
+        for n in 0..70 {
+            s.trace_ring_mut().emit(0, n, 0, 0);
+        }
+        let (_, info) = s.get_trace_info(cap).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (6 * 24, 70 * 24));
+        assert_eq!(
+            s.read_trace(cap, 0, 24, &mut out).unwrap(),
+            (TRACE_STATUS_INVALID_OFFSET, 0)
+        );
+        assert_eq!(
+            s.read_trace(cap, info.read_offset, 24, &mut out).unwrap(),
+            (TRACE_STATUS_OK, 24)
+        );
+        for _ in 0..180 {
+            let (_, info) = s.get_trace_info(cap).unwrap();
+            s.trace_ring_mut().emit(0, 99, 0, 0);
+            let (_, fresh) = s.get_trace_info(cap).unwrap();
+            let offset = info.read_offset.max(fresh.read_offset);
+            assert_eq!(
+                s.read_trace(cap, offset, 24, &mut out).unwrap(),
+                (TRACE_STATUS_OK, 24)
+            );
+        }
     }
 }

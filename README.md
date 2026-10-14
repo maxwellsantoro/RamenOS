@@ -5,7 +5,7 @@
 [![ci](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml/badge.svg)](https://github.com/maxwellsantoro/RamenOS/actions/workflows/ci.yml)
 [![license: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](Cargo.toml)
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Public pre-alpha, active development
 
 RamenOS is a modern, post-Unix operating system being built for **humans and AI
@@ -49,9 +49,9 @@ This runs the eighteen original task assertions and validates complete source-bo
 recordings under `out/desktop/native-task-source.*/run/`; it is not an interactive desktop.
 The gate enables a default-off trusted in-process fixture. It supplies no actual
 editor child, USB input, target persistence or general containment evidence.
-October 8 review identified additional ownership/focus/timeout regressions now
-prioritized in [Next Tasks](NEXT_TASKS.md#ready-work-front); the earlier green proof
-does not cover those scenarios. [Current Status](CURRENT_STATUS.md) records the
+The October 8 ownership/focus/timeout and journal-staging findings are repaired
+and covered by thirteen additional maintained regressions. The original task
+and the reliability gate qualify complementary finite scenarios. [Current Status](CURRENT_STATUS.md) records the
 accepted scope, limitations and next process/target boundaries.
 
 ## Run the useful agent host task proof
@@ -114,7 +114,7 @@ advantage arising from the RamenOS kernel.
 | Component | Landed behavior | Execution boundary |
 |-----------|-----------------|--------------------|
 | Kernel | x86_64 and aarch64 boot; typed IPC; capabilities; shared memory; tracing | QEMU target paths; single-threaded capability-table prototype; SMP use is deliberately blocked |
-| Host desktop/editor | Permission/launch, logical keyboard editing, offscreen frames, typed Store Save/reopen and shared editor core | Default-off trusted in-process proof; review repairs, real editor child, device input and target desktop pending |
+| Host desktop/editor | Permission/launch, logical keyboard editing, offscreen frames, typed Store Save/reopen and shared editor core | Default-off trusted in-process proof with qualified reliability repairs; real editor child, device input and target desktop pending |
 | Typed contracts | IDL/codegen and wire checks for Harnesses and Portals | Native interfaces are IDL-defined; project policy forbids ioctl-style escape hatches |
 | Native WASM runner | Wasmtime execution, granted-handle injection, missing-capability rejection | Host runtime, not Wasmtime running on the target |
 | Semantic State | Snapshot contracts, subscriptions, capability-filtered host views | Host reactor plus selected QEMU snapshot/IPC bridges; default snapshot metadata still contains placeholders |

@@ -808,10 +808,15 @@ impl DomainManager {
                 };
 
                 let revoked_count = self.broker.revoke_domain(req.domain_id);
+                let status = if self.broker.has_live_grants(req.domain_id) {
+                    STATUS_INTERNAL_ERROR
+                } else {
+                    STATUS_OK
+                };
                 match Self::revoke_capabilities_reply(
                     req.request_id,
                     req.domain_id,
-                    STATUS_OK,
+                    status,
                     revoked_count,
                 ) {
                     Ok(env) => env,
@@ -2129,6 +2134,46 @@ mod tests {
         // In this case, should succeed with 1 handle
         assert_eq!(payload.status, STATUS_OK);
         assert_eq!(payload.handle_count, 1);
+    }
+
+    #[test]
+    fn review_grant_ipc_denial_revoke_and_fresh_grant_preserve_other_domain() {
+        let mut manager = DomainManager::new();
+        let hash = [0xAC; 32];
+        manager.register_manifest(&hash, test_manifest_with_echo(), "Experimental");
+        let grant = request_grant_capabilities(1, 100, &hash);
+        let first = manager.handle(&grant);
+        assert_eq!(
+            read_payload::<GrantCapabilitiesReply>(&first)
+                .unwrap()
+                .status,
+            STATUS_OK
+        );
+        let denied = manager.handle(&grant);
+        let denied = read_payload::<GrantCapabilitiesReply>(&denied).unwrap();
+        assert_eq!(
+            (denied.status, denied.handle_count),
+            (STATUS_INVALID_CAPABILITY, 0)
+        );
+        let other = manager.handle(&request_grant_capabilities(2, 101, &hash));
+        assert_eq!(
+            read_payload::<GrantCapabilitiesReply>(&other)
+                .unwrap()
+                .status,
+            STATUS_OK
+        );
+        let revoked = manager.handle(&request_revoke_capabilities(3, 100));
+        let revoked = read_payload::<RevokeCapabilitiesReply>(&revoked).unwrap();
+        assert_eq!(revoked.status, STATUS_OK);
+        assert_eq!(revoked.revoked_count, 1);
+        let next = manager.handle(&request_grant_capabilities(4, 100, &hash));
+        assert_eq!(
+            read_payload::<GrantCapabilitiesReply>(&next)
+                .unwrap()
+                .status,
+            STATUS_OK
+        );
+        assert_eq!(manager.broker.active_grants_for_domain(101).len(), 1);
     }
 
     #[test]

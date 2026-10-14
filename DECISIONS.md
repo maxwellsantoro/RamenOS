@@ -4,6 +4,45 @@
 **Status:** Active
 
 
+## 2026-10-14 — Fail-closed foundation recovery after project review
+
+A host broker domain owns one live grant generation. A repeated grant request,
+including a capless replacement, is denied while any live or unresolved handle
+remains. Explicit revocation confirms only successful removals; failed normal
+revokes and rollback revokes remain tracked and audited for retry, quarantined
+from grant-handle queries. The typed
+Domain Manager reply reports a nonzero status while unresolved grants remain.
+This supplies bounded replacement through revoke-then-grant rather than implicit
+replacement or an untracked overlap. Deterministic semantic host handles still
+provide no target capability-generation or general client-isolation assurance.
+
+Oracle-vector net/block providers resolve offsets through the region's actual
+frame list. A nonempty linear physical span requires bounds, a live capability
+and contiguous backing for that span; an unsupported split span denies before
+copying, while a later supported span remains usable. This is an allocation-free
+kernel check, not device IO or general scatter/gather support.
+
+Trace service reads consume complete 24-byte Events within the requested and
+output capacities, with zeroed representation padding. A buffer must hold at
+least one complete Event. Sub-event requests deny
+without consumption; zero-length reads do not consume. Absolute byte cursors come
+from the locked per-domain ring, including bounded-buffer overwrite retirement;
+stale offsets require metadata refresh. Typed trace admission decodes each
+operation with its actual request type and rejects foreign protocols. New buffer generations reset their own
+stream. These rules preserve the existing IDL fields/layout and supported target
+Event representation; no external trace data-plane transport is established.
+
+An absent native-runner configuration keeps the existing domain-1 host default.
+Explicit malformed runner payloads deny rather than becoming defaults; valid
+payloads retain their endpoints, domain and budget. Node selection supplies only
+placement and never constructs domain identity. Empty SPSC operations are no-ops;
+cooperating-peer/lifetime and counter-rollover limits remain unchanged.
+
+Regression RED precedes implementation. The maintained review-boundaries stage
+requires nonempty actual test families and successful operations after denials or
+recovery. Source-bound local host/QEMU evidence for this successor does not reuse
+prior Linux56 or hosted PASS results and grants no publication or HIL authority.
+
 ## 2026-10-08 — Short critical-path packets, transition repairs and evidence-aware fast feedback
 
 Keep the everyday human-and-agent destination and one keyboard-first task. Put

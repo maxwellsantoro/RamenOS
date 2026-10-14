@@ -1,6 +1,6 @@
 # Ring Buffer V0
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-14
 **Status:** Implemented SPSC shared-memory primitive; bounded caller contract
 
 [kernel_api/src/ring_buffer.rs](../kernel_api/src/ring_buffer.rs) defines a
@@ -45,6 +45,10 @@ cooperating-peer protocol; this primitive alone is not a hostile-peer boundary.
 | `try_read(&mut self, buf: &mut [u8])` | Reads available bytes up to buffer length or returns `Empty` |
 | `available_read`, `available_write` | Snapshot counts under the SPSC protocol |
 | `is_empty`, `is_full`, `capacity`, `cache_mode` | State/metadata queries |
+
+Empty writes return success and empty reads return zero without accessing the
+data or advancing either cursor, including after a nonzero cursor and while
+unread bytes remain. The next nonempty transfer retains those bytes.
 
 The producer copies bytes before publishing its head with Release ordering.
 The consumer reads published positions with Acquire ordering, copies bytes,

@@ -779,6 +779,9 @@ pub fn handle_trace_service_envelope(
     trace_service: &mut TraceService,
     env: &Envelope,
 ) -> Envelope {
+    if env.protocol != PROTOCOL_TRACE_SERVICE_V1 {
+        return Envelope::empty(env.protocol, env.msg_type);
+    }
     // For trace service, we validate the trace capability directly
     if env.msg_type == MSG_CREATE_TRACE_BUFFER {
         // CREATE_TRACE_BUFFER doesn't require a valid trace capability
@@ -788,12 +791,15 @@ pub fn handle_trace_service_envelope(
 
     // For other operations, validate the trace capability
     let trace_cap = match env.msg_type {
-        MSG_DESTROY_TRACE_BUFFER | MSG_READ_TRACE | MSG_GET_TRACE_INFO => {
-            match read_payload::<DestroyTraceBuffer>(env) {
-                Ok(req) => Some(Handle::unpack(req.trace_cap)),
-                Err(_) => None,
-            }
-        }
+        MSG_DESTROY_TRACE_BUFFER => read_payload::<DestroyTraceBuffer>(env)
+            .ok()
+            .map(|req| Handle::unpack(req.trace_cap)),
+        MSG_READ_TRACE => read_payload::<ReadTrace>(env)
+            .ok()
+            .map(|req| Handle::unpack(req.trace_cap)),
+        MSG_GET_TRACE_INFO => read_payload::<GetTraceInfo>(env)
+            .ok()
+            .map(|req| Handle::unpack(req.trace_cap)),
         _ => None,
     };
 
@@ -1146,5 +1152,73 @@ mod tests {
         assert_eq!(reply.protocol, PROTOCOL_PING);
         assert_eq!(reply.msg_type, MSG_PING); // Not MSG_PONG, request rejected
         assert_eq!(reply.payload_len, 0);
+    }
+}
+
+#[cfg(test)]
+mod review_trace_consumer {
+    use super::*;
+    #[test]
+    fn review_trace_ipc_typed_read_and_metadata_preserve_denied_work() {
+        let _guard = trace_ring::reset_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let mut service = TraceService::new();
+        service.init_kernel();
+        let (_, cap) = service.create_trace_buffer(0, 4096).unwrap();
+        service.trace_ring_mut().emit(0, 10, 20, 30);
+        let mut env = Envelope::empty(PROTOCOL_TRACE_SERVICE_V1, MSG_READ_TRACE);
+        write_payload(
+            &mut env,
+            &ReadTrace {
+                request_id: 1,
+                trace_cap: cap.pack(),
+                offset: 0,
+                length: 1,
+            },
+        )
+        .unwrap();
+        let denied = handle_trace_service_envelope(&writer, &mut service, &env);
+        let reply = read_payload::<ReadTraceReply>(&denied).unwrap();
+        assert_eq!(
+            (reply.request_id, reply.status, reply.data_len),
+            (1, crate::trace_service::TRACE_STATUS_INVALID_SIZE, 0)
+        );
+        let mut info = Envelope::empty(PROTOCOL_TRACE_SERVICE_V1, MSG_GET_TRACE_INFO);
+        write_payload(
+            &mut info,
+            &GetTraceInfo {
+                request_id: 2,
+                trace_cap: cap.pack(),
+            },
+        )
+        .unwrap();
+        let reply = handle_trace_service_envelope(&writer, &mut service, &info);
+        let reply = read_payload::<GetTraceInfoReply>(&reply).unwrap();
+        assert_eq!((reply.read_offset, reply.write_offset), (0, 24));
+        let mut foreign = env;
+        foreign.protocol = PROTOCOL_SHMEM_CONTROL;
+        assert_eq!(
+            handle_trace_service_envelope(&writer, &mut service, &foreign).payload_len,
+            0
+        );
+        write_payload(
+            &mut env,
+            &ReadTrace {
+                request_id: 3,
+                trace_cap: cap.pack(),
+                offset: 0,
+                length: 24,
+            },
+        )
+        .unwrap();
+        let success = handle_trace_service_envelope(&writer, &mut service, &env);
+        let success = read_payload::<ReadTraceReply>(&success).unwrap();
+        assert_eq!(
+            (success.status, success.data_len),
+            (crate::trace_service::TRACE_STATUS_OK, 24)
+        );
+        let reply = handle_trace_service_envelope(&writer, &mut service, &info);
+        let reply = read_payload::<GetTraceInfoReply>(&reply).unwrap();
+        assert_eq!((reply.read_offset, reply.write_offset), (24, 24));
     }
 }

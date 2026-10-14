@@ -775,6 +775,34 @@ impl ShmemRegionTable {
         Some(frames[0].as_u64())
     }
 
+    /// Resolve a nonempty byte span through its actual backing frames.
+    /// A linear physical view is admitted only when every frame in that span
+    /// is contiguous. The caller must retain the region while using the view.
+    pub fn phys_range_for_cap(&self, shm_cap: Handle, offset: u64, len: usize) -> Option<u64> {
+        if len == 0 || !self.validate_cap(shm_cap) {
+            return None;
+        }
+        let slot = &self.regions[(shm_cap.index - 1) as usize];
+        let end = offset.checked_add(u64::try_from(len).ok()?)?;
+        if end > slot.size_bytes {
+            return None;
+        }
+        let page = crate::mm::address::PAGE_SIZE;
+        let first = usize::try_from(offset / page).ok()?;
+        let last = usize::try_from((end - 1) / page).ok()?;
+        if last >= slot.num_frames {
+            return None;
+        }
+        let frames = slot.frames.as_ref()?;
+        let base = frames[first].as_u64();
+        for (i, frame) in frames[first..=last].iter().enumerate() {
+            if frame.as_u64() != base.checked_add((i as u64).checked_mul(page)?)? {
+                return None;
+            }
+        }
+        base.checked_add(offset % page)
+    }
+
     /// Return the byte size of the region backing `shm_cap`.
     pub fn region_size_for_cap(&self, shm_cap: Handle) -> Option<u64> {
         if !self.validate_cap(shm_cap) {
@@ -2152,5 +2180,32 @@ mod tests {
         table.unmap_region(1, id, 1).unwrap();
         assert_eq!(table.va_trackers[1].allocated, 0);
         assert_eq!(table.regions[0].refcount, 0);
+    }
+}
+
+#[cfg(test)]
+mod review_ranges {
+    use super::*;
+    #[test]
+    fn review_shmem_linear_range_bounds_and_stale_denials_preserve_region() {
+        let _guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap, base) = table
+            .create_region(0, 8192, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
+            .unwrap();
+        assert_eq!(table.phys_range_for_cap(cap, 4090, 512), Some(base + 4090));
+        for (offset, len) in [(8192, 1), (u64::MAX, 1), (0, 0)] {
+            assert_eq!(table.phys_range_for_cap(cap, offset, len), None);
+        }
+        assert_eq!(table.phys_range_for_cap(Handle::INVALID, 0, 1), None);
+        assert_eq!(table.phys_range_for_cap(cap, 4096, 512), Some(base + 4096));
+        table.close_region(0, id).unwrap();
+        assert_eq!(table.phys_range_for_cap(cap, 0, 1), None);
+        let (next, new_cap, base) = table
+            .create_region(0, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(table.phys_range_for_cap(cap, 0, 1), None);
+        assert_eq!(table.phys_range_for_cap(new_cap, 0, 1), Some(base));
+        table.close_region(0, next).unwrap();
     }
 }

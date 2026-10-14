@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 2026-10-14 — foundation review repairs (working candidate)
+
+- Deny a new broker grant generation while live or unresolved handles remain;
+  retain failed revoke/rollback ownership for explicit retry and report confirmed
+  revocations through the typed Domain Manager reply. Quarantine failed owners
+  from grant-handle publication.
+- Resolve Oracle-vector net/block spans through actual shared-memory frames;
+  reject physical discontinuities and retain unrelated allocations unchanged.
+- Preserve queued events after short/rejected trace reads; derive stream metadata
+  from the per-domain ring, check stale offsets under its lock, and initialize
+  returned Event padding. Correct typed trace request admission and deny foreign
+  protocols. Empty ring reads/writes preserve cursors and contents.
+- Reject malformed explicit runner configurations; preserve valid supplied
+  settings and keep node placement independent of the default execution domain.
+- Add maintained Foundry assertions with real regression RED, successful follow-up
+  operations and unrelated-resource progress. Reconcile README, index and security
+  status with the accepted editor reliability batch.
+- Fresh macOS validation passes fifteen new required boundary assertions, strict
+  affected-crate Clippy and full affected unit suites; original18/Reader93,
+  regression13 and all named editor consumer controls pass. Both bare-metal
+  targets build; S8, S11/S12/S13, boot admission, broker bridge, execution fabric,
+  IDL and governance pass. CI tooling's initial timing-sensitive observer fixture
+  failures are retained; unchanged-source serial rerun passes without waivers.
+- Evidence for this successor is local host/QEMU scope. Previous Linux56/hosted
+  results remain bound to their original source; no merge, physical or release
+  qualification is inferred.
+
 ## 2026-10-14 — hosted qualification and merge
 
 - PR #36 merged host editor reliability repairs, Foundry iteration/CI streamlining

@@ -1,18 +1,27 @@
 # Security Status
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Pre-alpha; foundational remediation landed, architectural risk remains
 
 ## Host editor transition reliability
 
-October 8 external review of merged `d3a95551`, followed by independent static
-inspection, identifies pending-reply reclamation, abandoned surface acquisitions,
-render-time focus authority and definitive pre-admission Save state gaps. The
-review reports runtime reproductions; the current optimization packet does not
-rerun or repair them. JournalSync staging/reopen additionally needs a focused
-reproducer. Existing finite green gates do not cover these transitions.
-[Next Tasks](NEXT_TASKS.md#ready-work-front) owns the repair and regression sequence;
-[Current Status](CURRENT_STATUS.md) bounds the default-off trusted host scope.
+The October 8 pending-reply, abandoned-surface, render-time focus and definitive
+pre-admission Save findings, together with the JournalSync staging reproducer,
+are repaired and independently reviewed in the merged reliability batch.
+`just foundry-editor-reliability-ui1-1` requires thirteen added assertions;
+the original eighteen-case task and complete recording reader remain separate.
+[Current Status](CURRENT_STATUS.md) records the exact accepted source and evidence.
+The trusted, default-off host scope still excludes an actual editor child,
+containment, device-backed target persistence and physical durability.
+
+The October 14 foundation review successor rejects overlapping broker grant
+generations and retains failed revocations for retry, checks actual physical
+backing for Oracle-vector transfers, preserves complete trace events with real
+stream metadata, handles empty ring operations, and denies malformed explicit
+runner configuration while separating node placement from domain identity.
+Its focused assertions and affected consumer gates qualify their named host/QEMU
+paths. Earlier Linux56 and hosted qualification remain bound to the prior source;
+these repairs add no production, target-isolation or release assurance.
 
 ## Summary
 

@@ -165,22 +165,17 @@ fn read_shmem_slice(
     shm_cap: Handle,
     offset: u64,
     len: u32,
-) -> Result<&'static [u8], u32> {
-    let phys_addr = shmem_table
-        .phys_addr_for_cap(shm_cap)
+) -> Result<&[u8], u32> {
+    let address = shmem_table
+        .phys_range_for_cap(shm_cap, offset, len as usize)
         .ok_or(BLOCK_STATUS_SHMEM_ERROR)?;
-    let end = offset
-        .checked_add(len as u64)
-        .ok_or(BLOCK_STATUS_SHMEM_ERROR)?;
-    if end > shmem_table.region_size_for_cap(shm_cap).unwrap_or(0) {
-        return Err(BLOCK_STATUS_SHMEM_ERROR);
-    }
-
-    // SAFETY: boot-time init tests run single-threaded in QEMU with freshly
-    // allocated physical shmem frames returned by `create_region`.
+    // SAFETY: the checked span belongs to the region's actual contiguous
+    // backing frames, retained by the table borrow in this single-threaded fixture.
     unsafe {
-        let ptr = phys_addr.wrapping_add(offset) as *const u8;
-        Ok(core::slice::from_raw_parts(ptr, len as usize))
+        Ok(core::slice::from_raw_parts(
+            address as *const u8,
+            len as usize,
+        ))
     }
 }
 
@@ -190,20 +185,13 @@ fn write_shmem_slice(
     offset: u64,
     data: &[u8],
 ) -> Result<(), u32> {
-    let phys_addr = shmem_table
-        .phys_addr_for_cap(shm_cap)
+    let address = shmem_table
+        .phys_range_for_cap(shm_cap, offset, data.len())
         .ok_or(BLOCK_STATUS_SHMEM_ERROR)?;
-    let end = offset
-        .checked_add(data.len() as u64)
-        .ok_or(BLOCK_STATUS_SHMEM_ERROR)?;
-    if end > shmem_table.region_size_for_cap(shm_cap).unwrap_or(0) {
-        return Err(BLOCK_STATUS_SHMEM_ERROR);
-    }
-
-    // SAFETY: same boot-time single-threaded QEMU integration context as reads.
+    // SAFETY: the checked span belongs to the retained region's actual backing
+    // frames. Oracle-vector fixture control is single-threaded and exclusively writes.
     unsafe {
-        let ptr = phys_addr.wrapping_add(offset) as *mut u8;
-        core::ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
+        core::ptr::copy_nonoverlapping(data.as_ptr(), address as *mut u8, data.len());
     }
     Ok(())
 }
@@ -277,5 +265,71 @@ mod tests {
             },
         );
         assert_eq!(err, Err(BLOCK_STATUS_INVALID_ARGUMENT));
+    }
+}
+
+#[cfg(test)]
+mod review_backing {
+    use super::*;
+    use crate::mm::{FRAME_ALLOCATOR, FrameAllocator};
+    #[test]
+    fn review_block_fragmented_transfer_denies_split_then_uses_owned_frame() {
+        let _guard = crate::mm::test_support::setup();
+        let unrelated = {
+            let mut a = FRAME_ALLOCATOR.lock();
+            let a = a.as_mut().unwrap();
+            let hole = a.allocate().unwrap();
+            let unrelated = a.allocate().unwrap();
+            a.deallocate(hole);
+            unrelated
+        };
+        unsafe {
+            core::ptr::write_bytes(unrelated.as_u64() as *mut u8, 0xAA, 4096);
+        }
+        let mut table = shmem::ShmemRegionTable::new();
+        let (_, cap, _) = table
+            .create_region(
+                0,
+                8192,
+                shmem::REGION_FLAG_READABLE | shmem::REGION_FLAG_WRITABLE,
+                4096,
+            )
+            .unwrap();
+        let mut request = ReadBlocks {
+            request_id: S13_ORACLE_READ_REQUEST_ID,
+            lba: 0,
+            block_count: S13_ORACLE_BLOCK_COUNT,
+            block_size: S13_ORACLE_BLOCK_SIZE,
+            buffer_shm_cap: cap.pack(),
+            buffer_offset: 4090,
+        };
+        assert_eq!(
+            process_read_blocks(&table, &request),
+            Err(BLOCK_STATUS_SHMEM_ERROR)
+        );
+        request.buffer_offset = 4096;
+        assert_eq!(
+            process_read_blocks(&table, &request),
+            Ok(S13_ORACLE_BLOCK_SIZE)
+        );
+        assert_eq!(unsafe { *(unrelated.as_u64() as *const u8) }, 0xAA);
+        assert_eq!(
+            read_shmem_slice(&table, cap, 4096, S13_ORACLE_BLOCK_SIZE).unwrap(),
+            S13_ORACLE_READ_PAYLOAD
+        );
+        write_shmem_slice(&table, cap, 4096, &S13_ORACLE_WRITE_PAYLOAD).unwrap();
+        let request = WriteBlocks {
+            request_id: S13_ORACLE_WRITE_REQUEST_ID,
+            lba: 0,
+            block_count: S13_ORACLE_BLOCK_COUNT,
+            block_size: S13_ORACLE_BLOCK_SIZE,
+            data_shm_cap: cap.pack(),
+            data_offset: 4096,
+        };
+        assert_eq!(
+            process_write_blocks(&table, &request),
+            Ok(S13_ORACLE_BLOCK_SIZE)
+        );
+        assert_eq!(unsafe { *(unrelated.as_u64() as *const u8) }, 0xAA);
     }
 }
