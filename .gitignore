@@ -29,6 +29,7 @@ dist/
 # Logs
 *.log
 repomix-output.xml
+repomix-output.*.xml
 
 # Python cache artifacts
 __pycache__/

@@ -227,6 +227,7 @@ struct ObjectState {
     journal: EditorSelectionJournalV0,
     durable: EditorSelectionJournalV0,
     prepared: Option<EditorSelectionJournalV0>,
+    staging: Option<storage::JournalStaging>,
     synced: Option<EditorSelectionJournalV0>,
     digest: Hash32,
     bytes: Vec<u8>,
@@ -541,6 +542,12 @@ impl storage::Observer for Context {
         Ok(())
     }
 
+    fn journal_staging(&self) -> Option<storage::JournalStaging> {
+        lock(&self.object.state).staging.clone()
+    }
+    fn retain_journal_staging(&self, staging: Option<storage::JournalStaging>) {
+        lock(&self.object.state).staging = staging;
+    }
     fn before(&self, point: IoPoint, artifact: Option<Hash32>) -> Result<(), StoreStatus> {
         let simulated = {
             let mut s = lock(&self.object.state);
@@ -1007,6 +1014,10 @@ impl Core {
                 && data.operation == operation
                 && data.revision == revision
         }) {
+            #[cfg(feature = "editor_native_save_v0_dev")]
+            if let Some(native) = life.and_then(|request| request.native_save.as_ref()) {
+                native.retain_reply_data(existing.clone());
+            }
             return Ok(ObjectDescriptor {
                 handle: existing.handle,
                 kind,
@@ -1023,23 +1034,25 @@ impl Core {
         }
         let handle = core.new_data_handle(&mut reg)?;
         let len = bytes.len() as u32;
-        reg.data.insert(
-            handle.pack(),
-            Arc::new(Data {
-                handle,
-                actor: grant.actor.clone(),
-                object: grant.object,
-                operation,
-                revision,
-                kind,
-                alive: AtomicBool::new(true),
-                state: Mutex::new(DataState {
-                    bytes,
-                    writable: kind == SharedObjectKind::DraftSource,
-                    frozen: false,
-                }),
+        let data = Arc::new(Data {
+            handle,
+            actor: grant.actor.clone(),
+            object: grant.object,
+            operation,
+            revision,
+            kind,
+            alive: AtomicBool::new(true),
+            state: Mutex::new(DataState {
+                bytes,
+                writable: kind == SharedObjectKind::DraftSource,
+                frozen: false,
             }),
-        );
+        });
+        #[cfg(feature = "editor_native_save_v0_dev")]
+        if let Some(native) = life.and_then(|request| request.native_save.as_ref()) {
+            native.retain_reply_data(data.clone());
+        }
+        reg.data.insert(handle.pack(), data);
         Ok(ObjectDescriptor {
             handle,
             kind,
@@ -1427,6 +1440,7 @@ impl StoreHost {
         &self,
         grant: &Arc<Grant>,
         request: &Envelope,
+        life: Option<&Request>,
     ) -> Result<Option<Envelope>, StoreStatus> {
         let object = self.core.object(grant.object)?;
         let mut s = lock(&object.state);
@@ -1472,7 +1486,7 @@ impl StoreHost {
                 if let Some(receipt) = &record.receipt {
                     let receipt = receipt.clone();
                     drop(s);
-                    return self.receipt_reply(grant, request, &receipt, None).map(Some);
+                    return self.receipt_reply(grant, request, &receipt, life).map(Some);
                 }
                 if s.runtime
                     .get(&operation)
@@ -1499,7 +1513,7 @@ impl StoreHost {
                 if let Some(receipt) = &record.receipt {
                     let receipt = receipt.clone();
                     drop(s);
-                    return self.receipt_reply(grant, request, &receipt, None).map(Some);
+                    return self.receipt_reply(grant, request, &receipt, life).map(Some);
                 }
                 if record.binding.is_some() {
                     return Ok(Some(unknown(request, op_of(request))));
@@ -1548,7 +1562,7 @@ impl StoreHost {
         let grant = self.peer(peer, request);
         let result = match grant {
             Err(status) => empty_reply(request, status),
-            Ok(grant) => match self.fast(&grant, request) {
+            Ok(grant) => match self.fast(&grant, request, None) {
                 Err(status) => empty_reply(request, status),
                 Ok(Some(reply)) => reply,
                 Ok(None) => {
@@ -1765,10 +1779,6 @@ impl StoreHost {
             writer: 0,
             selection: false,
         };
-        storage::Observer::pause(&context, PausePoint::BeforeReadReply)?;
-        if request.closed.load(Ordering::Acquire) || Instant::now() >= request.deadline {
-            return Err(StoreStatus::Timeout);
-        }
         let data = Core::data(
             &self.core,
             &request.grant,
@@ -1778,6 +1788,12 @@ impl StoreHost {
             encoded,
             Some(request),
         )?;
+        // This reply barrier observes the published data row before ownership
+        // transfers into the native reply lease; no enforcing lock spans it.
+        storage::Observer::pause(&context, PausePoint::BeforeReadReply)?;
+        if request.closed.load(Ordering::Acquire) || Instant::now() >= request.deadline {
+            return Err(StoreStatus::Timeout);
+        }
         a::ReadSelectedReply {
             request_id: u64_at(&request.wire.payload, 0),
             revision: selected.revision,
@@ -2173,14 +2189,47 @@ impl StoreHost {
                         native.publish_current(&s)?;
                     }
                 }
-                storage::Observer::pause(&context, PausePoint::AfterAcknowledgement)?;
+                #[cfg(feature = "editor_native_save_v0_dev")]
+                let native_reply = r.native_save.is_some();
+                #[cfg(not(feature = "editor_native_save_v0_dev"))]
+                let native_reply = false;
+                if !native_reply {
+                    storage::Observer::pause(&context, PausePoint::AfterAcknowledgement)?;
+                }
                 Ok(receipt)
             },
         );
         match outcome {
             Ok(receipt) => {
                 match self.receipt_reply(&request.grant, &request.wire, &receipt, Some(request)) {
-                    Ok(reply) => Ok(reply),
+                    Ok(reply) => {
+                        #[cfg(feature = "editor_native_save_v0_dev")]
+                        if request.native_save.is_some() {
+                            // The genuine immutable receipt descriptor has been
+                            // published. Pause before its transfer into the
+                            // native reply lease, after the selection owner has
+                            // completed its IO and released enforcing locks.
+                            let writer = lock(&object.state).runtime[&operation]
+                                .permitted
+                                .as_ref()
+                                .ok_or(StoreStatus::Unknown)?
+                                .writer_id;
+                            let context = Context {
+                                core: self.core.clone(),
+                                object: object.clone(),
+                                request: Some(request.clone()),
+                                operation,
+                                writer,
+                                selection: false,
+                            };
+                            if storage::Observer::pause(&context, PausePoint::AfterAcknowledgement)
+                                .is_err()
+                            {
+                                return Ok(unknown(&request.wire, operation));
+                            }
+                        }
+                        Ok(reply)
+                    }
                     Err(_) => Ok(unknown(&request.wire, operation)),
                 }
             }
@@ -2314,6 +2363,7 @@ impl StoreFixture {
                         journal: journal.clone(),
                         durable: journal,
                         prepared: None,
+                        staging: None,
                         synced: None,
                         digest,
                         bytes: vec![],
@@ -2495,7 +2545,9 @@ impl StoreFixture {
                 .values()
                 .filter_map(|r| r.permitted.clone())
                 .collect::<Vec<_>>();
+            let staging = s.staging.clone();
             drop(s);
+            storage::validate_journal_staging(&object.root, staging.as_ref())?;
             let (journal, consumed) =
                 read_validated_selection(object, &old.profile, &runtime, &durable, &permits)?;
             let epoch = owner
@@ -2604,6 +2656,7 @@ impl StoreFixture {
                         journal,
                         durable,
                         prepared: None,
+                        staging: old_state.staging.clone(),
                         synced: None,
                         digest,
                         bytes: consumed.bytes,

@@ -1,8 +1,10 @@
 # --- Generated Code (High Token Savings) ---
-# The LLM can read the .toml files in idl/ to understand the contract.
-# The generated Rust structs are verbose and redundant.
+# Prefer IDL .toml contracts; generated Rust is verbose and redundant.
 kernel_api/src/generated/
+sdk/src/generated/
 tools/capsule/generated/
+**/generated/
+**/*.generated.rs
 
 # --- Lock Files & Configs ---
 Cargo.lock
@@ -13,10 +15,16 @@ Cargo.lock
 justfile
 rust-toolchain.toml
 evidence_policy.toml
+.repomixignore
+repomix.config.json
+tools/repomix/
 
 # --- Tests & Benchmarks ---
 **/tests/
 **/*_test.rs
+**/*_tests.rs
+**/tests.rs
+**/test_support.rs
 **/benches/
 **/*_bench.rs
 **/examples/
@@ -45,6 +53,10 @@ docs/
 **/*.ld
 **/*.s
 
+# --- License / legal noise ---
+LICENSE*
+COPYING*
+
 # --- Binary & Data Files ---
 **/*.bin
 **/*.o
@@ -52,6 +64,9 @@ docs/
 **/*.json
 !idl/**/*.toml
 !store/catalog.json
+
+# --- Pack outputs ---
+repomix-output*.xml
 
 # --- Build Artifacts ---
 out/

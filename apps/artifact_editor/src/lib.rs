@@ -4,6 +4,9 @@
 //! Desktop and Store owners retain authority; this crate adds no public text,
 //! receipt, or Save-state setter. A separate editor process remains UI1.1d.
 
+#[cfg(all(test, feature = "host_native_save_v0_dev"))]
+extern crate self as artifact_editor;
+
 #[cfg(feature = "host_native_save_v0_dev")]
 mod native;
 #[cfg(feature = "host_native_save_v0_dev")]

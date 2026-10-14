@@ -33,9 +33,10 @@ test -f kernel_uefi/src/gop_probe.rs \
 grep -q 'set_gop_probe' kernel/src/boot.rs \
   || fail "GOP_PROBE_STORAGE_MISSING" "kernel boot must store GOP probe info"
 
-OUT_DIR="$ROOT_DIR/out"
+mkdir -p "$ROOT_DIR/out/logs"
+OUT_DIR="$(mktemp -d "$ROOT_DIR/out/s12-gop-probe.XXXXXX")"
 UEFI_DIR="$OUT_DIR/uefi"
-LOG_DIR="$OUT_DIR/logs"
+LOG_DIR="$ROOT_DIR/out/logs"
 INIT_DIR="$OUT_DIR/init"
 mkdir -p "$UEFI_DIR" "$LOG_DIR" "$INIT_DIR"
 
@@ -69,10 +70,8 @@ prepare_vars() {
     echo ""
     return 0
   fi
-  if [[ ! -f "$out_file" ]]; then
-    cp "$template" "$out_file"
-  fi
-  echo "$out_file"
+  python3 "$ROOT_DIR/tools/ci/qemu_boot_observation.py" prepare-vars \
+    --template "$template" --destination "$out_file"
 }
 
 find_uefi_bin() {
@@ -87,20 +86,6 @@ find_uefi_bin() {
     return 0
   fi
   fail "UEFI_BIN_MISSING" "kernel_uefi binary not found for $target"
-}
-
-wait_for_log() {
-  local log="$1"
-  local pattern="$2"
-  local timeout_s="$3"
-  local max_iters=$((timeout_s * 5))
-  for _ in $(seq 1 "$max_iters"); do
-    if [[ -f "$log" ]] && grep -aq "$pattern" "$log"; then
-      return 0
-    fi
-    sleep 0.2
-  done
-  return 1
 }
 
 require_cmd cargo
@@ -138,40 +123,31 @@ OVMF_VARS_TEMPLATE="$(find_firmware OVMF_VARS \
 )" || true
 OVMF_VARS="$(prepare_vars "$OVMF_VARS_TEMPLATE" "$UEFI_DIR/x86_64_vars.fd")"
 
-LOG="$LOG_DIR/qemu_x86_64_gop_probe.log"
-UART_TRACE="$LOG_DIR/qemu_x86_64_gop_probe.protocol_trace.log"
+LOG="$LOG_DIR/$(basename "$OUT_DIR").log"
+UART_TRACE="$LOG_DIR/$(basename "$OUT_DIR").protocol_trace.log"
 rm -f "$LOG" "$UART_TRACE"
 
 echo "FOUNDRY_S12_GOP_PROBE_S12_1: INFO qemu boot x86_64"
+# The observer owns exactly one actual process and retains all run files.
+QEMU_ARGS=(qemu-system-x86_64 -machine q35 -m 512M
+  -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE")
+OBSERVATION_ARGS=(run --run-dir "$OUT_DIR" --serial "$LOG" --timeout 30
+  --code "$OVMF_CODE" --kernel "$X86_DIR/BOOTX64.EFI" --init "$X86_DIR/init.img"
+  --marker "golden_machine: gop_probe ok"
+  --marker "golden_machine: gop_fill ok"
+ )
 if [[ -n "${OVMF_VARS:-}" ]]; then
-  qemu-system-x86_64 \
-    -machine q35 -m 512M \
-    -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
-    -drive if=pflash,format=raw,file="$OVMF_VARS" \
-    -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
-    -trace enable=serial_update_parameters,file="$UART_TRACE" \
-    -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
-else
-  qemu-system-x86_64 \
-    -machine q35 -m 512M \
-    -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
-    -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
-    -trace enable=serial_update_parameters,file="$UART_TRACE" \
-    -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
+  QEMU_ARGS+=(-drive "if=pflash,format=raw,file=$OVMF_VARS")
+  OBSERVATION_ARGS+=(--vars-template "$OVMF_VARS_TEMPLATE" --vars "$OVMF_VARS")
 fi
-QEMU_PID=$!
-
-if ! wait_for_log "$LOG" "golden_machine: gop_probe ok" 30; then
-  kill "$QEMU_PID" >/dev/null 2>&1 || true
-  wait "$QEMU_PID" >/dev/null 2>&1 || true
+QEMU_ARGS+=(-drive "format=raw,file=fat:rw:$UEFI_DIR/x86_64")
+QEMU_ARGS+=(-trace "enable=serial_update_parameters,file=$UART_TRACE")
+QEMU_ARGS+=(-nographic -serial "file:$LOG" -monitor none -no-reboot -no-shutdown)
+if ! python3 "$ROOT_DIR/tools/ci/qemu_boot_observation.py" "${OBSERVATION_ARGS[@]}" -- "${QEMU_ARGS[@]}"; then
   echo "--- qemu serial log (tail) ---" >&2
   tail -n 40 "$LOG" >&2 || true
-  fail "GOP_PROBE_MISSING" \
-    "serial log missing 'golden_machine: gop_probe ok'"
+  fail "GOP_PROBE_MISSING" "fresh boot observation failed; retained=$OUT_DIR/boot-observation.json"
 fi
-
-kill "$QEMU_PID" >/dev/null 2>&1 || true
-wait "$QEMU_PID" >/dev/null 2>&1 || true
 
 grep -q "golden_machine: gop_probe ok" "$LOG" \
   || fail "GOP_PROBE_MISSING" "gop_probe marker not in log"

@@ -85,7 +85,17 @@ EXTENDED = (
     shell("block-replay", "tools/ci/foundry_s13_replay.sh", "qemu"),
     shell("sector-oracle", "tools/ci/foundry_s13_block_sector_oracle_s13_4.sh", "qemu"),
     shell("runtime-block", "tools/ci/foundry_s13_runtime_block_s13_6.sh", "qemu"),
+    shell("editor-reliability", "tools/ci/foundry_editor_reliability_ui1_1.sh"),
 )
+
+
+# Independent editor runner: every canonical body still runs exactly once.
+EDITOR_NAMES = frozenset({'desktop-launch', 'desktop-editor-host', 'editor-save-schema',
+    'editor-preview-codec', 'editor-native-save-codec', 'desktop-editor-store',
+    'editor-native-read', 'editor-native-preview', 'desktop-editor-task',
+    'editor-adapter-migration', 'editor-reliability'})
+EXTENDED = tuple(Stage(stage.name, 'editor' if stage.name in EDITOR_NAMES else stage.lane,
+                       stage.argv, stage.env) for stage in EXTENDED)
 
 
 def extended_plan():
@@ -108,6 +118,8 @@ def quality_plan():
 def lane_plan(lane):
     if lane == "quality":
         return quality_plan()
+    if lane == "editor":
+        return (CACHE_PREREQUISITES, TOOLCHAIN, CODEGEN) + tuple(s for s in EXTENDED if s.lane == lane)
     if lane in ("host", "agent"):
         return (IMAGE, PREREQUISITES, CACHE_PREREQUISITES, TOOLCHAIN, CODEGEN) + tuple(s for s in EXTENDED if s.lane == lane)
     if lane == "qemu":
@@ -204,9 +216,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("all", "extended", "install-toolchain", "toolchain"):
         sub.add_parser(name)
-    sub.add_parser("lane").add_argument("lane", choices=("quality", "host", "agent", "qemu"))
+    sub.add_parser("lane").add_argument("lane", choices=("quality", "host", "agent", "qemu", "editor"))
     listing = sub.add_parser("list")
-    listing.add_argument("mode", choices=("all", "extended", "quality", "host", "agent", "qemu"))
+    listing.add_argument("mode", choices=("all", "extended", "quality", "host", "agent", "qemu", "editor"))
     args = parser.parse_args()
     if args.command in ("toolchain", "install-toolchain"):
         manifest = read_toolchain(ROOT)

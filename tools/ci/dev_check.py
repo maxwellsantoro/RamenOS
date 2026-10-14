@@ -100,24 +100,47 @@ def select_scope(repo, package, test, features):
             'default_features': False, 'label': 'development_not_acceptance'}
 
 
-def commands(scope, channel):
+def resolve_jobs(override, environment):
+    """Select bounded concurrency without passing compiler hooks through."""
+    value = override if override is not None else environment.get('CARGO_BUILD_JOBS', 2)
+    if type(value) is str:
+        require(re.fullmatch('[1-9][0-9]?', value), 'jobs must be a canonical integer from 1 to 32')
+        value = int(value)
+    require(type(value) is int and 1 <= value <= 32, 'jobs must be a canonical integer from 1 to 32')
+    return value
+
+
+def compilation_identity(scope):
+    # Compilation belongs to a package/feature context. Every selected target
+    # and mode is still executed and recorded afresh through the warm target.
+    return {key: scope[key] for key in ('package', 'features', 'default_features', 'label')}
+
+
+def commands(scope, channel, mode="all", jobs=2):
     require(re.fullmatch('nightly-[0-9]{4}-[0-9]{2}-[0-9]{2}', channel), 'pinned toolchain')
-    common = ['--locked', '--no-default-features', '-p', scope['package']]
+    require(type(mode) is str and mode in ('all', 'check', 'test', 'lint'), 'unknown development mode')
+    require(type(jobs) is int and 1 <= jobs <= 32, 'jobs must be a canonical integer from 1 to 32')
+    common = ['--locked', '--no-default-features', '--jobs', str(jobs), '-p', scope['package']]
     common += ['--lib'] if scope['test'] == 'lib' else ['--test', scope['test']]
     if scope['features']: common += ['--features', ','.join(scope['features'])]
     cargo = ['cargo', '+' + channel]
-    return [cargo + ['test'] + common + ['--no-run'],
-            cargo + ['clippy'] + common + ['--', '-D', 'warnings'],
-            cargo + ['test'] + common + ['--', '--test-threads=1']]
+    test = cargo + ['test'] + common + ['--', '--test-threads=1']
+    lint = cargo + ['clippy'] + common + ['--', '-D', 'warnings']
+    if mode == 'test': return [test]
+    if mode == 'check': return [cargo + ['check'] + common]
+    if mode == 'lint': return [lint]
+    return [cargo + ['test'] + common + ['--no-run'], lint, test]
 
 
-def sanitized_environment(environment, target):
+def sanitized_environment(environment, target, jobs=None):
     e = dict(environment)
+    jobs = resolve_jobs(jobs, e)
     exact = {'RUSTUP_TOOLCHAIN', 'RUSTC', 'RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER',
              'RUSTFLAGS', 'CARGO_ENCODED_RUSTFLAGS', 'RUSTDOC', 'RUSTDOCFLAGS', 'CARGO_ENCODED_RUSTDOCFLAGS', 'CARGO_TARGET_DIR'}
     for k in tuple(e):
         if k in exact or k.startswith(('RAMEN_DESKTOP_', 'CARGO_BUILD_', 'CARGO_PROFILE_', 'CARGO_TARGET_')): e.pop(k)
     e['CARGO_TARGET_DIR'] = str(target)
+    e['CARGO_BUILD_JOBS'] = str(jobs)
     return e
 
 
@@ -212,18 +235,21 @@ def main():
     parser.add_argument('--package', required=True)
     parser.add_argument('--test', default='lib')
     parser.add_argument('--features', default='')
+    parser.add_argument('--mode', choices=('all', 'check', 'test', 'lint'), default='all')
+    parser.add_argument('--jobs', help='compile jobs from 1 to 32 (CLI > CARGO_BUILD_JOBS > 2)')
     args = parser.parse_args()
+    jobs = resolve_jobs(args.jobs, os.environ)
     features = args.features.split(',') if args.features else []
     scope = select_scope(REPO, args.package, args.test, features)
     channel = tomllib.loads((REPO / 'rust-toolchain.toml').read_text())['toolchain']['channel']
-    argvs = commands(scope, channel)
+    argvs = commands(scope, channel, args.mode, jobs)
     parent = REPO / 'out/ci-optimization'
     # These private roots are separate from formal acceptance cache/evidence.
     parent.mkdir(parents=True, exist_ok=True)
     run = parent / ('dev-check-' + secrets.token_hex(16)); os.mkdir(run, 0o700)
     roots = parent / 'development-cache'
-    env = sanitized_environment(os.environ, run / 'unused-profile-target')
-    result = {'schema_version': 1, 'label': 'development_not_acceptance', 'acceptance': False, 'scope': scope}
+    env = sanitized_environment(os.environ, run / 'unused-profile-target', jobs)
+    result = {'schema_version': 1, 'label': 'development_not_acceptance', 'acceptance': False, 'scope': scope, 'mode': args.mode, 'jobs': jobs}
     try:
         profiles = run_sequence([['rustc', '+' + channel, '-vV'], ['cargo', '+' + channel, '--version']], REPO, env)
         result['profile_commands'] = profiles['commands']
@@ -232,12 +258,16 @@ def main():
         # Development identity intentionally persists across edits. Cargo is
         # actually rerun on the live checkout; this digest is NOT a frozen source
         # manifest and is never admitted by a Foundry adapter.
-        scope_sha = hashlib.sha256(cache.compact(scope)).hexdigest()
+        compile_context = compilation_identity(scope)
+        scope_sha = hashlib.sha256(cache.compact(compile_context)).hexdigest()
+        result['compilation_context'] = compile_context
         inputs = cache.key_inputs(REPO, scope_sha, 'development-' + scope['package'], scope['features'],
                                   profiles['commands'][0]['stdout'], profiles['commands'][1]['stdout'], env, scope='development')
         with cache.CacheLease(roots, inputs) as lease:
-            env = sanitized_environment(os.environ, lease.target)
+            env = sanitized_environment(os.environ, lease.target, jobs)
             result.update(run_sequence(argvs, REPO, env)); result['scope'] = scope
+            for record in result['commands']:
+                record.update(mode=args.mode, selected_target=scope['test'], jobs=jobs)
             result['cache'] = lease.metadata
             # Known normal compiler/test failure is safe to retry after an edit.
             # Signals/faults/uncertain cleanup poison the target instead.

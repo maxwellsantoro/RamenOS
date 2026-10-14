@@ -23,6 +23,8 @@ EXTRAS = ('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'justfile',
           REGISTRY, 'tools/ci/desktop_editor_task_result.py',
           'tools/ci/foundry_desktop_editor_task_ui1_1c.sh',
           'tools/ci/native_save_task_recording.py', 'tools/ci/owned_manifest_verifier.py',
+          'tools/ci/acceptance_build.py', 'tools/ci/build_cache.py',
+          'tools/ci/test_timing.py',
           'docs/contracts/editor-native-save-task-v0.json',
           'docs/contracts/editor-native-save-recording-v0.json',
           'docs/contracts/editor-native-save-source-inventory-v0.json')

@@ -17,6 +17,12 @@ Use `just dev-check PACKAGE TEST FEATURES` for an exclusive warm host build,
 strict Clippy and selected serialized tests. Features are a comma-separated list;
 `TEST` defaults to `lib`, and default features are disabled. Run `just codegen`
 after checkout and IDL edits. Development records do not replace Foundry gates.
+For a small edit use `just dev-compile PACKAGE TEST FEATURES`,
+`just dev-test PACKAGE TEST FEATURES`, or `just dev-lint PACKAGE TEST FEATURES`.
+The optional fourth argument chooses1..32 build jobs; default2. Modes/targets
+share a warm package/feature compiler context while every command executes afresh.
+Inspect completed compiler storage with `just compiler-cache-inspect`; retirement
+requires an exact key/context and never selects evidence directories.
 Run affected consumers, then canonical CI lanes or their serial `just preflight`
 equivalent on the fixed integration candidate; do not duplicate both complete runs.
 
@@ -150,3 +156,11 @@ configuration.
   [artifact_store_schema/](../artifact_store_schema/).
 - **Gates and docs:** [tools/ci/](../tools/ci/), [tools/hil/](../tools/hil/),
   [docs/](../docs/).
+
+### AI review packs (Repomix)
+
+Do not paste a whole-repo dump into chat. Build focused packs with
+`just repomix` (compressed map) or
+`just repomix-pack contracts|kernel|store|desktop|all`. Outputs are
+`repomix-output.<profile>.xml` (gitignored); each profile sets a token budget.
+Use MCP `grep_repomix_output` / `read_repomix_output` for deep reads.

@@ -4,9 +4,9 @@
 Root owns eventual tools/ci/desktop_editor_task_result.py, shell, registry,
 source pins and recording schema. No output artifact can select trusted code.
 Case data and process evidence have separate namespaces/budgets. Build target
-is separate, fresh, and is not accepted case/process evidence or a disk sandbox.
+is separate compilation state, and is not accepted case/process evidence or a disk sandbox.
 Only the pinned primitives' actually held Popen children may be signalled;
-service-thread joins are verified by the future semantic reader, never PID data.
+service-thread joins are verified by the semantic reader, never PID data.
 """
 import argparse
 import hashlib
@@ -27,15 +27,19 @@ SHELL = 'tools/ci/foundry_desktop_editor_task_ui1_1c.sh'
 CONTRACT = 'docs/contracts/editor-native-save-task-v0.json'
 CONTRACT_SHA = 'f76a0cdb81ab94f003a484989661293ea2037640d981e8be7228e4fac5d410a9'
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
-PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
+PRIMITIVES_SHA = '3aeba4be230cfcd972ee8939e183d6e1cb9a14c60ebeec2e96368e16e143a787'
 PACKAGE = 'artifact_editor'
 FEATURE = 'host_native_save_v0_dev'
 TARGET = 'native_task'
+TIMING_PROFILE = 'tools/ci/test_timing.py'
+TIMING_PROFILE_SHA = 'a2d72caf37051aac7ae56e2dfb5beeafbde54b391823b617493cd3fef50fb4bc'
+BUILD_PROFILE = 'tools/ci/acceptance_build.py'
+BUILD_PROFILE_SHA = 'e8f60acf9871604e998e7f39dcdae26b17bd2ae1ad6dbaecee8a14eaef20f6a9'
 SOURCE_COLLECTOR = 'tools/ci/native_save_task_sources.py'
-SOURCE_COLLECTOR_SHA = '6323de423cd8476a6c0bca92119587742a5e7a010be3e669706643c2e7434b63'
+SOURCE_COLLECTOR_SHA = '3fa310f06ee74638944c6dfabd9d70ea2f817b825534f47081a3c45e6b4af671'
 # ROOT MUST FREEZE THESE AFTER INDEPENDENT ASSERTION/INVENTORY/READER REVIEW.
 REGISTRY_PATH = 'tools/ci/native_save_task_sources_v0.json'
-REGISTRY_SHA = 'c2db944d5a78469e4310f2ce7e002bb51abff5d4e3d68962172535184eda438a'
+REGISTRY_SHA = 'a7e0a6aa1cb77b96bc1d655daf387e3b8c95ab048f8c893c4b7c4d6fcc0156e3'
 ASSERTION_PINS = {'apps/artifact_editor/tests/native_task.rs': '2d6d616b416dbebe85e730ac44bcadd30142f20a359154225ce2b3ebb35fa447', 'apps/artifact_editor/tests/native_task_support/mod.rs': '0a4d62ef0a934b00e2b9b42878212ff82d2530225c91148941fd558c1d0e8228', 'apps/artifact_editor/tests/native_task_support/recording.rs': '69844fffb1b8b3bbb1d7fa9e4bbe2218c59e5e0adb99457383032bf749b848fd', 'apps/artifact_editor/tests/native_task_support/protected_goldens.rs': 'f99add25f2aa9b4bf37074fb7a2ae3fca5f78475775c7fe469f649d9dd438d6c'}
 RECORDING_CONTRACT_PATH = 'docs/contracts/editor-native-save-recording-v0.json'
 RECORDING_CONTRACT_SHA = 'c011d7ac19bf17ac6aa2fa941f16d6c6fbeac1ebd245eb1b7015d7f94d216bfe'
@@ -442,7 +446,7 @@ def run(args):
             'trusted absolute no-traversal CLI paths')
     sha_pin(args.source_manifest_sha256)
     repo_fd = open_absolute_directory(args.repo)
-    commands = budget = verifier = None
+    commands = budget = verifier = compilation = None
     verifier_published = False
     published_commands = False
     gate_accepted = False
@@ -453,6 +457,9 @@ def run(args):
         absent_home = absent_cargo_configs(args.repo)
         # Independent source input admission before child execution or run outputs.
         rows = manifest_rows(h, repo_fd, args.source_manifest, args.source_manifest_sha256)
+        profile = load_trusted_module(h, repo_fd, args.repo, BUILD_PROFILE,
+                                      BUILD_PROFILE_SHA, 'native_task_build_profile')
+        profile.settings(os.environ)  # Reject invalid preparation before any child/output.
         self_sha = h.digest(held_absolute_read(Path(__file__).absolute(), h.SOURCE_CAP))
         require(any(x['relative_path'] == GATE_SOURCE and x['sha256'] == self_sha for x in rows),
                 'execute exact maintained runner in source closure')
@@ -512,24 +519,34 @@ def run(args):
         cargo = ['cargo', '+' + toolchain]
         rustc = h.successful(commands.run(['rustc', '+' + toolchain, '-vV'], 'rustc.log'))
         cargo_version = h.successful(commands.run(cargo + ['--version'], 'cargo-version.log'))
+        compilation = profile.Compilation(h, repo_fd, rows, args.repo,
+            args.source_manifest_sha256, commands, rustc.decode('utf8', 'strict'),
+            cargo_version.decode('utf8', 'strict'), target, os.environ)
+        target = compilation.phase('exclusion-app', [])
         exclusion = default_off_probe(h, commands, cargo, target)
+        target = compilation.phase('enabled-app', [FEATURE])
         build = commands.run(cargo + ['test', '--locked', '--offline', '--no-default-features', '-p', PACKAGE,
                                      '--features', FEATURE, '--test', TARGET, '--no-run', '--message-format=json'],
                              'task-build.log')
         binary, binary_info = h.artifact(h.successful(build), TARGET, 'test', True, target)
         require(binary_info['byte_len'] <= BINARY_BYTES, 'retained native binary512MiB')
-        helper_build = commands.run(cargo + ['build', '--locked', '--offline', '-p', 'artifact_store_schema',
+        helper_target = compilation.phase('manifest-verifier', ['std'])
+        helper_build = commands.run(cargo + ['build', '--locked', '--offline', '--no-default-features', '-p', 'artifact_store_schema',
                                               '--features', 'std', '--example', 'native_manifest_verifier',
                                               '--message-format=json'], 'manifest-verifier-build.log')
         helper_binary, helper_info = h.artifact(h.successful(helper_build), 'native_manifest_verifier',
-                                               'example', False, target)
+                                               'example', False, helper_target)
+        compilation.phase('enabled-app', [FEATURE])
         check_sources(h, repo_fd, rows)
         h.unchanged_binary(binary, binary_info)
         listed = h.successful(commands.run([str(binary), '--list'], 'task-list.log', test=True)).decode('utf8', 'strict')
         require(sorted(re.findall(r'^(\w+): test$', listed, re.M)) == sorted(CASES)
                 and re.search(r'^18 tests, 0 benchmarks$', listed, re.M) and ': benchmark' not in listed,
                 'actual exactly18 list withoutcase19')
-        tested = commands.run([str(binary), '--test-threads=1'], 'task-tests.log', test=True, observe_birth=True)
+        timing_profile = load_trusted_module(h, repo_fd, args.repo, TIMING_PROFILE,
+                                             TIMING_PROFILE_SHA, 'native_task_timing')
+        case_timing = timing_profile.TestTiming(CASES)
+        tested = commands.run([str(binary), '--test-threads=1'], 'task-tests.log', test=True, observe_birth=True, stream_observer=case_timing)
         budget.publish('command-observations.json', {'status': 'ACTUAL_COMMANDS_BEFORE_OUTCOME_ACCEPTANCE',
                        'source_manifest_sha256': args.source_manifest_sha256, 'binary': binary_info,
                        'commands': commands.observations}, 2097152)
@@ -552,7 +569,7 @@ def run(args):
                                               '-p', package, '--features', feature] + flags + ['--', '-D', 'warnings'], name))
         retain_binary(h, budget, binary, binary_info, 'test-binary', whole_deadline)
         helper_retention = retain_binary(h, budget, helper_binary, helper_info, 'manifest-verifier-binary',
-                                         whole_deadline, verifier_target=target)
+                                         whole_deadline, verifier_target=helper_target)
         reader = load_trusted_module(h, repo_fd, args.repo, SEMANTIC_READER_PATH,
                                      SEMANTIC_READER_SHA, 'native_task_trusted_reader')
         owner = load_trusted_module(h, repo_fd, args.repo, VERIFIER_OWNER_SOURCE,
@@ -563,6 +580,7 @@ def run(args):
                          'public_key': VERIFIER_PUBLIC_KEY}
         cases_fd = open_absolute_directory(case_root)
         try:
+            reader_started = time.monotonic()
             consistency = reader.validate_recording(cases_fd, rows, nonce,
                 held_read_at(repo_fd, RECORDING_CONTRACT_PATH, 1048576, RECORDING_CONTRACT_SHA),
                 RECORDING_CONTRACT_SHA,
@@ -572,6 +590,13 @@ def run(args):
                 verifier_seam, whole_deadline)
         finally:
             os.close(cases_fd)
+        reader_seconds = time.monotonic() - reader_started
+        budget.publish('phase-timings.json', {'scope': 'diagnostics_not_acceptance',
+            'acceptance': False, 'test_stream': case_timing.report(),
+            'reader_seconds': reader_seconds, 'commands': [
+                {'log': c['log']['relative_file'], 'elapsed_seconds':
+                 (c['actual_process']['exit_monotonic_ns'] - c['actual_process']['start_monotonic_ns']) / 1e9}
+                for c in commands.observations]}, 131072)
         require(type(consistency) is dict and consistency.get('cases') == 18
                 and consistency.get('runtime_acceptance_claim') is False,
                 'complete consistency report accompanies real eighteen-case execution')
@@ -587,7 +612,8 @@ def run(args):
                       'commands': commands.observations, 'process_files': process_rows, 'default_off': exclusion,
                       'rustc_bytes': rustc.decode('utf8', 'strict'), 'cargo_bytes': cargo_version.decode('utf8', 'strict'),
                       'case_data_consistency': consistency, 'manifest_verifier_binary': helper_info,
-                      'manifest_verifier_retention': helper_retention}
+                      'manifest_verifier_retention': helper_retention,
+                      'compiler_cache': compilation.metadata()}
         accepted = {'schema_version': 1, 'status': 'PASS', 'gate': GATE,
                     'scope': 'default_off_trusted_in_process_host_native_editor_store_task',
                     'actual_eighteen_unfiltered_runtime_outcomes': True,
@@ -597,6 +623,7 @@ def run(args):
         check_sources(h, repo_fd, rows)
         absent_cargo_configs(args.repo, absent_home)
         require(time.monotonic() < whole_deadline, 'final gate deadline')
+        compilation.finish()
         budget.publish('result.json', accepted, 2097152)
         scan_process_namespace(budget, process_root, whole_deadline)
         absent_cargo_configs(args.repo, absent_home)
@@ -622,6 +649,8 @@ def run(args):
                             'source_manifest_sha256': args.source_manifest_sha256,
                             'commands': commands.observations,
                             'unreturned_command_possible': command_return_pending}, 2097152)
+        if compilation is not None:
+            compilation.close(accepted=gate_accepted)
         os.close(repo_fd)
 
 

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "services/store_service/**/*",
+    "artifact_store_core/**/*",
+    "artifact_store_schema/**/*",
+    "store_cli/**/*",
+    "idl/services/**/*",
+    "idl/portals/desktop_artifact_v1.toml",
+    "idl/portals/desktop_editor_*.toml",
+    "CONSTITUTION.md",
+    "AGENTS.md"
+  ],
+  "output": {
+    "filePath": "repomix-output.store.xml",
+    "style": "xml",
+    "compress": true,
+    "removeEmptyLines": true,
+    "truncateBase64": true,
+    "tokenBudget": 200000,
+    "topFilesLength": 15,
+    "headerText": "RamenOS store pack: schemas/IDL full; store_service compressed. Unpack specific files via MCP for deep review.",
+    "patterns": [
+      { "pattern": "idl/**/*" },
+      { "pattern": "artifact_store_schema/**/*" },
+      { "pattern": "artifact_store_core/**/*" },
+      { "pattern": "CONSTITUTION.md" },
+      { "pattern": "AGENTS.md" },
+      { "pattern": "**/tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/*_tests.rs", "directoryStructureOnly": true }
+    ]
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true
+  }
+}

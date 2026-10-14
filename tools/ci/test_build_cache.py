@@ -156,6 +156,53 @@ class BuildCacheTests(unittest.TestCase):
         bad = inputs(); bad['environment'] = [['RUSTFLAGS', 'unhashed']]
         with self.assertRaises(cache.CacheDenied): cache.key_for(bad)
 
+    def test_private_cargo_home_prefix_uses_canonical_string_config_order(self):
+        # Path sorts by components; key_for requires sorting complete path strings.
+        # '.cargo-root/config' therefore precedes '.cargo/config' in the key shape.
+        repo = Path(self.temp.name).absolute()
+        (repo / 'Cargo.lock').write_bytes(b'lock')
+        home = repo / '.cargo-root'; home.mkdir(mode=0o700)
+        local = repo / '.cargo'; local.mkdir(mode=0o700)
+        env = {'CARGO_HOME': str(home)}
+        expected = {str(ancestor / '.cargo' / name)
+                    for ancestor in (repo, *repo.parents)
+                    for name in ('config', 'config.toml')}
+        expected.update(str(home / name) for name in ('config', 'config.toml'))
+        before_files = sorted(str(path.relative_to(repo)) for path in repo.rglob('*'))
+        rows = cache.configuration_snapshot(repo, env)
+        paths = [row['path'] for row in rows]
+        self.assertEqual(paths, sorted(expected))
+        self.assertEqual(len(paths), len(set(paths)))
+        self.assertTrue(all(Path(path).is_absolute() for path in paths))
+        for directory in (local, home):
+            for name in ('config', 'config.toml'):
+                self.assertIn({'path':str(directory / name), 'sha256':None}, rows)
+        self.assertEqual(sorted(str(path.relative_to(repo)) for path in repo.rglob('*')), before_files)
+        initial = cache.key_inputs(repo, 'a'*64, 'enabled', [], 'rustc', 'cargo', env)
+        self.assertEqual(initial['config'], rows)
+        original_key = cache.key_for(initial)
+        config = home / 'config.toml'
+        config.write_bytes(b'[build]\njobs=1\n')
+        first = cache.key_inputs(repo, 'a'*64, 'enabled', [], 'rustc', 'cargo', env)
+        self.assertEqual([row['path'] for row in first['config']], sorted(expected))
+        self.assertIn({'path':str(config), 'sha256':hashlib.sha256(config.read_bytes()).hexdigest()}, first['config'])
+        self.assertNotEqual(cache.key_for(first), original_key)
+        config.write_bytes(b'[build]\njobs=2\n')
+        second = cache.key_inputs(repo, 'a'*64, 'enabled', [], 'rustc', 'cargo', env)
+        self.assertEqual([row['path'] for row in second['config']], sorted(expected))
+        self.assertNotEqual(cache.key_for(first), cache.key_for(second))
+        config.unlink()
+        final = cache.key_inputs(repo, 'a'*64, 'enabled', [], 'rustc', 'cargo', env)
+        self.assertEqual(final['config'], initial['config'])
+        self.assertEqual(cache.key_for(final), original_key)
+        # Canonical snapshot production does not relax key admission.
+        bad = copy.deepcopy(initial); bad['config'].reverse()
+        with self.assertRaisesRegex(cache.CacheDenied, 'config order/duplicate'):
+            cache.key_for(bad)
+        bad = copy.deepcopy(initial); bad['config'].insert(0, bad['config'][0])
+        with self.assertRaisesRegex(cache.CacheDenied, 'config order/duplicate'):
+            cache.key_for(bad)
+
     def test_configuration_snapshot_reuses_key_rows_and_rejects_insecure_absence(self):
         repo = Path(self.temp.name)
         (repo / 'Cargo.lock').write_bytes(b'lock')

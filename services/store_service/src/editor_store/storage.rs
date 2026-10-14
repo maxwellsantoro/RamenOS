@@ -9,8 +9,9 @@ use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
-    os::unix::fs::OpenOptionsExt,
+    os::unix::fs::{MetadataExt, OpenOptionsExt},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub(super) fn hash(bytes: &[u8]) -> Hash32 {
@@ -18,6 +19,8 @@ pub(super) fn hash(bytes: &[u8]) -> Hash32 {
 }
 pub(super) trait Observer {
     fn journal_prepared(&self, journal: &EditorSelectionJournalV0) -> Result<(), StoreStatus>;
+    fn journal_staging(&self) -> Option<JournalStaging>;
+    fn retain_journal_staging(&self, staging: Option<JournalStaging>);
     fn before(&self, point: IoPoint, hash: Option<Hash32>) -> Result<(), StoreStatus>;
     fn after(&self, point: IoPoint, hash: Option<Hash32>, success: bool);
     fn pause(&self, point: PausePoint) -> Result<(), StoreStatus>;
@@ -506,12 +509,73 @@ pub(super) fn publish(
         || consume(cas, profile, &selected),
     )
 }
+// A retained descriptor prevents inode reuse from imitating the original
+// create_new writer. This private owner travels only through the actual Core.
+#[derive(Clone)]
+pub(super) struct JournalStaging {
+    file: Arc<File>,
+    journal: EditorSelectionJournalV0,
+}
+pub(super) fn validate_journal_staging(
+    root: &Path,
+    staging: Option<&JournalStaging>,
+) -> Result<bool, StoreStatus> {
+    let next = root.join("selection.next");
+    let path_meta = match fs::symlink_metadata(&next) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => return Err(StoreStatus::Unknown),
+    };
+    let staging = staging.ok_or(StoreStatus::Unknown)?;
+    let held = err(staging.file.metadata())?;
+    if !path_meta.is_file()
+        || path_meta.file_type().is_symlink()
+        || path_meta.nlink() != 1
+        || held.nlink() != 1
+        || (path_meta.dev(), path_meta.ino()) != (held.dev(), held.ino())
+        || path_meta.len() != held.len()
+        || path_meta.len() > 131072
+    {
+        return Err(StoreStatus::Unknown);
+    }
+    let expected = staging
+        .journal
+        .canonical_bytes()
+        .map_err(|_| StoreStatus::Unknown)?;
+    let actual = read(&next, 131072)?;
+    if actual != expected || path_meta.len() != expected.len() as u64 {
+        return Err(StoreStatus::Unknown);
+    }
+    // Strict typed decoding is independent of the expected-byte comparison.
+    let parsed =
+        EditorSelectionJournalV0::decode_canonical(&actual).map_err(|_| StoreStatus::Unknown)?;
+    if parsed != staging.journal {
+        return Err(StoreStatus::Unknown);
+    }
+    Ok(true)
+}
+fn retire_journal_staging(root: &Path, observer: &impl Observer) -> Result<(), StoreStatus> {
+    let staging = observer.journal_staging();
+    if validate_journal_staging(root, staging.as_ref())? {
+        err(fs::remove_file(root.join("selection.next")))?;
+        sync_dir(root)?;
+        observer.retain_journal_staging(None);
+    } else if staging.is_some() {
+        // A previous cleanup may have removed the path but failed directory
+        // sync. Settle that ordering before releasing its retained owner.
+        sync_dir(root)?;
+        observer.retain_journal_staging(None);
+    }
+    Ok(())
+}
+
 pub(super) fn publish_journal(
     root: &Path,
     journal: &EditorSelectionJournalV0,
     observer: &impl Observer,
     selection: bool,
 ) -> Result<Hash32, StoreStatus> {
+    retire_journal_staging(root, observer)?;
     let bytes = journal
         .canonical_bytes()
         .map_err(|_| StoreStatus::Internal)?;
@@ -521,6 +585,11 @@ pub(super) fn publish_journal(
     let file = io(observer, IoPoint::JournalWrite, Some(digest), || {
         write_file(&next, &bytes)
     })?;
+    let file = Arc::new(file);
+    observer.retain_journal_staging(Some(JournalStaging {
+        file: file.clone(),
+        journal: journal.clone(),
+    }));
     io(observer, IoPoint::JournalSync, Some(digest), || {
         err(file.sync_all())
     })?;
@@ -531,6 +600,7 @@ pub(super) fn publish_journal(
     io(observer, IoPoint::JournalRename, Some(digest), || {
         err(fs::rename(&next, root.join("selection.json")))
     })?;
+    observer.retain_journal_staging(None);
     if selection {
         observer.pause(PausePoint::AfterSelectionRename)?;
     }

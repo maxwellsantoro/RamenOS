@@ -1,0 +1,39 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "kernel/**/*",
+    "kernel_api/**/*",
+    "kernel_uefi/**/*",
+    "kernel_aarch64/**/*",
+    "idl/harness/**/*",
+    "CONSTITUTION.md",
+    "AGENTS.md"
+  ],
+  "output": {
+    "filePath": "repomix-output.kernel.xml",
+    "style": "xml",
+    "compress": false,
+    "removeEmptyLines": true,
+    "truncateBase64": true,
+    "tokenBudget": 250000,
+    "topFilesLength": 15,
+    "headerText": "RamenOS kernel pack: kernel, kernel_api, UEFI/AArch64 targets, harness IDL.",
+    "patterns": [
+      { "pattern": "**/generated/**", "directoryStructureOnly": true },
+      { "pattern": "**/*.generated.rs", "directoryStructureOnly": true },
+      { "pattern": "**/tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/*_tests.rs", "directoryStructureOnly": true },
+      { "pattern": "**/test_support.rs", "directoryStructureOnly": true },
+      { "pattern": "**/boot_pool_contract_tests.rs", "directoryStructureOnly": true }
+    ]
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "kernel_api/src/generated/**",
+      "kernel_api/src/mock.rs"
+    ]
+  }
+}

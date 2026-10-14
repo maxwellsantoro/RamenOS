@@ -20,26 +20,26 @@ REPO = Path(__file__).absolute().parents[2]
 GATE = 'foundry-editor-native-preview-read-ui1-1c'
 GATE_SOURCE = 'tools/foundry/desktop_editor_native_preview_read_gate.py'
 REGISTRY = 'tools/foundry/editor_native_preview_read_sources_v0.json'
-REGISTRY_SHA = '0814e72acf4470e62ac742fe4017a58900a1e201ab7daed351cf63a98731b7b7'
+REGISTRY_SHA = '70ce48ff545ae999f0a7cad0fd4280946e48ba77e72c2f129b8bce54743d6b30'
 CONTRACT = 'docs/contracts/editor-native-preview-read-v0.json'
 CONTRACT_SHA = '2267e4fe80ac02a8676cfccaa194a8395f70a2926526d829fdcac8b37b6b6252'
 OBSERVED_CONTRACT_SHA = '2f312a9a2f38504c576606a186d53b108f104c7fdd76519d092d2547d0d29c1c'
 CODEC_CONTRACT = 'docs/contracts/editor-native-preview-codec-v0.json'
 CODEC_CONTRACT_SHA = '92f31fe946c549f9ec76ce4cd7fc0fedfb515a46a7127e22de46a56325a32249'
 PRIMITIVES = 'tools/ci/editor_store_runner.py'
-PRIMITIVES_SHA = '532e02ce89574aea07f865320a3678b3ecc0e6a49218771bd03ed77f55cb05ff'
+PRIMITIVES_SHA = '3aeba4be230cfcd972ee8939e183d6e1cb9a14c60ebeec2e96368e16e143a787'
 BASE_REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-BASE_REGISTRY_SHA = '67888adceacf5e08d84e6fd0efec4d24832c546bc35dfc49ba422b13e727c24e'
+BASE_REGISTRY_SHA = 'bbf99a79e97cd78262c5e186843ca2e300a4a4009b30b35ebe17468739d21a20'
 ASSERTION_PINS = {
     'services/store_service/tests/editor_native_preview_read.rs': 'bd011ebebe64ce3ec61d90f7e2d1a747246a8cbaf6cc8d37b25e666247498923',
     'services/store_service/tests/editor_native_preview_read_support/mod.rs': 'cff606f92e6706f629945aa05644a90ffdba4d8920235dcb93e331a224417e62',
 }  # Independently accepted assertion bytes, never test-reported pins.
 IMPLEMENTATION_PATHS = ['services/desktop/src/editor_dev/host.rs', 'services/desktop/src/editor_dev/mod.rs', 'services/desktop/src/editor_dev/native_authority.rs', 'services/desktop/src/editor_dev/native_preview.rs', 'services/store_service/src/editor_store/mod.rs', 'services/store_service/src/editor_store/native_preview.rs']
 CACHE_HELPER = 'tools/ci/build_cache.py'
-CACHE_HELPER_SHA = '7910c405847716c411c4fb070225b7cf48cce1aebca50267a241b2d881a17743'  # Root freezes reviewed helper and source registry before opt-in use.
+CACHE_HELPER_SHA = '014ba0d352578b155565cd0d232fef30771e1aaf9e8ecfdf18b595820f6e37f2'  # Root freezes reviewed helper and source registry before opt-in use.
 
 INVENTORY_HELPER = 'tools/ci/editor_source_inventory.py'
-INVENTORY_HELPER_SHA = 'b13e7bda229678467e31ecea01577d341b30a8e1c19aa276e43937bdf9974639'
+INVENTORY_HELPER_SHA = 'd0d827960ca28a588ab6cde05dfbe79dd81365d12388f96915fb9c611f6444c8'
 
 FEATURE = 'editor_native_preview_v0_dev'
 BASE_FEATURE = 'editor_native_read_v0_dev'

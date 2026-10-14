@@ -6,7 +6,9 @@
     "apps/artifact_editor/Cargo.toml",
     "apps/artifact_editor/src/lib.rs",
     "apps/artifact_editor/src/native.rs",
+    "apps/artifact_editor/src/native_tests.rs",
     "apps/artifact_editor/tests/adapter_native_fixture/mod.rs",
+    "apps/artifact_editor/tests/desktop_reliability.rs",
     "apps/artifact_editor/tests/editor_adapter_migration.rs",
     "apps/artifact_editor/tests/native_task.rs",
     "apps/artifact_editor/tests/native_task_support/mod.rs",
@@ -306,6 +308,7 @@
     "services/store_service/tests/editor_native_preview_read_support/mod.rs",
     "services/store_service/tests/editor_native_read.rs",
     "services/store_service/tests/editor_native_read_support/mod.rs",
+    "services/store_service/tests/editor_reliability.rs",
     "services/store_service/tests/editor_store.rs",
     "services/store_service/tests/ingest_transport.rs",
     "services/store_service/tests/support/editor_store.rs",
@@ -332,6 +335,7 @@
     "tools/agent_task_adapter/tests/protocol.rs",
     "tools/agent_task_adapter/tests/rt.rs",
     "tools/agent_task_adapter/tests/subscriptions.rs",
+    "tools/ci/acceptance_build.py",
     "tools/ci/build_cache.py",
     "tools/ci/ci_lanes.py",
     "tools/ci/desktop_editor_result.py",
@@ -350,6 +354,7 @@
     "tools/ci/owned_manifest_verifier.py",
     "tools/ci/stage_timer.py",
     "tools/ci/test_editor_source_inventory.py",
+    "tools/ci/test_timing.py",
     "tools/foundry/desktop_editor_native_read_gate.py",
     "tools/foundry/editor_native_read_sources_v0.json"
   ]

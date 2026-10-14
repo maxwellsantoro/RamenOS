@@ -38,14 +38,6 @@ echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: INFO step=host_unit_tests ok"
 
 mkdir -p "$ROOT_DIR/out/logs"
 OUT_DIR="$(mktemp -d "$ROOT_DIR/out/s13-runtime-block.XXXXXX")"
-cleanup() {
-  if [[ -n "${QEMU_PID:-}" ]]; then
-    kill "$QEMU_PID" >/dev/null 2>&1 || true
-    wait "$QEMU_PID" >/dev/null 2>&1 || true
-  fi
-  rm -rf "$OUT_DIR"
-}
-trap cleanup EXIT
 UEFI_DIR="$OUT_DIR/uefi"
 LOG_DIR="$ROOT_DIR/out/logs"
 INIT_DIR="$OUT_DIR/init"
@@ -81,10 +73,8 @@ prepare_vars() {
     echo ""
     return 0
   fi
-  if [[ ! -f "$out_file" ]]; then
-    cp "$template" "$out_file"
-  fi
-  echo "$out_file"
+  python3 "$ROOT_DIR/tools/ci/qemu_boot_observation.py" prepare-vars \
+    --template "$template" --destination "$out_file"
 }
 
 find_uefi_bin() {
@@ -99,20 +89,6 @@ find_uefi_bin() {
     return 0
   fi
   fail "UEFI_BIN_MISSING" "kernel_uefi binary not found for $target"
-}
-
-wait_for_log() {
-  local log="$1"
-  local pattern="$2"
-  local timeout_s="$3"
-  local max_iters=$((timeout_s * 5))
-  for _ in $(seq 1 "$max_iters"); do
-    if [[ -f "$log" ]] && grep -aq "$pattern" "$log"; then
-      return 0
-    fi
-    sleep 0.2
-  done
-  return 1
 }
 
 require_cmd cargo
@@ -154,35 +130,27 @@ LOG="$LOG_DIR/$(basename "$OUT_DIR").log"
 rm -f "$LOG"
 
 echo "FOUNDRY_S13_RUNTIME_BLOCK_S13_6: INFO qemu boot x86_64"
+# The observer owns exactly one actual process and retains all run files.
+QEMU_ARGS=(qemu-system-x86_64 -machine q35 -m 512M
+  -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE")
+OBSERVATION_ARGS=(run --run-dir "$OUT_DIR" --serial "$LOG" --timeout 30
+  --code "$OVMF_CODE" --kernel "$X86_DIR/BOOTX64.EFI" --init "$X86_DIR/init.img"
+  --marker "persistent_storage: harness.block ok"
+  --marker "persistent_storage: block_read ok"
+  --marker "persistent_storage: block_write ok"
+  --marker "persistent_storage: trace_sha256_prefix=eb816f3657bb5807"
+ )
 if [[ -n "${OVMF_VARS:-}" ]]; then
-  qemu-system-x86_64 \
-    -machine q35 -m 512M \
-    -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
-    -drive if=pflash,format=raw,file="$OVMF_VARS" \
-    -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
-    -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
-else
-  qemu-system-x86_64 \
-    -machine q35 -m 512M \
-    -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
-    -drive format=raw,file=fat:rw:"$UEFI_DIR/x86_64" \
-    -nographic -serial file:"$LOG" -monitor none -no-reboot -no-shutdown &
+  QEMU_ARGS+=(-drive "if=pflash,format=raw,file=$OVMF_VARS")
+  OBSERVATION_ARGS+=(--vars-template "$OVMF_VARS_TEMPLATE" --vars "$OVMF_VARS")
 fi
-QEMU_PID=$!
-
-if ! wait_for_log "$LOG" "persistent_storage: harness.block ok" 30; then
-  kill "$QEMU_PID" >/dev/null 2>&1 || true
-  wait "$QEMU_PID" >/dev/null 2>&1 || true
-  unset QEMU_PID
+QEMU_ARGS+=(-drive "format=raw,file=fat:rw:$UEFI_DIR/x86_64")
+QEMU_ARGS+=(-nographic -serial "file:$LOG" -monitor none -no-reboot -no-shutdown)
+if ! python3 "$ROOT_DIR/tools/ci/qemu_boot_observation.py" "${OBSERVATION_ARGS[@]}" -- "${QEMU_ARGS[@]}"; then
   echo "--- qemu serial log (tail) ---" >&2
   tail -n 40 "$LOG" >&2 || true
-  fail "BLOCK_IO_MISSING" \
-    "serial log missing 'persistent_storage: harness.block ok' — implement OP_BLOCK_IO"
+  fail "BLOCK_IO_MISSING" "fresh boot observation failed; retained=$OUT_DIR/boot-observation.json"
 fi
-
-kill "$QEMU_PID" >/dev/null 2>&1 || true
-wait "$QEMU_PID" >/dev/null 2>&1 || true
-unset QEMU_PID
 
 grep -q "persistent_storage: block_read ok" "$LOG" \
   || fail "BLOCK_READ_MISSING" "block_read marker not in serial log"

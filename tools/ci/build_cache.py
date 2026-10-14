@@ -167,7 +167,7 @@ def configuration_snapshot(repo, env):
         candidates.extend(ancestor / '.cargo' / n for n in ('config', 'config.toml'))
     cargo_home = Path(env.get('CARGO_HOME', str(Path.home() / '.cargo'))).absolute()
     candidates.extend(cargo_home / n for n in ('config', 'config.toml'))
-    paths = sorted(set(candidates))
+    paths = sorted(set(candidates), key=str)
     require(len(paths) <= 40, 'config/environment count')
     for path in paths:
         require(0 < len(str(path).encode()) <= 4096 and '\x00' not in str(path)

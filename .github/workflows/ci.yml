@@ -104,14 +104,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
-      # Canonical host setup pulls/checks the image BEFORE its pinned Rust install.
-      # Compilation only: helper independently admits exact inner keys and locks.
-      # Fresh out/desktop evidence is never restored or accepted from a cache.
-      - name: Cache isolated compiler targets
-        uses: actions/cache@v4
-        with:
-          path: out/ci-optimization/compiler-cache
-          key: ${{ runner.os }}-${{ runner.arch }}-foundry-compile-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '**/*.rs', '**/Cargo.toml', 'idl/**', 'tools/**', 'docs/**', 'justfile', '.cargo/**', '.github/**', 'services/**/fixtures/**') }}
       - name: Run canonical host lane (serialized)
         run: python3 tools/ci/ci_lanes.py lane host
       - name: Retain actual host stage timings
@@ -213,11 +205,58 @@ jobs:
           path: out/foundry/timings/
           if-no-files-found: error
 
+  editor:
+    needs: changes
+    if: needs.changes.outputs.os_code == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RAMEN_CI_STRICT: "1"
+      RUST_TEST_THREADS: "1"
+      CARGO_BUILD_JOBS: "2"
+      LINT_ALLOW_WARNINGS: "0"
+      SKIP_E2E_ASSERTIONS: "1"
+      RAMEN_FOUNDRY_BUILD_CACHE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install editor host prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just python3 python3-jsonschema gcc curl ripgrep
+      - name: Cache Cargo downloads and pinned toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-rust-downloads-${{ hashFiles('rust-toolchain.toml') }}-
+      # Only compiler candidates are restored; exact inner admission remains mandatory.
+      # Compilation only: helper independently admits exact inner keys and locks.
+      # Fresh out/desktop evidence is never restored or accepted from a cache.
+      - name: Cache isolated compiler targets
+        uses: actions/cache@v4
+        with:
+          path: out/ci-optimization/compiler-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-foundry-compile-v2-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '**/*.rs', '**/Cargo.toml', 'idl/**', 'tools/**', 'docs/**', 'justfile', '.cargo/**', '.github/**', 'services/**/fixtures/**') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-foundry-compile-v2-${{ hashFiles('rust-toolchain.toml') }}-
+      - name: Run canonical editor lane (serialized)
+        run: python3 tools/ci/ci_lanes.py lane editor
+      - name: Retain actual editor stage timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-editor-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/foundry/timings/
+          if-no-files-found: error
+
   # This stable required check rejects failed, cancelled or unexpectedly skipped
-  # lanes. Only a successful docs-only classification allows four lane skips.
+  # lanes. Only a successful docs-only classification allows five lane skips.
   foundry:
     runs-on: ubuntu-latest
-    needs: [changes, quality, host-docker, agent-task, qemu]
+    needs: [changes, quality, host-docker, agent-task, qemu, editor]
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -229,7 +268,8 @@ jobs:
           HOST: ${{ needs.host-docker.result }}
           AGENT: ${{ needs.agent-task.result }}
           QEMU: ${{ needs.qemu.result }}
-        run: python3 tools/ci/change_policy.py foundry "$CHANGES" "$OS_CODE" "$QUALITY" "$HOST" "$AGENT" "$QEMU"
+          EDITOR: ${{ needs.editor.result }}
+        run: python3 tools/ci/change_policy.py foundry "$CHANGES" "$OS_CODE" "$QUALITY" "$HOST" "$AGENT" "$QEMU" "$EDITOR"
 
   org-governance:
     runs-on: ubuntu-latest

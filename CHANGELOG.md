@@ -2,6 +2,66 @@
 
 ## [Unreleased]
 
+### Complete strict Linux56 qualification — 2026-10-13
+- Installed the exact pinned proof image locally and verified native Linux
+  Docker/builtin-seccomp, pinned toolchain/targets, OVMF and S2 kernel inputs.
+- Full `just preflight` passes all 56 canonical stages on the exact 795-file dirty
+  candidate, preserving source and Cargo.lock. Actual agent evaluator/reconciliation,
+  original18/Reader93, editor consumers/regression13 and required QEMU paths pass.
+- Corrected only qualification-environment setup: protected private Cargo home
+  and umask 022/owned output permissions. The initial tooling failure and focused
+  correction checks remain retained; no product-code or assertion change needed.
+- [Qualification evidence](docs/plans/linux56-qualification-2026-10-13.md)
+  records 1188.643 seconds of observed stage time, actual exits/reaps and separate
+  documentation-only status reconciliation. Fresh five-lane hosted execution,
+  actual editor process/target, provider/model and physical qualification remain
+  separate; no merge/release claim follows.
+
+### Build/test iteration and CI streamlining — 2026-10-13
+- Added one-command developer test/check/lint modes, shared package/feature
+  compilation targets, admitted job limits, and optional agent-only Store WAT.
+- Extended exact-source compiler caching to Task/reliability with distinct
+  exclusion/enabled/verifier phases, fresh assertions and retained binaries.
+  Local cold/warm Cargo time fell 100.105→1.217 seconds for reliability and
+  88.605→1.451 seconds for Task; runtime and Reader93 execute freshly.
+- Consolidated Semantic subsets and nine Projection Store filters into actual
+  selected harness unions. Cargo metadata preserves mixed library kinds,
+  explicit integration targets and eligible doctests; real Wasm fixtures are
+  mandatory. Fixed private Cargo-home config ordering without relaxing keys.
+- Added bounded per-case/phase diagnostics, fresh QEMU firmware variables,
+  original 30-second boots and held-parent cleanup. S11/S12/S13 pass on their
+  first launch. Isolated eleven existing editor stages in a fifth mandatory CI
+  lane, preserving 56/40 canonical coverage; compiler-only fallback candidates
+  still require exact inner admission.
+- Added read-only cache inspection and exact completed-entry retirement;
+  retired five task-created superseded entries (3,016,239,361 logical bytes)
+  without deleting evidence or retained binaries. Fresh Mac/Linux13, Mac18/
+  Reader93, all affected consumers, selected gates, tooling 130/seven Rust and
+  formatting pass. Preserve actual predecessor failures and measurements in
+  [the resolution](docs/plans/build-streamlining-2026-10-13.md). Full Linux56 and
+  fresh hosted qualification remain pending; no hosted speedup is claimed.
+
+### Host editor reliability — 2026-10-13
+- Implemented and independently reviewed R1–R4: request-owned Store reply data
+  through native lease transfer, exact abandoned render cleanup and launch-only
+  focus handoff, definitive pre-admission Save expiry with app-chain recovery,
+  and held-file verified pre-rename journal staging cleanup. Admitted uncertainty
+  and post-rename original outcomes remain reconcilable without mutation replay.
+- Added thirteen maintained regressions and a source-bound strict host gate.
+  macOS/Linux regression inventories and strict Clippy for all three regression
+  targets pass on the same snapshot; original eighteen-case task and complete Reader93 pass freshly
+  on macOS, alongside all affected volatile, Store, codec, Read/Preview and adapter
+  gates. Pin-removal RED independently demonstrates both Store races.
+- CI tooling71/seven Rust controls, S11/S12/S13, appliance docs mode,
+  org-governance and formatting pass. Initial missing-marker QEMU failures for
+  S12 GOP and S13 block remain retained alongside unchanged successful retries.
+- Added one canonical host stage (56 full/40 extended), preserving previous
+  order/coverage. Reviewed source registries retain every old path and add three
+  regression sources; original assertions and helper collectors are unchanged.
+  Complete Linux56 preflight and hosted qualification remain pending. Actual
+  editor child, target persistence, device/metal, crash-orphan and CAS temporary
+  cleanup claims remain outside this host repair batch.
+
 ### Roadmap and contributor workflow — 2026-10-08
 - Reordered the ready frontier around host transition reliability and evidence
   admission before the real editor process; split assertion/owner staging, carrier,

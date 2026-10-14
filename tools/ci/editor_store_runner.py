@@ -324,7 +324,7 @@ class OwnedCommand:
         self.budget, self.cwd, self.env = budget, cwd, env
         self.ordinal = 0
         self.observations = []
-    def run(self, argv, name, timeout=600, test=False, observe_birth=False):
+    def run(self, argv, name, timeout=600, test=False, observe_birth=False, stream_observer=None):
         require(self.ordinal < 16 and 1 <= len(argv) <= 32, 'owned command inventory')
         require(all(type(s) is str and 0 < len(s.encode()) <= 4096 for s in argv), 'command argv bound')
         self.ordinal += 1
@@ -372,6 +372,14 @@ class OwnedCommand:
                     retained += len(block)
                     #Logs and in-memory parse inputs share the same admitted cap.
                     (stdout if pipe == process.stdout.fileno() else stderr).extend(block)
+                    if stream_observer is not None:
+                        try:
+                            stream_observer('stdout' if pipe == process.stdout.fileno() else 'stderr', block)
+                        except Exception as error:
+                            # Optional diagnostics cannot alter test bytes or command authority.
+                            try: stream_observer.diagnostic_error = type(error).__name__
+                            except Exception: pass
+                            stream_observer = None
                 reap()
             require(status is not None and not held, 'actual command reap')
             exited = time.monotonic_ns()

@@ -38,6 +38,11 @@ path = "tests/native_task.rs"
 required-features = ["host_native_save_v0_dev"]
 
 [[test]]
+name = "desktop_reliability"
+path = "tests/desktop_reliability.rs"
+required-features = ["host_native_save_v0_dev"]
+
+[[test]]
 name = "editor_adapter_migration"
 path = "tests/editor_adapter_migration.rs"
 required-features = ["host_editor_adapter_assertions_v0_dev"]

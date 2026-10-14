@@ -10,7 +10,7 @@ import tomllib
 import types
 
 COLLECTOR = 'tools/ci/native_save_task_sources.py'
-COLLECTOR_SHA = '6323de423cd8476a6c0bca92119587742a5e7a010be3e669706643c2e7434b63'
+COLLECTOR_SHA = '3fa310f06ee74638944c6dfabd9d70ea2f817b825534f47081a3c45e6b4af671'
 SOURCE = 'tools/ci/editor_source_inventory.py'
 TEST = 'tools/ci/test_editor_source_inventory.py'
 
