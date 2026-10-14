@@ -18,7 +18,15 @@ Operational viability is still unproven. Pinned EDK II source includes a debug-o
 
 Primary references checked during preparation: [EDK II image loader at edk2-stable202402](https://raw.githubusercontent.com/tianocore/edk2/edk2-stable202402/MdeModulePkg/Core/Dxe/Image/Image.c), [QEMU v8.2.2 GDB documentation](https://raw.githubusercontent.com/qemu/qemu/v8.2.2/docs/system/gdb.rst), and [Microsoft PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format). These are source references, not installed-binary or actual-capture pins. The maintained Oracle additionally names UEFI2.10 and Intel SDM June2024; freeze archived specification references in the CPU dossier before implementation. No CPU Reference Vault/actual trace is present in the inspected maintained paths.
 
-## Exact current source gaps
+## Source gaps recorded during October 6 preparation
+
+The October 14 review repair replaces unchecked legacy map selection with a
+separate, bounded firmware-allocation bootstrap. It preserves all supported
+descriptors, reserves active boot-services memory and refuses allocator
+replacement. These changes supersede the corresponding legacy observations
+below; they do not implement this preparation's final-map/retention/access
+adapter or supply its missing external Oracle capture. The historical base and
+the full RUN0 successor remain distinct from bootstrap escrow ownership.
 
 * `kernel_uefi/src/main.rs:36` enters with BootServices active, loads init, calls the early map helper, runs probes, then enters `boot_main`. There is no `exit_boot_services` call. The early helper uses an 8192-byte stack buffer, maps BootServicesCode/Data to Usable, filters out all non-Usable descriptors and multiplies page counts without checked arithmetic. It cannot be the final map or retention basis.
 * `load_init_image` knows the allocated page count but exports only pointer and bytes read. Its `size as usize`, page rounding and allocated-length multiplication require checked adapter admission; bytes read alone do not retain allocation slack. All file/protocol owners must end before exit.

@@ -1,6 +1,26 @@
 # CHANGELOG
 
-## 2026-10-14 — foundation review repairs (working candidate)
+## 2026-10-14 — follow-up review bootstrap and authority repairs
+
+- Replace largest-region bootstrap allocation with a checked, held 16 MiB UEFI
+  allocation; preserve complete supported map descriptors and keep boot-services,
+  runtime, reserved and unrelated loader memory unavailable. Reject malformed maps
+  and allocator reinstallation. Release the pool after failed capture, or retain
+  it and halt when release is uncertain. Label AArch64 backing as a QEMU fixture.
+- Default both boot crates to ordinary capability admission. Explicit Oracle
+  providers retain IPC validation; trace CREATE requires matching creator-domain
+  authority at both entrypoints. Add denial, recovery and unaffected-consumer checks.
+- Refresh risks, roadmap, slices and security/status evidence boundaries, including
+  PR #38's successful first-attempt post-merge CI. Correct the POSIX runner's
+  default resource-limit scope.
+- Add default-off process assertion preparation: two genuine in-process setup
+  controls and three authored missing-API consumers. Require actual setup success
+  and classified compiler RED; this does not complete P0 or establish a child.
+- Preserve the canonical 56-stage/five-lane CI inventory and existing editor
+  assertions. Full RUN0, process execution and physical graduation remain pending.
+  See the follow-up review resolution for local validation and retained failures.
+
+## 2026-10-14 — foundation review repairs and hosted qualification
 
 - Deny a new broker grant generation while live or unresolved handles remain;
   retain failed revoke/rollback ownership for explicit retry and report confirmed
@@ -23,9 +43,14 @@
   targets build; S8, S11/S12/S13, boot admission, broker bridge, execution fabric,
   IDL and governance pass. CI tooling's initial timing-sensitive observer fixture
   failures are retained; unchanged-source serial rerun passes without waivers.
-- Evidence for this successor is local host/QEMU scope. Previous Linux56/hosted
-  results remain bound to their original source; no merge, physical or release
-  qualification is inferred.
+- PR #38 merged as `f3fa057` after independent technical review, separate
+  bot-author/A3 approval and both hosted runs passing all nine jobs. Retained
+  initial Docker create/attach deadline failures; unchanged-source retries passed
+  without deadline or assertion changes. Post-merge run 38591283628 passed all
+  nine jobs and 68 stage/preparation records on its first attempt.
+- The earlier strict Linux56 wrapper result remains bound to its original
+  source; that wrapper was not repeated for PR #38. Host/QEMU/hosted evidence
+  adds no physical, target-isolation or release assurance.
 
 ## 2026-10-14 — hosted qualification and merge
 

@@ -338,8 +338,12 @@ def execute(args):
                "environment_sha256": hashlib.sha256(json.dumps(sorted(os.environ.items())).encode()).hexdigest(),
                "required_inputs": {}}
     try:
+        features = getattr(args, "features", None)
+        require(features is None or (type(features) is str and 0 < len(features) <= 1024
+                and re.fullmatch(r"[A-Za-z0-9_./,-]+", features)), "invalid explicit features")
+        feature_args = ["--features", features] if features is not None else []
         summary["required_inputs"] = {str(path): input_identity(path) for path in args.required_input}
-        metadata = run_owned(["cargo", "metadata", "--locked", "--no-deps", "--format-version=1"], output, "metadata")
+        metadata = run_owned(["cargo", "metadata", "--locked", "--no-deps", "--format-version=1", *feature_args], output, "metadata")
         summary["commands"].append(metadata)
         require(metadata["exit_code"] == 0, "Cargo metadata failed")
         workspace = json.loads((output / "metadata.stdout").read_text())
@@ -347,7 +351,7 @@ def execute(args):
         require(len(packages) == 1, "package must resolve to one Cargo package")
         package = packages[0]
         summary["package_id"] = package["id"]
-        base = ["cargo", "test", "--locked", "-p", args.package]
+        base = ["cargo", "test", "--locked", "-p", args.package, *feature_args]
         if args.test:
             base.extend(["--test", args.test])
         compile_record = run_owned([*base, "--no-run", "--message-format=json"], output, "compile")
@@ -380,7 +384,7 @@ def execute(args):
             require(args.test is None, "explicit integration target has no doc-test scope")
             summary["doctests"].update(doctest_plan(package["targets"]))
             if summary["doctests"]["run"]:
-                documented = run_owned(["cargo", "test", "--locked", "-p", args.package, "--doc"], output, "doc-tests")
+                documented = run_owned([*base, "--doc"], output, "doc-tests")
                 summary["commands"].append(documented)
                 require(documented["exit_code"] == 0, "actual package doctests failed")
         for path, before in summary["required_inputs"].items():
@@ -398,6 +402,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package", required=True)
     parser.add_argument("--test")
+    parser.add_argument("--features")
     parser.add_argument("--filter", action="append", default=[])
     parser.add_argument("--require-filter", action="append", default=[])
     parser.add_argument("--required-input", type=Path, action="append", default=[])

@@ -50,7 +50,8 @@ class CiTests(unittest.TestCase):
         for path in ["docs/contracts/editor-native-preview-read-v0.json",
                      "docs/contracts/new-contract.md", "docs/fixtures/new.yaml",
                      "docs/new-executable-input.json", "docs/DESKTOP_EDITOR_WIRE_V1.md",
-                     "docs/HIL_APPLIANCE_EVIDENCE_V0.md", "CONSTITUTION.md",
+                     "docs/HIL_APPLIANCE_EVIDENCE_V0.md",
+                     "docs/DESKTOP_EDITOR_PROCESS_API_V0.md", "docs/plans/editor-process-v0.md", "CONSTITUTION.md",
                      "EVIDENCE_LEVELS.md", "drivers/reference_vaults/virtio-net/README.md",
                      "drivers/reference_vaults/virtio-blk/README.md"]:
             with self.subTest(path=path):

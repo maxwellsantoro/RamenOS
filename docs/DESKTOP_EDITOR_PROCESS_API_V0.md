@@ -132,7 +132,13 @@ impl HostDesktop {
         reason: ProcessRetireReason, now_ms: u64,
     ) -> Result<(), ProcessStepFailure>;
 
-    // Supervisor alone performs waitpid. Consuming join validates its authentic terminal result, then joins the actual supervisor. Error returns sole unreaped/quarantined supervised owner.
+    // Supervisor alone performs waitpid. Consuming join returns promptly and
+    // never unwinds after consuming the owner. Every nonterminal/uncertain path
+    // returns ProcessJoinFailure with the sole unreaped/quarantined child.
+    // Only an authentic terminal result AND is_finished() permit joining the
+    // actual supervisor. NotReady returns ownership without blocking; a caller's
+    // original cleanup deadline is never renewed by retries. No hidden waiter
+    // or Drop path may replace this ownership return with fabricated completion.
     // Original Store source/ticket/IO owners remain in the common parent SaveChains.
     // retire only requests signaling from supervisor; it cannot call waitpid.
     pub fn join_process_editor(

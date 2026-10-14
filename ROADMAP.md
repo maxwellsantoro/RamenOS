@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Product checkpoints and dependencies; no completion-date or readiness claim
 
 [Vision](VISION.md) owns the destination: an everyday post-Unix OS for humans and
@@ -17,13 +17,14 @@ and rationale in [Decisions](DECISIONS.md).
 Keep one keyboard-first human task unchanged across stronger boundaries: launch
 through a permission preview, read/edit/save an artifact and recover after failure.
 Core interaction must work without a model. The default-off trusted in-process
-host consumer is implemented; current review findings require reliability repairs
-before it becomes the foundation for process integration. Target persistence needs
+host consumer and reviewed reliability repairs are implemented and qualified.
+The next process work starts with executable assertions and genuine owner staging.
+Target persistence needs
 actual storage IO/readback, not a host journal or embedded vector.
 
 | Checkpoint | Concrete completion | Dependencies / claim |
 |------------|---------------------|----------------------|
-| Reliable host control | Repair pending reply ownership, render cancellation/focus and pre-admission Save state; resolve the journal staging investigation and CI evidence gaps | Keep original task/denial/recovery controls and add transition regressions. Host fixture only. |
+| Reliable host control | Accepted: pending reply ownership, render cancellation/focus, pre-admission Save and bounded JournalSync staging recovery | Original18/Reader93 and thirteen transition regressions, affected consumers and hosted lanes pass on their recorded sources. Trusted in-process host scope. |
 | Real application process | Existing editor core runs in an actual Linux child through authenticated typed channels, immutable publications and retained original Save owners | Reviewed full process assertions and ownership-safe lifecycle; preserve in-process control. Host process evidence does not prove target or general containment. |
 | Same task on RamenOS/QEMU | Actual target loader/runtime, input, compositor/display and named required services execute the task with grants, denial and crash/restart | Join runtime+input+display branches; name any host services. Saving across restart additionally joins device-backed storage. |
 | Persistent target task | Actual block read/write/flush and Store IO produce verified save/reopen and failure recovery | Concrete device profile and durability/ordering assertions; vector or firmware-detection success is insufficient. |
@@ -66,7 +67,7 @@ flowchart LR
 ```
 
 RUN0 memory ownership, input Vault/Oracle preparation and device-backed storage
-can advance while host repairs/process work proceed. A worker needs the selected
+can advance while process assertions and implementation proceed. A worker needs the selected
 device's Reference Vault and Oracle protocol_trace before device implementation.
 Do not require physical H0–H3 for host/QEMU work or SW0. Physical execution keeps
 its own explicit authorization and prerequisites. Target compositor/service ports
@@ -127,7 +128,7 @@ focused evidence may be referenced only for its original scope. Do not duplicate
 complete preflight locally after the equivalent complete lanes passed on the same
 candidate. Host/QEMU/physical claims retain their separate evidence requirements.
 
-CI currently has four isolated execution lanes and one complete canonical stage
+CI currently has five isolated execution lanes and one complete canonical stage
 inventory. Measure actual stage/setup/cache/queue costs before splitting gates,
 batching feature graphs or adding runner complexity. Preserve every behavior,
 denial and failure assertion, fresh evidence and fail-closed aggregate. Smaller

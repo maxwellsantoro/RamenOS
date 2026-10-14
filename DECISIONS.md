@@ -1,7 +1,45 @@
 # DECISIONS (ADR-lite)
 
-**Last Updated:** 2026-10-13
+**Last Updated:** 2026-10-14
 **Status:** Active
+
+## 2026-10-14 — Bound active-firmware bootstrap and creation authority
+
+Legacy allocator initialization must not infer ownership from the largest usable
+descriptor. While UEFI boot services remain active, reserve one actual 16 MiB
+`LOADER_DATA` allocation below 3 GiB and retain it for the bootstrap lifetime.
+Capture the complete supported map after probes/allocation, preserve nonusable
+descriptors, and keep boot-services/runtime pages unavailable. A trusted unsafe
+boot claim records the exact allocation and provenance; numeric admission checks
+the complete map, backing, alignment, arithmetic and capacity before one-shot
+installation. Conflicting, missing or incomplete inputs do not publish an
+allocator, and a second install cannot replace live allocations. Failed map
+capture frees the exact allocation; failed release retains ownership and halts.
+Fixed map scratch lives in the loaded image rather than requiring 32 KiB of
+additional firmware-stack headroom. AArch64's bounded synthetic pool remains
+explicitly `QemuFixture` preparation.
+
+This is an active-firmware bootstrap repair. It does not implement RUN0 firmware
+exit, seven retained-range collectors, interrupt masking, access/mapping
+validation or target userspace. The existing pure RUN0 selector and its stronger
+prerequisites remain unchanged.
+
+Every ordinary IPC envelope, including opt-in Oracle providers, validates a live
+IPC handle. Both boot crates stop enabling `test_protocols` implicitly; boot
+fixtures issue actual IPC capabilities. Trace buffer creation uses the same
+owner-bound IPC precedent as shared-memory creation at both dispatch entrypoints.
+It must deny foreign domains before allocating capabilities or resetting streams.
+Existing Trace bearer read/info/destroy semantics remain separate. Generic IPC
+handles currently bind domain and generation, not protocol-specific rights.
+
+P0 preparation may exercise genuine Store Read/reopen and permitted-writer
+pause/unwind without an editor child. Frozen process consumers must retain
+actual missing-API compile RED separately from behavior RED. Consuming process
+join is required to return promptly without unwinding and to return the sole
+child on every nonterminal or uncertain outcome. Only an authentic terminal
+result and a finished supervisor permit its join. Preparation does not complete
+the thirty assertion families or unblock dependent handlers; private native
+negative controls and shared Save ownership still need executable assertions.
 
 
 ## 2026-10-14 — Fail-closed foundation recovery after project review

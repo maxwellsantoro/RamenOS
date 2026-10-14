@@ -25,6 +25,7 @@ parts of that product, with implementation status and evidence recorded separate
 | Store examples, operator settings, and repository map | [Development Reference](DEVELOPMENT_REFERENCE.md) |
 | Warm developer checks, complete CI lanes, compiler cache and timing | [Foundry execution profile](FOUNDRY_CI_OPTIMIZATION_V0.md) |
 | Linux editor process contract and API | [Process contract](contracts/editor-process-v0.json), [API](DESKTOP_EDITOR_PROCESS_API_V0.md), [plan](plans/editor-process-v0.md) |
+| October 14 follow-up review | [Resolution and evidence limits](plans/follow-up-review-resolution-2026-10-14.md) |
 | RUN0 source-derived entry/retention preparation | [Entry preparation](plans/run0-relocated-entry-preparation-v0.md) |
 | Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
 | Coordinator/sub-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |

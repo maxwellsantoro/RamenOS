@@ -216,7 +216,8 @@ fn default_posix_sandbox_config(chroot_dir: std::path::PathBuf) -> SandboxConfig
 ///
 /// This function provides defense-in-depth protection:
 /// - **Store service verification**: Artifacts are fetched through verified IPC
-/// - **Sandbox isolation**: Script runs in seccomp/namespaces/chroot (Linux-only)
+/// - **Resource limits**: The default portable profile is rlimits-only;
+///   seccomp, namespaces and chroot helpers are not enabled on this path.
 /// - **Runtime kill-switch**: Requires RAMEN_POSIX_RUNNER_ACK_RISK=1
 pub fn posix_run_v0_from_store(
     content_id: &str,

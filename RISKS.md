@@ -1,6 +1,6 @@
 # RISKS
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Active
 
 These risks are evaluated against the [Vision](VISION.md) of an everyday,
@@ -9,14 +9,28 @@ landed behavior and evidence remain in [Current Status](CURRENT_STATUS.md).
 
 ## Host editor transition reliability
 
-October 8 external review of merged `d3a95551`, followed by independent static
-inspection, identifies pending-reply reclamation, abandoned surface acquisitions,
-render-time focus authority and definitive pre-admission Save state gaps. The
-review reports runtime reproductions; the current optimization packet does not
-rerun or repair them. JournalSync staging/reopen additionally needs a focused
-reproducer. Existing finite green gates do not cover these transitions.
-[Next Tasks](NEXT_TASKS.md#ready-work-front) owns the repair and regression sequence;
-[Current Status](CURRENT_STATUS.md) bounds the default-off trusted host scope.
+The October 8 pending-reply, abandoned-surface, render-time focus and definitive
+pre-admission Save findings, plus the JournalSync staging investigation, were
+repaired and independently reviewed in PR #36. Thirteen maintained regressions
+cover those transitions. PR #38's foundation repairs also passed fresh five-lane
+hosted qualification and post-merge CI on `f3fa057`; earlier failures remain in
+the evidence record. These results qualify the trusted in-process host consumer.
+The actual editor child, authenticated transport, process-death Save ownership,
+target persistence and physical durability still need their own assertions.
+[Next Tasks](NEXT_TASKS.md#ready-work-front) owns the process sequence;
+[Current Status](CURRENT_STATUS.md) records source-bound validation.
+
+## Bootstrap memory and request authority
+
+The October 14 follow-up review identified unchecked legacy allocator publication,
+active boot-services memory classified as usable, default-enabled test protocols,
+and trace creation without an owner-bound IPC capability. The local successor
+adds held bootstrap allocation, strict IPC/creator-domain admission, and denial
+and recovery assertions at those enforcing boundaries. Hosted qualification
+must identify the matching source revision. Existing RUN0.0 numeric
+admission does not establish firmware exit, retained-range collection or safe
+physical access. Typed messages, generation checks and `Lang`/`ObsContract`
+separation do not establish general isolation or covert-channel noninterference.
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:

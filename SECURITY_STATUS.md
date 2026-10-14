@@ -19,9 +19,12 @@ generations and retains failed revocations for retry, checks actual physical
 backing for Oracle-vector transfers, preserves complete trace events with real
 stream metadata, handles empty ring operations, and denies malformed explicit
 runner configuration while separating node placement from domain identity.
-Its focused assertions and affected consumer gates qualify their named host/QEMU
-paths. Earlier Linux56 and hosted qualification remain bound to the prior source;
-these repairs add no production, target-isolation or release assurance.
+PR #38 and its post-merge main run qualify those named host/QEMU paths through
+five hosted lanes. The strict Linux56 wrapper remains bound to the preceding
+source and was not repeated for PR #38. The bootstrap/IPC follow-up has its own
+source-bound local validation; hosted evidence must name its matching revision.
+These repairs add no
+production, target-isolation or release assurance.
 
 ## Summary
 
@@ -47,7 +50,7 @@ implementations.
 | Store access | Credential/capability checks, domain ownership, descriptor-scoped host ingestion, durable publication recovery |
 | Native execution | Typed manifests/broker grants, absolute host IPC deadlines, no uncertain automatic replay |
 | POSIX compatibility | Explicit opt-in plus a host-portable rlimits-only default profile; seccomp/chroot/namespace helpers are tested but not default-wired |
-| Kernel fast paths | Capability kind, generation, and rights validation |
+| Kernel request admission | Live IPC kind/generation and creator-domain checks; Trace bearer operation rights. Oracle providers require explicit features and retain IPC validation. No general target-enforcement claim. |
 | Wire formats | Versioned IDL and fail-closed length/encoding checks |
 | Shared memory | Typed control plane, kernel validation, and domain accounting |
 | Tracing | Per-domain buffers, scoped writers, and capability-checked reads |
@@ -65,6 +68,11 @@ The detailed POSIX operating constraints remain in
   complete transaction and object-lifetime design.
 - **Static kernel limits:** fixed-size capability, shared-memory, and allocator
   structures can still produce controlled denial of service.
+- **Bootstrap memory:** a held firmware allocation bounds the active-firmware
+  allocator; the complete RUN0 firmware-exit, retained-range and physical-access
+  boundary remains unimplemented. AArch64's fixed pool is a QEMU fixture.
+- **Observable authority:** separating `Lang` and `ObsContract` states review
+  obligations; it does not prove covert-channel or hidden-affordance noninterference.
 - **Hardware trust:** S12/S13 do not yet have full `PASS/METAL` evidence.
 - **Compatibility isolation:** the default POSIX runner profile is rlimits-only;
   seccomp, namespaces, and chroot are helper controls, not current default

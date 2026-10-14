@@ -13,6 +13,7 @@ spin = "0.9"
 
 [features]
 default = []
-# Enable debug/test protocols (e.g., PING protocol exemption from capability validation)
+# Enable Oracle net/block providers and development init probes.
+# IPC capability checks remain enforced in this feature configuration.
 # This should ONLY be enabled for development/testing, never in production builds
 test_protocols = []

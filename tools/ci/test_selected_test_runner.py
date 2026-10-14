@@ -177,6 +177,17 @@ class SelectedRunnerTests(unittest.TestCase):
                 executed = next(argv for name, argv in actual if name == kind and '--list' not in argv)
                 self.assertIn('--exact', executed)
                 self.assertNotIn('--skip', executed)
+            feature_command = [*command, '--features', 'test_protocols']
+            feature_command[feature_command.index('--output') + 1] = str(root / 'feature-evidence')
+            feature_result = subprocess.run(feature_command, cwd=root, env=env,
+                                            capture_output=True, text=True, timeout=15)
+            self.assertEqual(feature_result.returncode, 0, feature_result.stdout + feature_result.stderr)
+            feature_summary = json.loads((root / 'feature-evidence' / 'summary.json').read_text())
+            self.assertEqual(sum('--doc' in row['argv'] for row in feature_summary['commands']), 1)
+            for observed in feature_summary['commands']:
+                argv = observed['argv']
+                if argv[0] == 'cargo' and argv[1] == 'test':
+                    self.assertEqual(argv[argv.index('--features') + 1], 'test_protocols')
             original_cargo = cargo.read_text()
             metadata_text = json.dumps({'packages':[{'name':'store_service', 'id':'fixture#store_service@1', 'manifest_path':str(root/'Cargo.toml'), 'targets':[row['target'] for row in programs]}]})
             bin_only_metadata = json.dumps({'packages':[{'name':'store_service', 'id':'fixture#store_service@1', 'manifest_path':str(root/'Cargo.toml'), 'targets':[programs[1]['target']]}]})
@@ -188,7 +199,7 @@ class SelectedRunnerTests(unittest.TestCase):
             no_library_summary = json.loads((root/'no-lib-evidence'/'summary.json').read_text())
             self.assertFalse(no_library_summary['doctests']['run'])
             actual = [json.loads(row) for row in commands.read_text().splitlines()]
-            self.assertEqual(sum('--doc' in argv for name, argv in actual if name == 'cargo'), 1)
+            self.assertEqual(sum('--doc' in argv for name, argv in actual if name == 'cargo'), 2)
             cargo.write_text(original_cargo)
             programs[0]['executable'] = str(root / 'lib.py')
             with open(root / 'lib.py', 'a') as executable: executable.write("\nif '--list' not in sys.argv: raise SystemExit(37)\n")

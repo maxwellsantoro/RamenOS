@@ -11,6 +11,8 @@ editor_native_preview_v0_dev = ["editor_native_read_v0_dev"]
 editor_native_save_v0_dev = ["editor_native_preview_v0_dev"]
 # Supplemental preservation assertions only; absent from ordinary host features.
 editor_adapter_assertions_v0_dev = ["editor_native_save_v0_dev"]
+# Process assertion preparation only; no runtime/child exports implemented yet.
+host_editor_process_v0_dev = ["editor_native_save_v0_dev"]
 
 [dependencies]
 desktop_editor_core = { path = "../desktop_editor_core", default-features = false, optional = true }

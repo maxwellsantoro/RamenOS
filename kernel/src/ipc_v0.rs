@@ -54,23 +54,9 @@ const TAG_TRACE_GET_INFO: u32 = 0x2003;
 /// Rejects INVALID handles to prevent capability bypass for privileged operations.
 /// V-16/SC-13: Verify handle kind matches IPC type.
 ///
-/// # Additional Hardening: PING Protocol Exemption
-///
-/// The PING protocol is only exempt from capability validation when the
-/// `test_protocols` feature is enabled. In production builds (without the
-/// feature), ALL protocols require valid capabilities.
+/// Test providers use the same admission checks as ordinary IPC. Enabling an
+/// Oracle-vector provider does not grant authority to call it.
 fn validate_handle(table: &StaticCapTable, env: &Envelope) -> bool {
-    // Additional hardening: PING protocol only exempt with feature flag
-    #[cfg(feature = "test_protocols")]
-    {
-        if env.protocol == PROTOCOL_PING
-            || env.protocol == kernel_api::generated::NET_V1_PROTOCOL_ID
-            || env.protocol == kernel_api::generated::BLOCK_V1_PROTOCOL_ID
-        {
-            return true;
-        }
-    }
-
     // V-001: Reject INVALID handles for all protocols (no capability bypass)
     if env.handle == Handle::INVALID {
         return false;
@@ -528,11 +514,12 @@ fn shmem_error_reply(env: &Envelope, status: u32) -> Envelope {
 /// Handle PROTOCOL_TRACE_SERVICE_V1 messages.
 fn handle_trace_service(
     writer: &trace_ring::TraceWriter,
+    table: &StaticCapTable,
     trace_service: &mut TraceService,
     env: &Envelope,
 ) -> Envelope {
     match env.msg_type {
-        MSG_CREATE_TRACE_BUFFER => handle_create_trace_buffer(writer, trace_service, env),
+        MSG_CREATE_TRACE_BUFFER => handle_create_trace_buffer(writer, table, trace_service, env),
         MSG_DESTROY_TRACE_BUFFER => handle_destroy_trace_buffer(writer, trace_service, env),
         MSG_READ_TRACE => handle_read_trace(writer, trace_service, env),
         MSG_GET_TRACE_INFO => handle_get_trace_info(writer, trace_service, env),
@@ -542,6 +529,7 @@ fn handle_trace_service(
 
 fn handle_create_trace_buffer(
     writer: &trace_ring::TraceWriter,
+    table: &StaticCapTable,
     trace_service: &mut TraceService,
     env: &Envelope,
 ) -> Envelope {
@@ -560,6 +548,27 @@ fn handle_create_trace_buffer(
             );
         }
     };
+
+    // Creation issues a new bearer capability, so it requires live IPC authority
+    // bound to the requested domain before consulting or mutating trace state.
+    let authority_status = match table.domain_for(env.handle) {
+        None => crate::trace_service::TRACE_STATUS_INVALID_CAPABILITY,
+        Some(domain_id) if domain_id != req.domain_id => {
+            crate::trace_service::TRACE_STATUS_PERMISSION_DENIED
+        }
+        Some(_) => crate::trace_service::TRACE_STATUS_OK,
+    };
+    if authority_status != crate::trace_service::TRACE_STATUS_OK {
+        return write_reply_or_error(
+            PROTOCOL_TRACE_SERVICE_V1,
+            MSG_CREATE_TRACE_BUFFER_REPLY,
+            &CreateTraceBufferReply {
+                request_id: req.request_id,
+                status: authority_status,
+                trace_cap: 0,
+            },
+        );
+    }
 
     let (status, trace_cap) = match trace_service.create_trace_buffer(req.domain_id, req.size) {
         Ok((s, c)) => (s, c.pack()),
@@ -724,7 +733,9 @@ pub fn handle_envelope(
 ) -> Envelope {
     if env.protocol == PROTOCOL_TRACE_SERVICE_V1 {
         // SAFETY: KERNEL_TRACE_SERVICE is only accessed from the kernel IPC path.
-        return unsafe { handle_trace_service_envelope(writer, &mut KERNEL_TRACE_SERVICE, env) };
+        return unsafe {
+            handle_trace_service_envelope(writer, table, &mut KERNEL_TRACE_SERVICE, env)
+        };
     }
 
     // V-05/V-06: Validate handle before dispatching control operations
@@ -772,21 +783,19 @@ pub fn handle_envelope(
 
 /// Handle PROTOCOL_TRACE_SERVICE_V1 messages.
 ///
-/// This function is separate from handle_envelope to avoid changing its signature.
-/// It can be called directly when trace service integration is needed.
+/// Creation requires live, domain-bound IPC authority from `table`. Subsequent
+/// operations retain their issued Trace bearer capability semantics.
 pub fn handle_trace_service_envelope(
     writer: &trace_ring::TraceWriter,
+    table: &StaticCapTable,
     trace_service: &mut TraceService,
     env: &Envelope,
 ) -> Envelope {
     if env.protocol != PROTOCOL_TRACE_SERVICE_V1 {
         return Envelope::empty(env.protocol, env.msg_type);
     }
-    // For trace service, we validate the trace capability directly
     if env.msg_type == MSG_CREATE_TRACE_BUFFER {
-        // CREATE_TRACE_BUFFER doesn't require a valid trace capability
-        // It creates a new capability
-        return handle_create_trace_buffer(writer, trace_service, env);
+        return handle_create_trace_buffer(writer, table, trace_service, env);
     }
 
     // For other operations, validate the trace capability
@@ -812,7 +821,7 @@ pub fn handle_trace_service_envelope(
         return Envelope::empty(env.protocol, env.msg_type);
     }
 
-    handle_trace_service(writer, trace_service, env)
+    handle_trace_service(writer, table, trace_service, env)
 }
 
 #[cfg(test)]
@@ -824,8 +833,7 @@ mod tests {
     fn validate_handle_rejects_invalid_handle() {
         crate::cap_table::reset_smp_state_for_test();
         let table = StaticCapTable::new();
-        // V-001: Use SHMEM_CONTROL protocol to test INVALID handle rejection
-        // (PING protocol is exempt from capability requirements)
+        // V-001: SHMEM_CONTROL rejects INVALID handles.
         let env = Envelope::empty(PROTOCOL_SHMEM_CONTROL, MSG_CREATE_REGION);
         assert!(!validate_handle(&table, &env));
     }
@@ -835,8 +843,7 @@ mod tests {
         crate::cap_table::reset_smp_state_for_test();
         let mut table = StaticCapTable::new();
         let handle = table.allocate().unwrap();
-        // V-001: Use SHMEM_CONTROL protocol to test valid handle acceptance
-        // (PING protocol is exempt from capability requirements)
+        // V-001: SHMEM_CONTROL accepts live IPC handles.
         let mut env = Envelope::empty(PROTOCOL_SHMEM_CONTROL, MSG_CREATE_REGION);
         env.handle = handle;
         assert!(validate_handle(&table, &env));
@@ -849,7 +856,6 @@ mod tests {
         let handle = table.allocate().unwrap();
         table.deallocate(handle).unwrap();
         // V-001: Use SHMEM_CONTROL protocol to test stale handle rejection
-        // (PING protocol is exempt from capability requirements)
         let mut env = Envelope::empty(PROTOCOL_SHMEM_CONTROL, MSG_CREATE_REGION);
         env.handle = handle;
         assert!(!validate_handle(&table, &env));
@@ -1112,15 +1118,16 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "test_protocols")]
     fn ping_protocol_still_works() {
-        let cap_table = StaticCapTable::new();
+        crate::cap_table::reset_smp_state_for_test();
+        let mut cap_table = StaticCapTable::new();
         let mut shmem_table = shmem::ShmemRegionTable::new();
         let _guard = trace_ring::reset_for_test();
         let writer = trace_ring::TraceWriter::claim().expect("writer claim");
 
         let ping = Ping { nonce: 42 };
         let mut env = Envelope::empty(PROTOCOL_PING, MSG_PING);
+        env.handle = cap_table.allocate_for_domain(0).unwrap();
         write_payload(&mut env, &ping).unwrap();
 
         let reply = handle_envelope(&writer, &cap_table, &mut shmem_table, &env);
@@ -1162,6 +1169,7 @@ mod review_trace_consumer {
     fn review_trace_ipc_typed_read_and_metadata_preserve_denied_work() {
         let _guard = trace_ring::reset_for_test();
         let writer = trace_ring::TraceWriter::claim().unwrap();
+        let table = StaticCapTable::new();
         let mut service = TraceService::new();
         service.init_kernel();
         let (_, cap) = service.create_trace_buffer(0, 4096).unwrap();
@@ -1177,7 +1185,7 @@ mod review_trace_consumer {
             },
         )
         .unwrap();
-        let denied = handle_trace_service_envelope(&writer, &mut service, &env);
+        let denied = handle_trace_service_envelope(&writer, &table, &mut service, &env);
         let reply = read_payload::<ReadTraceReply>(&denied).unwrap();
         assert_eq!(
             (reply.request_id, reply.status, reply.data_len),
@@ -1192,13 +1200,13 @@ mod review_trace_consumer {
             },
         )
         .unwrap();
-        let reply = handle_trace_service_envelope(&writer, &mut service, &info);
+        let reply = handle_trace_service_envelope(&writer, &table, &mut service, &info);
         let reply = read_payload::<GetTraceInfoReply>(&reply).unwrap();
         assert_eq!((reply.read_offset, reply.write_offset), (0, 24));
         let mut foreign = env;
         foreign.protocol = PROTOCOL_SHMEM_CONTROL;
         assert_eq!(
-            handle_trace_service_envelope(&writer, &mut service, &foreign).payload_len,
+            handle_trace_service_envelope(&writer, &table, &mut service, &foreign).payload_len,
             0
         );
         write_payload(
@@ -1211,14 +1219,305 @@ mod review_trace_consumer {
             },
         )
         .unwrap();
-        let success = handle_trace_service_envelope(&writer, &mut service, &env);
+        let success = handle_trace_service_envelope(&writer, &table, &mut service, &env);
         let success = read_payload::<ReadTraceReply>(&success).unwrap();
         assert_eq!(
             (success.status, success.data_len),
             (crate::trace_service::TRACE_STATUS_OK, 24)
         );
-        let reply = handle_trace_service_envelope(&writer, &mut service, &info);
+        let reply = handle_trace_service_envelope(&writer, &table, &mut service, &info);
         let reply = read_payload::<GetTraceInfoReply>(&reply).unwrap();
         assert_eq!((reply.read_offset, reply.write_offset), (24, 24));
+    }
+}
+
+#[cfg(test)]
+mod review_authority {
+    use super::*;
+    use crate::trace_service::{
+        TRACE_STATUS_INVALID_CAPABILITY, TRACE_STATUS_OK, TRACE_STATUS_PERMISSION_DENIED,
+    };
+    use kernel_api::cap::HandleKind;
+
+    #[test]
+    fn review_authority_ping_net_block_require_live_ipc_caps() {
+        let _guard = trace_ring::reset_for_test();
+        crate::cap_table::reset_smp_state_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let mut table = StaticCapTable::new();
+        let stale = table.allocate_for_domain(0).unwrap();
+        table.deallocate(stale).unwrap();
+        let valid = table.allocate_for_domain(0).unwrap();
+        let wrong_kind = Handle {
+            kind: HandleKind::Trace,
+            ..valid
+        };
+        let mut shmem = shmem::ShmemRegionTable::new();
+        for protocol in [
+            PROTOCOL_PING,
+            kernel_api::generated::NET_V1_PROTOCOL_ID,
+            kernel_api::generated::BLOCK_V1_PROTOCOL_ID,
+        ] {
+            for denied in [Handle::INVALID, wrong_kind, stale] {
+                let mut env = Envelope::empty(protocol, MSG_PING);
+                env.handle = denied;
+                write_payload(&mut env, &Ping { nonce: 42 }).unwrap();
+                assert!(!validate_handle(&table, &env), "protocol {protocol}");
+                let reply = handle_envelope(&writer, &table, &mut shmem, &env);
+                assert_eq!((reply.msg_type, reply.payload_len), (env.msg_type, 0));
+            }
+            let mut authorized = Envelope::empty(protocol, MSG_PING);
+            authorized.handle = valid;
+            assert!(validate_handle(&table, &authorized));
+        }
+        let mut ping = Envelope::empty(PROTOCOL_PING, MSG_PING);
+        ping.handle = valid;
+        write_payload(&mut ping, &Ping { nonce: 77 }).unwrap();
+        let reply = handle_envelope(&writer, &table, &mut shmem, &ping);
+        assert_eq!(read_payload::<Pong>(&reply).unwrap().nonce, 77);
+    }
+
+    #[test]
+    #[cfg(feature = "test_protocols")]
+    fn review_authority_oracle_providers_reject_then_transfer() {
+        use kernel_api::block_oracle_vector::{
+            S13_ORACLE_BLOCK_COUNT, S13_ORACLE_BLOCK_SIZE, S13_ORACLE_READ_PAYLOAD,
+            S13_ORACLE_READ_REQUEST_ID,
+        };
+        use kernel_api::generated::{
+            BLOCK_V1_PROTOCOL_ID, MSG_BLOCK_V1_READ_BLOCKS, MSG_NET_V1_RECEIVE_PACKET,
+            NET_V1_PROTOCOL_ID, ReadBlocks, ReadBlocksReply, ReceivePacket, ReceivePacketReply,
+        };
+        use kernel_api::net_packet_oracle_vector::{
+            S11_ORACLE_RECV_PAYLOAD, S11_ORACLE_RECV_REQUEST_ID,
+        };
+        let _memory = crate::mm::test_support::setup();
+        let _trace = trace_ring::reset_for_test();
+        crate::cap_table::reset_smp_state_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let mut caps = StaticCapTable::new();
+        let owner = caps.allocate_for_domain(0).unwrap();
+        let unrelated = caps.allocate_for_domain(1).unwrap();
+        let mut regions = shmem::ShmemRegionTable::new();
+        let (_, shm, phys) = regions
+            .create_region(
+                0,
+                4096,
+                shmem::REGION_FLAG_READABLE | shmem::REGION_FLAG_WRITABLE,
+                4096,
+            )
+            .unwrap();
+        unsafe {
+            core::ptr::write_bytes(phys as *mut u8, 0xAA, 4096);
+        }
+        let mut net = Envelope::empty(NET_V1_PROTOCOL_ID, MSG_NET_V1_RECEIVE_PACKET);
+        write_payload(
+            &mut net,
+            &ReceivePacket {
+                request_id: S11_ORACLE_RECV_REQUEST_ID,
+                buffer_shm_cap: shm.pack(),
+                buffer_offset: 0,
+                buffer_len: 1500,
+            },
+        )
+        .unwrap();
+        let mut block = Envelope::empty(BLOCK_V1_PROTOCOL_ID, MSG_BLOCK_V1_READ_BLOCKS);
+        write_payload(
+            &mut block,
+            &ReadBlocks {
+                request_id: S13_ORACLE_READ_REQUEST_ID,
+                lba: 0,
+                block_count: S13_ORACLE_BLOCK_COUNT,
+                block_size: S13_ORACLE_BLOCK_SIZE,
+                buffer_shm_cap: shm.pack(),
+                buffer_offset: 2048,
+            },
+        )
+        .unwrap();
+        for request in [&net, &block] {
+            assert_eq!(
+                handle_envelope(&writer, &caps, &mut regions, request).payload_len,
+                0
+            );
+        }
+        assert_eq!(unsafe { *(phys as *const u8) }, 0xAA);
+        assert_eq!(unsafe { *((phys + 2048) as *const u8) }, 0xAA);
+        net.handle = owner;
+        let reply = handle_envelope(&writer, &caps, &mut regions, &net);
+        assert_eq!(
+            read_payload::<ReceivePacketReply>(&reply).unwrap().status,
+            0
+        );
+        block.handle = owner;
+        let reply = handle_envelope(&writer, &caps, &mut regions, &block);
+        assert_eq!(read_payload::<ReadBlocksReply>(&reply).unwrap().status, 0);
+        assert_eq!(
+            unsafe {
+                core::slice::from_raw_parts(phys as *const u8, S11_ORACLE_RECV_PAYLOAD.len())
+            },
+            S11_ORACLE_RECV_PAYLOAD
+        );
+        assert_eq!(
+            unsafe {
+                core::slice::from_raw_parts(
+                    (phys + 2048) as *const u8,
+                    S13_ORACLE_READ_PAYLOAD.len(),
+                )
+            },
+            S13_ORACLE_READ_PAYLOAD
+        );
+        let mut ping = Envelope::empty(PROTOCOL_PING, MSG_PING);
+        ping.handle = unrelated;
+        write_payload(&mut ping, &Ping { nonce: 99 }).unwrap();
+        let reply = handle_envelope(&writer, &caps, &mut regions, &ping);
+        assert_eq!(read_payload::<Pong>(&reply).unwrap().nonce, 99);
+    }
+
+    fn dispatch(
+        main_entry: bool,
+        writer: &trace_ring::TraceWriter,
+        table: &StaticCapTable,
+        service: &mut TraceService,
+        env: &Envelope,
+    ) -> Envelope {
+        if main_entry {
+            handle_envelope(writer, table, &mut shmem::ShmemRegionTable::new(), env)
+        } else {
+            handle_trace_service_envelope(writer, table, service, env)
+        }
+    }
+
+    fn with_service(
+        main_entry: bool,
+        service: &mut TraceService,
+        f: impl FnOnce(&mut TraceService),
+    ) {
+        if main_entry {
+            // The test holds the global trace test lock for its entire dispatch sequence.
+            unsafe { f(&mut KERNEL_TRACE_SERVICE) }
+        } else {
+            f(service)
+        }
+    }
+
+    fn trace_creation_requires_domain_authority(main_entry: bool) {
+        let _guard = trace_ring::reset_for_test();
+        crate::cap_table::reset_smp_state_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let mut service = TraceService::new();
+        with_service(main_entry, &mut service, |service| {
+            *service = TraceService::new();
+            service.init_kernel();
+            service.register_domain(1, "unrelated").unwrap();
+        });
+        let mut table = StaticCapTable::new();
+        let stale = table.allocate_for_domain(0).unwrap();
+        table.deallocate(stale).unwrap();
+        let owner = table.allocate_for_domain(0).unwrap();
+        let foreign = table.allocate_for_domain(1).unwrap();
+        let wrong_kind = Handle {
+            kind: HandleKind::Trace,
+            ..owner
+        };
+        let mut env = Envelope::empty(PROTOCOL_TRACE_SERVICE_V1, MSG_CREATE_TRACE_BUFFER);
+        env.handle = foreign;
+        write_payload(
+            &mut env,
+            &CreateTraceBuffer {
+                request_id: 1,
+                domain_id: 1,
+                size: 4096,
+            },
+        )
+        .unwrap();
+        let unrelated = dispatch(main_entry, &writer, &table, &mut service, &env);
+        let unrelated = read_payload::<CreateTraceBufferReply>(&unrelated).unwrap();
+        assert_eq!(unrelated.status, TRACE_STATUS_OK);
+        with_service(main_entry, &mut service, |service| {
+            service.trace_ring_mut().emit(0, 10, 20, 30);
+            service.trace_ring_mut().emit(1, 11, 21, 31);
+        });
+        write_payload(
+            &mut env,
+            &CreateTraceBuffer {
+                request_id: 2,
+                domain_id: 0,
+                size: 4096,
+            },
+        )
+        .unwrap();
+        for (handle, status) in [
+            (Handle::INVALID, TRACE_STATUS_INVALID_CAPABILITY),
+            (wrong_kind, TRACE_STATUS_INVALID_CAPABILITY),
+            (stale, TRACE_STATUS_INVALID_CAPABILITY),
+            (foreign, TRACE_STATUS_PERMISSION_DENIED),
+        ] {
+            env.handle = handle;
+            let denied = dispatch(main_entry, &writer, &table, &mut service, &env);
+            let denied = read_payload::<CreateTraceBufferReply>(&denied).unwrap();
+            assert_eq!(
+                (denied.request_id, denied.status, denied.trace_cap),
+                (2, status, 0)
+            );
+            with_service(main_entry, &mut service, |service| {
+                assert_eq!(service.trace_ring().positions(0), (0, 24));
+                assert_eq!(service.trace_ring().positions(1), (0, 24));
+            });
+        }
+        env.handle = owner;
+        let created = dispatch(main_entry, &writer, &table, &mut service, &env);
+        let created = read_payload::<CreateTraceBufferReply>(&created).unwrap();
+        assert_eq!(created.status, TRACE_STATUS_OK);
+        with_service(main_entry, &mut service, |service| {
+            service.trace_ring_mut().emit(0, 12, 22, 32);
+        });
+        // Issued trace bearer capabilities still authorize reads without an IPC handle.
+        for trace_cap in [created.trace_cap, unrelated.trace_cap] {
+            let mut read = Envelope::empty(PROTOCOL_TRACE_SERVICE_V1, MSG_READ_TRACE);
+            write_payload(
+                &mut read,
+                &ReadTrace {
+                    request_id: 3,
+                    trace_cap,
+                    offset: 0,
+                    length: 24,
+                },
+            )
+            .unwrap();
+            let reply = dispatch(main_entry, &writer, &table, &mut service, &read);
+            let reply = read_payload::<ReadTraceReply>(&reply).unwrap();
+            assert_eq!((reply.status, reply.data_len), (TRACE_STATUS_OK, 24));
+            let mut destroy = Envelope::empty(PROTOCOL_TRACE_SERVICE_V1, MSG_DESTROY_TRACE_BUFFER);
+            write_payload(
+                &mut destroy,
+                &DestroyTraceBuffer {
+                    request_id: 4,
+                    trace_cap,
+                },
+            )
+            .unwrap();
+            let reply = dispatch(main_entry, &writer, &table, &mut service, &destroy);
+            assert_eq!(
+                read_payload::<DestroyTraceBufferReply>(&reply)
+                    .unwrap()
+                    .status,
+                TRACE_STATUS_OK
+            );
+        }
+        // Destroy released the owner slot; the same authenticated domain can create again.
+        let recreated = dispatch(main_entry, &writer, &table, &mut service, &env);
+        let recreated = read_payload::<CreateTraceBufferReply>(&recreated).unwrap();
+        assert_eq!(recreated.status, TRACE_STATUS_OK);
+        assert_ne!(recreated.trace_cap, created.trace_cap);
+    }
+
+    #[test]
+    fn review_authority_trace_direct_creation_denies_then_recovers() {
+        trace_creation_requires_domain_authority(false);
+    }
+
+    #[test]
+    fn review_authority_trace_main_creation_denies_then_recovers() {
+        trace_creation_requires_domain_authority(true);
     }
 }

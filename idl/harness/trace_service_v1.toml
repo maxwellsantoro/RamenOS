@@ -2,6 +2,10 @@ namespace = "trace.service"
 version = "1"
 protocol = 9
 
+# CREATE requires a live IPC envelope handle bound to the requested domain_id.
+# IPC capabilities currently bind domains, not protocol-specific rights.
+# READ/GET/DESTROY use the issued Trace bearer capability in their payload.
+
 [message.create_trace_buffer]
 msg_type = 1
 fields = ["request_id:u64", "domain_id:u64", "size:u32"]

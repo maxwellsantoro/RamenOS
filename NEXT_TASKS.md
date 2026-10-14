@@ -79,9 +79,11 @@ The October 14 foundation review successor addresses the seven behavior findings
 and maintained-entry documentation drift. Its additive boundary assertions cover
 broker rejection/revocation retry, fragmented physical spans, trace preservation
 and metadata, empty ring operations, and runner admission/identity. Preserve the
-fresh affected host/QEMU evidence for this successor. The preceding Linux56 and
-hosted results remain source-bound history; fresh required integration checks on
-this changed candidate precede merge. The process assertion/contract packet stays
+fresh affected host/QEMU evidence for this successor. PR #38 merged as `f3fa057`
+after both reviewed-head hosted runs passed all nine jobs. Post-merge CI also
+passed all nine jobs and 68 stage/preparation records on its first attempt.
+The preceding strict Linux56 wrapper result remains source-bound history.
+Fresh qualification is required again when relevant inputs change. The process assertion/contract packet stays
 ready within its existing scope and dependencies.
 
 ### Process successor: split at real ownership boundaries
@@ -103,6 +105,16 @@ pure core and adapters are already accepted; do not reimplement them.
 Root assigns exact paths and outputs at dispatch; proposed packet IDs are planning
 labels, not implemented recipes. A pure record, PID or source inclusion is not
 process execution, containment, target persistence or hardware evidence.
+
+The follow-up adds `just foundry-editor-process-preparation-ui1-1d`:
+two genuine in-process setup controls and three authored frozen-API consumers
+with explicit missing-API compiler RED. It does not complete P0. The remaining
+private assertion controls must exercise actual pre-exec/held-ELF barriers,
+authenticated malformed carrier/FD inputs, real map/seal/offer/cap+1 faults,
+native child fault/stall and sole-supervisor uncertainty, and uncertain parent
+death. Reuse the existing app SaveChains owner for process-mode original Save
+operations; a test-only Save surrogate is not acceptance. Keep the thirty-family
+requirement and P1/P2 prerequisites closed until these assertions are reviewed.
 
 ### Independent frontier and target joins
 
