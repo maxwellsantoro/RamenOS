@@ -1,6 +1,6 @@
 # Multi-Domain Memory Architecture
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-14
 **Status:** Kernel primitives and bounded tests landed; complete target isolation pending
 
 Domains are intended execution and authority boundaries. The kernel has domain
@@ -25,6 +25,14 @@ backing structures are explicit resources; missing roots, exhaustion, or invalid
 IDs cannot be interpreted as successful domain creation. Architecture code can
 allocate missing intermediate tables during mapping; the old claim that mapping
 only works in domain 0 is superseded.
+
+Physical frames of a shared-memory region need not be contiguous. The
+Oracle-vector net/block fixtures resolve a requested physical span against the
+actual backing list and admit a linear view only when the span is contiguous.
+Out-of-bounds, stale, empty and split physical spans deny before access. The first
+physical address returned at creation is not a general linear base for the region.
+These checks remain test-protocol harness evidence, not device-backed transfer or
+general fragmented scatter/gather support.
 
 ## Shared-memory mapping lifecycle
 

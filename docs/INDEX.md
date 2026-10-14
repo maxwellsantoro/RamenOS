@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 **Status:** Active
 
 This is the navigation hub for maintained documentation. Completed plans and
@@ -106,7 +106,7 @@ queue. [Next Tasks](../NEXT_TASKS.md) selects work and records its dependencies.
 ### OS and Hardware
 
 - [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) — independent SW0 lane; three-arm controls, authority normalization and bounded comparison; scripted foundations landed, model comparison pending
-- [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; host launch and in-process editor/Store task implemented; reliability repairs, actual editor child and device/target joins pending
+- [Desktop v0](plans/desktop-v0.md) — accepted bounded human task and runtime/input/surface/launch/recovery design; host launch and in-process editor/Store task plus qualified reliability repairs implemented; actual editor child and device/target joins pending
 - [Desktop session v1](DESKTOP_SESSION_V1.md) — generated protocol-336 preview/confirmation/lifetime contract and passing default-off Unix host process/wire gate
 - [Boot frame ownership v0](BOOT_FRAME_OWNERSHIP_V0.md) — reviewed pure map/retention admission and passing 17-case gate; actual firmware-exit adapter, initial-access evidence and QEMU allocator proof pending
 - [Desktop editor v0](plans/desktop-editor-v0.md) — reviewed UI1.1 proposal with bounded host/Store/task/process packets; volatile editor, host Store transaction and integrated task implemented; actual editor process pending

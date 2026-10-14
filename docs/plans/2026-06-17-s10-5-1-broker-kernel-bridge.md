@@ -1,6 +1,6 @@
 # S10.5.1: Broker / Kernel Harness Bridge
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-14
 **Status:** Maintained reference; bounded host bridge landed
 
 This phase connects broker policy to native-runner harness IPC for
@@ -29,6 +29,15 @@ The grant registry and proxy are host implementations, distinct from the target
 kernel capability table. The semantic bridge selects a bounded profile; unknown
 interfaces, missing exports, and unsupported requests must fail their checked
 paths. Generic broker policy and other runner profiles retain their own scope.
+
+The host broker admits one live grant generation per domain. Another grant set
+(including an empty replacement) denies until explicit revocation completes.
+Failed revoke/rollback handles remain owned and block re-grant until a successful
+retry and are excluded from grant-handle queries; the typed revoke reply counts confirmed removals and returns nonzero status
+while unresolved handles remain. Unrelated domains continue using their grants.
+`just foundry-review-boundaries` exercises this lifecycle in addition to the
+existing bridge gate. Semantic host handles remain deterministic; this does not
+establish target generation enforcement or universal unforgeability.
 
 Snapshot bytes and shared-memory replies are checked against named deterministic
 vectors. Broader host snapshot filtering and subscriptions have their own S10.2

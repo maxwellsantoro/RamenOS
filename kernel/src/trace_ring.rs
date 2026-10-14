@@ -123,6 +123,8 @@ struct TraceBuffer {
     events: [Event; RING_SIZE],
     head: usize,
     len: usize,
+    read_bytes: u64,
+    write_bytes: u64,
 }
 
 impl TraceBuffer {
@@ -135,7 +137,20 @@ impl TraceBuffer {
             }; RING_SIZE],
             head: 0,
             len: 0,
+            read_bytes: 0,
+            write_bytes: 0,
         }
+    }
+
+    fn read_into(&mut self, out: &mut [Event]) -> usize {
+        let count = out.len().min(self.len);
+        for (offset, event) in out.iter_mut().take(count).enumerate() {
+            *event = self.events[(self.head + offset) % RING_SIZE];
+        }
+        self.head = (self.head + count) % RING_SIZE;
+        self.len -= count;
+        self.read_bytes += (count * core::mem::size_of::<Event>()) as u64;
+        count
     }
 }
 
@@ -205,13 +220,20 @@ impl DomainTraceRing {
         }
 
         let mut buffer = self.rings[idx].buffer.lock();
+        let event_bytes = core::mem::size_of::<Event>() as u64;
+        let Some(next_write) = buffer.write_bytes.checked_add(event_bytes) else {
+            // Exhaustion cannot wrap a stream position into a stale offset.
+            return;
+        };
         let slot = (buffer.head + buffer.len) % RING_SIZE;
         buffer.events[slot] = Event { tag, arg0, arg1 };
         if buffer.len == RING_SIZE {
             buffer.head = (buffer.head + 1) % RING_SIZE;
+            buffer.read_bytes += event_bytes;
         } else {
             buffer.len += 1;
         }
+        buffer.write_bytes = next_write;
     }
 
     /// Read trace events from a specific domain's ring buffer.
@@ -231,14 +253,32 @@ impl DomainTraceRing {
             panic!("trace_ring::read: invalid domain_id {}", domain_id);
         }
 
-        let mut buffer = self.rings[idx].buffer.lock();
-        let count = out.len().min(buffer.len);
-        for (offset, event) in out.iter_mut().take(count).enumerate() {
-            *event = buffer.events[(buffer.head + offset) % RING_SIZE];
+        self.rings[idx].buffer.lock().read_into(out)
+    }
+
+    /// Consume only at the actual oldest byte position, under the same lock
+    /// used by emit/overflow. A stale caller can refresh metadata and retry.
+    pub(crate) fn read_at(
+        &self,
+        domain_id: DomainId,
+        offset: u64,
+        out: &mut [Event],
+    ) -> Option<usize> {
+        let mut buffer = self.rings[domain_id as usize].buffer.lock();
+        if offset != buffer.read_bytes {
+            return None;
         }
-        buffer.head = (buffer.head + count) % RING_SIZE;
-        buffer.len -= count;
-        count
+        Some(buffer.read_into(out))
+    }
+
+    pub(crate) fn positions(&self, domain_id: DomainId) -> (u64, u64) {
+        let buffer = self.rings[domain_id as usize].buffer.lock();
+        (buffer.read_bytes, buffer.write_bytes)
+    }
+
+    /// New service buffer generations start with an empty, fresh stream.
+    pub(crate) fn reset_buffer(&self, domain_id: DomainId) {
+        *self.rings[domain_id as usize].buffer.lock() = TraceBuffer::new();
     }
 
     /// Claim a writer for a specific domain.

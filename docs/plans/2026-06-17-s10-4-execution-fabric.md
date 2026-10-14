@@ -1,6 +1,6 @@
 # S10.4: Capability-Scheduled Execution Fabric
 
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-14
 **Status:** Maintained reference; v0 contracts and S10.4.1 host wiring landed
 
 The execution fabric is a policy/control service that selects a runner, domain,
@@ -21,6 +21,13 @@ consumers. Its explicit runner selection/configuration, artifact reference, doma
 node, resource/policy references, and outputs must be validated according to the
 schema and selected runner. A serializable plan is not an authority grant, signed
 publication, or proof that a runner is available on the target.
+
+Supervisor admission distinguishes an absent runner payload from an invalid
+explicit payload: malformed native/compat/GPU configuration denies. A valid
+native payload preserves its explicit endpoints, domain and budget. When absent,
+the native host default uses domain 1 independently of `node_selector`; selecting
+node 0 never supplies kernel-domain authority. Placement remains a separate
+field and policy decision.
 
 Execution lifecycle traces have their own schema; protocol/scenario traces
 retain their original meanings. Semantic State exposes supported node/lease/

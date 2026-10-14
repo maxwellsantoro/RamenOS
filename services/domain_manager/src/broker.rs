@@ -27,6 +27,8 @@ use artifact_store_schema::native_wasm::NativeWasmV0;
 #[derive(Debug)]
 #[allow(dead_code)] // Variants are part of public API, used in Task 5+ and future implementations
 pub enum BrokerError {
+    /// Existing or unresolved grants must be revoked before another set is issued.
+    DomainGrantsLive { domain_id: u64 },
     /// Manifest failed validation
     ManifestInvalid(String),
     /// Interface is not in the known interface registry
@@ -43,6 +45,13 @@ pub enum BrokerError {
 impl std::fmt::Display for BrokerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DomainGrantsLive { domain_id } => {
+                write!(
+                    f,
+                    "domain {} still owns live or unresolved grants",
+                    domain_id
+                )
+            }
             Self::ManifestInvalid(msg) => write!(f, "manifest invalid: {}", msg),
             Self::InterfaceUnknown { interface } => {
                 write!(f, "interface unknown: {}", interface)
@@ -652,6 +661,8 @@ pub struct CapabilityBroker<P: PolicyEngine, K: KernelGrantOps> {
     kernel_ops: K,
     /// Active grants: domain_id -> (export_name, handle)
     active_grants: HashMap<u64, HashMap<String, u64>>,
+    /// Failed revoke/rollback owners are retained but never published as grants.
+    unresolved_grants: HashMap<u64, HashMap<String, u64>>,
     /// Count of revokes that failed during rollback (for audit/diagnostics)
     failed_revokes: u32,
     /// Audit sink for structured event emission
@@ -672,6 +683,7 @@ impl<P: PolicyEngine, K: KernelGrantOps> CapabilityBroker<P, K> {
             registry: InterfaceRegistry::new(),
             kernel_ops,
             active_grants: HashMap::new(),
+            unresolved_grants: HashMap::new(),
             failed_revokes: 0,
             audit: stderr_sink(),
             audit_context: None,
@@ -690,6 +702,7 @@ impl<P: PolicyEngine, K: KernelGrantOps> CapabilityBroker<P, K> {
             registry: InterfaceRegistry::new(),
             kernel_ops,
             active_grants: HashMap::new(),
+            unresolved_grants: HashMap::new(),
             failed_revokes: 0,
             audit,
             audit_context: None,
@@ -728,6 +741,22 @@ impl<P: PolicyEngine, K: KernelGrantOps> CapabilityBroker<P, K> {
         channel: &str,
         domain_id: u64,
     ) -> Result<GrantResult, BrokerError> {
+        // A domain has one grant generation at a time. In particular, a failed
+        // revoke/rollback cannot be overwritten by a fresh request.
+        if self.has_live_grants(domain_id) {
+            self.audit.emit(&BrokerAuditEvent::denied(
+                domain_id,
+                &manifest.manifest.content_id,
+                channel,
+                None,
+                None,
+                None,
+                None,
+                AuditReasonCode::DomainGrantsLive,
+                "revoke the live or unresolved grant generation before granting again",
+            ));
+            return Err(BrokerError::DomainGrantsLive { domain_id });
+        }
         let caps = &manifest.native_wasm.required_capabilities;
         let channels = vec![channel.to_string()];
         let content_id = &manifest.manifest.content_id;
@@ -826,19 +855,28 @@ impl<P: PolicyEngine, K: KernelGrantOps> CapabilityBroker<P, K> {
 
     /// Revoke all capabilities for a domain.
     ///
-    /// Returns the number of handles revoked.
+    /// Returns only the number of confirmed revocations. Failed revocations
+    /// remain owned, block a new grant set, and can be retried explicitly.
     pub fn revoke_domain(&mut self, domain_id: u64) -> u32 {
-        if let Some(grants) = self.active_grants.remove(&domain_id) {
-            let count = grants.len() as u32;
-            // Revoke each handle via kernel ops
-            for (_export_name, handle) in grants {
-                // Best-effort revocation; log but don't fail on errors
-                let _ = self.kernel_ops.revoke(handle);
-            }
-            count
-        } else {
-            0
-        }
+        let mut grants = self.active_grants.remove(&domain_id).unwrap_or_default();
+        grants.extend(
+            self.unresolved_grants
+                .remove(&domain_id)
+                .unwrap_or_default(),
+        );
+        let count = grants.len() as u32;
+        self.revoke_granted_handles(domain_id, &grants);
+        count
+            - self
+                .unresolved_grants
+                .get(&domain_id)
+                .map_or(0, |pending| pending.len() as u32)
+    }
+
+    /// Owner-side lifecycle status; unresolved handles grant no query visibility.
+    pub fn has_live_grants(&self, domain_id: u64) -> bool {
+        self.active_grants.contains_key(&domain_id)
+            || self.unresolved_grants.contains_key(&domain_id)
     }
 
     /// Get the active grants for a domain (for testing).
@@ -864,13 +902,17 @@ impl<P: PolicyEngine, K: KernelGrantOps> CapabilityBroker<P, K> {
     /// Revoke a set of granted handles (internal, for rollback).
     ///
     /// This is best-effort: we continue unwinding even if individual revokes fail.
-    /// Failed revokes are counted and emitted to audit for diagnostics.
+    /// Failed revokes are counted, audited, and retained for explicit retry.
     fn revoke_granted_handles(&mut self, domain_id: u64, grants: &HashMap<String, u64>) {
-        for handle in grants.values() {
+        for (export, handle) in grants {
             match self.kernel_ops.revoke(*handle) {
                 Ok(()) => {}
                 Err(status) => {
-                    self.failed_revokes += 1;
+                    self.failed_revokes = self.failed_revokes.saturating_add(1);
+                    self.unresolved_grants
+                        .entry(domain_id)
+                        .or_default()
+                        .insert(export.clone(), *handle);
                     // Emit audit event for potential capability leak
                     self.audit
                         .emit(&BrokerAuditEvent::revoke_failed(domain_id, *handle, status));
@@ -1505,6 +1547,125 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .contains("POTENTIAL CAPABILITY LEAK")
+        );
+    }
+}
+
+#[cfg(test)]
+mod review_lifecycle {
+    use super::*;
+    #[test]
+    fn review_grant_repeat_denies_without_losing_original_or_unrelated_progress() {
+        let mut broker = CapabilityBroker::new(
+            ChannelAllowlistPolicy::new_semantic_harness(),
+            SemanticHarnessGrantOps::new(),
+        );
+        let mut manifest = test_manifest_with_semantic_harness_caps();
+        let original = broker
+            .grant_capabilities(&manifest, "SemanticHarness", 1)
+            .unwrap()
+            .granted_handles;
+        manifest.native_wasm.required_capabilities.truncate(1);
+        assert!(
+            broker
+                .grant_capabilities(&manifest, "SemanticHarness", 1)
+                .is_err()
+        );
+        let mut empty = manifest.clone();
+        empty.native_wasm.required_capabilities.clear();
+        empty.native_wasm.declares_no_capabilities = true;
+        assert!(
+            broker
+                .grant_capabilities(&empty, "SemanticHarness", 1)
+                .is_err()
+        );
+        assert_eq!(broker.active_grants_for_domain(1), original);
+        assert_eq!(broker.kernel_ops.registry().len(), 2);
+        let other = broker
+            .grant_capabilities(&manifest, "SemanticHarness", 2)
+            .unwrap();
+        assert_eq!(other.granted_handles.len(), 1);
+        assert_eq!(broker.revoke_domain(1), 2);
+        assert_eq!(broker.kernel_ops.registry().len(), 1);
+        assert!(
+            broker
+                .grant_capabilities(&manifest, "SemanticHarness", 1)
+                .is_ok()
+        );
+        assert_eq!(broker.revoke_domain(1), 1);
+        assert_eq!(broker.revoke_domain(2), 1);
+        assert!(broker.kernel_ops.registry().is_empty());
+    }
+    #[test]
+    fn review_grant_failed_revoke_retains_retry_owner_and_next_grant() {
+        let mut b = CapabilityBroker::new(
+            ChannelAllowlistPolicy::new_test(),
+            RevokeFailingKernelOps::fail_on_revoke(0x1000),
+        );
+        let m = test_manifest_with_echo_cap();
+        b.grant_capabilities(&m, "Experimental", 1).unwrap();
+        assert_eq!(b.revoke_domain(1), 0);
+        assert!(b.has_live_grants(1));
+        assert!(b.active_grants_for_domain(1).is_empty());
+        assert!(b.grant_capabilities(&m, "Experimental", 1).is_err());
+        assert!(b.grant_capabilities(&m, "Experimental", 2).is_ok());
+        b.kernel_ops.fail_revoke_handle = 0;
+        assert_eq!(b.revoke_domain(1), 1);
+        assert!(b.active_grants_for_domain(1).is_empty());
+        assert!(b.grant_capabilities(&m, "Experimental", 1).is_ok());
+    }
+    #[test]
+    fn review_grant_failed_rollback_does_not_publish_partial_export_handles() {
+        let mut broker = CapabilityBroker::new(
+            ChannelAllowlistPolicy::new_semantic_harness(),
+            RevokeFailingKernelOps::fail_on_revoke(0x1000),
+        );
+        let mut manifest = test_manifest_with_semantic_harness_caps();
+        manifest.native_wasm.required_capabilities[1].interface = "harness.unknown_v99".into();
+        assert!(
+            broker
+                .grant_capabilities(&manifest, "SemanticHarness", 1)
+                .is_err()
+        );
+        assert!(
+            broker.active_grants_for_domain(1).is_empty(),
+            "rollback owners are not publishable grant handles"
+        );
+        broker.kernel_ops.fail_revoke_handle = 0;
+        assert_eq!(broker.revoke_domain(1), 1);
+        assert!(
+            broker
+                .grant_capabilities(
+                    &test_manifest_with_semantic_harness_caps(),
+                    "SemanticHarness",
+                    1
+                )
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn review_grant_failed_rollback_retains_retry_owner_and_recovers() {
+        let mut b = CapabilityBroker::new(
+            ChannelAllowlistPolicy::new_test(),
+            RevokeFailingKernelOps::fail_on_revoke(0x1000),
+        );
+        assert!(
+            b.grant_capabilities(&test_manifest_with_mixed_caps(), "Experimental", 1)
+                .is_err()
+        );
+        assert!(b.has_live_grants(1));
+        assert!(b.active_grants_for_domain(1).is_empty());
+        assert_eq!(b.failed_revokes(), 1);
+        assert!(
+            b.grant_capabilities(&test_manifest_with_echo_cap(), "Experimental", 1)
+                .is_err()
+        );
+        b.kernel_ops.fail_revoke_handle = 0;
+        assert_eq!(b.revoke_domain(1), 1);
+        assert!(
+            b.grant_capabilities(&test_manifest_with_echo_cap(), "Experimental", 1)
+                .is_ok()
         );
     }
 }

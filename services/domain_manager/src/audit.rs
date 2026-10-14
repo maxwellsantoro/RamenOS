@@ -41,6 +41,8 @@ pub enum AuditReasonCode {
     ChannelNotAllowed,
     /// Requested rights exceed maximum allowed
     RightsExceeded,
+    /// A prior grant generation still owns live or unresolved handles.
+    DomainGrantsLive,
 
     // Failure reasons
     /// Kernel returned error on grant
@@ -266,6 +268,7 @@ impl AuditSink for StdErrAuditSink {
             AuditReasonCode::KernelGrantFailed => "kernel_grant_failed",
             AuditReasonCode::KernelRevokeFailed => "kernel_revoke_failed",
             AuditReasonCode::ManifestInvalid => "manifest_invalid",
+            AuditReasonCode::DomainGrantsLive => "domain_grants_live",
         });
 
         eprintln!(

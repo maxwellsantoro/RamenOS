@@ -86,26 +86,28 @@ fn resolve_canonical(canonical: ExecutionLaunchPlanV0) -> Result<ResolvedLaunchP
         let compat_capsule = payload
             .compat_capsule
             .as_ref()
-            .and_then(|value| serde_json::from_value(value.clone()).ok());
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .map_err(|err| format!("invalid compat_capsule config: {err}"))?;
         let gpu_quarantine = payload
             .gpu_quarantine
             .as_ref()
-            .and_then(|value| serde_json::from_value(value.clone()).ok());
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .map_err(|err| format!("invalid gpu_quarantine config: {err}"))?;
         let native_wasm = payload
             .native_wasm
             .as_ref()
-            .and_then(|value| serde_json::from_value(value.clone()).ok())
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .map_err(|err| format!("invalid native_wasm config: {err}"))?
             .or_else(|| {
                 if runner == "native_wasm_v0" {
                     Some(NativeWasmConfig {
                         kernel_ipc: "/tmp/kernel_ipc".into(),
                         kernel_ipc_transport: Default::default(),
                         domain_manager_ipc: None,
-                        domain_id: canonical
-                            .node_selector
-                            .as_ref()
-                            .map(|node| node.node_id)
-                            .unwrap_or(1),
+                        domain_id: 1,
                         timeout_ms: 30_000,
                     })
                 } else {
@@ -132,11 +134,7 @@ fn resolve_canonical(canonical: ExecutionLaunchPlanV0) -> Result<ResolvedLaunchP
                     kernel_ipc: "/tmp/kernel_ipc".into(),
                     kernel_ipc_transport: Default::default(),
                     domain_manager_ipc: None,
-                    domain_id: canonical
-                        .node_selector
-                        .as_ref()
-                        .map(|node| node.node_id)
-                        .unwrap_or(1),
+                    domain_id: 1,
                     timeout_ms: 30_000,
                 })
             } else {
@@ -217,5 +215,52 @@ mod tests {
         }"#;
         let plan = parse_launch_plan(raw).expect("legacy plan");
         assert_eq!(plan.runner, "linux_vm_v0");
+    }
+}
+
+#[cfg(test)]
+mod review_configuration {
+    use super::*;
+    fn plan(payload: serde_json::Value, node: u64) -> String {
+        serde_json::json!({"schema_version":1,"program_id":"review","artifact_ref":format!("sha256:{}", "0".repeat(64)),"runner":{"runner":"native_wasm_v0"},"node_selector":{"node_id":node},"output_contract":{},"runner_config":{"config_json":payload.to_string()}}).to_string()
+    }
+    #[test]
+    fn review_launch_invalid_explicit_config_denies_then_valid_config_preserves_identity() {
+        for field in ["native_wasm", "compat_capsule", "gpu_quarantine"] {
+            let payload = serde_json::json!({field: {"domain_id":"INVALID"}});
+            assert!(
+                parse_launch_plan(&plan(payload, 0)).is_err(),
+                "malformed {field} must deny"
+            );
+        }
+        let payload = serde_json::json!({"native_wasm":{"kernel_ipc":"/review/kernel","domain_manager_ipc":"/review/broker","domain_id":7,"timeout_ms":100}});
+        let p = parse_launch_plan(&plan(payload, 0)).unwrap();
+        let config = p.native_wasm.unwrap();
+        assert_eq!(config.domain_id, 7);
+        assert_eq!(config.kernel_ipc, "/review/kernel");
+        assert_eq!(config.domain_manager_ipc.as_deref(), Some("/review/broker"));
+        assert_eq!(config.timeout_ms, 100);
+    }
+    #[test]
+    fn review_launch_node_selection_never_supplies_domain_identity() {
+        for node in [0, 8, u64::MAX] {
+            for payload in [
+                serde_json::json!({}),
+                serde_json::json!({"notes":"explicit empty wrapper"}),
+            ] {
+                let p = parse_launch_plan(&plan(payload, node)).unwrap();
+                assert_eq!(p.fabric_node_id, node);
+                assert_eq!(p.native_wasm.unwrap().domain_id, 1);
+            }
+        }
+        let raw=serde_json::json!({"schema_version":1,"program_id":"review","artifact_ref":"sha256:review","runner":{"runner":"native_wasm_v0"},"node_selector":{"node_id":0},"output_contract":{},"runner_config":{}}).to_string();
+        assert_eq!(
+            parse_launch_plan(&raw)
+                .unwrap()
+                .native_wasm
+                .unwrap()
+                .domain_id,
+            1
+        );
     }
 }
