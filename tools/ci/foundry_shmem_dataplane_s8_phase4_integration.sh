@@ -44,15 +44,13 @@ prepare_vars() {
         echo ""
         return 0
     fi
-    if [[ ! -f "$out_file" ]]; then
-        cp "$template" "$out_file"
-    fi
+    cp "$template" "$out_file"
     echo "$out_file"
 }
 
 find_uefi_bin() {
     local target="$1"
-    local base="$ROOT_DIR/target/$target/debug"
+    local base="${CARGO_TARGET_DIR:-$ROOT_DIR/target}/$target/debug"
     if [[ -f "$base/kernel_uefi.efi" ]]; then
         echo "$base/kernel_uefi.efi"
         return 0
@@ -71,7 +69,7 @@ wait_for_log() {
     local max_iters=$((timeout_s * 5))
 
     for _ in $(seq 1 "$max_iters"); do
-        if [[ -f "$log" ]] && grep -q "shmem_test:" "$log"; then
+        if [[ -f "$log" ]] && grep -Fq "shmem_test: COMPLETE" "$log"; then
             return 0
         fi
         sleep 0.2
@@ -101,6 +99,7 @@ run_qemu() {
 # Check requirements
 require_cmd cargo
 require_cmd qemu-system-x86_64
+require_cmd qemu-system-aarch64
 require_cmd python3
 
 # Build kernel with test_protocols feature
@@ -239,5 +238,33 @@ else
 fi
 
 echo ""
+# The architecture-specific descriptor and rollback assertions must execute on
+# both real backends, using inactive test roots (not active userspace translation).
+cargo build --locked -p kernel_aarch64 --target aarch64-unknown-none --release --features kernel/test_protocols
+AARCH_BIN="${CARGO_TARGET_DIR:-$ROOT_DIR/target}/aarch64-unknown-none/release/kernel_aarch64"
+run_qemu aarch64 qemu-system-aarch64 -machine virt -cpu cortex-a57 -m 512M \
+    -kernel "$AARCH_BIN" \
+    -device loader,file="$INIT_DIR/init_shmem_test.img",addr=0x44000000,force-raw=on
+for arch in x86_64 aarch64; do
+    log="$LOG_DIR/qemu_${arch}_shmem.log"
+    for assertion in leaf_collision later_leaf_collision_atomic block_collision \
+        later_block_collision_atomic unrelated_root_preserved successful_map_control \
+        old_mapping_bytes_preserved allocation_failure_atomic allocation_failure_recovery \
+        boundary_1024_seven_tables oversize_rejected overflow_rejected \
+        architecture_range_rejected unaligned_rejected write_right_preserved \
+        execute_right_preserved unmap_block_preserved; do
+        grep -Fq "mmu_review: $assertion PASS" "$log" || {
+            echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL arch=$arch assertion=$assertion"
+            exit 1
+        }
+    done
+    grep -Fq "mmu_review: COMPLETE 17/17" "$log"
+    grep -Fq "shmem_review: collision_preserves_existing_and_next_accept PASS" "$log"
+    grep -Fq "trace_delivery_review: bytes_and_commit_recovery PASS" "$log"
+    if grep -Eq '(mmu_review|shmem_review|shmem_test|trace_delivery_review):.*FAIL' "$log"; then
+        echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL arch=$arch"
+        exit 1
+    fi
+done
 echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: PASS"
 echo "=== S8 Phase 4 Integration Tests Complete ==="

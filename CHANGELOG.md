@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-10-14 — comprehensive review enforcement repairs
+
+- Require strict signed descriptor publication with exact recovered metadata; retire
+  rejected ingest transports and reconnect on the next explicit operation.
+- Retire IPC/Shmem/Trace slots at wire-generation exhaustion. Bind dispatcher,
+  Trace and Oracle data capabilities to independent caller context.
+- Add IDL recipient consent for foreign mappings and atomic collision/failure
+  handling in both real MMUs; preserve unrelated mappings and retry ownership.
+- Deliver native trace bytes through writable caller Shmem with explicit cursor
+  Commit and durable-in-service completed receipt reconciliation.
+- Require exact durable ordinary Store grants and signed permanent revocation;
+  serialize operation leases with management, revalidate staged publication and
+  fail closed on uncertain persistence or duplicate root ownership.
+- Add regression inventories and both-architecture QEMU byte/PTE checks. Keep
+  authenticated process/trace carriers, target grants, SMP, same-UID filesystem
+  limits, full P0/RUN0 and default POSIX containment explicit. See the
+  [repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) for evidence.
+
 ## 2026-10-14 — follow-up review bootstrap and authority repairs
 
 - Replace largest-region bootstrap allocation with a checked, held 16 MiB UEFI

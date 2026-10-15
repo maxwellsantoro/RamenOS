@@ -30,19 +30,22 @@ pub const BLOCK_STATUS_SHMEM_ERROR: u32 = 3;
 const TAG_BLOCK_READ: u32 = 0x4252; // 'BR'
 const TAG_BLOCK_WRITE: u32 = 0x4257; // 'BW'
 
-pub fn handle_block_v1(
+/// The IPC dispatcher supplies the namespace only after authenticating its caller.
+pub(crate) fn handle_block_v1(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
 ) -> Envelope {
     match env.msg_type {
-        MSG_BLOCK_V1_READ_BLOCKS => handle_read_blocks(writer, shmem_table, env),
-        MSG_BLOCK_V1_WRITE_BLOCKS => handle_write_blocks(writer, shmem_table, env),
+        MSG_BLOCK_V1_READ_BLOCKS => handle_read_blocks(caller_domain, writer, shmem_table, env),
+        MSG_BLOCK_V1_WRITE_BLOCKS => handle_write_blocks(caller_domain, writer, shmem_table, env),
         _ => Envelope::empty(BLOCK_V1_PROTOCOL_ID, env.msg_type),
     }
 }
 
 fn handle_read_blocks(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
@@ -51,6 +54,12 @@ fn handle_read_blocks(
         Ok(request) => request,
         Err(_) => return empty_read_reply(0, BLOCK_STATUS_INVALID_ARGUMENT, 0),
     };
+
+    // Payload handles cannot select a different namespace or authorize a deputy
+    // transfer. Deny before touching bytes or recording a successful operation.
+    if !shmem_table.owns_cap(Handle::unpack(request.buffer_shm_cap), caller_domain) {
+        return empty_read_reply(request.request_id, BLOCK_STATUS_SHMEM_ERROR, 0);
+    }
 
     let reply = match process_read_blocks(shmem_table, &request) {
         Ok(bytes_read) => ReadBlocksReply {
@@ -76,6 +85,7 @@ fn handle_read_blocks(
 }
 
 fn handle_write_blocks(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
@@ -84,6 +94,12 @@ fn handle_write_blocks(
         Ok(request) => request,
         Err(_) => return empty_write_reply(0, BLOCK_STATUS_INVALID_ARGUMENT, 0),
     };
+
+    // Payload handles cannot select a different namespace or authorize a deputy
+    // transfer. Deny before touching bytes or recording a successful operation.
+    if !shmem_table.owns_cap(Handle::unpack(request.data_shm_cap), caller_domain) {
+        return empty_write_reply(request.request_id, BLOCK_STATUS_SHMEM_ERROR, 0);
+    }
 
     let reply = match process_write_blocks(shmem_table, &request) {
         Ok(bytes_written) => WriteBlocksReply {

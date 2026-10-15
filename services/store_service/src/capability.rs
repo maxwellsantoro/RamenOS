@@ -177,6 +177,22 @@ pub fn load_trusted_public_keys() -> Vec<EdVerifyingKey> {
     Vec::new()
 }
 
+/// Explicit management trust; artifact publisher trust and development fallback
+/// never grant authority to mutate the live registry.
+pub fn load_authority_public_keys() -> Vec<EdVerifyingKey> {
+    let Ok(config) = env::var("RAMEN_STORE_CAP_TRUSTED_KEYS") else {
+        return Vec::new();
+    };
+    if config.split(',').any(|entry| entry.trim().is_empty()) {
+        return Vec::new();
+    }
+    let keys = parse_base64_trusted_keys(&config);
+    if keys.len() != config.split(',').count() {
+        return Vec::new();
+    }
+    keys
+}
+
 impl StoreCapability {
     /// Create a new capability (for testing/trusted authority use)
     pub fn new(domain_id: u64, rights_mask: u8, capability_id: u64) -> Self {

@@ -99,6 +99,27 @@
 /// assert_ne!(packed, 0);
 /// ```
 pub mod cap {
+    /// Largest generation represented without loss in the existing u64 wire handle.
+    pub const MAX_GENERATION: u64 = u32::MAX as u64;
+
+    /// Tombstone for a permanently retired slot; newly free slots start at one.
+    pub const RETIRED_GENERATION: u64 = 0;
+
+    /// Whether a generation can identify a live capability on the wire.
+    pub const fn is_canonical_generation(generation: u64) -> bool {
+        generation > RETIRED_GENERATION && generation <= MAX_GENERATION
+    }
+
+    /// Advance a released slot, retiring it rather than reusing a wire generation.
+    /// Invalid or already retired generations remain retired.
+    pub const fn next_generation_or_retired(generation: u64) -> u64 {
+        if is_canonical_generation(generation) && generation < MAX_GENERATION {
+            generation + 1
+        } else {
+            RETIRED_GENERATION
+        }
+    }
+
     /// Handle kind discriminator to prevent cross-table aliasing attacks.
     ///
     /// The handle kind distinguishes between different capability types,
@@ -195,8 +216,10 @@ pub mod cap {
     ///
     /// - V-05/V-06: Generation counter prevents stale handle reuse attacks.
     /// - V-16 (SC-13): Kind field prevents IPC/shmem handle confusion.
-    /// - V-004: Generation counter is u64 to prevent practical wrapping
-    ///   (centuries of continuous allocation at 1M ops/sec).
+    /// - Generations are stored as u64 but issued only in `1..=u32::MAX`.
+    ///   Exhausted slots retire permanently, preventing wire-generation reuse.
+    ///   At one million releases per second, this range lasts about 71.6 minutes
+    ///   for one slot; widening the storage type does not widen the wire range.
     ///
     /// # Example
     ///
@@ -239,10 +262,9 @@ pub mod cap {
         /// an attacker from using a stale handle after a capability has been
         /// revoked and the slot reallocated.
         ///
-        /// The generation is stored as u64 internally but truncated to u32
-        /// for wire format transmission. This is sufficient for security
-        /// purposes as 2^32 generations would require centuries of continuous
-        /// allocation at practical rates.
+        /// Issuers must use canonical generations in `1..=u32::MAX`, matching
+        /// the 32-bit wire field. Generation zero marks a retired slot; releasing
+        /// the maximum generation permanently retires that slot.
         pub generation: u64,
     }
 
@@ -295,8 +317,9 @@ pub mod cap {
         /// - Wire format kept at 64 bits for IPC efficiency.
         /// - If indices grow beyond 16 bits, we can expand into reserved field or version the format.
         ///
-        /// V-004: Generation is truncated to 32 bits on wire (sufficient for security),
-        /// but stored as u64 internally to prevent practical wrapping.
+        /// The generation field preserves canonical generations exactly. Issuers
+        /// and validators must reject generations outside `1..=u32::MAX`;
+        /// this encoding alone does not validate a caller-constructed handle.
         ///
         /// # Example
         ///
@@ -432,8 +455,9 @@ pub mod cap {
     /// Implementations must:
     /// - Reject handles with mismatched generation counters (`StaleHandle` error)
     /// - Reject handles with invalid indices or kinds (`InvalidHandle` error)
-    /// - Increment the generation counter on each deallocation
-    /// - Ensure generation counters never wrap in practice (use u64)
+    /// - Issue and validate only generations in `1..=u32::MAX`
+    /// - Increment the generation counter on deallocation below that maximum
+    /// - Permanently retire exhausted slots with generation zero; never wrap
     ///
     /// # Example
     ///
@@ -462,7 +486,7 @@ pub mod cap {
         ///
         /// # Errors
         ///
-        /// Returns [`CapTableError::TableFull`] if all slots are occupied.
+        /// Returns [`CapTableError::TableFull`] if all slots are occupied or retired.
         ///
         /// # Example
         ///
@@ -477,7 +501,7 @@ pub mod cap {
         /// This checks that:
         /// - The handle's index is within bounds
         /// - The handle's kind matches the table's kind
-        /// - The handle's generation matches the slot's current generation
+        /// - The handle's generation is canonical and matches the slot's current generation
         ///
         /// # Security
         ///
@@ -496,16 +520,16 @@ pub mod cap {
         /// ```
         fn validate(&self, handle: Handle) -> bool;
 
-        /// Deallocate a capability slot, incrementing its generation counter.
+        /// Deallocate a capability slot, advancing its generation or retiring it.
         ///
         /// After deallocation:
-        /// - The slot becomes available for reallocation
-        /// - The generation counter is incremented
+        /// - The slot becomes available unless its generation range is exhausted
+        /// - The generation counter is incremented, or set to the retired tombstone
         /// - Any existing handles to this slot become stale
         ///
         /// # Errors
         ///
-        /// - [`CapTableError::InvalidHandle`] - Wrong kind or out-of-range index
+        /// - [`CapTableError::InvalidHandle`] - Wrong kind, index, or noncanonical generation
         /// - [`CapTableError::StaleHandle`] - Generation mismatch (already deallocated)
         ///
         /// # Security
@@ -1131,8 +1155,10 @@ pub mod generated {
     include!("generated/net_v1.generated.rs");
     include!("generated/block_v1.generated.rs");
     include!("generated/shmem_control_v1.generated.rs");
+    include!("generated/shmem_consent_v2.generated.rs");
     include!("generated/store_service_v1.generated.rs");
     include!("generated/trace_service_v1.generated.rs");
+    include!("generated/trace_delivery_v3.generated.rs");
 
     /// Semantic State Service (v1)
     /// Provides structured introspection of the operating system state.
@@ -1419,6 +1445,18 @@ mod tests {
         let packed = handle.pack();
         let unpacked = Handle::unpack(packed);
         assert_eq!(handle, unpacked);
+    }
+
+    #[test]
+    fn handle_last_wire_generation_roundtrips_for_all_resource_kinds() {
+        for kind in [HandleKind::Ipc, HandleKind::Shmem, HandleKind::Trace] {
+            let handle = Handle {
+                kind,
+                index: 1,
+                generation: u32::MAX as u64,
+            };
+            assert_eq!(Handle::unpack(handle.pack()), handle);
+        }
     }
 
     #[test]

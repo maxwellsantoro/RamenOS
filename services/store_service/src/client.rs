@@ -19,6 +19,7 @@ const MSG_GET_BLOB: u8 = 2;
 const MSG_VERIFY_ARTIFACT: u8 = 3;
 // Host descriptor ingestion; legacy message 4 is deliberately unsupported.
 const MSG_INGEST_ARTIFACT: u8 = 7;
+const MSG_SIGNED_INGEST_ARTIFACT: u8 = 8;
 const MSG_QUERY_PROJECTION_BY_PATH: u8 = 5;
 const MSG_QUERY_PROJECTION_BY_TAG: u8 = 6;
 
@@ -85,6 +86,36 @@ pub struct IngestArtifactRequest {
     pub src_path: String,
     /// Capability bytes (serialized StoreCapability)
     pub capability_bytes: Vec<u8>,
+}
+
+/// Version 2 host descriptor ingest. The manifest is signed by an external
+/// publisher; the capability independently authorizes the requesting domain.
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct SignedIngestArtifactRequest {
+    pub version: u16,
+    pub request_id: u64,
+    #[serde(serialize_with = "serialize_ingest_manifest")]
+    pub manifest: artifact_store_schema::Manifest,
+    /// Projection label only; source authority is the separately transferred fd.
+    pub src_path: String,
+    pub capability_bytes: Vec<u8>,
+}
+
+// Manifest's JSON codec omits an empty signatures field. Bincode needs a
+// fixed field sequence, including empty vectors; schema 1 has these six fields.
+fn serialize_ingest_manifest<S: serde::Serializer>(
+    manifest: &artifact_store_schema::Manifest,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeStruct;
+    let mut wire = serializer.serialize_struct("Manifest", 6)?;
+    wire.serialize_field("schema_version", &manifest.schema_version)?;
+    wire.serialize_field("content_id", &manifest.content_id)?;
+    wire.serialize_field("size_bytes", &manifest.size_bytes)?;
+    wire.serialize_field("kind", &manifest.kind)?;
+    wire.serialize_field("channels", &manifest.channels)?;
+    wire.serialize_field("signatures", &manifest.signatures)?;
+    wire.end()
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
@@ -411,11 +442,52 @@ impl StoreClient {
         let mut msg = vec![MSG_INGEST_ARTIFACT];
         msg.extend_from_slice(&bincode::serialize(&request)?);
         let reply_bytes = self.exchange(&msg, Some(&source))?;
-        let reply: IngestArtifactReply = bincode::deserialize(&reply_bytes)?;
-        self.validate_request_id(reply.request_id, request_id)?;
-        self.ensure_status_ok("ingest_artifact", reply.status)?;
+        self.validate_ingest_reply(&reply_bytes, request_id, "ingest_artifact")
+    }
 
-        Ok(reply)
+    /// Publish an externally signed manifest with the bytes from a regular fd.
+    /// A failed exchange is never automatically replayed.
+    pub fn ingest_signed_artifact(
+        &mut self,
+        manifest: &artifact_store_schema::Manifest,
+        src_path: &Path,
+    ) -> Result<IngestArtifactReply, StoreClientError> {
+        if self
+            .capability
+            .as_ref()
+            .is_some_and(|cap| !cap.has_right(STORE_RIGHT_WRITE))
+        {
+            return Err(StoreClientError::InvalidResponse(
+                "Capability does not grant WRITE right".into(),
+            ));
+        }
+        let request_id = self.next_request_id();
+        let request = SignedIngestArtifactRequest {
+            version: 2,
+            request_id,
+            manifest: manifest.clone(),
+            src_path: src_path.to_string_lossy().into_owned(),
+            capability_bytes: self
+                .capability
+                .as_ref()
+                .map(bincode::serialize)
+                .transpose()?
+                .unwrap_or_default(),
+        };
+        use std::os::unix::fs::OpenOptionsExt;
+        let source = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
+            .open(src_path)?;
+        if !source.metadata()?.is_file() {
+            return Err(StoreClientError::InvalidResponse(
+                "ingest requires a regular file".into(),
+            ));
+        }
+        let mut msg = vec![MSG_SIGNED_INGEST_ARTIFACT];
+        msg.extend_from_slice(&bincode::serialize(&request)?);
+        let reply_bytes = self.exchange(&msg, Some(&source))?;
+        self.validate_ingest_reply(&reply_bytes, request_id, "ingest_signed_artifact")
     }
 
     /// Query projection index by virtual path (S10.3).
@@ -463,6 +535,34 @@ impl StoreClient {
         let reply: QueryProjectionByTagReply = bincode::deserialize(&reply_bytes)?;
         self.validate_request_id(reply.request_id, request_id)?;
         self.ensure_status_ok("query_projection_by_tag", reply.status)?;
+        Ok(reply)
+    }
+
+    /// Apply a command signed externally by the configured capability authority.
+    /// The connected client needs no ordinary Store capability; peer access
+    /// policy and the command's independent management signature still apply.
+    pub fn apply_authority_update(
+        &mut self,
+        command: &crate::live_authority::AuthorityCommand,
+    ) -> Result<crate::live_authority::AuthorityUpdateReply, StoreClientError> {
+        use crate::live_authority::{
+            AUTHORITY_UPDATE_OPCODE, AuthorityUpdateReply, AuthorityUpdateRequest,
+            MAX_AUTHORITY_REQUEST_BYTES,
+        };
+        use bincode::Options;
+        let request_id = self.next_request_id();
+        let request = AuthorityUpdateRequest {
+            request_id,
+            command: command.clone(),
+        };
+        let bytes = self.send_request(AUTHORITY_UPDATE_OPCODE, &request)?;
+        let reply: AuthorityUpdateReply = bincode::DefaultOptions::new()
+            .with_fixint_encoding()
+            .with_limit(MAX_AUTHORITY_REQUEST_BYTES)
+            .reject_trailing_bytes()
+            .deserialize(&bytes)?;
+        self.validate_request_id(reply.request_id, request_id)?;
+        self.ensure_status_ok("apply_authority_update", reply.status)?;
         Ok(reply)
     }
 
@@ -553,6 +653,28 @@ impl StoreClient {
             .map_err(|e| StoreClientError::FramingFailed(format!("{e:#}")))?;
         self.stream = Some(stream);
         Ok(reply)
+    }
+
+    fn validate_ingest_reply(
+        &mut self,
+        reply_bytes: &[u8],
+        request_id: u64,
+        operation: &str,
+    ) -> Result<IngestArtifactReply, StoreClientError> {
+        let result = (|| {
+            let reply: IngestArtifactReply = bincode::deserialize(reply_bytes)?;
+            self.validate_request_id(reply.request_id, request_id)?;
+            self.ensure_status_ok(operation, reply.status)?;
+            Ok(reply)
+        })();
+        if result.is_err() {
+            // Descriptor denials can close before consuming the fd. Retire the
+            // transport from the reply itself, before that peer close becomes
+            // visible; an invalid reply also makes connection state uncertain.
+            // Only the next explicit operation reconnects. Never replay ingest.
+            self.stream = None;
+        }
+        result
     }
 
     fn send_request<T: serde::Serialize>(

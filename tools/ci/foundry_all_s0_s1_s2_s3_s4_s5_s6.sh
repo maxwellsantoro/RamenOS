@@ -20,5 +20,12 @@ echo "=== Running S7 GPU quarantine gate ==="
 echo "=== Running S8 Phase 1 shared-memory typed-contract gate ==="
 bash "$ROOT_DIR/tools/ci/foundry_shmem_contract_s8_phase1.sh"
 
+# The real mapping and trace-delivery regressions must run in the required QEMU
+# lane, as well as through the focused local recipe. Preserve the canonical stage
+# inventory and propagate either architecture's failure before umbrella success.
+echo "=== Running S8 mapping and trace-delivery integration on both architectures ==="
+bash "$ROOT_DIR/tools/ci/foundry_shmem_dataplane_s8_phase4_integration.sh"
+
 echo "FOUNDRY_ALL_S0_S1_S2_S3_S4_S5_S6_S7: ok"
 echo "FOUNDRY_ALL_S0_S1_S2_S3_S4_S5_S6_S7_S8_PHASE1: ok"
+echo "FOUNDRY_ALL_S0_S1_S2_S3_S4_S5_S6_S7_S8_PHASE4: ok"

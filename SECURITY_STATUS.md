@@ -21,8 +21,9 @@ stream metadata, handles empty ring operations, and denies malformed explicit
 runner configuration while separating node placement from domain identity.
 PR #38 and its post-merge main run qualify those named host/QEMU paths through
 five hosted lanes. The strict Linux56 wrapper remains bound to the preceding
-source and was not repeated for PR #38. The bootstrap/IPC follow-up has its own
-source-bound local validation; hosted evidence must name its matching revision.
+source and was not repeated for PR #38. The bootstrap/IPC follow-up merged through PR #39 and passed its matching
+post-merge run on `23f37445`. The comprehensive successor has separate
+source-bound validation in [the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md).
 These repairs add no
 production, target-isolation or release assurance.
 
@@ -47,13 +48,13 @@ implementations.
 | Area | Current control |
 |------|-----------------|
 | Artifact identity | Requested ID bound to authenticated manifest/blob; consumed WASM snapshot hashed |
-| Store access | Credential/capability checks, domain ownership, descriptor-scoped host ingestion, durable publication recovery |
+| Store access | Credential/capability checks, exact durable live grants and permanent revocation tombstones, signed descriptor ingestion, domain ownership and publication recovery |
 | Native execution | Typed manifests/broker grants, absolute host IPC deadlines, no uncertain automatic replay |
 | POSIX compatibility | Explicit opt-in plus a host-portable rlimits-only default profile; seccomp/chroot/namespace helpers are tested but not default-wired |
-| Kernel request admission | Live IPC kind/generation and creator-domain checks; Trace bearer operation rights. Oracle providers require explicit features and retain IPC validation. No general target-enforcement claim. |
+| Kernel request admission | Independent kernel-private caller context, live IPC kind/generation and matching Trace/Shmem namespaces. Oracle providers require explicit features and retain IPC validation. No general target-enforcement claim. |
 | Wire formats | Versioned IDL and fail-closed length/encoding checks |
-| Shared memory | Typed control plane, kernel validation, and domain accounting |
-| Tracing | Per-domain buffers, scoped writers, and capability-checked reads |
+| Shared memory | Versioned offer/recipient acceptance, self-only legacy mapping, domain accounting and atomic collision-safe MMU table updates under exclusive hierarchy access |
+| Tracing | Per-domain buffers, scoped writers and caller-owned Shmem delivery with explicit cursor Commit; completed receipt reconciliation |
 | Evidence | Redaction/size policy and explicit QEMU/HIL/metal claim levels |
 
 The detailed POSIX operating constraints remain in
@@ -66,6 +67,15 @@ The detailed POSIX operating constraints remain in
   migration plan.
 - **V-13 portal TOCTOU:** unforgeable handles reduce risk but do not replace a
   complete transaction and object-lifetime design.
+- **Execution identity:** caller context is currently supplied by trusted boot/test
+  fixtures. There is no authenticated untrusted syscall/process carrier or general
+  protocol-specific IPC authority. Trace client defaults to MockTransport.
+- **Page-table concurrency:** mapping requires continuous exclusive hierarchy
+  access. This does not provide SMP synchronization or active userspace execution.
+- **Host Store authority:** the durable registry controls subsequent service
+  operations; GetBlob paths, previously delivered bytes and same-UID filesystem
+  access cannot be retracted. Target Domain Manager policy/backend and native
+  Store transport remain unfinished. Strict startup requires explicit issuer keys.
 - **Static kernel limits:** fixed-size capability, shared-memory, and allocator
   structures can still produce controlled denial of service.
 - **Bootstrap memory:** a held firmware allocation bounds the active-firmware

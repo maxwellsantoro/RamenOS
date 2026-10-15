@@ -1,0 +1,38 @@
+namespace = "shared_memory.consent"
+version = "2"
+protocol = 531
+
+# Lang: a live caller-owned IPC capability, checked against out-of-band kernel
+# CallerContext. The owner may offer its exact live region and rights to one
+# target. Only that target may accept. Legacy map_region is self-mapping only.
+# ObsContract: no mapping, frame bytes or target VA changes before acceptance;
+# invalid/foreign offers reveal no region metadata. No transport authentication
+# or user-process execution is established by these kernel fixture consumers.
+# All requests require version=2 and reserved=0. Offers are bounded, single-use,
+# never reused during a table lifetime, cancelled by owner/target or region close.
+# A failed mapping retains the offer for explicit retry; successful acceptance
+# consumes it. An interrupted reply does not authorize replay or a second map.
+
+[message.offer_region]
+msg_type = 1
+fields = ["request_id:u64", "version:u32", "reserved:u32", "region_id:u64", "shm_cap:u64", "target_domain_id:u64", "rights:u32", "cache_mode:u32"]
+
+[message.offer_region_reply]
+msg_type = 2
+fields = ["request_id:u64", "offer_id:u64", "status:u32", "reserved:u32"]
+
+[message.accept_region]
+msg_type = 3
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.accept_region_reply]
+msg_type = 4
+fields = ["request_id:u64", "mapping_id:u64", "status:u32", "reserved:u32"]
+
+[message.cancel_region_offer]
+msg_type = 5
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.cancel_region_offer_reply]
+msg_type = 6
+fields = ["request_id:u64", "status:u32", "reserved:u32"]

@@ -32,6 +32,28 @@ admission does not establish firmware exit, retained-range collection or safe
 physical access. Typed messages, generation checks and `Lang`/`ObsContract`
 separation do not establish general isolation or covert-channel noninterference.
 
+## Comprehensive review enforcement and integration limits
+
+The successor repairs strict signed publication, wire-generation exhaustion,
+caller namespace checks, recipient mapping consent, collision-safe MMU updates,
+trace Shmem delivery/Commit and durable ordinary Store grant/revoke enforcement.
+[The repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) records
+regression obligations and source-bound verification. These controls retain the
+following integration risks:
+
+- Execution identity still comes from trusted kernel fixtures; no authenticated
+  untrusted syscall/process carrier exists, and generic IPC rights remain broad.
+- MMU updates require exclusive hierarchy access; no SMP page-table synchronization
+  or active userspace translation is established by table-fixture checks.
+- Trace client uses MockTransport by default; v3 needs a real authenticated carrier.
+- Host Store revocation cannot retract paths or bytes already delivered or prevent
+  same-UID filesystem access. Target Domain Manager integration remains unfinished.
+- Strict live-authority state is bounded at 1024 permanently retired IDs; capacity
+  denial preserves space to revoke existing grants. Uncertain durable updates
+  fail closed and may require operator recovery after restart validation fails.
+- POSIX default execution remains a trusted development path with best-effort
+  rlimits; helper isolation controls do not establish default containment.
+
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:
 - Native shell + portals are first-class.

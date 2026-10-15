@@ -38,4 +38,41 @@ python3 tools/ci/selected_test_runner.py --package kernel --features test_protoc
   --output "$REVIEW_RUN/boot-authority-oracle"
 python3 tools/ci/selected_test_runner.py --package kernel_uefi \
   --filter bootstrap::tests:: --output "$REVIEW_RUN/firmware-conversion"
+# Wire generations must remain representable and permanently retire at exhaustion.
+python3 tools/ci/selected_test_runner.py --package kernel_api \
+  --filter handle_last_wire_generation_roundtrips_for_all_resource_kinds \
+  --output "$REVIEW_RUN/wire-generation-api"
+python3 tools/ci/selected_test_runner.py --package kernel \
+  --filter cap_table::tests::wire_generation_ \
+  --filter shmem::tests::wire_generation_ \
+  --filter trace_cap::tests::wire_generation_ \
+  --output "$REVIEW_RUN/wire-generation-tables"
+# Ordinary strict Store publication must be readable after an actual restart.
+python3 tools/ci/selected_test_runner.py --package store_service --test strict_publication \
+  --filter review_strict_ --output "$REVIEW_RUN/strict-store-publication"
+python3 tools/ci/selected_test_runner.py --package kernel \
+  --filter ipc_v0::review_caller_namespace:: \
+  --filter ipc_v0::review_consent_consumer:: --filter shmem::review_target_consent:: \
+  --output "$REVIEW_RUN/caller-and-target-consent"
+python3 tools/ci/selected_test_runner.py --package kernel --features test_protocols \
+  --filter review_namespace_oracle_payload_caps_deny_then_each_owner_transfers \
+  --output "$REVIEW_RUN/provider-namespaces"
+python3 tools/ci/selected_test_runner.py --package store_service \
+  --filter review_publication_sink_enforces_strict_policy \
+  --filter review_signed_dedup_reconciles_original_intent \
+  --output "$REVIEW_RUN/strict-store-sink-recovery"
+python3 tools/ci/selected_test_runner.py --package store_service --test ingest_transport \
+  --filter rejected_descriptor_reply_discards_transport_before_next_explicit_read \
+  --output "$REVIEW_RUN/descriptor-denial-recovery"
+python3 tools/ci/selected_test_runner.py --package kernel \
+  --filter ipc_v0::review_trace_delivery:: \
+  --filter trace_service::review_delivery_retirement:: \
+  --output "$REVIEW_RUN/trace-shmem-delivery"
+
+# Live Store authority must survive restart and serialize revoke with consumption.
+python3 tools/ci/selected_test_runner.py --package store_service \
+  --filter live_authority::tests:: --output "$REVIEW_RUN/store-live-authority"
+python3 tools/ci/selected_test_runner.py --package store_service \
+  --filter review_staged_before_live_revoke \
+  --output "$REVIEW_RUN/store-staged-revocation"
 echo "FOUNDRY_REVIEW_BOUNDARIES: PASS"

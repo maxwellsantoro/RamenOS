@@ -45,7 +45,7 @@
 //!   safe for concurrent access from different domains but require atomic
 //!   operations if the same domain can have concurrent map/unmap operations.
 
-use kernel_api::cap::Handle;
+use kernel_api::cap::{Handle, is_canonical_generation, next_generation_or_retired};
 // S8 Phase 4: Import FrameAllocator trait for allocate() method
 use crate::mm::FrameAllocator;
 // NEW-002: Vec is used in tests for VA exhaustion testing
@@ -99,7 +99,7 @@ pub const STATUS_MAPPING_NOT_FOUND: u32 = 13;
 #[derive(Debug, Clone, Copy)]
 pub struct ShmemRegion {
     /// Generation counter for stale region_id rejection.
-    /// V-004: Use u64 to prevent practical wrapping.
+    /// Canonical wire generation, or zero for a permanently retired slot.
     pub generation: u64,
     /// Owner domain ID.
     pub owner_domain_id: u64,
@@ -299,12 +299,28 @@ impl DomainVaTracker {
     }
 }
 
+const MAX_MAPPING_OFFERS: usize = 64;
+
+#[derive(Clone, Copy)]
+struct MappingOffer {
+    id: u64,
+    region_id: u64,
+    cap: Handle,
+    owner: u64,
+    target: u64,
+    rights: u32,
+    cache_mode: u32,
+}
+
 /// Shared memory region table with generation counters and per-domain VA tracking.
 pub struct ShmemRegionTable {
     pub regions: [ShmemRegion; MAX_REGIONS], // Made public for testing
     /// NEW-002: Per-domain VA trackers to prevent VA collisions
     /// Index is domain_id (0-15), each domain has its own VA space
     va_trackers: [DomainVaTracker; crate::domain_registry::MAX_DOMAINS],
+    offers: [Option<MappingOffer>; MAX_MAPPING_OFFERS],
+    // Zero retires offer issuance permanently; accepted/cancelled IDs never recur.
+    next_offer_id: u64,
 }
 
 impl ShmemRegionTable {
@@ -312,6 +328,8 @@ impl ShmemRegionTable {
         Self {
             regions: [ShmemRegion::new(); MAX_REGIONS],
             va_trackers: [DomainVaTracker::new(); crate::domain_registry::MAX_DOMAINS],
+            offers: [None; MAX_MAPPING_OFFERS],
+            next_offer_id: 1,
         }
     }
 
@@ -374,11 +392,11 @@ impl ShmemRegionTable {
 
         // Find a free slot
         for (i, slot) in self.regions.iter_mut().enumerate() {
-            if !slot.in_use {
+            if !slot.in_use && is_canonical_generation(slot.generation) {
                 slot.in_use = true;
                 // Don't reset generation - it's already set from either:
                 // - Initial construction (generation=1)
-                // - Previous close() with incremented generation
+                // - Previous close() below the wire-generation maximum
                 slot.owner_domain_id = owner_domain_id;
                 slot.size_bytes = size_bytes;
                 slot.flags = flags;
@@ -453,9 +471,147 @@ impl ShmemRegionTable {
         Err(STATUS_NO_MEMORY)
     }
 
-    /// Map a region into a target domain's address space.
-    /// Returns mapping_id on success.
+    /// Owner offers exact current authority without changing any target PTEs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn offer_region(
+        &mut self,
+        region_id: u64,
+        cap: Handle,
+        caller: u64,
+        target: u64,
+        rights: u32,
+        cache_mode: u32,
+    ) -> Result<u64, u32> {
+        let index = ((region_id >> 32) & 0xFFFF) as usize;
+        if index == 0 || index > MAX_REGIONS {
+            return Err(STATUS_REGION_NOT_FOUND);
+        }
+        if !self.validate_cap(cap) {
+            return Err(STATUS_INVALID_CAPABILITY);
+        }
+        if !self.owns_cap(cap, caller) {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        let slot = &self.regions[(cap.index - 1) as usize];
+        if region_id != ((cap.index as u64) << 32 | cap.generation) {
+            return Err(STATUS_INVALID_CAPABILITY);
+        }
+        if target >= MAX_MAPPING_DOMAINS as u64 {
+            return Err(STATUS_INVALID_VA);
+        }
+        if rights == 0
+            || rights & !(RIGHTS_READ | RIGHTS_WRITE | RIGHTS_EXECUTE) != 0
+            || rights & !slot.flags != 0
+            || cache_mode > 2
+        {
+            return Err(STATUS_INVALID_RIGHTS);
+        }
+        let free = self
+            .offers
+            .iter()
+            .position(Option::is_none)
+            .ok_or(STATUS_NO_MEMORY)?;
+        let id = self.next_offer_id;
+        if id == 0 {
+            return Err(STATUS_NO_MEMORY);
+        }
+        self.next_offer_id = id.checked_add(1).unwrap_or(0);
+        self.offers[free] = Some(MappingOffer {
+            id,
+            region_id,
+            cap,
+            owner: caller,
+            target,
+            rights,
+            cache_mode,
+        });
+        Ok(id)
+    }
+
+    /// Only the recipient's independently admitted namespace may accept.
+    /// Failure preserves the offer; success consumes it without replaying a map.
+    pub fn accept_region(&mut self, caller: u64, offer_id: u64) -> Result<u64, u32> {
+        let index = self
+            .offers
+            .iter()
+            .position(|entry| entry.is_some_and(|offer| offer.id == offer_id))
+            .ok_or(STATUS_MAPPING_NOT_FOUND)?;
+        let offer = self.offers[index].unwrap();
+        if caller != offer.target {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        let mapping = self.map_authorized_region(
+            offer.region_id,
+            offer.cap,
+            offer.owner,
+            offer.target,
+            offer.rights,
+            offer.cache_mode,
+        )?;
+        self.offers[index] = None;
+        Ok(mapping)
+    }
+
+    /// Either participant may withdraw a pending offer. It never tears down a
+    /// successful mapping; the recipient can explicitly unmap that mapping.
+    pub fn cancel_region_offer(&mut self, caller: u64, offer_id: u64) -> Result<(), u32> {
+        let index = self
+            .offers
+            .iter()
+            .position(|entry| entry.is_some_and(|offer| offer.id == offer_id))
+            .ok_or(STATUS_MAPPING_NOT_FOUND)?;
+        let offer = self.offers[index].unwrap();
+        if caller != offer.owner && caller != offer.target {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        self.offers[index] = None;
+        Ok(())
+    }
+
+    /// Legacy direct mapping is limited to the caller's own address space.
     pub fn map_region(
+        &mut self,
+        region_id: u64,
+        shm_cap: Handle,
+        caller_domain_id: u64,
+        target_domain_id: u64,
+        rights: u32,
+        cache_mode: u32,
+    ) -> Result<u64, u32> {
+        if caller_domain_id != target_domain_id {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        self.map_authorized_region(
+            region_id,
+            shm_cap,
+            caller_domain_id,
+            target_domain_id,
+            rights,
+            cache_mode,
+        )
+    }
+
+    // Trusted tests exercise both participant decisions before the old mapping
+    // lifecycle assertions. Production callers cannot use this fixture helper.
+    #[cfg(test)]
+    fn map_with_test_consent(
+        &mut self,
+        region_id: u64,
+        cap: Handle,
+        caller: u64,
+        target: u64,
+        rights: u32,
+        cache_mode: u32,
+    ) -> Result<u64, u32> {
+        if caller == target {
+            return self.map_region(region_id, cap, caller, target, rights, cache_mode);
+        }
+        let offer = self.offer_region(region_id, cap, caller, target, rights, cache_mode)?;
+        self.accept_region(target, offer)
+    }
+
+    /// Map authority already approved by both participants (or self-map).
+    fn map_authorized_region(
         &mut self,
         region_id: u64,
         shm_cap: Handle,
@@ -572,15 +728,8 @@ impl ShmemRegionTable {
             }
         };
         if result.is_err() {
-            // MMUs may have installed a prefix before running out of frames.
-            // This range was exclusively reserved, so no other region is unmapped.
-            unsafe {
-                use crate::arch::Mmu;
-                #[cfg(target_arch = "x86_64")]
-                let _ = crate::arch::X86_64Mmu::unmap_pages(target_domain_id, vaddr, num_frames);
-                #[cfg(target_arch = "aarch64")]
-                let _ = crate::arch::AArch64Mmu::unmap_pages(target_domain_id, vaddr, num_frames);
-            }
+            // The MMU preflights and reserves all tables before publishing PTEs.
+            // Err leaves existing mappings unchanged; release only our VA slot.
             self.deallocate_va(target_domain_id, address)?;
             return Err(STATUS_INVALID_RIGHTS);
         }
@@ -627,7 +776,7 @@ impl ShmemRegionTable {
 
             // P1 fix: Validate caller is the region owner
             // Only the owner can unmap a region's mappings
-            if slot.owner_domain_id != caller_domain_id {
+            if slot.owner_domain_id != caller_domain_id && target_domain_id != caller_domain_id {
                 return Err(STATUS_PERMISSION_DENIED);
             }
 
@@ -709,7 +858,7 @@ impl ShmemRegionTable {
 
         let slot = &mut self.regions[index - 1];
 
-        if !slot.in_use || slot.generation != generation {
+        if !slot.in_use || !is_canonical_generation(generation) || slot.generation != generation {
             return Err(STATUS_REGION_NOT_FOUND);
         }
 
@@ -740,9 +889,11 @@ impl ShmemRegionTable {
         slot.num_frames = 0;
         slot.vaddr = 0; // NEW-002: Reset vaddr when region is closed
         slot.mapping_tracker = DomainMappingTracker::new(); // NEW-004: Reset mapping tracker
-        slot.generation = slot.generation.wrapping_add(1);
-        if slot.generation == 0 {
-            slot.generation = 1; // Avoid generation 0
+        slot.generation = next_generation_or_retired(slot.generation);
+        for offer in &mut self.offers {
+            if offer.is_some_and(|pending| pending.region_id == region_id) {
+                *offer = None;
+            }
         }
 
         Ok(())
@@ -751,7 +902,9 @@ impl ShmemRegionTable {
     /// Validate a shared memory capability handle.
     pub fn validate_cap(&self, shm_cap: Handle) -> bool {
         // V-16/SC-13: Reject handles with wrong kind
-        if shm_cap.kind != kernel_api::cap::HandleKind::Shmem {
+        if shm_cap.kind != kernel_api::cap::HandleKind::Shmem
+            || !is_canonical_generation(shm_cap.generation)
+        {
             return false;
         }
         if shm_cap.index == 0 || shm_cap.index > MAX_REGIONS as u32 {
@@ -760,6 +913,12 @@ impl ShmemRegionTable {
 
         let slot = &self.regions[(shm_cap.index - 1) as usize];
         slot.in_use && slot.generation == shm_cap.generation
+    }
+
+    /// IPC data-plane authority is scoped to the independently admitted caller.
+    /// Cross-domain data-plane delegation requires its own explicit contract.
+    pub(crate) fn owns_cap(&self, cap: Handle, domain: u64) -> bool {
+        self.validate_cap(cap) && self.regions[(cap.index - 1) as usize].owner_domain_id == domain
     }
 
     /// Resolve the base physical address for a validated shmem capability.
@@ -801,6 +960,23 @@ impl ShmemRegionTable {
             }
         }
         base.checked_add(offset % page)
+    }
+
+    /// Borrow a writable data-plane view only while this table's region remains
+    /// exclusively retained by the caller. No physical view is returned on denial.
+    pub(crate) fn writable_phys_range_for(
+        &self,
+        cap: Handle,
+        caller: u64,
+        offset: u64,
+        len: usize,
+    ) -> Option<u64> {
+        if !self.owns_cap(cap, caller)
+            || self.regions[(cap.index - 1) as usize].flags & REGION_FLAG_WRITABLE == 0
+        {
+            return None;
+        }
+        self.phys_range_for_cap(cap, offset, len)
     }
 
     /// Return the byte size of the region backing `shm_cap`.
@@ -894,7 +1070,7 @@ mod tests {
             .create_region(100, 4096, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
             .unwrap();
 
-        let result = table.map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
         if let Err(e) = result {
             panic!(
                 "map_region failed with error code {}. region_id={:#x}, shm_cap.index={}, shm_cap.generation={}, target_domain_id={}, rights={}",
@@ -917,10 +1093,10 @@ mod tests {
             .unwrap();
 
         table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
         table
-            .map_region(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
             .unwrap();
 
         let index = ((region_id >> 32) & 0xFFFF) as usize;
@@ -942,7 +1118,7 @@ mod tests {
             generation: 1,
         };
 
-        let result = table.map_region(region_id, fake_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, fake_cap, 100, 1, RIGHTS_READ, 0);
         assert_eq!(result, Err(STATUS_INVALID_CAPABILITY));
     }
 
@@ -956,7 +1132,7 @@ mod tests {
             generation: 1,
         };
 
-        let result = table.map_region(0xDEADBEEF, fake_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(0xDEADBEEF, fake_cap, 100, 1, RIGHTS_READ, 0);
         assert_eq!(result, Err(STATUS_REGION_NOT_FOUND));
     }
 
@@ -970,11 +1146,11 @@ mod tests {
             .unwrap();
 
         // Request write rights on read-only region
-        let result = table.map_region(region_id, shm_cap, 100, 1, RIGHTS_WRITE, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_WRITE, 0);
         assert_eq!(result, Err(STATUS_INVALID_RIGHTS));
 
         // Request read rights should succeed
-        let result = table.map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
         assert!(result.is_ok());
     }
 
@@ -988,7 +1164,7 @@ mod tests {
             .unwrap();
 
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         table.unmap_region(100, mapping_id, 1).unwrap();
@@ -1007,7 +1183,7 @@ mod tests {
             .unwrap();
 
         table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         let result = table.close_region(100, region_id);
@@ -1024,7 +1200,7 @@ mod tests {
             .unwrap();
 
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         table.unmap_region(100, mapping_id, 1).unwrap();
@@ -1132,32 +1308,87 @@ mod tests {
     }
 
     #[test]
-    fn generation_counter_wraps_avoids_zero() {
+    fn wire_generation_last_legal_retires_and_preserves_other_region() {
         let _memory_guard = crate::mm::test_support::setup();
         let mut table = ShmemRegionTable::new();
-
-        let (region_id, _, _) = table
-            .create_region(100, 4096, REGION_FLAG_READABLE, 4096)
+        table.regions[0].generation = u32::MAX as u64;
+        let (last_id, last, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
-
-        let index = ((region_id >> 32) & 0xFFFF) as usize;
-
-        // V-004: Force generation to max 32-bit value to test wrapping behavior
-        // (region_id encoding only preserves 32 bits of generation)
-        table.regions[index - 1].generation = 0xFFFFFFFFu64;
-
-        // Reconstruct region_id with the forced generation value
-        // Note: region_id uses 1-based index, so we use 'index' directly (not index + 1)
-        let forced_region_id = (index as u64) << 32 | 0xFFFFFFFFu64;
-        table.close_region(100, forced_region_id).unwrap();
-
-        let (_new_region_id, new_cap, _) = table
-            .create_region(100, 4096, REGION_FLAG_READABLE, 4096)
+        assert_eq!(last.generation, u32::MAX as u64);
+        assert_eq!(Handle::unpack(last.pack()), last);
+        assert_eq!(last_id, (u64::from(last.index) << 32) | last.generation);
+        let (other_id, other, other_phys) = table
+            .create_region(2, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
+        unsafe {
+            *(other_phys as *mut u8) = 0x5A;
+        }
+        table.close_region(1, last_id).unwrap();
+        assert_eq!(table.regions[0].generation, 0, "exhausted slot must retire");
+        assert!(!table.validate_cap(last));
+        assert_eq!(table.close_region(1, last_id), Err(STATUS_REGION_NOT_FOUND));
+        let (next_id, next, _) = table
+            .create_region(3, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_ne!(next.index, last.index);
+        assert_eq!(Handle::unpack(next.pack()), next);
+        assert_eq!(next_id, (u64::from(next.index) << 32) | next.generation);
+        assert!(table.validate_cap(next));
+        assert_eq!(table.phys_addr_for_cap(other), Some(other_phys));
+        assert_eq!(unsafe { *(other_phys as *const u8) }, 0x5A);
+        table.close_region(2, other_id).unwrap();
+        table.close_region(3, next_id).unwrap();
+    }
 
-        // V-004: With u64, 0xFFFFFFFF + 1 = 0x100000000 (not 0, so no special case needed)
-        assert_eq!(new_cap.generation, 0x100000000);
-        assert_eq!(table.regions[index - 1].generation, 0x100000000);
+    #[test]
+    fn wire_generation_retired_slots_exhaust_capacity() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        for slot in &mut table.regions {
+            slot.generation = 0;
+        }
+        assert_eq!(
+            table.create_region(1, 4096, REGION_FLAG_READABLE, 4096),
+            Err(STATUS_NO_MEMORY)
+        );
+    }
+
+    #[test]
+    fn wire_generation_allocation_skips_noncanonical_free_slots() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        table.regions[0].generation = 0;
+        table.regions[1].generation = u32::MAX as u64 + 1;
+        let (id, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(cap.index, 3);
+        assert_eq!(Handle::unpack(cap.pack()), cap);
+        table.close_region(1, id).unwrap();
+    }
+
+    #[test]
+    fn wire_generation_validation_denies_noncanonical_live_slots() {
+        let _memory_guard = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, mut cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        for generation in [0, u32::MAX as u64 + 1, u64::MAX] {
+            table.regions[0].generation = generation;
+            cap.generation = generation;
+            assert!(!table.validate_cap(cap));
+            assert_eq!(table.phys_addr_for_cap(cap), None);
+            assert_eq!(table.region_size_for_cap(cap), None);
+        }
+        table.regions[0].generation = 0;
+        assert_eq!(
+            table.close_region(1, u64::from(cap.index) << 32),
+            Err(STATUS_REGION_NOT_FOUND)
+        );
+        table.regions[0].generation = 1;
+        table.close_region(1, id).unwrap();
     }
 
     #[test]
@@ -1169,7 +1400,7 @@ mod tests {
             .create_region(100, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
 
-        let result = table.map_region(region_id, shm_cap, 100, 1, 0xFF, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, 0xFF, 0);
         assert_eq!(result, Err(STATUS_INVALID_RIGHTS));
     }
 
@@ -1194,7 +1425,7 @@ mod tests {
             generation: region_id & 0xFFFFFFFF,
         };
 
-        let result = table.map_region(region_id, ipc_handle, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, ipc_handle, 100, 1, RIGHTS_READ, 0);
         // SECURITY: Must reject because kind is Ipc, not Shmem
         assert_eq!(
             result,
@@ -1219,7 +1450,7 @@ mod tests {
             generation: region_id & 0xFFFFFFFF,
         };
 
-        let result = table.map_region(region_id, invalid_handle, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, invalid_handle, 100, 1, RIGHTS_READ, 0);
         assert_eq!(
             result,
             Err(STATUS_INVALID_CAPABILITY),
@@ -1259,7 +1490,7 @@ mod tests {
 
         // Attempting to map again should fail with STATUS_OVERFLOW
         // This prevents the wraparound that would cause use-after-free
-        let result = table.map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
         assert_eq!(
             result,
             Err(STATUS_OVERFLOW),
@@ -1297,7 +1528,7 @@ mod tests {
 
         // Create a mapping so refcount is 1
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         // Verify refcount is 1
@@ -1360,13 +1591,13 @@ mod tests {
         // Map all regions to the same target domain (domain 1)
         // NEW-003: caller_domain_id must match owner_domain_id
         let mapping_id1 = table
-            .map_region(region_id1, shm_cap1, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id1, shm_cap1, 100, 1, RIGHTS_READ, 0)
             .unwrap();
         let mapping_id2 = table
-            .map_region(region_id2, shm_cap2, 200, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id2, shm_cap2, 200, 1, RIGHTS_READ, 0)
             .unwrap();
         let mapping_id3 = table
-            .map_region(region_id3, shm_cap3, 300, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id3, shm_cap3, 300, 1, RIGHTS_READ, 0)
             .unwrap();
 
         // Verify each region got a unique VA (no collisions)
@@ -1431,7 +1662,7 @@ mod tests {
         // Map all regions to domain 1
         // NEW-003: caller_domain_id must match owner_domain_id (100+i for each region)
         for i in 0..MAX_REGIONS {
-            let result = table.map_region(
+            let result = table.map_with_test_consent(
                 region_ids[i],
                 shm_caps[i],
                 100 + i as u64,
@@ -1480,7 +1711,7 @@ mod tests {
             .create_region(100, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
         let mapping_id1 = table
-            .map_region(region_id1, shm_cap1, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id1, shm_cap1, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         let index1 = ((region_id1 >> 32) & 0xFFFF) as usize;
@@ -1503,7 +1734,7 @@ mod tests {
             .create_region(200, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
         let mapping_id2 = table
-            .map_region(region_id2, shm_cap2, 200, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id2, shm_cap2, 200, 1, RIGHTS_READ, 0)
             .unwrap();
 
         let index2 = ((region_id2 >> 32) & 0xFFFF) as usize;
@@ -1535,7 +1766,7 @@ mod tests {
 
         // Map to domain 1
         let mapping_id1 = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         let index = ((region_id >> 32) & 0xFFFF) as usize;
@@ -1544,7 +1775,7 @@ mod tests {
 
         // Map the same region to domain 2 (should reuse the same VA)
         let mapping_id2 = table
-            .map_region(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
             .unwrap();
 
         let vaddr2 = table.regions[index - 1].vaddr;
@@ -1571,7 +1802,7 @@ mod tests {
 
         // First map allocates VA from domain 1 tracker.
         let mapping_id1 = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
         let allocated_before = table.va_trackers[1].allocated;
         assert_ne!(
@@ -1581,7 +1812,7 @@ mod tests {
 
         // Second map reuses region VA but targets domain 2.
         let mapping_id2 = table
-            .map_region(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
             .unwrap();
 
         // Unmap domain 1 first, leaving one active mapping in domain 2.
@@ -1630,7 +1861,7 @@ mod tests {
             .unwrap();
 
         // Domain 2 should be able to map its own region
-        let result = table.map_region(region_id2, shm_cap2, 2, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id2, shm_cap2, 2, 1, RIGHTS_READ, 0);
         assert!(
             result.is_ok(),
             "Domain 2 should be able to map its own region"
@@ -1649,7 +1880,7 @@ mod tests {
             generation: region_id1 & 0xFFFFFFFF,
         };
 
-        let result = table.map_region(region_id1, fake_cap, 2, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id1, fake_cap, 2, 1, RIGHTS_READ, 0);
         assert_eq!(
             result,
             Err(STATUS_PERMISSION_DENIED),
@@ -1663,7 +1894,7 @@ mod tests {
             generation: region_id1 & 0xFFFFFFFF,
         };
 
-        let result = table.map_region(region_id1, shm_cap1, 1, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id1, shm_cap1, 1, 1, RIGHTS_READ, 0);
         assert!(
             result.is_ok(),
             "Domain 1 should be able to map its own region"
@@ -1703,7 +1934,7 @@ mod tests {
 
         // Map to domain 1
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         // Verify refcount is 1
@@ -1757,7 +1988,7 @@ mod tests {
 
         // Map to domain 1
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         // Attacker tries to unmap from domain 2 (wrong domain)
@@ -1880,7 +2111,7 @@ mod tests {
             .unwrap();
 
         // Map the region - this should program the MMU
-        let result = table.map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0);
         assert!(result.is_ok(), "map_region should program MMU successfully");
     }
 
@@ -1898,7 +2129,7 @@ mod tests {
 
         // Try to map to an invalid domain (>= MAX_DOMAINS)
         // This should cause MMU to fail with InvalidDomain
-        let result = table.map_region(region_id, shm_cap, 100, 16, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, shm_cap, 100, 16, RIGHTS_READ, 0);
         assert_eq!(
             result,
             Err(STATUS_INVALID_VA),
@@ -1955,7 +2186,7 @@ mod tests {
             generation: region_id & 0xFFFFFFFF,
         };
 
-        let result = table.map_region(region_id, ipc_handle, 100, 1, RIGHTS_READ, 0);
+        let result = table.map_with_test_consent(region_id, ipc_handle, 100, 1, RIGHTS_READ, 0);
         assert_eq!(
             result,
             Err(STATUS_INVALID_CAPABILITY),
@@ -1995,7 +2226,7 @@ mod tests {
 
         // Map region
         let mapping_id = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         let index = ((region_id >> 32) & 0xFFFF) as usize;
@@ -2026,12 +2257,12 @@ mod tests {
 
         // Map to domain 1
         let mapping_id1 = table
-            .map_region(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 1, RIGHTS_READ, 0)
             .unwrap();
 
         // Map to domain 2
         let mapping_id2 = table
-            .map_region(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
+            .map_with_test_consent(region_id, shm_cap, 100, 2, RIGHTS_READ, 0)
             .unwrap();
 
         let index = ((region_id >> 32) & 0xFFFF) as usize;
@@ -2112,15 +2343,21 @@ mod tests {
         let (b, bcap, _) = table
             .create_region(2, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
-        table.map_region(a, acap, 1, 1, RIGHTS_READ, 0).unwrap();
-        table.map_region(b, bcap, 2, 2, RIGHTS_READ, 0).unwrap();
+        table
+            .map_with_test_consent(a, acap, 1, 1, RIGHTS_READ, 0)
+            .unwrap();
+        table
+            .map_with_test_consent(b, bcap, 2, 2, RIGHTS_READ, 0)
+            .unwrap();
         assert_eq!(
-            table.map_region(a, acap, 1, 2, RIGHTS_READ, 0),
+            table.map_with_test_consent(a, acap, 1, 2, RIGHTS_READ, 0),
             Err(STATUS_INVALID_VA)
         );
         assert_eq!(table.regions[0].refcount, 1);
         table.unmap_region(2, b, 2).unwrap();
-        table.map_region(a, acap, 1, 2, RIGHTS_READ, 0).unwrap();
+        table
+            .map_with_test_consent(a, acap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
         table.unmap_region(1, a, 1).unwrap();
         table.unmap_region(1, a, 2).unwrap();
         assert_eq!(table.va_trackers[1].allocated, 0);
@@ -2156,7 +2393,11 @@ mod tests {
         let (id, cap, _) = table
             .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
             .unwrap();
-        assert!(table.map_region(id, cap, 1, 4, RIGHTS_READ, 0).is_err());
+        assert!(
+            table
+                .map_with_test_consent(id, cap, 1, 4, RIGHTS_READ, 0)
+                .is_err()
+        );
         assert_eq!(table.va_trackers[4].allocated, 0);
         assert_eq!(table.regions[0].vaddr, 0);
         assert_eq!(table.regions[0].refcount, 0);
@@ -2168,10 +2409,14 @@ mod tests {
         let (id, cap, _) = table
             .create_region(1, 4096, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
             .unwrap();
-        table.map_region(id, cap, 1, 1, RIGHTS_READ, 0).unwrap();
-        table.map_region(id, cap, 1, 1, RIGHTS_READ, 0).unwrap();
+        table
+            .map_with_test_consent(id, cap, 1, 1, RIGHTS_READ, 0)
+            .unwrap();
+        table
+            .map_with_test_consent(id, cap, 1, 1, RIGHTS_READ, 0)
+            .unwrap();
         assert_eq!(
-            table.map_region(id, cap, 1, 1, RIGHTS_WRITE, 0),
+            table.map_with_test_consent(id, cap, 1, 1, RIGHTS_WRITE, 0),
             Err(STATUS_INVALID_RIGHTS)
         );
         table.unmap_region(1, id, 1).unwrap();
@@ -2207,5 +2452,160 @@ mod review_ranges {
         assert_eq!(table.phys_range_for_cap(cap, 0, 1), None);
         assert_eq!(table.phys_range_for_cap(new_cap, 0, 1), Some(base));
         table.close_region(0, next).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod review_target_consent {
+    use super::*;
+
+    #[test]
+    fn review_consent_capacity_cancel_and_counter_retirement_preserve_self_mapping() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (region, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let mut offers = [0; MAX_MAPPING_OFFERS];
+        for offer in &mut offers {
+            *offer = table
+                .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+                .unwrap();
+        }
+        assert_eq!(
+            table.offer_region(region, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_NO_MEMORY)
+        );
+        table.cancel_region_offer(1, offers[0]).unwrap();
+        let next = table
+            .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert!(!offers.contains(&next));
+        table.cancel_region_offer(2, next).unwrap();
+        for offer in &offers[1..] {
+            table.cancel_region_offer(1, *offer).unwrap();
+        }
+        table.next_offer_id = u64::MAX;
+        let last = table
+            .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_eq!(last, u64::MAX);
+        table.cancel_region_offer(1, last).unwrap();
+        assert_eq!(
+            table.offer_region(region, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_NO_MEMORY)
+        );
+        assert!(table.accept_region(2, last).is_err());
+        let mapping = table.map_region(region, cap, 1, 1, RIGHTS_READ, 0).unwrap();
+        table.unmap_region(1, mapping, 1).unwrap();
+        table.close_region(1, region).unwrap();
+    }
+
+    #[test]
+    fn review_consent_failed_map_retains_offer_and_releases_reservation_for_retry() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (region, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let offer = table
+            .offer_region(region, cap, 1, 5, RIGHTS_READ, 0)
+            .unwrap();
+        assert!(table.accept_region(5, offer).is_err());
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        assert_eq!(table.regions[(cap.index - 1) as usize].vaddr, 0);
+        // Host control-plane fixture; actual page-table collision/error behavior
+        // is separately exercised by both architecture QEMU probes.
+        crate::mm::ADDRESS_SPACE_TABLE
+            .lock()
+            .as_mut()
+            .unwrap()
+            .set_root(5, unsafe { crate::mm::PhysAddr::new(0xA000) });
+        let mapping = table.accept_region(5, offer).unwrap();
+        table.unmap_region(5, mapping, 5).unwrap();
+        table.close_region(1, region).unwrap();
+    }
+
+    #[test]
+    fn review_consent_foreign_direct_map_denies_then_target_accepts_exact_offer() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (region, cap, physical) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE | REGION_FLAG_WRITABLE, 4096)
+            .unwrap();
+        unsafe {
+            core::ptr::write_bytes(physical as *mut u8, 0xA7, 4096);
+        }
+        assert_eq!(
+            table.map_region(region, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        let offer = table
+            .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_eq!(table.accept_region(3, offer), Err(STATUS_PERMISSION_DENIED));
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        let mapping = table.accept_region(2, offer).unwrap();
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 1);
+        assert!(
+            table.accept_region(2, offer).is_err(),
+            "acceptance must not replay a consumed offer"
+        );
+        assert_eq!(unsafe { *(physical as *const u8) }, 0xA7);
+        table.unmap_region(2, mapping, 2).unwrap();
+        table.close_region(1, region).unwrap();
+        let (next, next_cap, _) = table
+            .create_region(3, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let next_offer = table
+            .offer_region(next, next_cap, 3, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let next_map = table.accept_region(2, next_offer).unwrap();
+        table.unmap_region(2, next_map, 2).unwrap();
+        table.close_region(3, next).unwrap();
+    }
+
+    #[test]
+    fn review_consent_cancel_close_and_rejected_rights_preserve_next_offer() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (region, cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(
+            table.offer_region(region, cap, 2, 3, RIGHTS_READ, 0),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert!(
+            table
+                .offer_region(region, cap, 1, 2, RIGHTS_WRITE, 0)
+                .is_err()
+        );
+        let cancelled = table
+            .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_eq!(
+            table.cancel_region_offer(3, cancelled),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        table.cancel_region_offer(2, cancelled).unwrap();
+        assert!(table.accept_region(2, cancelled).is_err());
+        let closed = table
+            .offer_region(region, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_ne!(closed, cancelled);
+        table.close_region(1, region).unwrap();
+        assert!(table.accept_region(2, closed).is_err());
+        let (next, next_cap, _) = table
+            .create_region(1, 4096, REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let next_offer = table
+            .offer_region(next, next_cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_ne!(next_offer, closed);
+        let mapping = table.accept_region(2, next_offer).unwrap();
+        table.unmap_region(2, mapping, 2).unwrap();
+        table.close_region(1, next).unwrap();
     }
 }

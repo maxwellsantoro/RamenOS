@@ -197,3 +197,5 @@ before editing or moving them; a stale creation-stage status in a pinned contrac
 is historical provenance, not permission to rewrite its bytes. The CI classifier
 requires Foundry for executable inputs. Ordinary prose and governed org packets
 retain their cheaper path; classification alone is not evidence of behavior.
+
+- [Comprehensive review repair successor](plans/comprehensive-review-repairs-2026-10-14.md) — caller, mapping, trace and ordinary Store enforcement contracts and remaining joins.

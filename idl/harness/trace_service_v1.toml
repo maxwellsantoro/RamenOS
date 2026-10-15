@@ -2,9 +2,13 @@ namespace = "trace.service"
 version = "1"
 protocol = 9
 
-# CREATE requires a live IPC envelope handle bound to the requested domain_id.
+# All operations require a live IPC envelope handle bound to the independently
+# admitted kernel caller namespace. CREATE domain_id must match that namespace.
+# READ/GET/DESTROY also require a payload Trace cap owned by the same namespace.
 # IPC capabilities currently bind domains, not protocol-specific rights.
-# READ/GET/DESTROY use the issued Trace bearer capability in their payload.
+# Authenticated untrusted transport and user-process dispatch remain unfinished.
+# Nonzero READ is rejected without consuming events: this legacy reply cannot
+# deliver bytes. Native byte delivery uses trace_delivery_v3 with Shmem and Commit.
 
 [message.create_trace_buffer]
 msg_type = 1

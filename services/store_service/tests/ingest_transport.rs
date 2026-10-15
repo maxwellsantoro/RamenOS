@@ -200,3 +200,119 @@ fn retained_client_recovers_after_server_idle_expiry_before_reads_and_ingestion(
         b"second artifact"
     );
 }
+
+#[test]
+fn rejected_descriptor_reply_discards_transport_before_next_explicit_read() {
+    use std::os::unix::net::UnixListener;
+    use store_service::{
+        StoreClient,
+        client::{
+            GetBlobReply, GetBlobRequest, IngestArtifactReply, IngestArtifactRequest,
+            SignedIngestArtifactRequest,
+        },
+        frame,
+    };
+    for signed in [false, true] {
+        for response in 0..3 {
+            let temp = tempfile::tempdir().unwrap();
+            let socket = temp.path().join("mock.sock");
+            let source = temp.path().join("source");
+            let bytes = b"next explicit read uses fresh transport";
+            std::fs::write(&source, bytes).unwrap();
+            let content_id = artifact_store_core::hash_bytes(bytes);
+            let manifest = artifact_store_schema::Manifest {
+                schema_version: 1,
+                content_id: content_id.clone(),
+                size_bytes: bytes.len() as u64,
+                kind: "config".into(),
+                channels: vec!["test".into()],
+                signatures: vec!["mock publisher".into()],
+            };
+            let listener = UnixListener::bind(&socket).unwrap();
+            let (closed_sender, closed_receiver) = std::sync::mpsc::channel();
+            let reply_source = source.clone();
+            let server = std::thread::spawn(move || {
+                let (mut first, _) = listener.accept().unwrap();
+                first
+                    .set_read_timeout(Some(Duration::from_millis(500)))
+                    .unwrap();
+                let request = frame::read_message(&mut first).unwrap();
+                assert_eq!(request[0], if signed { 8 } else { 7 });
+                let request_id = if signed {
+                    bincode::deserialize::<SignedIngestArtifactRequest>(&request[1..])
+                        .unwrap()
+                        .request_id
+                } else {
+                    bincode::deserialize::<IngestArtifactRequest>(&request[1..])
+                        .unwrap()
+                        .request_id
+                };
+                let mut descriptor = store_service::source_fd::receive(&first).unwrap();
+                let mut received_bytes = Vec::new();
+                descriptor.read_to_end(&mut received_bytes).unwrap();
+                assert_eq!(received_bytes, bytes);
+                let reply = if response == 2 {
+                    vec![0xff] // Invalid bincode reply.
+                } else {
+                    bincode::serialize(&IngestArtifactReply {
+                        request_id: request_id + u64::from(response == 1),
+                        status: if response == 0 {
+                            store_service::status::STATUS_PERMISSION_DENIED
+                        } else {
+                            store_service::status::STATUS_OK
+                        },
+                        content_id: "unused".into(),
+                        size_bytes: 0,
+                    })
+                    .unwrap()
+                };
+                frame::write_message(&mut first, &reply).unwrap();
+                // Deliberately retain the server end. The client must retire its
+                // end based on the reply, without depending on observing EOF.
+                let closed = matches!(first.read(&mut [0u8; 1]), Ok(0));
+                closed_sender.send(closed).unwrap();
+                if !closed {
+                    return;
+                }
+                let (mut second, _) = listener.accept().unwrap();
+                second
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let request = frame::read_message(&mut second).unwrap();
+                assert_eq!(request[0], 2, "ingest must never be automatically replayed");
+                let request: GetBlobRequest = bincode::deserialize(&request[1..]).unwrap();
+                assert_eq!(request.request_id, request_id + 1);
+                frame::write_message(
+                    &mut second,
+                    &bincode::serialize(&GetBlobReply {
+                        request_id: request.request_id,
+                        status: store_service::status::STATUS_OK,
+                        blob_path: reply_source.to_string_lossy().into_owned(),
+                    })
+                    .unwrap(),
+                )
+                .unwrap();
+            });
+            let mut client =
+                StoreClient::connect_with_timeout(&socket, Duration::from_secs(2)).unwrap();
+            let result = if signed {
+                client.ingest_signed_artifact(&manifest, &source)
+            } else {
+                client.ingest_artifact("config", "test", &source)
+            };
+            assert!(result.is_err());
+            let closed = closed_receiver
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap();
+            if !closed {
+                server.join().unwrap();
+                panic!(
+                    "descriptor reply did not retire transport: signed={signed}, response={response}"
+                );
+            }
+            let reply = client.get_blob(&content_id).unwrap();
+            assert_eq!(std::fs::read(reply.blob_path).unwrap(), bytes);
+            server.join().unwrap();
+        }
+    }
+}

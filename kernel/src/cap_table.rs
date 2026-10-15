@@ -19,7 +19,9 @@
 // All subsequent capability operations will panic.
 
 use core::sync::atomic::{AtomicBool, Ordering};
-use kernel_api::cap::{CapTable, CapTableError, Handle};
+use kernel_api::cap::{
+    CapTable, CapTableError, Handle, is_canonical_generation, next_generation_or_retired,
+};
 
 const CAP_TABLE_SIZE: usize = 64;
 
@@ -81,7 +83,7 @@ pub fn reset_smp_state_for_test() {
 #[repr(align(8))]
 #[derive(Debug, Clone, Copy)]
 struct CapSlot {
-    // V-004: Use u64 for generation counter to prevent practical wrapping
+    // Canonical wire generation, or zero for a permanently retired slot.
     generation: u64,
     in_use: bool,
     // Domain identity bound to this IPC capability.
@@ -124,7 +126,7 @@ impl StaticCapTable {
         }
 
         for (i, slot) in self.slots.iter_mut().enumerate() {
-            if !slot.in_use {
+            if !slot.in_use && is_canonical_generation(slot.generation) {
                 slot.in_use = true;
                 slot.domain_id = domain_id;
                 return Ok(Handle {
@@ -166,7 +168,9 @@ impl CapTable for StaticCapTable {
         }
 
         // V-16/SC-13: Reject handles with wrong kind
-        if handle.kind != kernel_api::cap::HandleKind::Ipc {
+        if handle.kind != kernel_api::cap::HandleKind::Ipc
+            || !is_canonical_generation(handle.generation)
+        {
             return false;
         }
         if handle.index == 0 || handle.index > CAP_TABLE_SIZE as u32 {
@@ -183,7 +187,9 @@ impl CapTable for StaticCapTable {
         }
 
         // V-16/SC-13: Reject handles with wrong kind
-        if handle.kind != kernel_api::cap::HandleKind::Ipc {
+        if handle.kind != kernel_api::cap::HandleKind::Ipc
+            || !is_canonical_generation(handle.generation)
+        {
             return Err(CapTableError::InvalidHandle);
         }
         if handle.index == 0 || handle.index > CAP_TABLE_SIZE as u32 {
@@ -195,10 +201,7 @@ impl CapTable for StaticCapTable {
         }
         slot.in_use = false;
         slot.domain_id = 0;
-        slot.generation = slot.generation.wrapping_add(1);
-        if slot.generation == 0 {
-            slot.generation = 1; // Avoid generation 0 (reserved for invalid)
-        }
+        slot.generation = next_generation_or_retired(slot.generation);
         Ok(())
     }
 }
@@ -356,20 +359,60 @@ mod tests {
     }
 
     #[test]
-    fn generation_wraps_avoids_zero() {
+    fn wire_generation_last_legal_retires_and_preserves_other_domain() {
         let _guard = reset_smp_state();
         let mut table = StaticCapTable::new();
-        let mut handle = table.allocate().unwrap();
-        // V-004: Test that generation increments work correctly with u64
-        // Force generation to near max to test wrapping behavior
-        handle.generation = u64::MAX;
-        let slot = &mut table.slots[(handle.index - 1) as usize];
-        slot.generation = u64::MAX;
-        slot.in_use = true;
-        table.deallocate(handle).unwrap();
-        let new_handle = table.allocate().unwrap();
-        assert_eq!(new_handle.index, handle.index);
-        assert_eq!(new_handle.generation, 1); // Should wrap to 1, not 0
+        table.slots[0].generation = u32::MAX as u64;
+        let last = table.allocate_for_domain(7).unwrap();
+        assert_eq!(last.generation, u32::MAX as u64);
+        assert_eq!(Handle::unpack(last.pack()), last);
+        let unrelated = table.allocate_for_domain(8).unwrap();
+        table.deallocate(last).unwrap();
+        assert_eq!(table.slots[0].generation, 0, "exhausted slot must retire");
+        assert!(!table.validate(last));
+        assert!(table.deallocate(last).is_err());
+        let next = table.allocate_for_domain(9).unwrap();
+        assert_ne!(next.index, last.index);
+        assert_eq!(Handle::unpack(next.pack()), next);
+        assert_eq!(table.domain_for(next), Some(9));
+        assert_eq!(table.domain_for(unrelated), Some(8));
+    }
+
+    #[test]
+    fn wire_generation_retired_slots_exhaust_capacity() {
+        let _guard = reset_smp_state();
+        let mut table = StaticCapTable::new();
+        for slot in &mut table.slots {
+            slot.generation = 0;
+        }
+        assert_eq!(table.allocate(), Err(CapTableError::TableFull));
+    }
+
+    #[test]
+    fn wire_generation_allocation_skips_noncanonical_free_slots() {
+        let _guard = reset_smp_state();
+        let mut table = StaticCapTable::new();
+        table.slots[0].generation = 0;
+        table.slots[1].generation = u32::MAX as u64 + 1;
+        let handle = table.allocate_for_domain(7).unwrap();
+        assert_eq!(handle.index, 3);
+        assert_eq!(Handle::unpack(handle.pack()), handle);
+        assert_eq!(table.domain_for(handle), Some(7));
+    }
+
+    #[test]
+    fn wire_generation_validation_denies_noncanonical_live_slots() {
+        let _guard = reset_smp_state();
+        let mut table = StaticCapTable::new();
+        let mut handle = table.allocate_for_domain(7).unwrap();
+        for generation in [0, u32::MAX as u64 + 1, u64::MAX] {
+            handle.generation = generation;
+            table.slots[0].generation = generation;
+            assert!(!table.validate(handle));
+            assert_eq!(table.domain_for(handle), None);
+            assert!(table.deallocate(handle).is_err());
+            assert!(table.slots[0].in_use, "denial must preserve the slot");
+        }
     }
 
     // Additional hardening: SMP safety tests

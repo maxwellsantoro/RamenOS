@@ -99,7 +99,7 @@ The [post-merge main run](https://github.com/maxwellsantoro/RamenOS/actions/runs
 passed all nine jobs and 68 stage/preparation records on its first attempt.
 The separate strict Linux56 `just preflight` result below belongs to the preceding
 source snapshot; that wrapper was not repeated for PR #38. General target broker enforcement, arbitrary
-fragmented scatter/gather transfer, trace data transport, editor-child execution,
+fragmented scatter/gather transfer, authenticated target trace transport, editor-child execution,
 physical durability and release readiness remain separate.
 
 ### Follow-up review — bootstrap and authority repairs
@@ -117,8 +117,8 @@ collection and physical-access adapter.
 Default boot crates no longer enable Oracle protocols implicitly. Every ordinary
 IPC envelope, including opt-in net/block fixtures, validates its IPC capability.
 Both trace dispatch entrypoints bind creation to that capability's domain before
-allocating or resetting state. Trace bearer read/info/destroy behavior remains
-separate; generic IPC handles do not yet have protocol-specific rights.
+allocating or resetting state. The comprehensive successor below adds caller-bound read/info/destroy checks;
+generic IPC handles still lack protocol-specific rights.
 
 P0 preparation adds two genuine in-process Read/reopen and permitted-writer
 pause/unwind controls, plus three authored consumers of the frozen process API.
@@ -129,6 +129,53 @@ Private native negative controls and shared app Save ownership remain required
 before P1/P2 handlers. Source and validation scope are tracked in the follow-up
 review resolution. Those local results remain source-bound; hosted qualification
 must identify its matching revision.
+
+### Comprehensive review successor — bounded enforcement repairs
+
+The D/C, A/F, B and G successors implement the contracts in
+[the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md).
+Strict ordinary host Store ingestion now accepts externally signed manifests,
+checks their exact staged bytes and metadata, and enforces the same signature
+policy at the common publisher. Recovered older intents precede exact deduplication.
+Denied descriptor replies retire the connection; the next explicit operation
+reconnects without mutation replay. IPC, Shmem and Trace generations remain
+representable on the existing wire and permanently retire slots at exhaustion.
+
+Both kernel dispatchers take an independent kernel-private caller context and
+validate IPC and payload ownership against it. Legacy Shmem mapping is self-only;
+a versioned IDL offer/accept contract requires recipient consent. Both real MMUs
+reject existing leaves and huge/block ancestors and reserve all table frames
+before publishing PTEs. Rejection preserves existing mappings and permits retry.
+Native trace v3 writes initialized whole events into caller-owned writable Shmem;
+an explicit Commit advances the cursor. Completed receipts reconcile their
+original outcome after destination retirement. Legacy nonzero metadata-only
+reads deny without consuming events.
+
+Ordinary strict host Store operations require an exact durable live grant in
+addition to token signature, rights and expiry. Externally signed management
+commands grant or permanently revoke IDs. An operation holds its live-authority
+lease through consumption; staged ingestion revalidates at publication. A held
+root lock excludes a second Store authority owner, and uncertain persistence
+disables operations until a verified restart. Strict startup requires explicit
+capability-authority keys and valid durable state; development mode remains an
+explicit alternative. Artifact publishers do not acquire a Store signing key.
+
+Focused host assertions and both-architecture QEMU fixtures cover these controls.
+Fresh affected integration and hosted qualification are tracked against their
+assembled revision. Earlier PR #39 qualification belongs to `23f37445`; its
+[post-merge run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38613352978)
+passed all nine jobs and 68 stage/preparation records.
+
+The caller context still originates only in trusted boot/test fixtures; no
+untrusted syscall or authenticated process carrier supplies it. MMU mutation
+requires continuous exclusive hierarchy access and does not establish SMP safety
+or active userspace translation. `trace_client` still defaults to MockTransport
+and has no v3 kernel carrier. The host Store registry does not implement the
+Domain Manager's target backend. GetBlob still returns a host path; acknowledged
+revocation cannot retract delivered bytes or bypass same-UID filesystem access.
+The default POSIX path remains trusted host development with best-effort rlimits.
+The real editor child, full P0, RUN0, target storage and physical graduation remain
+unfinished.
 
 ## Foundry development and CI execution
 

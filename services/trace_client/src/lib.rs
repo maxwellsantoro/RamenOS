@@ -4,6 +4,15 @@
 //! buffers through the trace_service_v1 IPC protocol. It supports domain-scoped
 //! trace reading with capability-based access control.
 //!
+//! # Current implementation boundary
+//!
+//! `TraceClient::connect` uses `MockTransport`; it does not connect to a kernel
+//! or authenticate a process. Its legacy v1 read examples are prototype controls.
+//! The kernel rejects nonzero v1 reads without consuming events. The native
+//! `trace_delivery_v3` IDL instead delivers bytes through caller-owned writable
+//! shared memory and requires an explicit Commit. This crate has no carrier for
+//! that protocol yet; mock results are not runtime trace-delivery evidence.
+//!
 //! # Architecture
 //!
 //! The trace client connects to the kernel's trace service via IPC and uses

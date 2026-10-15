@@ -23,6 +23,10 @@ use store_service::audit::{
     current_timestamp,
 };
 use store_service::frame::{read_message_until, write_message};
+use store_service::live_authority::{
+    AUTHORITY_UPDATE_OPCODE, AuthorityUpdateReply, LiveAuthority, LiveCapability,
+    decode_authority_request,
+};
 
 // Import capability types
 use serde::Deserialize;
@@ -43,6 +47,7 @@ const MSG_GET_MANIFEST: u8 = 1;
 const MSG_GET_BLOB: u8 = 2;
 const MSG_VERIFY_ARTIFACT: u8 = 3;
 const MSG_INGEST_ARTIFACT: u8 = 7;
+const MSG_SIGNED_INGEST_ARTIFACT: u8 = 8;
 const MSG_QUERY_PROJECTION_BY_PATH: u8 = 5;
 const MSG_QUERY_PROJECTION_BY_TAG: u8 = 6;
 
@@ -57,9 +62,9 @@ trait RequestWithCapability {
 /// that it has the required rights. It either contains the validated capability
 /// or the serialized error reply bytes ready to send.
 #[must_use]
-enum CapabilityOutcome {
+enum CapabilityOutcome<'a> {
     /// Capability is valid and has the required rights
-    Valid(StoreCapability),
+    Valid(LiveCapability<'a>),
     /// Validation failed - contains the serialized error reply bytes
     Denied(Vec<u8>),
 }
@@ -103,17 +108,18 @@ enum CapabilityOutcome {
 ///     }
 /// };
 /// ```
-fn validate_capability<T, F>(
+fn validate_capability<'a, T, F>(
     payload: &[u8],
+    authority: &'a Mutex<LiveAuthority>,
     required_right: u8,
     operation_name: &'static str,
     create_denied_reply: F,
-) -> CapabilityOutcome
+) -> CapabilityOutcome<'a>
 where
     T: for<'de> Deserialize<'de> + RequestWithCapability,
     F: FnOnce() -> Vec<u8>,
 {
-    match extract_and_validate_capability::<T>(payload) {
+    match extract_live_capability::<T>(payload, authority) {
         Ok(Some(cap)) if cap.has_right(required_right) => CapabilityOutcome::Valid(cap),
         Ok(Some(cap)) => {
             eprintln!(
@@ -151,7 +157,7 @@ where
 /// - Ok(Some(capability)) if the capability is valid
 /// - Ok(None) if no capability was provided (for backward compatibility)
 /// - Err if the capability is invalid or malformed
-fn extract_and_validate_capability<T: for<'de> Deserialize<'de> + RequestWithCapability>(
+fn extract_capability_token<T: for<'de> Deserialize<'de> + RequestWithCapability>(
     payload: &[u8],
 ) -> Result<Option<StoreCapability>> {
     let dev_mode = store_service::dev_mode::is_dev_mode_enabled();
@@ -176,7 +182,9 @@ fn extract_and_validate_capability<T: for<'de> Deserialize<'de> + RequestWithCap
     }
 
     // Deserialize the capability
-    let capability: StoreCapability = match bincode::deserialize(capability_bytes) {
+    let capability: StoreCapability = match store_service::live_authority::decode_capability(
+        capability_bytes,
+    ) {
         Ok(cap) => cap,
         Err(err) => {
             if dev_mode {
@@ -218,6 +226,22 @@ fn extract_and_validate_capability<T: for<'de> Deserialize<'de> + RequestWithCap
     );
 
     Ok(Some(capability))
+}
+
+fn extract_live_capability<'a, T: for<'de> Deserialize<'de> + RequestWithCapability>(
+    payload: &[u8],
+    authority: &'a Mutex<LiveAuthority>,
+) -> Result<Option<LiveCapability<'a>>> {
+    extract_capability_token::<T>(payload)?
+        .map(|capability| LiveAuthority::acquire(authority, capability))
+        .transpose()
+}
+
+#[cfg(test)]
+fn extract_and_validate_capability<T: for<'de> Deserialize<'de> + RequestWithCapability>(
+    payload: &[u8],
+) -> Result<Option<StoreCapability>> {
+    extract_capability_token::<T>(payload)
 }
 
 /// Convert StoreCapability rights_mask to AccessRights
@@ -336,11 +360,6 @@ fn main() -> Result<()> {
 
     // Ensure store root exists
     fs::create_dir_all(&store_root).context("failed to create store root")?;
-
-    // Initialize audit logger
-    let audit_logger =
-        AuditLogger::new(&audit_log_path).context("failed to initialize audit logger")?;
-    println!("store_service: audit log at {}", audit_logger.log_path());
 
     // S7 Security Hardening: Fail-Closed Store Signature Policy
     //
@@ -490,6 +509,25 @@ fn main() -> Result<()> {
     let access_control = AccessControl::with_policy(access_policy);
     println!("store_service: access control policy: {:?}", access_policy);
 
+    // Acquire exclusive root ownership before recovery, audit initialization or
+    // any other stateful Store initialization can touch the active owner.
+    let live_authority = Arc::new(Mutex::new(
+        LiveAuthority::open(&store_root, dev_mode)
+            .context("failed to initialize live capability authority")?,
+    ));
+    if dev_mode {
+        eprintln!(
+            "store_service: WARNING: stateless capability authority (explicit RAMEN_STORE_DEV_MODE)"
+        );
+    } else {
+        println!("store_service: durable live capability authority enabled");
+    }
+
+    // Initialize audit logger
+    let audit_logger =
+        AuditLogger::new(&audit_log_path).context("failed to initialize audit logger")?;
+    println!("store_service: audit log at {}", audit_logger.log_path());
+
     // Initialize domain artifact registry (V-007 Phase 5)
     let domain_registry =
         DomainArtifactRegistry::new(&store_root).context("failed to initialize domain registry")?;
@@ -571,10 +609,11 @@ fn main() -> Result<()> {
                 let access_control = Arc::clone(&access_control);
                 let domain_registry = Arc::clone(&domain_registry);
                 let projection_index = Arc::clone(&projection_index);
+                let live_authority = Arc::clone(&live_authority);
 
                 std::thread::spawn(move || {
                     let _connection_permit = connection_permit;
-                    if let Err(err) = handle_client(
+                    if let Err(err) = handle_client_with_authority(
                         stream,
                         &store_root,
                         &audit_logger,
@@ -582,6 +621,7 @@ fn main() -> Result<()> {
                         &access_control,
                         (domain_registry, projection_index),
                         limits,
+                        &live_authority,
                     ) {
                         eprintln!("store_service: client thread error: {}", err);
                     }
@@ -596,7 +636,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn handle_client(
+#[allow(clippy::too_many_arguments)]
+fn handle_client_with_authority(
     mut stream: UnixStream,
     store_root: &Path,
     audit_logger: &AuditLogger,
@@ -607,6 +648,7 @@ fn handle_client(
         Arc<Mutex<ProjectionIndexStore>>,
     ),
     limits: Arc<ServiceLimits>,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<()> {
     // Get client info (V-007 Phase 3: Stub, will be enhanced in Phase 4)
     let client_info = ClientInfo::from_stream(&stream);
@@ -638,17 +680,55 @@ fn handle_client(
         let timer = Timer::new();
         let mut close_after_reply = false;
         let (reply, operation, parameters, result) = match msg_type {
+            AUTHORITY_UPDATE_OPCODE => {
+                let request = decode_authority_request(&msg[1..])?;
+                let id = request.command.capability_id;
+                let action = request.command.action;
+                let allowed = access_control.can_write(&client_info)
+                    == store_service::access_control::AccessDecision::Allowed;
+                let status = if !allowed {
+                    STATUS_PERMISSION_DENIED
+                } else {
+                    let mut live = authority
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("live authority mutex poisoned"))?;
+                    match live.apply(&request.command) {
+                        Ok(()) => STATUS_OK,
+                        Err(error) => {
+                            eprintln!("store_service: authority update rejected: {error:#}");
+                            if live.storage_uncertain() {
+                                STATUS_IO_ERROR
+                            } else {
+                                STATUS_PERMISSION_DENIED
+                            }
+                        }
+                    }
+                };
+                (
+                    bincode::serialize(&AuthorityUpdateReply {
+                        request_id: request.request_id,
+                        status,
+                    })?,
+                    Operation::AuthorityUpdate,
+                    AuditLogParameters::AuthorityUpdate {
+                        capability_id: id,
+                        action,
+                    },
+                    OperationResult::from_status_code(status),
+                )
+            }
             MSG_GET_MANIFEST => {
                 let registry = domain_registry
                     .lock()
                     .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
-                let (reply, params, result) = handle_get_manifest(
+                let (reply, params, result) = handle_get_manifest_with_authority(
                     &msg[1..],
                     store_root,
                     sig_config,
                     access_control,
                     &client_info,
                     &registry,
+                    authority,
                 )?;
                 (reply, Operation::GetManifest, params, result)
             }
@@ -656,13 +736,14 @@ fn handle_client(
                 let registry = domain_registry
                     .lock()
                     .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
-                let (reply, params, result) = handle_get_blob(
+                let (reply, params, result) = handle_get_blob_with_authority(
                     &msg[1..],
                     store_root,
                     sig_config,
                     access_control,
                     &client_info,
                     &registry,
+                    authority,
                 )?;
                 (reply, Operation::GetBlob, params, result)
             }
@@ -670,19 +751,56 @@ fn handle_client(
                 let registry = domain_registry
                     .lock()
                     .map_err(|_| anyhow::anyhow!("domain registry mutex poisoned"))?;
-                let (reply, params, result) = handle_verify_artifact(
+                let (reply, params, result) = handle_verify_artifact_with_authority(
                     &msg[1..],
                     store_root,
                     sig_config,
                     access_control,
                     &client_info,
                     &registry,
+                    authority,
                 )?;
                 (reply, Operation::VerifyArtifact, params, result)
             }
-            MSG_INGEST_ARTIFACT => {
-                let payload = &msg[1..];
-                let authorized = ingest_authorized(payload, access_control, &client_info)?;
+            MSG_INGEST_ARTIFACT | MSG_SIGNED_INGEST_ARTIFACT => {
+                // Normalize only after bounded, exact decoding of the new host
+                // request. Both opcodes use the same descriptor preparation and
+                // publication path; strict legacy ingestion rejects before fd IO.
+                let signed = if msg_type == MSG_SIGNED_INGEST_ARTIFACT {
+                    Some(decode_signed_ingest(&msg[1..])?)
+                } else {
+                    None
+                };
+                let normalized;
+                let payload = if let Some(request) = &signed {
+                    normalized = bincode::serialize(&IngestArtifactRequest {
+                        request_id: request.request_id,
+                        kind: request.manifest.kind.clone(),
+                        channel: request
+                            .manifest
+                            .channels
+                            .first()
+                            .cloned()
+                            .unwrap_or_default(),
+                        src_path: request.src_path.clone(),
+                        capability_bytes: request.capability_bytes.clone(),
+                    })?;
+                    normalized.as_slice()
+                } else {
+                    &msg[1..]
+                };
+                let publisher_allowed = match &signed {
+                    Some(request) => {
+                        validate_ingest_manifest(&request.manifest, sig_config).is_ok()
+                    }
+                    None => sig_config.policy == SignaturePolicy::AllowUnsigned,
+                };
+                let authorized = ingest_authorized_with_authority(
+                    payload,
+                    access_control,
+                    &client_info,
+                    authority,
+                )? && publisher_allowed;
                 let result = if !authorized {
                     // Close after replying: an already-sent fd must never become
                     // the header of a subsequent frame on a denied connection.
@@ -721,14 +839,17 @@ fn handle_client(
                             let mut index = projection_index
                                 .lock()
                                 .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
-                            handle_ingest_artifact(
+                            handle_ingest_publication_with_authority(
                                 payload,
                                 Some(staged),
+                                signed.as_ref().map(|request| &request.manifest),
+                                sig_config,
                                 store_root,
                                 access_control,
                                 &client_info,
                                 &mut registry,
                                 &mut index,
+                                authority,
                             )?
                         }
                         Err(error) => {
@@ -746,12 +867,13 @@ fn handle_client(
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
-                let (reply, params, result) = handle_query_projection_by_path(
+                let (reply, params, result) = handle_query_projection_by_path_with_authority(
                     &msg[1..],
                     access_control,
                     &client_info,
                     &index,
                     &registry,
+                    authority,
                 )?;
                 (reply, Operation::QueryProjectionByPath, params, result)
             }
@@ -762,12 +884,13 @@ fn handle_client(
                 let index = projection_index
                     .lock()
                     .map_err(|_| anyhow::anyhow!("projection index mutex poisoned"))?;
-                let (reply, params, result) = handle_query_projection_by_tag(
+                let (reply, params, result) = handle_query_projection_by_tag_with_authority(
                     &msg[1..],
                     access_control,
                     &client_info,
                     &index,
                     &registry,
+                    authority,
                 )?;
                 (reply, Operation::QueryProjectionByTag, params, result)
             }
@@ -803,13 +926,15 @@ fn handle_client(
     Ok(())
 }
 
-fn handle_get_manifest(
+#[allow(clippy::too_many_arguments)]
+fn handle_get_manifest_with_authority(
     payload: &[u8],
     store_root: &Path,
     sig_config: &SignatureValidationConfig,
     access_control: &AccessControl,
     client_info: &ClientInfo,
     domain_registry: &DomainArtifactRegistry,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     let request: GetManifestRequest =
         bincode::deserialize(payload).context("failed to deserialize GetManifestRequest")?;
@@ -820,6 +945,7 @@ fn handle_get_manifest(
     // V-007 Phase 6: Extract and validate capability from request message
     let cap = match validate_capability::<GetManifestRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_READ,
         "get_manifest",
         || {
@@ -1076,13 +1202,15 @@ fn handle_get_manifest(
     }
 }
 
-fn handle_get_blob(
+#[allow(clippy::too_many_arguments)]
+fn handle_get_blob_with_authority(
     payload: &[u8],
     store_root: &Path,
     sig_config: &SignatureValidationConfig,
     access_control: &AccessControl,
     client_info: &ClientInfo,
     domain_registry: &DomainArtifactRegistry,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     let request: GetBlobRequest =
         bincode::deserialize(payload).context("failed to deserialize GetBlobRequest")?;
@@ -1093,6 +1221,7 @@ fn handle_get_blob(
     // V-007 Phase 6: Extract and validate capability from request message
     let cap = match validate_capability::<GetBlobRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_READ,
         "get_blob",
         || {
@@ -1241,13 +1370,15 @@ fn handle_get_blob(
     }
 }
 
-fn handle_verify_artifact(
+#[allow(clippy::too_many_arguments)]
+fn handle_verify_artifact_with_authority(
     payload: &[u8],
     store_root: &Path,
     sig_config: &SignatureValidationConfig,
     access_control: &AccessControl,
     client_info: &ClientInfo,
     domain_registry: &DomainArtifactRegistry,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     let request: VerifyArtifactRequest =
         bincode::deserialize(payload).context("failed to deserialize VerifyArtifactRequest")?;
@@ -1258,6 +1389,7 @@ fn handle_verify_artifact(
     // V-007 Phase 6: Extract and validate capability from request message
     let cap = match validate_capability::<VerifyArtifactRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_READ,
         "verify_artifact",
         || {
@@ -1407,18 +1539,90 @@ fn handle_verify_artifact(
     }
 }
 
-fn ingest_authorized(payload: &[u8], access: &AccessControl, client: &ClientInfo) -> Result<bool> {
+/// Host extension only: fixed-int bincode must consume the complete bounded
+/// request. The legacy opcode's wire shape remains unchanged.
+fn decode_signed_ingest(payload: &[u8]) -> Result<SignedIngestArtifactRequest> {
+    use bincode::Options;
+    anyhow::ensure!(
+        payload.len() <= 80 * 1024,
+        "signed ingest request exceeds limit"
+    );
+    let request: SignedIngestArtifactRequest = bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .with_limit(80 * 1024)
+        .reject_trailing_bytes()
+        .deserialize(payload)?;
+    anyhow::ensure!(request.version == 2, "unsupported signed ingest version");
+    anyhow::ensure!(
+        request.src_path.len() <= 4096 && request.capability_bytes.len() <= 8192,
+        "signed ingest request fields exceed limit"
+    );
+    validate_ingest_manifest_bounds(&request.manifest)?;
+    Ok(request)
+}
+
+fn validate_ingest_manifest_bounds(manifest: &Manifest) -> Result<()> {
+    anyhow::ensure!(manifest.schema_version == 1, "unsupported manifest schema");
+    ContentId::parse(&manifest.content_id).map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    anyhow::ensure!(
+        !manifest.kind.is_empty()
+            && manifest.kind.len() <= 256
+            && !manifest.channels.is_empty()
+            && manifest.channels.len() <= 64
+            && manifest
+                .channels
+                .iter()
+                .all(|channel| !channel.is_empty() && channel.len() <= 256)
+            && manifest.signatures.len() <= 32
+            && manifest
+                .signatures
+                .iter()
+                .all(|signature| signature.len() <= 16 * 1024),
+        "manifest fields exceed limits"
+    );
+    anyhow::ensure!(
+        serde_json::to_vec(manifest)?.len() <= 64 * 1024,
+        "manifest exceeds 64 KiB limit"
+    );
+    Ok(())
+}
+
+fn validate_ingest_manifest(manifest: &Manifest, config: &SignatureValidationConfig) -> Result<()> {
+    validate_ingest_manifest_bounds(manifest)?;
+    anyhow::ensure!(
+        artifact_store_schema::signature::validate_manifest_signatures(
+            &manifest.signatures,
+            &artifact_store_schema::signature::manifest_signing_bytes(manifest)?,
+            config,
+        ) == artifact_store_schema::signature::SignatureValidationResult::Valid,
+        "publisher signature rejected"
+    );
+    Ok(())
+}
+
+fn ingest_authorized_with_authority(
+    payload: &[u8],
+    access: &AccessControl,
+    client: &ClientInfo,
+    authority: &Mutex<LiveAuthority>,
+) -> Result<bool> {
     // Deserialize the typed request even on denied authority, but do not receive
     // or inspect a source descriptor until write authority has been checked.
     let _: IngestArtifactRequest = bincode::deserialize(payload)?;
     Ok(
-        extract_and_validate_capability::<IngestArtifactRequest>(payload)
+        extract_live_capability::<IngestArtifactRequest>(payload, authority)
             .ok()
             .flatten()
             .is_some_and(|cap| cap.has_right(STORE_RIGHT_WRITE))
             && access.can_write(client) == store_service::access_control::AccessDecision::Allowed,
     )
 }
+#[cfg(test)]
+fn ingest_authorized(payload: &[u8], access: &AccessControl, client: &ClientInfo) -> Result<bool> {
+    let authority = Mutex::new(LiveAuthority::open(Path::new("."), true)?);
+    ingest_authorized_with_authority(payload, access, client, &authority)
+}
+
 fn ingest_failure(
     payload: &[u8],
     status: u32,
@@ -1440,6 +1644,7 @@ fn ingest_failure(
     ))
 }
 
+#[cfg(test)]
 fn handle_ingest_artifact(
     payload: &[u8],
     source: Option<ingest::StagedBlob>,
@@ -1448,6 +1653,35 @@ fn handle_ingest_artifact(
     client_info: &ClientInfo,
     domain_registry: &mut DomainArtifactRegistry,
     projection_index: &mut ProjectionIndexStore,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    handle_ingest_publication(
+        payload,
+        source,
+        None,
+        &SignatureValidationConfig {
+            policy: SignaturePolicy::AllowUnsigned,
+            ..Default::default()
+        },
+        store_root,
+        access_control,
+        client_info,
+        domain_registry,
+        projection_index,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_ingest_publication_with_authority(
+    payload: &[u8],
+    source: Option<ingest::StagedBlob>,
+    signed: Option<&Manifest>,
+    sig_config: &SignatureValidationConfig,
+    store_root: &Path,
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    domain_registry: &mut DomainArtifactRegistry,
+    projection_index: &mut ProjectionIndexStore,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     let request: IngestArtifactRequest =
         bincode::deserialize(payload).context("failed to deserialize IngestArtifactRequest")?;
@@ -1460,6 +1694,7 @@ fn handle_ingest_artifact(
     // V-007 Phase 6: Extract and validate capability from request message
     let cap = match validate_capability::<IngestArtifactRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_WRITE,
         "ingest_artifact",
         || {
@@ -1525,24 +1760,55 @@ fn handle_ingest_artifact(
         let size_bytes = staged.size_bytes;
 
         // Create and write manifest
-        let manifest = Manifest {
-            schema_version: 1,
-            content_id: content_id.clone(),
-            size_bytes,
-            kind: kind.clone(),
-            channels: vec![channel.clone()],
-            signatures: vec![], // V-007 Phase 3: No signatures yet
+        let manifest = if let Some(manifest) = signed {
+            validate_ingest_manifest(manifest, sig_config)?;
+            anyhow::ensure!(
+                manifest.content_id == content_id && manifest.size_bytes == size_bytes,
+                "signed identity does not match staged descriptor bytes"
+            );
+            manifest.clone()
+        } else {
+            // Enforce the policy at the publication sink as well as dispatch.
+            // A caller cannot turn strict ingestion into unsigned publication
+            // by omitting the externally signed manifest.
+            if sig_config.policy != SignaturePolicy::AllowUnsigned {
+                return Ok(IngestArtifactReply {
+                    request_id,
+                    status: STATUS_PERMISSION_DENIED,
+                    ..Default::default()
+                });
+            }
+            Manifest {
+                schema_version: 1,
+                content_id: content_id.clone(),
+                size_bytes,
+                kind: kind.clone(),
+                channels: vec![channel.clone()],
+                signatures: vec![],
+            }
         };
 
-        domain_registry
-            .publish_owned(
+        let publish_blob = |blob: &Path| staged.publish(blob);
+        if signed.is_some() {
+            // Exact metadata policy belongs after outstanding-intent recovery,
+            // under the same registry lock as the actual CAS publication.
+            domain_registry.publish_owned_exact(
                 store_root,
                 &manifest,
                 cap.domain_id,
                 cap.domain_id == 0,
-                |blob| staged.publish(blob),
+                publish_blob,
             )
-            .context("failed to publish owned artifact")?;
+        } else {
+            domain_registry.publish_owned(
+                store_root,
+                &manifest,
+                cap.domain_id,
+                cap.domain_id == 0,
+                publish_blob,
+            )
+        }
+        .context("failed to publish owned artifact")?;
 
         update_projection_index_after_ingest(
             projection_index,
@@ -1639,12 +1905,14 @@ fn update_projection_index_after_ingest(
     Ok(())
 }
 
-fn handle_query_projection_by_path(
+#[allow(clippy::too_many_arguments)]
+fn handle_query_projection_by_path_with_authority(
     payload: &[u8],
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
     domain_registry: &DomainArtifactRegistry,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByPathReply, QueryProjectionByPathRequest};
 
@@ -1655,6 +1923,7 @@ fn handle_query_projection_by_path(
 
     let cap = match validate_capability::<QueryProjectionByPathRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_READ,
         "query_projection_by_path",
         || {
@@ -1723,12 +1992,14 @@ fn handle_query_projection_by_path(
     }
 }
 
-fn handle_query_projection_by_tag(
+#[allow(clippy::too_many_arguments)]
+fn handle_query_projection_by_tag_with_authority(
     payload: &[u8],
     access_control: &AccessControl,
     client_info: &ClientInfo,
     projection_index: &ProjectionIndexStore,
     domain_registry: &DomainArtifactRegistry,
+    authority: &Mutex<LiveAuthority>,
 ) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
     use store_service::client::{QueryProjectionByTagReply, QueryProjectionByTagRequest};
 
@@ -1739,6 +2010,7 @@ fn handle_query_projection_by_tag(
 
     let cap = match validate_capability::<QueryProjectionByTagRequest, _>(
         payload,
+        authority,
         STORE_RIGHT_READ,
         "query_projection_by_tag",
         || {
@@ -1807,12 +2079,173 @@ fn handle_query_projection_by_tag(
     }
 }
 
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_client(
+    stream: UnixStream,
+    store_root: &Path,
+    audit_logger: &AuditLogger,
+    sig_config: &SignatureValidationConfig,
+    access_control: &AccessControl,
+    registries: (
+        Arc<Mutex<DomainArtifactRegistry>>,
+        Arc<Mutex<ProjectionIndexStore>>,
+    ),
+    limits: Arc<ServiceLimits>,
+) -> Result<()> {
+    let authority = Mutex::new(LiveAuthority::open(store_root, true)?);
+    handle_client_with_authority(
+        stream,
+        store_root,
+        audit_logger,
+        sig_config,
+        access_control,
+        registries,
+        limits,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_get_manifest(
+    payload: &[u8],
+    store_root: &Path,
+    sig_config: &SignatureValidationConfig,
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    domain_registry: &DomainArtifactRegistry,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(store_root, true)?);
+    handle_get_manifest_with_authority(
+        payload,
+        store_root,
+        sig_config,
+        access_control,
+        client_info,
+        domain_registry,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_get_blob(
+    payload: &[u8],
+    store_root: &Path,
+    sig_config: &SignatureValidationConfig,
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    domain_registry: &DomainArtifactRegistry,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(store_root, true)?);
+    handle_get_blob_with_authority(
+        payload,
+        store_root,
+        sig_config,
+        access_control,
+        client_info,
+        domain_registry,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_verify_artifact(
+    payload: &[u8],
+    store_root: &Path,
+    sig_config: &SignatureValidationConfig,
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    domain_registry: &DomainArtifactRegistry,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(store_root, true)?);
+    handle_verify_artifact_with_authority(
+        payload,
+        store_root,
+        sig_config,
+        access_control,
+        client_info,
+        domain_registry,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_ingest_publication(
+    payload: &[u8],
+    source: Option<ingest::StagedBlob>,
+    signed: Option<&Manifest>,
+    sig_config: &SignatureValidationConfig,
+    store_root: &Path,
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    domain_registry: &mut DomainArtifactRegistry,
+    projection_index: &mut ProjectionIndexStore,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(store_root, true)?);
+    handle_ingest_publication_with_authority(
+        payload,
+        source,
+        signed,
+        sig_config,
+        store_root,
+        access_control,
+        client_info,
+        domain_registry,
+        projection_index,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_query_projection_by_path(
+    payload: &[u8],
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(Path::new("."), true)?);
+    handle_query_projection_by_path_with_authority(
+        payload,
+        access_control,
+        client_info,
+        projection_index,
+        domain_registry,
+        &authority,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn handle_query_projection_by_tag(
+    payload: &[u8],
+    access_control: &AccessControl,
+    client_info: &ClientInfo,
+    projection_index: &ProjectionIndexStore,
+    domain_registry: &DomainArtifactRegistry,
+) -> Result<(Vec<u8>, AuditLogParameters, OperationResult)> {
+    let authority = Mutex::new(LiveAuthority::open(Path::new("."), true)?);
+    handle_query_projection_by_tag_with_authority(
+        payload,
+        access_control,
+        client_info,
+        projection_index,
+        domain_registry,
+        &authority,
+    )
+}
+
 // Request/Reply types (re-exported from client module for binary use)
 pub use store_service::client::{
     GetBlobReply, GetBlobRequest, GetManifestReply, GetManifestRequest, IngestArtifactReply,
     IngestArtifactRequest, QueryProjectionByPathReply, QueryProjectionByPathRequest,
-    QueryProjectionByTagReply, QueryProjectionByTagRequest, VerifyArtifactReply,
-    VerifyArtifactRequest,
+    QueryProjectionByTagReply, QueryProjectionByTagRequest, SignedIngestArtifactRequest,
+    VerifyArtifactReply, VerifyArtifactRequest,
 };
 
 // ============================================================================
@@ -1958,6 +2391,283 @@ mod integration_tests {
         second_thread.join().unwrap();
         // All worker admission is reusable only after cleanup was confirmed.
         assert!(limits.preparations.acquire().is_some());
+    }
+
+    #[test]
+    fn review_publication_sink_enforces_strict_policy_then_accepts_signed_ingest() {
+        use artifact_store_schema::signature::{SignatureAlgorithm, manifest_signing_bytes};
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use ed25519_dalek::{Signer, SigningKey};
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        let _dev = EnvVarGuard::set("RAMEN_STORE_DEV_MODE", "0".into());
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let source = root.join("source");
+        let bytes = b"strict sink signed successor";
+        fs::write(&source, bytes).unwrap();
+        let access =
+            AccessControl::with_policy(store_service::access_control::AccessPolicy::AllowAll);
+        let client = ClientInfo::default();
+        let cap = signed_test_capability(7, STORE_RIGHT_ALL, 101);
+        let request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "config".into(),
+            channel: "test".into(),
+            src_path: source.to_string_lossy().into_owned(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let payload = bincode::serialize(&request).unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        let mut index = writable_projection_index(root);
+        let key = SigningKey::from_bytes(&[61; 32]);
+        let mut trusted = TrustedKeys::new();
+        trusted
+            .add_ed25519_key("publisher".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let config = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: trusted,
+            ..Default::default()
+        };
+        let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
+        let id = staged.content_id.clone();
+        let (raw, _, _) = handle_ingest_publication(
+            &payload,
+            Some(staged),
+            None,
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_PERMISSION_DENIED);
+        assert!(registry.get_owner(&id).is_none());
+        assert_eq!(
+            fs::read_dir(root).unwrap().count(),
+            1,
+            "denied publication left state"
+        );
+
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: id.as_str().into(),
+            size_bytes: bytes.len() as u64,
+            kind: request.kind.clone(),
+            channels: vec![request.channel.clone()],
+            signatures: vec![],
+        };
+        let signature = ManifestSignature {
+            algorithm: SignatureAlgorithm::Ed25519,
+            signature_data: STANDARD.encode(
+                key.sign(&manifest_signing_bytes(&manifest).unwrap())
+                    .to_bytes(),
+            ),
+            key_id: "publisher".into(),
+            timestamp: None,
+            signer: None,
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&signature).unwrap());
+        let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
+        let (raw, _, _) = handle_ingest_publication(
+            &payload,
+            Some(staged),
+            Some(&manifest),
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_OK);
+        let read_request = GetBlobRequest {
+            request_id: 2,
+            content_id: manifest.content_id,
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let (raw, _, _) = handle_get_blob(
+            &bincode::serialize(&read_request).unwrap(),
+            root,
+            &config,
+            &access,
+            &client,
+            &registry,
+        )
+        .unwrap();
+        let reply: GetBlobReply = bincode::deserialize(&raw).unwrap();
+        assert_eq!(reply.status, STATUS_OK);
+        assert_eq!(fs::read(reply.blob_path).unwrap(), bytes);
+    }
+
+    #[test]
+    fn review_signed_dedup_reconciles_original_intent_before_metadata_comparison() {
+        use artifact_store_schema::signature::{SignatureAlgorithm, manifest_signing_bytes};
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use ed25519_dalek::{Signer, SigningKey};
+        let _guard = env_lock().lock().unwrap();
+        let _keys = set_test_capability_trusted_key_env();
+        let _dev = EnvVarGuard::set("RAMEN_STORE_DEV_MODE", "0".into());
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let source = root.join("source");
+        let bytes = b"original interrupted signed publication";
+        fs::write(&source, bytes).unwrap();
+        let access =
+            AccessControl::with_policy(store_service::access_control::AccessPolicy::AllowAll);
+        let client = ClientInfo::default();
+        let cap = signed_test_capability(7, STORE_RIGHT_ALL, 102);
+        let key = SigningKey::from_bytes(&[61; 32]);
+        let sign = |bytes: &[u8], channel: &str| {
+            let mut manifest = Manifest {
+                schema_version: 1,
+                content_id: artifact_store_core::hash_bytes(bytes),
+                size_bytes: bytes.len() as u64,
+                kind: "config".into(),
+                channels: vec![channel.into()],
+                signatures: vec![],
+            };
+            let signature = ManifestSignature {
+                algorithm: SignatureAlgorithm::Ed25519,
+                signature_data: STANDARD.encode(
+                    key.sign(&manifest_signing_bytes(&manifest).unwrap())
+                        .to_bytes(),
+                ),
+                key_id: "publisher".into(),
+                timestamp: None,
+                signer: None,
+            };
+            manifest
+                .signatures
+                .push(serde_json::to_string(&signature).unwrap());
+            manifest
+        };
+        let original = sign(bytes, "original");
+        let conflict = sign(bytes, "conflict");
+        let id = ContentId::parse(&original.content_id).unwrap();
+        let mut trusted = TrustedKeys::new();
+        trusted
+            .add_ed25519_key("publisher".into(), key.verifying_key().as_bytes())
+            .unwrap();
+        let config = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: trusted,
+            ..Default::default()
+        };
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        let mut index = writable_projection_index(root);
+        let index_before = serde_json::to_value(index.index()).unwrap();
+        // Use a real publication failure after immutable blob installation but
+        // before manifest/owner completion. Keep this same live registry.
+        assert!(
+            registry
+                .publish_owned(root, &original, 7, false, |blob| {
+                    artifact_store_core::write_blob_bytes_atomic(blob, bytes)?;
+                    Err(std::io::Error::other("after blob"))
+                })
+                .is_err()
+        );
+        let metadata = root.join(format!("{}.manifest.json", id.hash_hex()));
+        let intent = root.join(format!("{}.publication.json", id.hash_hex()));
+        assert!(!metadata.exists());
+        assert!(intent.exists());
+        assert!(registry.get_owner(&id).is_none());
+        let request_for = |manifest: &Manifest| {
+            bincode::serialize(&IngestArtifactRequest {
+                request_id: 1,
+                kind: manifest.kind.clone(),
+                channel: manifest.channels[0].clone(),
+                src_path: source.to_string_lossy().into_owned(),
+                capability_bytes: bincode::serialize(&cap).unwrap(),
+            })
+            .unwrap()
+        };
+        let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
+        let (raw, _, _) = handle_ingest_publication(
+            &request_for(&conflict),
+            Some(staged),
+            Some(&conflict),
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        let reply: IngestArtifactReply = bincode::deserialize(&raw).unwrap();
+        assert_ne!(
+            reply.status, STATUS_OK,
+            "conflict succeeded after recovering a different signed manifest"
+        );
+        let recovered: Manifest = serde_json::from_slice(&fs::read(&metadata).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&recovered).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+        let owner = registry.get_owner(&id).unwrap();
+        assert_eq!(owner.domain_id, 7);
+        assert!(!owner.is_global);
+        assert!(!intent.exists());
+        assert_eq!(serde_json::to_value(index.index()).unwrap(), index_before);
+        assert!(!ProjectionIndexStore::default_path(root).exists());
+        let original_metadata = fs::read(&metadata).unwrap();
+        let owner_path = root.join(format!("{}.ownership.json", id.hash_hex()));
+        let original_owner = fs::read(&owner_path).unwrap();
+        let fresh_bytes = b"fresh signed publication after intent conflict";
+        fs::write(&source, fresh_bytes).unwrap();
+        let fresh = sign(fresh_bytes, "fresh");
+        let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
+        let (raw, _, _) = handle_ingest_publication(
+            &request_for(&fresh),
+            Some(staged),
+            Some(&fresh),
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+        )
+        .unwrap();
+        assert_eq!(
+            bincode::deserialize::<IngestArtifactReply>(&raw)
+                .unwrap()
+                .status,
+            STATUS_OK
+        );
+        for (manifest, expected) in [
+            (&original, bytes.as_slice()),
+            (&fresh, fresh_bytes.as_slice()),
+        ] {
+            let request = GetBlobRequest {
+                request_id: 2,
+                content_id: manifest.content_id.clone(),
+                capability_bytes: bincode::serialize(&cap).unwrap(),
+            };
+            let (raw, _, _) = handle_get_blob(
+                &bincode::serialize(&request).unwrap(),
+                root,
+                &config,
+                &access,
+                &client,
+                &registry,
+            )
+            .unwrap();
+            let reply: GetBlobReply = bincode::deserialize(&raw).unwrap();
+            assert_eq!(reply.status, STATUS_OK);
+            assert_eq!(fs::read(reply.blob_path).unwrap(), expected);
+        }
+        assert_eq!(fs::read(metadata).unwrap(), original_metadata);
+        assert_eq!(fs::read(owner_path).unwrap(), original_owner);
     }
 
     #[test]
@@ -3407,5 +4117,161 @@ mod integration_tests {
             reply.content_id,
             artifact_store_core::hash_bytes(b"private service bytes")
         );
+    }
+
+    #[test]
+    fn review_staged_before_live_revoke_denies_commit_then_fresh_signed_publication_succeeds() {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use ed25519_dalek::{Signer, SigningKey};
+        use store_service::live_authority::AuthorityCommand;
+        let _guard = env_lock().lock().unwrap();
+        let _dev = EnvVarGuard::set("RAMEN_STORE_DEV_MODE", "0".into());
+        let key = SigningKey::from_bytes(&[62; 32]);
+        let _trusted = EnvVarGuard::set(
+            "RAMEN_STORE_CAP_TRUSTED_KEYS",
+            STANDARD.encode(key.verifying_key().as_bytes()),
+        );
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let authority = Mutex::new(LiveAuthority::open(root, false).unwrap());
+        let command = |action, cap: &StoreCapability| {
+            let mut command = AuthorityCommand {
+                version: 1,
+                action,
+                reserved: 0,
+                capability_id: cap.capability_id,
+                capability_bytes: if action == 1 {
+                    bincode::serialize(cap).unwrap()
+                } else {
+                    vec![]
+                },
+                signature: vec![],
+            };
+            command.signature = key.sign(&command.signing_bytes()).to_bytes().to_vec();
+            command
+        };
+        let mut cap = StoreCapability::new(7, STORE_RIGHT_ALL, 7101);
+        cap.signature = key.sign(&cap.signing_data()).to_bytes().to_vec();
+        authority.lock().unwrap().apply(&command(1, &cap)).unwrap();
+        let source = root.join("source");
+        let bytes = b"deterministic staged before revoke";
+        fs::write(&source, bytes).unwrap();
+        let mut manifest = Manifest {
+            schema_version: 1,
+            content_id: artifact_store_core::hash_bytes(bytes),
+            size_bytes: bytes.len() as u64,
+            kind: "config".into(),
+            channels: vec!["test".into()],
+            signatures: vec![],
+        };
+        let publisher = SigningKey::from_bytes(&[61; 32]);
+        let signature = ManifestSignature {
+            algorithm: artifact_store_schema::signature::SignatureAlgorithm::Ed25519,
+            signature_data: STANDARD.encode(
+                publisher
+                    .sign(
+                        &artifact_store_schema::signature::manifest_signing_bytes(&manifest)
+                            .unwrap(),
+                    )
+                    .to_bytes(),
+            ),
+            key_id: "publisher".into(),
+            timestamp: None,
+            signer: None,
+        };
+        manifest
+            .signatures
+            .push(serde_json::to_string(&signature).unwrap());
+        let mut keys = TrustedKeys::new();
+        keys.add_ed25519_key("publisher".into(), publisher.verifying_key().as_bytes())
+            .unwrap();
+        let config = SignatureValidationConfig {
+            policy: SignaturePolicy::RequireSignature,
+            trusted_keys: keys,
+            ..Default::default()
+        };
+        let mut request = IngestArtifactRequest {
+            request_id: 1,
+            kind: "config".into(),
+            channel: "test".into(),
+            src_path: source.to_string_lossy().into_owned(),
+            capability_bytes: bincode::serialize(&cap).unwrap(),
+        };
+        let access =
+            AccessControl::with_policy(store_service::access_control::AccessPolicy::AllowAll);
+        let client = ClientInfo::default();
+        let payload = bincode::serialize(&request).unwrap();
+        assert!(ingest_authorized_with_authority(&payload, &access, &client, &authority).unwrap());
+        // Preparation is complete before the acknowledged revoke. No timing or
+        // large-file race is needed: invoke the actual shared publication sink.
+        let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
+        let id = staged.content_id.clone();
+        authority.lock().unwrap().apply(&command(2, &cap)).unwrap();
+        let mut registry = DomainArtifactRegistry::new(root).unwrap();
+        let mut index = writable_projection_index(root);
+        let before = serde_json::to_vec(index.index()).unwrap();
+        let (raw, _, _) = handle_ingest_publication_with_authority(
+            &payload,
+            Some(staged),
+            Some(&manifest),
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+            &authority,
+        )
+        .unwrap();
+        assert_eq!(
+            bincode::deserialize::<IngestArtifactReply>(&raw)
+                .unwrap()
+                .status,
+            STATUS_PERMISSION_DENIED
+        );
+        assert!(registry.get_owner(&id).is_none());
+        assert!(!root.join(format!("{}.blob", id.hash_hex())).exists());
+        assert!(
+            !root
+                .join(format!("{}.manifest.json", id.hash_hex()))
+                .exists()
+        );
+        assert_eq!(serde_json::to_vec(index.index()).unwrap(), before);
+        assert!(
+            !fs::read_dir(root)
+                .unwrap()
+                .filter_map(Result::ok)
+                .any(|entry| entry.file_name().to_string_lossy().starts_with(".ingest-"))
+        );
+        cap.capability_id = 7102;
+        cap.signature = key.sign(&cap.signing_data()).to_bytes().to_vec();
+        authority.lock().unwrap().apply(&command(1, &cap)).unwrap();
+        request.capability_bytes = bincode::serialize(&cap).unwrap();
+        let staged = ingest::StagedBlob::read_file(fs::File::open(source).unwrap(), root).unwrap();
+        let (raw, _, _) = handle_ingest_publication_with_authority(
+            &bincode::serialize(&request).unwrap(),
+            Some(staged),
+            Some(&manifest),
+            &config,
+            root,
+            &access,
+            &client,
+            &mut registry,
+            &mut index,
+            &authority,
+        )
+        .unwrap();
+        assert_eq!(
+            bincode::deserialize::<IngestArtifactReply>(&raw)
+                .unwrap()
+                .status,
+            STATUS_OK
+        );
+        assert_eq!(registry.get_owner(&id).unwrap().domain_id, 7);
+        assert_eq!(
+            fs::read(root.join(format!("{}.blob", id.hash_hex()))).unwrap(),
+            bytes
+        );
+        assert_ne!(serde_json::to_vec(index.index()).unwrap(), before);
     }
 }
