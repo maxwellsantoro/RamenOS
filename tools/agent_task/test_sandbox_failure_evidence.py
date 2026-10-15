@@ -10,6 +10,7 @@ These tests exercise maintained Sandbox.run/_engine and LinuxTask.execute/dispat
 import json
 import os
 import subprocess
+import sys
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -174,6 +175,58 @@ class FailureEvidenceTests(unittest.TestCase):
             self.assertEqual(popen.call_count, 1)
         finally:
             os.close(in_read)
+            for stream in (cli.stdin, cli.stdout, cli.stderr):
+                if not stream.closed:
+                    stream.close()
+
+    def test_attach_timeout_retains_progress_without_extending_execution(self):
+        # Real pipes and a real owned child, mocked Docker control plane. No
+        # container-enforcement claim: this freezes timeout diagnostics only.
+        config = {"Config": {"User": "65534:65534"}, "Mounts": [], "HostConfig": {
+            "NetworkMode": "none", "ReadonlyRootfs": True, "CapDrop": ["ALL"], "CapAdd": [],
+            "Privileged": False, "SecurityOpt": ["no-new-privileges"], "PidsLimit": 32,
+            "Memory": 2147483648, "MemorySwap": 2147483648, "NanoCpus": 1000000000,
+            "PidMode": "", "IpcMode": "private", "Devices": [], "DeviceRequests": [], "Tmpfs": {}}}
+        calls = []
+
+        def engine(args, **kwargs):
+            calls.append(args[1])
+            if args[1] == "create":
+                return self.completed(args, stdout=CONTAINER_ID.encode() + b"\n")
+            if args[1] == "inspect" and "rm" not in calls:
+                return self.completed(args, stdout=json.dumps([config]).encode())
+            return self.completed(args, code=1 if args[1] == "inspect" else 0,
+                                  stderr=b"No such container" if args[1] == "inspect" else b"")
+
+        cli = subprocess.Popen([sys.executable, "-c",
+            "import sys,time; sys.stdin.buffer.read(); time.sleep(60)"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            start_new_session=True, close_fds=True)
+        try:
+            with patch.dict(os.environ, {}, clear=True), \
+                    patch("linux_sandbox.subprocess.run", side_effect=engine), \
+                    patch("linux_sandbox.subprocess.Popen", return_value=cli):
+                with self.assertRaises(SandboxFailure) as raised:
+                    self.sandbox().run(["/validator"], input_bytes=b"private job bytes",
+                                       wall_ms=200, invocation_id=INVOCATION)
+            error = raised.exception
+            self.assertEqual(error.reason, "timeout")
+            self.assertEqual(error.evidence["failure_phase"], "attach")
+            progress = error.evidence["attach_progress"]
+            self.assertEqual(progress["stdin_bytes_written"], 17)
+            self.assertTrue(progress["stdin_closed"])
+            self.assertEqual(progress["stdout_bytes"], 0)
+            self.assertEqual(progress["stderr_bytes"], 0)
+            self.assertIsNone(progress["cli_returncode"])
+            self.assertEqual(error.evidence["wall_ms"], 200)
+            self.assertTrue(error.evidence["removed"])
+            self.assertIsNotNone(cli.poll())
+            self.assertNotIn("private job bytes", json.dumps(error.evidence))
+            self.assertEqual(calls, ["create", "inspect", "rm", "inspect"])
+        finally:
+            if cli.poll() is None:
+                cli.kill()
+            cli.wait(timeout=5)
             for stream in (cli.stdin, cli.stdout, cli.stderr):
                 if not stream.closed:
                     stream.close()

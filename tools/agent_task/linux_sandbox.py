@@ -123,6 +123,8 @@ class Sandbox:
         stdout = bytearray()
         stderr = bytearray()
         ledger = None
+        attach_started = None
+        offset = 0
         try:
             args = ['create','--name',name,'--interactive','--network','none','--read-only',
                     '--cap-drop','ALL','--security-opt','no-new-privileges',
@@ -151,6 +153,7 @@ class Sandbox:
             if re.fullmatch(r'[0-9a-f]{64}',container_id) is None:
                 raise SandboxFailure('create_ack_invalid')
             evidence['container_id'] = container_id
+            evidence['created_elapsed_ms'] = round((time.monotonic()-start)*1000)
             if ledger is not None:
                 ledger.acknowledge(invocation_id,container_id)
             phase = 'inspect'
@@ -177,7 +180,9 @@ class Sandbox:
                   'PidsLimit','Memory','MemorySwap','NanoCpus','PidMode','IpcMode','Tmpfs','Privileged']}
             evidence['mounts'] = config['Mounts']
             evidence['user'] = config['Config']['User']
+            evidence['inspected_elapsed_ms'] = round((time.monotonic()-start)*1000)
             phase = 'attach'
+            attach_started = time.monotonic()
             cli = subprocess.Popen(['docker','start','--attach','--interactive',name],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     start_new_session=True, close_fds=True)
@@ -242,6 +247,18 @@ class Sandbox:
         finally:
             evidence['invocation_elapsed_ms'] = round((time.monotonic()-start)*1000)
             cleanup_start = time.monotonic()
+            if failure and attach_started is not None and cli is not None:
+                # Counts are trusted operator evidence, never payload
+                # bytes or agent-visible errors. Snapshot before killing the CLI.
+                evidence['attach_progress'] = {
+                    'elapsed_ms': round((time.monotonic()-attach_started)*1000),
+                    'stdin_bytes_written': offset,
+                    'stdin_closed': cli.stdin.closed,
+                    'stdout_bytes': len(stdout), 'stderr_bytes': len(stderr),
+                    'stdout_eof': cli.stdout.closed, 'stderr_eof': cli.stderr.closed,
+                    'cli_returncode': cli.poll(),
+                }
+                evidence['trusted_stderr'] = bytes(stderr).decode(errors='replace')
             # Every exit removes the entire container, including detached descendants.
             if cli is not None and cli.poll() is None:
                 try:
