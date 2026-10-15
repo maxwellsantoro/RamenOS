@@ -17,6 +17,14 @@
   authenticated process/trace carriers, target grants, SMP, same-UID filesystem
   limits, full P0/RUN0 and default POSIX containment explicit. See the
   [repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) for evidence.
+- PR #40 merged as `b09e919` after independent technical review, bot-authored PR
+  and separate A3 approval/merge. Both reviewed-head hosted runs and the
+  [post-merge run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38662942304)
+  passed all nine jobs and 68 verified records each. The push agent lane required
+  two unchanged-source retries after LT deadline failures with confirmed cleanup;
+  post-merge passed on its first attempt. No production budget or assertion was
+  relaxed. Local macOS short-window observer failures remain retained; complete
+  Linux tooling and affected editor consumers passed.
 
 ## 2026-10-14 — follow-up review bootstrap and authority repairs
 

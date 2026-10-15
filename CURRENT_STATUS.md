@@ -160,11 +160,27 @@ disables operations until a verified restart. Strict startup requires explicit
 capability-authority keys and valid durable state; development mode remains an
 explicit alternative. Artifact publishers do not acquire a Store signing key.
 
-Focused host assertions and both-architecture QEMU fixtures cover these controls.
-Fresh affected integration and hosted qualification are tracked against their
-assembled revision. Earlier PR #39 qualification belongs to `23f37445`; its
-[post-merge run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38613352978)
-passed all nine jobs and 68 stage/preparation records.
+PR #40 merged these controls as `b09e919f66aef3acff0ee2e0d240dece3264e954`.
+The [reviewed-head PR run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38660024555)
+and [matching push run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38660020341)
+passed all nine jobs with 68 verified stage/preparation records each. The push
+agent lane needed two unchanged-source retries after enforced LT validation
+timeouts; both failures confirmed cleanup and remain retained. Assertions and
+production budgets were unchanged. The
+[post-merge main run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38662942304)
+passed all nine jobs and 68 verified records on its first attempt. Its tree exactly
+matches reviewed head `89f1ae3`. These five hosted lanes execute the canonical
+56-stage inventory plus preparation; the separate strict Linux preflight wrapper
+was not repeated for this batch.
+
+Fresh local integration includes 85 required selected boundary assertion
+executions, both-architecture real MMU/Shmem/trace fixtures and affected Store and
+editor consumers. Local macOS tooling and short-window boot-observer
+fixture failures remain retained; this is not a local all-green claim. Linux
+quality passed the complete tooling suite. The
+[repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md#qualification)
+records regression and retained-failure scope. Earlier PR #39 qualification
+belongs to `23f37445` and is historical evidence.
 
 The caller context still originates only in trusted boot/test fixtures; no
 untrusted syscall or authenticated process carrier supplies it. MMU mutation
