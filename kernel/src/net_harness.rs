@@ -30,19 +30,22 @@ pub const NET_STATUS_SHMEM_ERROR: u32 = 3;
 const TAG_NET_SEND: u32 = 0x4e53; // 'NS'
 const TAG_NET_RECV: u32 = 0x4e52; // 'NR'
 
-pub fn handle_net_v1(
+/// The IPC dispatcher supplies the namespace only after authenticating its caller.
+pub(crate) fn handle_net_v1(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
 ) -> Envelope {
     match env.msg_type {
-        MSG_NET_V1_SEND_PACKET => handle_send_packet(writer, shmem_table, env),
-        MSG_NET_V1_RECEIVE_PACKET => handle_receive_packet(writer, shmem_table, env),
+        MSG_NET_V1_SEND_PACKET => handle_send_packet(caller_domain, writer, shmem_table, env),
+        MSG_NET_V1_RECEIVE_PACKET => handle_receive_packet(caller_domain, writer, shmem_table, env),
         _ => Envelope::empty(NET_V1_PROTOCOL_ID, env.msg_type),
     }
 }
 
 fn handle_send_packet(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
@@ -51,6 +54,12 @@ fn handle_send_packet(
         Ok(request) => request,
         Err(_) => return empty_send_reply(0, NET_STATUS_INVALID_ARGUMENT, 0),
     };
+
+    // Payload handles cannot select a different namespace or authorize a deputy
+    // transfer. Deny before touching bytes or recording a successful operation.
+    if !shmem_table.owns_cap(Handle::unpack(request.data_shm_cap), caller_domain) {
+        return empty_send_reply(request.request_id, NET_STATUS_SHMEM_ERROR, 0);
+    }
 
     let reply = match process_send_packet(shmem_table, &request) {
         Ok(bytes_sent) => SendPacketReply {
@@ -76,6 +85,7 @@ fn handle_send_packet(
 }
 
 fn handle_receive_packet(
+    caller_domain: u64,
     writer: &trace_ring::TraceWriter,
     shmem_table: &shmem::ShmemRegionTable,
     env: &Envelope,
@@ -84,6 +94,12 @@ fn handle_receive_packet(
         Ok(request) => request,
         Err(_) => return empty_recv_reply(0, NET_STATUS_INVALID_ARGUMENT, 0),
     };
+
+    // Payload handles cannot select a different namespace or authorize a deputy
+    // transfer. Deny before touching bytes or recording a successful operation.
+    if !shmem_table.owns_cap(Handle::unpack(request.buffer_shm_cap), caller_domain) {
+        return empty_recv_reply(request.request_id, NET_STATUS_SHMEM_ERROR, 0);
+    }
 
     let reply = match process_receive_packet(shmem_table, &request) {
         Ok(bytes_received) => ReceivePacketReply {

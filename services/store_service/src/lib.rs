@@ -37,3 +37,5 @@ pub use status::*;
 // Note: DomainArtifactRegistry is scaffold-only in Task 2.
 // Full integration with request handlers will happen in Task 5.
 pub use domain_visibility::{ArtifactOwner, DomainArtifactRegistry};
+
+pub mod live_authority;

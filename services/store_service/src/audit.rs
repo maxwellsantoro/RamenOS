@@ -26,6 +26,7 @@ pub enum Operation {
     IngestArtifact = 4,
     QueryProjectionByPath = 5,
     QueryProjectionByTag = 6,
+    AuthorityUpdate = 9,
 }
 
 impl Operation {
@@ -37,6 +38,7 @@ impl Operation {
             Operation::IngestArtifact => "IngestArtifact",
             Operation::QueryProjectionByPath => "QueryProjectionByPath",
             Operation::QueryProjectionByTag => "QueryProjectionByTag",
+            Operation::AuthorityUpdate => "AuthorityUpdate",
         }
     }
 }
@@ -93,6 +95,10 @@ pub struct AuditLogEntry {
 /// Parameters for different operations
 #[derive(Debug, Clone)]
 pub enum AuditLogParameters {
+    AuthorityUpdate {
+        capability_id: u64,
+        action: u8,
+    },
     GetManifest {
         content_id: String,
     },
@@ -196,6 +202,20 @@ impl AuditLogger {
         let timestamp_iso = format_timestamp(entry.timestamp);
 
         match &entry.parameters {
+            AuditLogParameters::AuthorityUpdate {
+                capability_id,
+                action,
+            } => serde_json::json!({
+                "timestamp": timestamp_iso,
+                "client_pid": entry.client_pid,
+                "operation": entry.operation.as_str(),
+                "capability_id": capability_id,
+                "action": action,
+                "result": entry.result.as_str(),
+                "duration_ms": entry.duration_ms,
+            })
+            .to_string(),
+
             AuditLogParameters::GetManifest { content_id } => {
                 format!(
                     r#"{{"timestamp":"{}","client_pid":{},"operation":"{}","content_id":"{}","result":"{}","duration_ms":{}}}"#,

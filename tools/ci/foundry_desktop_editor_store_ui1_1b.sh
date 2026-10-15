@@ -43,7 +43,7 @@ try:
             identity = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
             if identity(before) != identity(after) or len(registry_raw) != before.st_size:
                 raise ValueError('source registry changed while reading')
-            if hashlib.sha256(registry_raw).hexdigest() != '274599ee5b6eb2c5c86bbe2d315e4bef59cdaca2dc41379d2e109c73149ad2bc':
+            if hashlib.sha256(registry_raw).hexdigest() != '863c21415442f083ba603c9754a15af9eca7b764a9314bb090e7c147b9c4c6aa':
                 raise ValueError('reviewed exact source registry hash mismatch')
         finally:
             os.close(fd)

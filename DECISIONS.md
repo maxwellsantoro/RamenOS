@@ -3,6 +3,63 @@
 **Last Updated:** 2026-10-14
 **Status:** Active
 
+## 2026-10-14 — Make caller, delivery and publication ownership executable
+
+Keep the existing wire handle layout. Every producer issues only nonzero
+32-bit generations and retires a slot permanently at the maximum; widening an
+internal counter must not create an unrepresentable handle or reuse an old wire
+identity. The corresponding controlled capacity loss is explicit.
+
+Kernel dispatch receives a private caller context independently of the envelope.
+Current constructors are unsafe trusted boot/test fixtures; a future syscall or
+process carrier must bind it to authenticated execution state. Both dispatch
+entrypoints require live IPC namespace ownership, and Trace/Oracle payload
+capabilities belong to that namespace. This supersedes the earlier bearer Trace
+operation admission while preserving existing message layouts and explicit
+protocol-specific-rights limitations.
+
+A region owner may offer access, while only its intended recipient can accept a
+mapping. Legacy direct map is self-only. Pending offers are bounded and single-use;
+failed mapping retains the offer for explicit retry. Either participant can cancel
+an unaccepted offer; closing the source invalidates pending offers. Accepted
+recipients can release their own mappings. This is the native protocol 531/v2
+contract, not a target process implementation.
+
+Both real MMUs inspect the entire requested range before changing any PTE. For
+at most 1024 pages, at most seven new table frames are required. Reserve and zero
+all of them before committing; allocation failure returns only those owned
+frames. Reject occupied leaves and huge/block ancestors before dereferencing
+or overwriting them. Shmem releases its own VA reservation after rejection and
+must not unmap the whole candidate range. Continuous exclusive hierarchy access
+remains an unsafe precondition; this is not an SMP synchronization design.
+
+A metadata-only trace reply cannot acknowledge consumed events. Nonzero legacy
+reads fail closed without consumption. Native protocol 532/v3 copies initialized
+whole events into caller-owned writable Shmem, records an exact pending lease,
+and advances the source cursor only on explicit Commit with live destination
+validation. Completed Commit retry returns the original outcome after source
+validation even when the destination was retired; it never advances newer work.
+Overflow invalidates stale pending cursors. Lease IDs retire rather than wrap.
+
+Strict host Store ingestion carries an externally signed manifest. Capability
+authority and artifact-publisher trust remain separate; the Store does not gain
+a publisher signing secret. Shared publication enforces signature policy and
+exact signed metadata after prior-intent recovery, before new ownership/CAS/index
+changes. A descriptor-ingest denial, malformed response or wrong correlation
+retires the client connection before the next explicit operation. No mutation
+is replayed automatically.
+
+The ordinary host Store successor requires a live exact grant as well as a valid
+signature and expiry. Issuer-authenticated grant/revoke commands and durable
+revocation tombstones belong to the Store instance. Operation leases retain
+registry authority through IO/publication; ingestion drops preliminary admission
+before preparation and reacquires it at commit. An explicit development mode can
+retain its historical stateless fixture semantics, with no strict-mode fallback.
+This host protocol does not implement Domain Manager target grants or filesystem
+isolation, and it cannot retract bytes or paths already delivered to a shared UID.
+
+See [the repair contracts and evidence boundaries](docs/plans/comprehensive-review-repairs-2026-10-14.md).
+
 ## 2026-10-14 — Bound active-firmware bootstrap and creation authority
 
 Legacy allocator initialization must not infer ownership from the largest usable

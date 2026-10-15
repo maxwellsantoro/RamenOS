@@ -10,6 +10,9 @@ fields = ["request_id:u64", "owner_domain_id:u64", "size_bytes:u64", "flags:u32"
 msg_type = 2
 fields = ["request_id:u64", "region_id:u64", "shm_cap:u64", "phys_addr:u64", "status:u32", "reserved:u32"]
 
+# Legacy mapping is self-only: caller_domain_id and target_domain_id must
+# both match independently supplied kernel caller context. Cross-domain mapping
+# requires owner OfferRegion + recipient AcceptRegion in shmem_consent_v2.
 [message.map_region]
 msg_type = 3
 fields = ["request_id:u64", "caller_domain_id:u64", "region_id:u64", "target_domain_id:u64", "shm_cap:u64", "rights:u32", "cache_mode:u32"]
@@ -21,7 +24,8 @@ fields = ["request_id:u64", "region_id:u64", "mapping_id:u64", "status:u32", "re
 [message.unmap_region]
 msg_type = 5
 # P1 fix: Add caller_domain_id for authorization
-# The caller must be the owner of the region to unmap it
+# The region owner or the accepted target may unmap; the caller context must
+# match caller_domain_id, and target_domain_id must match the recorded mapping.
 fields = ["request_id:u64", "caller_domain_id:u64", "mapping_id:u64", "target_domain_id:u64"]
 
 [message.unmap_region_reply]

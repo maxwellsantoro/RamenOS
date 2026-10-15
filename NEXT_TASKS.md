@@ -8,6 +8,22 @@ connects checkpoints to [Vision](VISION.md). This queue owns dispatch order. Use
 [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for scope, resource reservations and
 handoff; do not copy this queue into instructions or skills.
 
+## Comprehensive review integration
+
+The D/C → A/F → B → G repair sequence is implemented with regression consumers;
+[the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) owns its
+contracts, denial/recovery obligations and validation scope. Preserve all existing
+editor consumers when accepting reviewed source-registry successors. Complete
+fresh assembled gates and matching hosted qualification before treating this
+revision as an accepted predecessor. Prior PR #39's CI does not qualify new source.
+
+The next runtime joins remain independently bounded: authenticated caller identity
+from process execution; SMP page-table exclusion and active userspace translation;
+v3 trace-client carrier; native/target Store grant backend; full P0 assertions and
+the real editor child. Existing Domain Manager simulated policy and POSIX rlimits
+remain explicit development limits. Do not infer these joins from host or QEMU
+fixture success.
+
 ## Ready work front
 
 **Now:** complete the real editor process after qualified host reliability repairs and the five-lane build/test successor (Linux56 and hosted checks passed); advance RUN0/input/storage preparation independently.

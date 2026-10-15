@@ -7,6 +7,7 @@ use crate::domain_registry::{DomainId, MAX_DOMAINS};
 
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
+use kernel_api::cap::{is_canonical_generation, next_generation_or_retired};
 
 // Re-export trace rights from kernel_api
 pub use kernel_api::trace::{
@@ -48,7 +49,7 @@ pub struct TraceCap {
     /// Rights mask (bitwise OR of TRACE_RIGHT_* constants)
     pub rights_mask: u8,
 
-    /// Generation counter for capability validation
+    /// Canonical wire generation, or zero for a permanently retired slot
     pub generation: u64,
 
     /// Whether this capability slot is in use
@@ -141,7 +142,7 @@ impl TraceCapTable {
 
         // Find free slot
         for (i, slot) in self.slots.iter_mut().enumerate() {
-            if !slot.in_use {
+            if !slot.in_use && is_canonical_generation(slot.generation) {
                 *slot = TraceCap::new(domain_id, rights_mask, slot.generation);
                 return Ok(i);
             }
@@ -171,8 +172,8 @@ impl TraceCapTable {
             return Err(TraceCapError::SlotNotInUse { index });
         }
 
-        // Increment generation to invalidate stale handles
-        self.slots[index].generation += 1;
+        // Exhaustion permanently retires the slot instead of reusing wire generations.
+        self.slots[index].generation = next_generation_or_retired(self.slots[index].generation);
         self.slots[index].in_use = false;
 
         Ok(())
@@ -191,7 +192,11 @@ impl TraceCapTable {
         }
 
         let slot = &self.slots[index];
-        if slot.in_use { Some(slot) } else { None }
+        if slot.in_use && is_canonical_generation(slot.generation) {
+            Some(slot)
+        } else {
+            None
+        }
     }
 
     /// Check if a capability has a specific right
@@ -359,6 +364,75 @@ mod tests {
         let gen_after = table.get(index).unwrap().generation;
 
         assert_eq!(gen_after, gen_before + 1);
+    }
+
+    #[test]
+    fn wire_generation_last_legal_retires_and_preserves_other_domain() {
+        use kernel_api::cap::{Handle, HandleKind};
+        let mut table = TraceCapTable::new();
+        table.slots[0].generation = u32::MAX as u64;
+        let last_index = table.allocate(1, TRACE_RIGHT_READ).unwrap();
+        let last = Handle {
+            kind: HandleKind::Trace,
+            index: last_index as u32 + 1,
+            generation: table.get(last_index).unwrap().generation,
+        };
+        assert_eq!(last.generation, u32::MAX as u64);
+        assert_eq!(Handle::unpack(last.pack()), last);
+        let unrelated = table.allocate(2, TRACE_RIGHT_WRITE).unwrap();
+        table.deallocate(last_index).unwrap();
+        assert_eq!(
+            table.slots[last_index].generation, 0,
+            "exhausted slot must retire"
+        );
+        assert!(table.get(last_index).is_none());
+        assert!(!table.check_right(last_index, TRACE_RIGHT_READ));
+        let next_index = table.allocate(3, TRACE_RIGHT_ADMIN).unwrap();
+        assert_ne!(next_index, last_index);
+        let next = Handle {
+            kind: HandleKind::Trace,
+            index: next_index as u32 + 1,
+            generation: table.get(next_index).unwrap().generation,
+        };
+        assert_eq!(Handle::unpack(next.pack()), next);
+        assert_eq!(table.get_domain_id(next_index), Some(3));
+        assert!(table.check_right(next_index, TRACE_RIGHT_ADMIN));
+        assert_eq!(table.get_domain_id(unrelated), Some(2));
+        assert!(table.check_right(unrelated, TRACE_RIGHT_WRITE));
+    }
+
+    #[test]
+    fn wire_generation_retired_slots_exhaust_capacity() {
+        let mut table = TraceCapTable::new();
+        for slot in &mut table.slots {
+            slot.generation = 0;
+        }
+        assert_eq!(
+            table.allocate(1, TRACE_RIGHT_READ),
+            Err(TraceCapError::NoFreeSlots)
+        );
+    }
+
+    #[test]
+    fn wire_generation_allocation_skips_noncanonical_free_slots() {
+        let mut table = TraceCapTable::new();
+        table.slots[0].generation = 0;
+        table.slots[1].generation = u32::MAX as u64 + 1;
+        let index = table.allocate(1, TRACE_RIGHT_READ).unwrap();
+        assert_eq!(index, 2);
+        assert_eq!(table.get(index).unwrap().generation, 1);
+    }
+
+    #[test]
+    fn wire_generation_get_denies_noncanonical_live_slots() {
+        let mut table = TraceCapTable::new();
+        let index = table.allocate(1, TRACE_RIGHT_READ).unwrap();
+        for generation in [0, u32::MAX as u64 + 1, u64::MAX] {
+            table.slots[index].generation = generation;
+            assert!(table.get(index).is_none());
+            assert_eq!(table.get_domain_id(index), None);
+            assert!(!table.check_right(index, TRACE_RIGHT_READ));
+        }
     }
 
     #[test]

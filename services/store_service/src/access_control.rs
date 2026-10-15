@@ -184,13 +184,44 @@ impl ClientInfo {
         }
     }
 
-    /// Create client info from Unix stream (non-Linux fallback)
-    ///
-    /// V-007 Phase 4: Stub implementation for macOS and other platforms
-    #[cfg(not(target_os = "linux"))]
+    /// Read kernel-provided macOS peer credentials. These identify a host
+    /// process, never a Ramen domain or an authority grant.
+    #[cfg(target_os = "macos")]
+    pub fn from_stream(stream: &UnixStream) -> Self {
+        use std::os::fd::AsRawFd;
+        match Self::macos_peer_credentials(stream.as_raw_fd()) {
+            Some((pid, uid, gid)) => Self {
+                pid: Some(pid),
+                uid: Some(uid),
+                gid: Some(gid),
+                ..Self::default()
+            },
+            None => Self::default(),
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn macos_peer_credentials(fd: std::os::fd::RawFd) -> Option<(u32, u32, u32)> {
+        let (mut uid, mut gid, mut pid) = (0, 0, 0 as libc::pid_t);
+        let mut len = std::mem::size_of::<libc::pid_t>() as libc::socklen_t;
+        // SAFETY: each pointer refers to a correctly sized, live output value.
+        let valid = unsafe {
+            libc::getpeereid(fd, &mut uid, &mut gid) == 0
+                && libc::getsockopt(
+                    fd,
+                    libc::SOL_LOCAL,
+                    libc::LOCAL_PEERPID,
+                    (&mut pid as *mut libc::pid_t).cast(),
+                    &mut len,
+                ) == 0
+        };
+        (valid && len as usize == std::mem::size_of::<libc::pid_t>() && pid > 0)
+            .then_some((pid as u32, uid, gid))
+    }
+
+    /// Unknown platforms fail closed under credential-requiring policies.
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     pub fn from_stream(_stream: &UnixStream) -> Self {
-        // SO_PEERCRED is Linux-only, so we return default credentials on other platforms
-        // In production, this would use platform-specific credential passing mechanisms
         Self::default()
     }
 
@@ -599,6 +630,28 @@ impl AccessControl {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn review_macos_invalid_peer_fd_fails_closed() {
+        assert_eq!(ClientInfo::macos_peer_credentials(-1), None);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn review_macos_peer_credentials_are_real_and_not_ambient_defaults() {
+        let (client, server) = std::os::unix::net::UnixStream::pair().unwrap();
+        let info = super::ClientInfo::from_stream(&server);
+        assert_eq!(info.pid, Some(std::process::id()));
+        // SAFETY: credential query only; these functions take no pointers.
+        assert_eq!(info.uid, Some(unsafe { libc::geteuid() }));
+        assert_eq!(info.gid, Some(unsafe { libc::getegid() }));
+        assert_eq!(
+            info.domain_id, None,
+            "peer credentials are not domain authority"
+        );
+        drop(client);
+    }
+
     use super::*;
     use std::fs;
     use tempfile::TempDir;

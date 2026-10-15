@@ -271,6 +271,42 @@ impl DomainTraceRing {
         Some(buffer.read_into(out))
     }
 
+    /// Observe complete events at the oldest cursor without consuming them.
+    /// Producer overflow uses this same lock, so a later commit can detect loss.
+    pub(crate) fn peek_at(
+        &self,
+        domain_id: DomainId,
+        offset: u64,
+        out: &mut [Event],
+    ) -> Option<usize> {
+        let buffer = self.rings[domain_id as usize].buffer.lock();
+        if offset != buffer.read_bytes {
+            return None;
+        }
+        let count = out.len().min(buffer.len);
+        for (i, event) in out.iter_mut().take(count).enumerate() {
+            *event = buffer.events[(buffer.head + i) % RING_SIZE];
+        }
+        Some(count)
+    }
+
+    /// Consume only the acknowledged, still-current prefix under the producer lock.
+    pub(crate) fn commit_at(&self, domain_id: DomainId, offset: u64, bytes: u32) -> bool {
+        let event_bytes = core::mem::size_of::<Event>();
+        let count = bytes as usize / event_bytes;
+        let mut buffer = self.rings[domain_id as usize].buffer.lock();
+        if offset != buffer.read_bytes
+            || !(bytes as usize).is_multiple_of(event_bytes)
+            || count > buffer.len
+        {
+            return false;
+        }
+        buffer.head = (buffer.head + count) % RING_SIZE;
+        buffer.len -= count;
+        buffer.read_bytes += bytes as u64;
+        true
+    }
+
     pub(crate) fn positions(&self, domain_id: DomainId) -> (u64, u64) {
         let buffer = self.rings[domain_id as usize].buffer.lock();
         (buffer.read_bytes, buffer.write_bytes)

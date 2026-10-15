@@ -1,0 +1,34 @@
+namespace = "trace.delivery"
+version = "3"
+protocol = 532
+
+# Lang: live IPC and Trace capabilities owned by the independently admitted
+# caller; READ_INTO additionally requires a caller-owned writable Shmem cap.
+# ObsContract: bytes are delivered through the bounded Shmem range, never in a
+# metadata-only reply. Fields/padding are initialized. No other domain is read.
+# Requests require version=3, reserved=0. Nonzero length is <=1536 and a multiple
+# of the initialized 24-byte event encoding; offsets/ranges must not overflow.
+# READ_INTO copies whole events at the current trace cursor without consuming
+# them, then returns a single pending lease bound to trace generation, destination
+# generation/range, offset and length. A newer read replaces the pending lease.
+# COMMIT validates that exact lease and live destination before advancing the
+# cursor once. Retry of the last committed lease returns its original outcome;
+# interrupted/uncommitted reads retain events for an explicit next read. Bounded
+# producer overflow can invalidate a pending cursor and requires metadata resync.
+# No authenticated untrusted transport or userspace mapping is supplied here.
+
+[message.read_trace_into]
+msg_type = 1
+fields = ["request_id:u64", "trace_cap:u64", "destination_shm_cap:u64", "destination_offset:u64", "trace_offset:u64", "length:u32", "version:u32", "reserved:u64"]
+
+[message.read_trace_into_reply]
+msg_type = 2
+fields = ["request_id:u64", "lease_id:u64", "next_offset:u64", "status:u32", "data_len:u32"]
+
+[message.commit_trace_read]
+msg_type = 3
+fields = ["request_id:u64", "trace_cap:u64", "lease_id:u64", "version:u32", "reserved:u32"]
+
+[message.commit_trace_read_reply]
+msg_type = 4
+fields = ["request_id:u64", "next_offset:u64", "status:u32", "reserved:u32"]

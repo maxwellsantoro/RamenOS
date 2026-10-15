@@ -334,12 +334,81 @@ impl DomainArtifactRegistry {
     where
         F: FnOnce(&Path) -> std::io::Result<()>,
     {
+        self.publish_owned_with_policy(
+            store_root,
+            manifest,
+            domain_id,
+            is_global,
+            false,
+            publish_blob,
+        )
+    }
+
+    /// Signed publication requires exact metadata, including signatures, when
+    /// deduplicating bytes. Reconcile prior intents before checking that policy.
+    /// Caller serializes writers through recovery, comparison and publication.
+    pub fn publish_owned_exact<F>(
+        &mut self,
+        store_root: &Path,
+        manifest: &artifact_store_schema::Manifest,
+        domain_id: u64,
+        is_global: bool,
+        publish_blob: F,
+    ) -> Result<()>
+    where
+        F: FnOnce(&Path) -> std::io::Result<()>,
+    {
+        self.publish_owned_with_policy(
+            store_root,
+            manifest,
+            domain_id,
+            is_global,
+            true,
+            publish_blob,
+        )
+    }
+
+    fn publish_owned_with_policy<F>(
+        &mut self,
+        store_root: &Path,
+        manifest: &artifact_store_schema::Manifest,
+        domain_id: u64,
+        is_global: bool,
+        exact_manifest: bool,
+        publish_blob: F,
+    ) -> Result<()>
+    where
+        F: FnOnce(&Path) -> std::io::Result<()>,
+    {
         anyhow::ensure!(
             store_root == self.store_root,
             "ownership registry/store root mismatch"
         );
         // An earlier I/O error can leave a recoverable intent in this process.
+        // Its manifest must be authoritative before a new request compares it.
         self.recover_publications()?;
+        if exact_manifest {
+            let id = ContentId::parse(&manifest.content_id)
+                .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+            self.check_publication(store_root, &id, domain_id, is_global)?;
+            let metadata = store_root.join(format!("{}.manifest.json", id.hash_hex()));
+            match std::fs::symlink_metadata(&metadata) {
+                Ok(file) => {
+                    anyhow::ensure!(
+                        file.is_file() && !file.file_type().is_symlink(),
+                        "existing manifest is not a regular file"
+                    );
+                    let existing: artifact_store_schema::Manifest =
+                        serde_json::from_slice(&std::fs::read(&metadata)?)?;
+                    anyhow::ensure!(
+                        serde_json::to_value(&existing)? == serde_json::to_value(manifest)?,
+                        "existing manifest conflicts with signed publication"
+                    );
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
         self.begin_publication(manifest, domain_id, is_global)?;
         artifact_store_core::publish_cas_artifact(&self.store_root, manifest, publish_blob)?;
         let id =

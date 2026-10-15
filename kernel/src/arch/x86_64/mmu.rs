@@ -60,6 +60,555 @@ impl PageTable {
 pub struct X86_64Mmu;
 
 impl X86_64Mmu {
+    /// Test-only per-call injection into the identical production mapper core.
+    #[cfg(all(feature = "test_protocols", not(test)))]
+    unsafe fn map_pages_with_table_budget(
+        domain_id: DomainId,
+        vaddr: VirtAddr,
+        frames: &[PhysFrame],
+        rights: u32,
+        cache_mode: u32,
+        budget: usize,
+        reserved: &mut usize,
+    ) -> Result<(), MmuError> {
+        let mut fault = crate::arch::mmu::MappingFault {
+            budget,
+            reserved: 0,
+        };
+        let result = Self::map_pages_core(
+            domain_id,
+            vaddr,
+            frames,
+            rights,
+            cache_mode,
+            Some(&mut fault),
+        );
+        *reserved = fault.reserved;
+        result
+    }
+
+    /// Caller holds exclusive hierarchy access from preflight through commit.
+    /// Existing roots and frames are identity mapped; these walkers do not
+    /// provide SMP exclusion. No entry is published until reservation succeeds.
+    #[cfg(not(test))]
+    unsafe fn map_pages_core(
+        domain_id: DomainId,
+        vaddr: VirtAddr,
+        frames: &[PhysFrame],
+        rights: u32,
+        cache_mode: u32,
+        #[cfg(feature = "test_protocols")] mut fault: Option<&mut crate::arch::mmu::MappingFault>,
+    ) -> Result<(), MmuError> {
+        if domain_id >= MAX_DOMAINS as u64 {
+            return Err(MmuError::InvalidDomain);
+        }
+        let end = crate::arch::mmu::mapping_range_end(vaddr, frames.len())?;
+        let canonical =
+            |address: u64| address >> 48 == if address & (1 << 47) == 0 { 0 } else { 0xffff };
+        if !canonical(vaddr.as_u64()) || !canonical(end - 1) {
+            return Err(MmuError::InvalidAddress);
+        }
+        if frames
+            .iter()
+            .any(|frame| frame.start_address().as_u64() & !0x000f_ffff_ffff_f000 != 0)
+        {
+            return Err(MmuError::InvalidAddress);
+        }
+        Self::enable_no_execute()?;
+        let root = if domain_id == 0 {
+            Self::read_cr3() & 0x000f_ffff_ffff_f000
+        } else {
+            let guard = crate::mm::ADDRESS_SPACE_TABLE.lock();
+            match guard.as_ref().and_then(|table| table.get_root(domain_id)) {
+                Some(root) => root.as_u64() & 0x000f_ffff_ffff_f000,
+                None => return Err(MmuError::InvalidDomain),
+            }
+        } as *mut PageTable;
+        const SHIFTS: [u32; 3] = [39, 30, 21];
+        let mut plan = crate::arch::mmu::MappingPlan::new();
+        // Read-only preflight covers every page, including descendants whose
+        // ancestors do not exist yet. A block is rejected before dereference.
+        for page in 0..frames.len() {
+            let address = vaddr.as_u64() + page as u64 * 4096;
+            let mut table = Some(root as *const PageTable);
+            for (level, shift) in SHIFTS.iter().copied().enumerate() {
+                let prefix = address >> shift;
+                if let Some(current) = table {
+                    let entry = (*current).entries[(prefix & 511) as usize];
+                    if entry.is_present() {
+                        if entry.flags() & PageTableEntry::HUGE_PAGE != 0 {
+                            return Err(MmuError::PermissionDenied);
+                        }
+                        table = Some(entry.addr().as_u64() as *const PageTable);
+                    } else {
+                        plan.record(level, prefix)?;
+                        table = None;
+                    }
+                } else {
+                    plan.record(level, prefix)?;
+                }
+            }
+            if let Some(table) = table {
+                if (*table).entries[((address >> 12) & 511) as usize].value != 0 {
+                    return Err(MmuError::PermissionDenied);
+                }
+            }
+        }
+        // Reserve and zero every required frame before mutating any old table.
+        // Rollback owns exactly this prefix of reservations, never old entries.
+        for index in 0..plan.len {
+            #[cfg(feature = "test_protocols")]
+            if fault
+                .as_ref()
+                .is_some_and(|fault| fault.reserved == fault.budget)
+            {
+                for node in &plan.nodes[..index] {
+                    let _ = Self.free_page_table(PhysAddr::new(node.frame));
+                }
+                return Err(MmuError::AllocationFailed);
+            }
+            match Self.allocate_page_table() {
+                Ok(frame) => {
+                    plan.nodes[index].frame = frame.as_u64();
+                    #[cfg(feature = "test_protocols")]
+                    if let Some(fault) = fault.as_mut() {
+                        fault.reserved += 1;
+                    }
+                }
+                Err(error) => {
+                    for node in &plan.nodes[..index] {
+                        let _ = Self.free_page_table(PhysAddr::new(node.frame));
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        // Discovery orders parents before children. Publishing these reserved
+        // tables and then leaves cannot allocate or fail under exclusive access.
+        // Existing ancestor addresses and flags are never rewritten.
+        for node in &plan.nodes[..plan.len] {
+            let address = node.prefix << SHIFTS[node.level];
+            let mut table = root;
+            for shift in &SHIFTS[..node.level] {
+                table = (*table).entries[((address >> shift) & 511) as usize]
+                    .addr()
+                    .as_u64() as *mut PageTable;
+            }
+            let entry = &mut (*table).entries[(node.prefix & 511) as usize];
+            entry.set_addr(PhysAddr::new(node.frame));
+            entry.set_flags(
+                PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER,
+            );
+        }
+        let flags = Self::rights_to_flags(rights, cache_mode);
+        for (page, frame) in frames.iter().enumerate() {
+            let current = VirtAddr::new(vaddr.as_u64() + page as u64 * 4096);
+            let mut table = root;
+            for shift in SHIFTS {
+                table = (*table).entries[((current.as_u64() >> shift) & 511) as usize]
+                    .addr()
+                    .as_u64() as *mut PageTable;
+            }
+            let entry = &mut (*table).entries[((current.as_u64() >> 12) & 511) as usize];
+            entry.set_addr(frame.start_address());
+            entry.set_flags(flags);
+            Self::invlpg(current);
+        }
+
+        Ok(())
+    }
+
+    /// Exercise the actual mapper against isolated, never-activated page tables.
+    /// Raw entries and backing bytes are observed independently of its walker.
+    ///
+    /// # Safety
+    /// Boot-only fixture: allocator and address-space registry must be initialized,
+    /// physical memory identity mapped, and all page-table access exclusive.
+    #[cfg(all(feature = "test_protocols", not(test)))]
+    pub unsafe fn run_mapping_regressions() -> bool {
+        unsafe fn read(page: PhysAddr, index: usize) -> u64 {
+            (page.as_u64() as *const u64).add(index).read_volatile()
+        }
+        unsafe fn write(page: PhysAddr, index: usize, value: u64) {
+            (page.as_u64() as *mut u64).add(index).write_volatile(value);
+        }
+        unsafe fn filled(page: PhysAddr, value: u8) -> bool {
+            (0..4096).all(|i| (page.as_u64() as *const u8).add(i).read_volatile() == value)
+        }
+        fn report(case: &str, ok: bool, passed: &mut usize) {
+            crate::kprintln!("mmu_review: {} {}", case, if ok { "PASS" } else { "FAIL" });
+            *passed += usize::from(ok);
+        }
+        const TABLE: u64 = 0x7;
+        const LEAF: u64 = 0x8000_0000_0000_0005;
+        const BLOCK: u64 = 0x85;
+        const DOMAIN: DomainId = (MAX_DOMAINS - 1) as DomainId;
+        const OTHER: DomainId = (MAX_DOMAINS - 2) as DomainId;
+        let mut pages = [PhysAddr::new(0); 10];
+        let mut allocated = 0;
+        for index in 0..pages.len() {
+            match Self.allocate_page_table() {
+                Ok(address) => {
+                    pages[index] = address;
+                    allocated += 1;
+                }
+                Err(_) => {
+                    for address in &pages[..allocated] {
+                        let _ = Self.free_page_table(*address);
+                    }
+                    crate::kprintln!("mmu_review: setup FAIL");
+                    crate::kprintln!("mmu_review: COMPLETE 0/17");
+                    return false;
+                }
+            }
+        }
+        // A 512-frame run contains a 2 MiB-aligned frame. A block descriptor
+        // targeting that frame is architecturally aligned; buggy descent can
+        // only mutate fixture-owned sentinel bytes, never arbitrary memory.
+        let run = {
+            let mut guard = crate::mm::FRAME_ALLOCATOR.lock();
+            guard
+                .as_mut()
+                .and_then(|allocator| allocator.allocate_contiguous(512))
+        };
+        let Some(run) = run else {
+            for address in pages {
+                let _ = Self.free_page_table(address);
+            }
+            crate::kprintln!("mmu_review: setup FAIL");
+            crate::kprintln!("mmu_review: COMPLETE 0/17");
+            return false;
+        };
+        let sentinel = PhysAddr::new((run.start_address().as_u64() + 0x1f_ffff) & !0x1f_ffff);
+        let [
+            root,
+            upper,
+            middle,
+            lower,
+            other_root,
+            other_upper,
+            other_middle,
+            other_lower,
+            old_data,
+            new_data,
+        ] = pages;
+        (old_data.as_u64() as *mut u8).write_bytes(0xa5, 4096);
+        (new_data.as_u64() as *mut u8).write_bytes(0x33, 4096);
+        for (r, u, m, l) in [
+            (root, upper, middle, lower),
+            (other_root, other_upper, other_middle, other_lower),
+        ] {
+            write(r, 0, u.as_u64() | TABLE);
+            write(u, 0, m.as_u64() | TABLE);
+            write(m, 0, l.as_u64() | TABLE);
+        }
+        write(other_lower, 7, old_data.as_u64() | LEAF);
+        let saved = {
+            let mut guard = crate::mm::ADDRESS_SPACE_TABLE.lock();
+            let Some(table) = guard.as_mut() else {
+                drop(guard);
+                for address in pages {
+                    let _ = Self.free_page_table(address);
+                }
+                for i in 0..512 {
+                    let address = PhysAddr::new(run.start_address().as_u64() + i * 4096);
+                    let _ = Self.free_page_table(address);
+                }
+                crate::kprintln!("mmu_review: setup FAIL");
+                crate::kprintln!("mmu_review: COMPLETE 0/17");
+                return false;
+            };
+            let saved = (table.get_root(DOMAIN), table.get_root(OTHER));
+            table.set_root(DOMAIN, root);
+            table.set_root(OTHER, other_root);
+            saved
+        };
+        let frame = PhysFrame::from_start_address(new_data);
+        let mut passed = 0;
+        let mut unrelated = true;
+        for (case, start, count, block) in [
+            ("leaf_collision", 0x2000, 1, false),
+            ("later_leaf_collision_atomic", 0x1000, 2, false),
+            ("block_collision", 0x20_0000, 1, true),
+            ("later_block_collision_atomic", 0x1f_f000, 2, true),
+        ] {
+            write(lower, 1, 0);
+            write(lower, 2, if block { 0 } else { old_data.as_u64() | LEAF });
+            write(lower, 511, 0);
+            (sentinel.as_u64() as *mut u8).write_bytes(0x5a, 4096);
+            let descriptor = if block { sentinel.as_u64() | BLOCK } else { 0 };
+            write(middle, 1, descriptor);
+            let result = Self::map_pages(
+                DOMAIN,
+                VirtAddr::new(start),
+                &[frame, frame][..count],
+                crate::arch::mmu::RIGHTS_READ,
+                crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+            );
+            let hierarchy = read(root, 0) == upper.as_u64() | TABLE
+                && read(upper, 0) == middle.as_u64() | TABLE
+                && read(middle, 0) == lower.as_u64() | TABLE
+                && read(middle, 1) == descriptor;
+            let untouched = hierarchy
+                && read(lower, 1) == 0
+                && read(lower, 511) == 0
+                && read(lower, 2) == if block { 0 } else { old_data.as_u64() | LEAF }
+                && filled(old_data, 0xa5)
+                && filled(new_data, 0x33)
+                && filled(sentinel, 0x5a);
+            report(
+                case,
+                result == Err(MmuError::PermissionDenied) && untouched,
+                &mut passed,
+            );
+            unrelated &= read(other_root, 0) == other_upper.as_u64() | TABLE
+                && read(other_upper, 0) == other_middle.as_u64() | TABLE
+                && read(other_middle, 0) == other_lower.as_u64() | TABLE
+                && read(other_lower, 7) == old_data.as_u64() | LEAF;
+        }
+        report("unrelated_root_preserved", unrelated, &mut passed);
+        write(middle, 1, 0);
+        write(lower, 1, 0);
+        write(lower, 2, 0);
+        write(lower, 511, 0);
+        let mapped = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(0x4000),
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "successful_map_control",
+            mapped.is_ok() && read(lower, 4) == new_data.as_u64() | LEAF && filled(new_data, 0x33),
+            &mut passed,
+        );
+        report(
+            "old_mapping_bytes_preserved",
+            filled(old_data, 0xa5),
+            &mut passed,
+        );
+        // Authored before the per-call fault hook: it must count real reserved
+        // table frames, return all of them on failure, and publish no parent.
+        let available = || {
+            crate::mm::FRAME_ALLOCATOR
+                .lock()
+                .as_ref()
+                .unwrap()
+                .available_frames()
+        };
+        let before = available();
+        let mut reserved = 0;
+        let fault_va = VirtAddr::new(4 << 39);
+        let failed = Self::map_pages_with_table_budget(
+            DOMAIN,
+            fault_va,
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+            1,
+            &mut reserved,
+        );
+        let old_entries = read(root, 0) == upper.as_u64() | TABLE
+            && read(upper, 0) == middle.as_u64() | TABLE
+            && read(middle, 0) == lower.as_u64() | TABLE
+            && read(lower, 4) == new_data.as_u64() | LEAF
+            && read(other_lower, 7) == old_data.as_u64() | LEAF;
+        report(
+            "allocation_failure_atomic",
+            failed == Err(MmuError::AllocationFailed)
+                && reserved == 1
+                && available() == before
+                && old_entries
+                && (1..512).all(|index| read(root, index) == 0),
+            &mut passed,
+        );
+        let recovered = Self::map_pages(
+            DOMAIN,
+            fault_va,
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        unsafe fn raw_leaf(root: PhysAddr, address: u64) -> u64 {
+            let mut table = root;
+            for shift in [39, 30, 21] {
+                let entry = read(table, ((address >> shift) & 511) as usize);
+                if entry & 1 == 0 {
+                    return 0;
+                }
+                table = PhysAddr::new(entry & 0x000f_ffff_ffff_f000);
+            }
+            read(table, ((address >> 12) & 511) as usize)
+        }
+        report(
+            "allocation_failure_recovery",
+            recovered.is_ok()
+                && raw_leaf(root, fault_va.as_u64()) == new_data.as_u64() | LEAF
+                && filled(old_data, 0xa5),
+            &mut passed,
+        );
+        // Starting one page below a fresh 512 GiB boundary touches two upper,
+        // two middle and three lowest tables: the fixed plan's seven-node bound.
+        let frames = [frame; 1025];
+        let boundary = (3 << 39) - 4096;
+        let before = available();
+        let mapped = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(boundary),
+            &frames[..1024],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "boundary_1024_seven_tables",
+            mapped.is_ok()
+                && before.checked_sub(available()) == Some(7)
+                && (0..1024).all(|index| {
+                    raw_leaf(root, boundary + index * 4096) == new_data.as_u64() | LEAF
+                }),
+            &mut passed,
+        );
+        let before = available();
+        let rejected = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(6 << 39),
+            &frames,
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "oversize_rejected",
+            rejected == Err(MmuError::InvalidAddress)
+                && read(root, 6) == 0
+                && available() == before,
+            &mut passed,
+        );
+        let rejected = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(u64::MAX - 4095),
+            &frames[..2],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "overflow_rejected",
+            rejected == Err(MmuError::InvalidAddress)
+                && read(root, 511) == 0
+                && available() == before,
+            &mut passed,
+        );
+        let rejected = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(1 << 48),
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "architecture_range_rejected",
+            rejected == Err(MmuError::InvalidAddress)
+                && read(lower, 0) == 0
+                && available() == before,
+            &mut passed,
+        );
+        let rejected = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(0x4001),
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "unaligned_rejected",
+            rejected == Err(MmuError::InvalidAddress)
+                && read(lower, 4) == new_data.as_u64() | LEAF
+                && available() == before,
+            &mut passed,
+        );
+        let mapped = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(0x5000),
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ | crate::arch::mmu::RIGHTS_WRITE,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "write_right_preserved",
+            mapped.is_ok() && read(lower, 5) == new_data.as_u64() | (LEAF | 2),
+            &mut passed,
+        );
+        let mapped = Self::map_pages(
+            DOMAIN,
+            VirtAddr::new(0x6000),
+            &[frame],
+            crate::arch::mmu::RIGHTS_READ | crate::arch::mmu::RIGHTS_EXECUTE,
+            crate::arch::mmu::CACHE_MODE_WRITE_BACK,
+        );
+        report(
+            "execute_right_preserved",
+            mapped.is_ok() && read(lower, 6) == new_data.as_u64() | (LEAF & !(1 << 63)),
+            &mut passed,
+        );
+        (sentinel.as_u64() as *mut u8).write_bytes(0x5a, 4096);
+        write(middle, 1, sentinel.as_u64() | BLOCK);
+        let _ = Self::unmap_pages(DOMAIN, VirtAddr::new(0x20_0000), 1);
+        report(
+            "unmap_block_preserved",
+            read(middle, 1) == sentinel.as_u64() | BLOCK && filled(sentinel, 0x5a),
+            &mut passed,
+        );
+        write(middle, 1, 0);
+        // Release new table branches from the fault/recovery and boundary cases.
+        // The original branch zero and the other root remain separately owned.
+        for root_index in 1..512 {
+            let entry = read(root, root_index);
+            if entry & 1 == 0 {
+                continue;
+            }
+            let upper_page = PhysAddr::new(entry & 0x000f_ffff_ffff_f000);
+            for upper_index in 0..512 {
+                let entry = read(upper_page, upper_index);
+                if entry & 1 == 0 {
+                    continue;
+                }
+                let middle_page = PhysAddr::new(entry & 0x000f_ffff_ffff_f000);
+                for middle_index in 0..512 {
+                    let entry = read(middle_page, middle_index);
+                    if entry & 1 != 0 {
+                        let _ = Self.free_page_table(PhysAddr::new(entry & 0x000f_ffff_ffff_f000));
+                    }
+                }
+                let _ = Self.free_page_table(middle_page);
+            }
+            write(root, root_index, 0);
+            let _ = Self.free_page_table(upper_page);
+        }
+        {
+            let mut guard = crate::mm::ADDRESS_SPACE_TABLE.lock();
+            let table = guard.as_mut().unwrap();
+            for (domain, address) in [(DOMAIN, saved.0), (OTHER, saved.1)] {
+                match address {
+                    Some(address) => table.set_root(domain, address),
+                    None => table.clear_root(domain),
+                }
+            }
+        }
+        // These roots were never installed in CR3/TTBR. Clear owned roots before
+        // releasing every explicitly allocated table/backing frame.
+        (root.as_u64() as *mut u8).write_bytes(0, 4096);
+        (other_root.as_u64() as *mut u8).write_bytes(0, 4096);
+        for address in pages {
+            let _ = Self.free_page_table(address);
+        }
+        for i in 0..512 {
+            let address = PhysAddr::new(run.start_address().as_u64() + i * 4096);
+            let _ = Self.free_page_table(address);
+        }
+        crate::kprintln!("mmu_review: COMPLETE {}/17", passed);
+        passed == 17
+    }
+
     /// Foundry observer for the actual leaf entry and the CPU's NX enable bit.
     ///
     /// # Safety
@@ -257,109 +806,15 @@ impl Mmu for X86_64Mmu {
 
         #[cfg(not(test))]
         {
-            Self::enable_no_execute()?;
-            // Get page table root for the domain
-            // For domain 0, we use the current CR3 value (identity mapping)
-            // For other domains, we look up in AddressSpaceTable
-            let pml4_phys = if domain_id == 0 {
-                Self::read_cr3() & 0x000FFFFF_FFFFF000
-            } else {
-                // Look up from AddressSpaceTable
-                let table_guard = crate::mm::ADDRESS_SPACE_TABLE.lock();
-                let result = match *table_guard {
-                    Some(ref table) => {
-                        match table.get_root(domain_id as crate::domain_registry::DomainId) {
-                            Some(root) => root.as_u64() & 0x000FFFFF_FFFFF000,
-                            None => return Err(MmuError::InvalidDomain),
-                        }
-                    }
-                    None => return Err(MmuError::InvalidDomain),
-                };
-                drop(table_guard);
-                result
-            };
-
-            // Convert physical address to virtual address for direct access
-            // This assumes identity mapping for the kernel
-            let pml4_virt = pml4_phys as *mut PageTable;
-
-            // Convert rights and cache mode to page table flags
-            let flags = Self::rights_to_flags(rights, cache_mode);
-
-            // Map each frame to a virtual page
-            for (i, frame) in frames.iter().enumerate() {
-                // SAFETY: Calculated virtual addresses are valid page-aligned addresses
-                let current_vaddr = unsafe { VirtAddr::new(vaddr.as_u64() + (i as u64 * 4096)) };
-                let phys_addr = frame.start_address();
-
-                // Walk the page table hierarchy
-                let pml4 = &mut *pml4_virt;
-                let pml4_idx = Self::pml4_index(current_vaddr);
-
-                // Get or create PDP entry
-                let pdp = if !pml4.entries[pml4_idx].is_present() {
-                    // Allocate a new PDP table
-                    let pdp_phys = X86_64Mmu.allocate_page_table()?;
-                    // Set the PML4 entry to point to the new PDP table
-                    // Flags: PRESENT | WRITABLE | USER_ACCESSIBLE
-                    pml4.entries[pml4_idx].set_addr(pdp_phys);
-                    pml4.entries[pml4_idx].set_flags(
-                        PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER,
-                    );
-                    &mut *(pdp_phys.as_u64() as *mut PageTable)
-                } else {
-                    let pdp_phys = pml4.entries[pml4_idx].addr();
-                    &mut *(pdp_phys.as_u64() as *mut PageTable)
-                };
-
-                let pdp_idx = Self::pdp_index(current_vaddr);
-
-                // Get or create PD entry
-                let pd = if !pdp.entries[pdp_idx].is_present() {
-                    // Allocate a new PD table
-                    let pd_phys = X86_64Mmu.allocate_page_table()?;
-                    // Set the PDP entry to point to the new PD table
-                    // Flags: PRESENT | WRITABLE | USER_ACCESSIBLE
-                    pdp.entries[pdp_idx].set_addr(pd_phys);
-                    pdp.entries[pdp_idx].set_flags(
-                        PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER,
-                    );
-                    &mut *(pd_phys.as_u64() as *mut PageTable)
-                } else {
-                    let pd_phys = pdp.entries[pdp_idx].addr();
-                    &mut *(pd_phys.as_u64() as *mut PageTable)
-                };
-
-                let pd_idx = Self::pd_index(current_vaddr);
-
-                // Get or create PT entry
-                let pt = if !pd.entries[pd_idx].is_present() {
-                    // Allocate a new PT table
-                    let pt_phys = X86_64Mmu.allocate_page_table()?;
-                    // Set the PD entry to point to the new PT table
-                    // Flags: PRESENT | WRITABLE | USER_ACCESSIBLE
-                    pd.entries[pd_idx].set_addr(pt_phys);
-                    pd.entries[pd_idx].set_flags(
-                        PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER,
-                    );
-                    &mut *(pt_phys.as_u64() as *mut PageTable)
-                } else {
-                    let pt_phys = pd.entries[pd_idx].addr();
-                    &mut *(pt_phys.as_u64() as *mut PageTable)
-                };
-
-                let pt_idx = Self::pt_index(current_vaddr);
-
-                // Set the final page table entry
-                let entry = &mut pt.entries[pt_idx];
-                entry.set_addr(phys_addr);
-                entry.set_flags(flags);
-
-                // Invalidate the TLB entry for this page
-                Self::invlpg(current_vaddr);
-            }
-
-            return Ok(());
+            Self::map_pages_core(
+                domain_id,
+                vaddr,
+                frames,
+                rights,
+                cache_mode,
+                #[cfg(feature = "test_protocols")]
+                None,
+            )
         }
     }
 
@@ -438,7 +893,9 @@ impl Mmu for X86_64Mmu {
                 let pml4_idx = Self::pml4_index(current_vaddr);
 
                 // Check if PDP entry is present
-                if !pml4.entries[pml4_idx].is_present() {
+                if !pml4.entries[pml4_idx].is_present()
+                    || pml4.entries[pml4_idx].flags() & PageTableEntry::HUGE_PAGE != 0
+                {
                     // Page not mapped - continue to next page
                     continue;
                 }
@@ -448,7 +905,9 @@ impl Mmu for X86_64Mmu {
                 let pdp_idx = Self::pdp_index(current_vaddr);
 
                 // Check if PD entry is present
-                if !pdp.entries[pdp_idx].is_present() {
+                if !pdp.entries[pdp_idx].is_present()
+                    || pdp.entries[pdp_idx].flags() & PageTableEntry::HUGE_PAGE != 0
+                {
                     continue;
                 }
 
@@ -457,7 +916,9 @@ impl Mmu for X86_64Mmu {
                 let pd_idx = Self::pd_index(current_vaddr);
 
                 // Check if PT entry is present
-                if !pd.entries[pd_idx].is_present() {
+                if !pd.entries[pd_idx].is_present()
+                    || pd.entries[pd_idx].flags() & PageTableEntry::HUGE_PAGE != 0
+                {
                     continue;
                 }
 

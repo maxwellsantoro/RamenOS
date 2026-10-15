@@ -19,6 +19,80 @@ use crate::mm::address::PhysFrame;
 /// Page size for x86_64 and aarch64: 4 KiB (4096 bytes).
 pub const PAGE_SIZE: u64 = 4096;
 
+/// The sole production mapping consumer admits at most 1024 pages per call.
+#[cfg(not(test))]
+pub(crate) const MAX_MAPPING_PAGES: usize = 1024;
+/// A <=1024-page span crosses at most three lowest, two middle and two
+/// upper table prefixes, including a span crossing a 512 GiB boundary.
+#[cfg(not(test))]
+pub(crate) const MAX_MAPPING_TABLES: usize = 7;
+
+#[cfg(not(test))]
+#[derive(Clone, Copy)]
+pub(crate) struct PlannedTable {
+    pub level: usize,
+    pub prefix: u64,
+    pub frame: u64,
+}
+
+#[cfg(not(test))]
+pub(crate) struct MappingPlan {
+    pub nodes: [PlannedTable; MAX_MAPPING_TABLES],
+    pub len: usize,
+}
+
+#[cfg(not(test))]
+impl MappingPlan {
+    pub const fn new() -> Self {
+        Self {
+            nodes: [PlannedTable {
+                level: 0,
+                prefix: 0,
+                frame: 0,
+            }; MAX_MAPPING_TABLES],
+            len: 0,
+        }
+    }
+
+    pub fn record(&mut self, level: usize, prefix: u64) -> Result<(), MmuError> {
+        if self.nodes[..self.len]
+            .iter()
+            .any(|node| node.level == level && node.prefix == prefix)
+        {
+            return Ok(());
+        }
+        if self.len == self.nodes.len() {
+            return Err(MmuError::InvalidAddress);
+        }
+        self.nodes[self.len] = PlannedTable {
+            level,
+            prefix,
+            frame: 0,
+        };
+        self.len += 1;
+        Ok(())
+    }
+}
+
+/// Validate the common bounded, aligned, nonoverflowing virtual span.
+#[cfg(not(test))]
+pub(crate) fn mapping_range_end(vaddr: VirtAddr, pages: usize) -> Result<u64, MmuError> {
+    if !vaddr.is_page_aligned() || pages == 0 || pages > MAX_MAPPING_PAGES {
+        return Err(MmuError::InvalidAddress);
+    }
+    vaddr
+        .as_u64()
+        .checked_add(pages as u64 * PAGE_SIZE)
+        .ok_or(MmuError::InvalidAddress)
+}
+
+/// Per-call fault observation; absent from ordinary builds and never ambient.
+#[cfg(all(feature = "test_protocols", not(test)))]
+pub(crate) struct MappingFault {
+    pub budget: usize,
+    pub reserved: usize,
+}
+
 /// Virtual address wrapper type.
 ///
 /// Provides type safety for virtual addresses, preventing them from being
@@ -125,14 +199,20 @@ pub trait Mmu {
     /// - All frames in `frames` are valid physical frames
     /// - `rights` is a valid combination of RIGHTS_* constants
     /// - `cache_mode` is one of the CACHE_MODE_* constants
-    /// - The virtual address range does not overlap existing mappings
+    /// - Exclusive access to this domain's entire page-table hierarchy is held
+    ///   continuously through validation, reservation and commit. Registry and
+    ///   allocator locks alone do not provide this exclusion; no SMP page-table
+    ///   synchronization is supplied by this interface.
     ///
     /// # Errors
     ///
     /// Returns `MmuError::InvalidDomain` if the domain ID is invalid.
-    /// Returns `MmuError::InvalidAddress` if the virtual address is not page-aligned.
-    /// Returns `MmuError::AllocationFailed` if page table allocation fails.
-    /// Returns `MmuError::PermissionDenied` if the operation is not allowed.
+    /// Returns `MmuError::InvalidAddress` for an unaligned, noncanonical,
+    /// overflowing, empty or >1024-page range, or unsupported physical address.
+    /// Returns `MmuError::AllocationFailed` if page table reservation fails.
+    /// Returns `MmuError::PermissionDenied` for an occupied leaf or huge/block
+    /// ancestor. Every error preserves the entire page-table hierarchy and all
+    /// existing mappings; all frames reserved by this call are returned.
     unsafe fn map_pages(
         domain_id: DomainId,
         vaddr: VirtAddr,

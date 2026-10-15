@@ -309,8 +309,17 @@ class SelectedRunnerTests(unittest.TestCase):
             root = Path(temporary)
             observed = runner.terminal_observation
             def late_terminal(process):
+                # Establish an actual held terminal child before delaying its
+                # observation. Interpreter startup need not finish in 60 ms.
+                # This fixture bound never extends run_owned's 50 ms budget.
+                end = time.monotonic() + 2
+                terminal = observed(process)
+                while terminal is None and time.monotonic() < end:
+                    time.sleep(.005)
+                    terminal = observed(process)
+                self.assertIsNotNone(terminal, 'fixture child did not exit')
                 time.sleep(.06)
-                return observed(process)
+                return terminal
             with mock.patch.object(runner, 'terminal_observation', late_terminal):
                 with self.assertRaises(runner.RunnerError):
                     runner.run_owned([sys.executable, '-c', 'pass'], root, 'late', work_seconds=.05)
@@ -318,6 +327,10 @@ class SelectedRunnerTests(unittest.TestCase):
             self.assertTrue(result['reaped'])
             self.assertEqual(result['exit_code'], 0)
             self.assertIn('deadline', result['error'])
+            self.assertTrue(result['group_stop_before_reap'])
+            next_result = runner.run_owned([sys.executable, '-c', 'pass'], root, 'after-late')
+            self.assertEqual(next_result['exit_code'], 0)
+            self.assertTrue(next_result['reaped'])
 
     def test_doctest_eligibility_preserves_default_cargo_library_scope(self):
         binary = {'name':'main', 'kind':['bin'], 'doctest':False}

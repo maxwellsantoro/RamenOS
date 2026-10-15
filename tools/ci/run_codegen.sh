@@ -37,8 +37,10 @@ run_codegen --in idl/harness/gpu_quarantine_v1.toml --out kernel_api/src/generat
 run_codegen --in idl/harness/net_v1.toml --out kernel_api/src/generated/net_v1.generated.rs
 run_codegen --in idl/harness/block_v1.toml --out kernel_api/src/generated/block_v1.generated.rs
 run_codegen --in idl/harness/shmem_control_v1.toml --out kernel_api/src/generated/shmem_control_v1.generated.rs
+run_codegen --in idl/harness/shmem_consent_v2.toml --out kernel_api/src/generated/shmem_consent_v2.generated.rs
 run_codegen --in idl/services/store_service_v1.toml --out kernel_api/src/generated/store_service_v1.generated.rs
 run_codegen --in idl/harness/trace_service_v1.toml --out kernel_api/src/generated/trace_service_v1.generated.rs
+run_codegen --in idl/harness/trace_delivery_v3.toml --out kernel_api/src/generated/trace_delivery_v3.generated.rs
 run_codegen --in idl/harness/echo_harness_v1.toml --out kernel_api/src/generated/echo_harness_v1.generated.rs
 run_codegen --in idl/harness/trace_service_v2.toml --out kernel_api/src/generated/trace_service_v2.generated.rs
 run_codegen --in idl/services/semantic_state_v1.toml --out kernel_api/src/generated/semantic_state_v1.generated.rs

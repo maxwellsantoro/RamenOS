@@ -33,6 +33,25 @@ pub struct TraceBufferInfo {
     pub write_offset: u64,
 }
 
+/// A delivery receipt binds both exact capability generations and the copied range.
+#[derive(Clone, Copy)]
+pub(crate) struct TraceReadLease {
+    id: u64,
+    source: Handle,
+    pub(crate) destination: Handle,
+    pub(crate) destination_offset: u64,
+    pub(crate) data_len: u32,
+    offset: u64,
+    next_offset: u64,
+}
+
+/// Completed receipts reconcile their original outcome without revisiting a
+/// destination whose lifetime ended after delivery was already acknowledged.
+pub(crate) enum TraceDeliveryReceipt {
+    Pending(TraceReadLease),
+    Committed(u64),
+}
+
 /// Trace buffer entry
 struct TraceBuffer {
     /// Domain ID this buffer belongs to
@@ -41,6 +60,8 @@ struct TraceBuffer {
     size: u32,
     /// Whether this buffer is active
     active: bool,
+    pending: Option<TraceReadLease>,
+    committed: Option<TraceReadLease>,
 }
 
 /// Kernel-side trace service
@@ -57,6 +78,8 @@ pub struct TraceService {
     domain_registry: DomainRegistry,
     /// Per-domain trace ring for actual buffer storage
     trace_ring: DomainTraceRing,
+    // Zero retires issuance permanently; IDs survive stream generation changes.
+    next_lease_id: u64,
 }
 
 impl TraceService {
@@ -69,6 +92,7 @@ impl TraceService {
             cap_table: TraceCapTable::new(),
             domain_registry: DomainRegistry::new(),
             trace_ring: DomainTraceRing::new(),
+            next_lease_id: 1,
         }
     }
 
@@ -139,6 +163,8 @@ impl TraceService {
             domain_id,
             size,
             active: true,
+            pending: None,
+            committed: None,
         });
 
         // Create handle from capability index
@@ -150,6 +176,17 @@ impl TraceService {
         };
 
         Ok((TRACE_STATUS_OK, handle))
+    }
+
+    /// Resolve only a live, exact trace capability without inspecting buffer state.
+    pub(crate) fn cap_domain(&self, handle: Handle) -> Option<DomainId> {
+        if handle.kind != kernel_api::cap::HandleKind::Trace
+            || !kernel_api::cap::is_canonical_generation(handle.generation)
+        {
+            return None;
+        }
+        let cap = self.cap_table.get(handle.index as usize)?;
+        (cap.in_use && cap.generation == handle.generation).then_some(cap.domain_id)
     }
 
     /// Destroy a trace buffer
@@ -207,6 +244,135 @@ impl TraceService {
         self.cap_table.deallocate(cap_index).map_err(|_| ())?;
 
         Ok(TRACE_STATUS_OK)
+    }
+
+    /// Validate READ authority without inspecting any trace cursor or event data.
+    pub(crate) fn readable_domain(&self, source: Handle) -> Result<DomainId, u32> {
+        let domain = self
+            .cap_domain(source)
+            .ok_or(TRACE_STATUS_INVALID_CAPABILITY)?;
+        if !self
+            .cap_table
+            .check_right(source.index as usize, TRACE_RIGHT_READ)
+        {
+            return Err(TRACE_STATUS_PERMISSION_DENIED);
+        }
+        if self.buffers[domain as usize]
+            .as_ref()
+            .is_none_or(|b| !b.active)
+        {
+            return Err(TRACE_STATUS_BUFFER_NOT_FOUND);
+        }
+        Ok(domain)
+    }
+
+    /// Copy initialized events to an exclusively held, prevalidated Shmem view.
+    /// No cursor advances until the exact receipt is explicitly committed.
+    pub(crate) fn prepare_delivery(
+        &mut self,
+        source: Handle,
+        destination: Handle,
+        destination_offset: u64,
+        offset: u64,
+        length: u32,
+        out: &mut [u8],
+    ) -> Result<(u64, u64, u32), u32> {
+        let domain = self.readable_domain(source)?;
+        const EVENT_BYTES: usize = 24;
+        if length > 1536
+            || !(length as usize).is_multiple_of(EVENT_BYTES)
+            || length as usize > out.len()
+        {
+            return Err(TRACE_STATUS_INVALID_SIZE);
+        }
+        let size = self.buffers[domain as usize].as_ref().unwrap().size as usize;
+        let count = (length as usize).min(size) / EVENT_BYTES;
+        let mut events = [Event {
+            tag: 0,
+            arg0: 0,
+            arg1: 0,
+        }; 64];
+        let actual = self
+            .trace_ring
+            .peek_at(domain, offset, &mut events[..count])
+            .ok_or(TRACE_STATUS_INVALID_OFFSET)?;
+        if actual == 0 {
+            // Zero-length and empty reads neither replace nor issue a receipt.
+            return Ok((0, offset, 0));
+        }
+        if self.next_lease_id == 0 {
+            return Err(TRACE_STATUS_INVALID_SIZE);
+        }
+        let data_len = (actual * EVENT_BYTES) as u32;
+        let next_offset = offset
+            .checked_add(data_len as u64)
+            .ok_or(TRACE_STATUS_INVALID_OFFSET)?;
+        for (event, bytes) in events[..actual]
+            .iter()
+            .zip(out.chunks_exact_mut(EVENT_BYTES))
+        {
+            bytes[..4].copy_from_slice(&event.tag.to_le_bytes());
+            bytes[4..8].fill(0);
+            bytes[8..16].copy_from_slice(&event.arg0.to_le_bytes());
+            bytes[16..24].copy_from_slice(&event.arg1.to_le_bytes());
+        }
+        let id = self.next_lease_id;
+        self.next_lease_id = id.checked_add(1).unwrap_or(0);
+        self.buffers[domain as usize].as_mut().unwrap().pending = Some(TraceReadLease {
+            id,
+            source,
+            destination,
+            destination_offset,
+            data_len,
+            offset,
+            next_offset,
+        });
+        Ok((id, next_offset, data_len))
+    }
+
+    /// Resolve a receipt only after live source and READ-right validation.
+    /// A pending receipt still needs live destination validation before commit;
+    /// the last completed receipt only reconciles its original outcome.
+    pub(crate) fn delivery_receipt(
+        &self,
+        source: Handle,
+        id: u64,
+    ) -> Result<TraceDeliveryReceipt, u32> {
+        let domain = self.readable_domain(source)?;
+        let buffer = self.buffers[domain as usize].as_ref().unwrap();
+        if let Some(committed) = buffer.committed {
+            if committed.id == id && committed.source == source && id != 0 {
+                return Ok(TraceDeliveryReceipt::Committed(committed.next_offset));
+            }
+        }
+        buffer
+            .pending
+            .filter(|receipt| receipt.id == id && receipt.source == source && id != 0)
+            .map(TraceDeliveryReceipt::Pending)
+            .ok_or(TRACE_STATUS_INVALID_CAPABILITY)
+    }
+
+    pub(crate) fn commit_delivery(&mut self, source: Handle, id: u64) -> Result<u64, u32> {
+        let domain = self.readable_domain(source)?;
+        let buffer = self.buffers[domain as usize].as_mut().unwrap();
+        if let Some(committed) = buffer.committed {
+            if committed.id == id && committed.source == source && id != 0 {
+                return Ok(committed.next_offset);
+            }
+        }
+        let pending = buffer
+            .pending
+            .filter(|receipt| receipt.id == id && receipt.source == source && id != 0)
+            .ok_or(TRACE_STATUS_INVALID_CAPABILITY)?;
+        if !self
+            .trace_ring
+            .commit_at(domain, pending.offset, pending.data_len)
+        {
+            return Err(TRACE_STATUS_INVALID_OFFSET);
+        }
+        buffer.pending = None;
+        buffer.committed = Some(pending);
+        Ok(pending.next_offset)
     }
 
     /// Read from a trace buffer
@@ -421,8 +587,8 @@ impl TraceService {
         &self.trace_ring
     }
 
-    /// Get the trace ring mutably (for testing)
-    #[cfg(test)]
+    /// Gate-only fixture access; absent from the default runtime.
+    #[cfg(any(test, feature = "test_protocols"))]
     pub fn trace_ring_mut(&mut self) -> &mut DomainTraceRing {
         &mut self.trace_ring
     }
@@ -959,5 +1125,57 @@ mod review_stream {
                 (TRACE_STATUS_OK, 24)
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod review_delivery_retirement {
+    use super::*;
+
+    #[test]
+    fn review_trace_delivery_lease_exhaustion_preserves_last_receipt_and_never_reuses_id() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        let (_, source) = service.create_trace_buffer(0, 4096).unwrap();
+        let destination = Handle {
+            kind: kernel_api::cap::HandleKind::Shmem,
+            index: 1,
+            generation: 1,
+        };
+        service.trace_ring().emit(0, 1, 2, 3);
+        service.next_lease_id = u64::MAX;
+        let mut bytes = [0xA5; 24];
+        assert_eq!(
+            service.prepare_delivery(source, destination, 0, 0, 24, &mut bytes),
+            Ok((u64::MAX, 24, 24))
+        );
+        let delivered = bytes;
+        assert_eq!(
+            service.prepare_delivery(source, destination, 0, 0, 24, &mut bytes),
+            Err(TRACE_STATUS_INVALID_SIZE)
+        );
+        assert_eq!(bytes, delivered);
+        assert_eq!(service.trace_ring().positions(0), (0, 24));
+        assert_eq!(service.commit_delivery(source, u64::MAX), Ok(24));
+        service.trace_ring().emit(0, 4, 5, 6);
+        assert_eq!(
+            service.prepare_delivery(source, destination, 0, 24, 24, &mut bytes),
+            Err(TRACE_STATUS_INVALID_SIZE)
+        );
+        assert_eq!(bytes, delivered);
+        assert_eq!(service.commit_delivery(source, u64::MAX), Ok(24));
+        assert_eq!(service.trace_ring().positions(0), (24, 48));
+        assert_eq!(service.destroy_trace_buffer(source).unwrap(), 0);
+        let (_, next) = service.create_trace_buffer(0, 4096).unwrap();
+        service.trace_ring().emit(0, 7, 8, 9);
+        assert_eq!(
+            service.prepare_delivery(next, destination, 0, 0, 24, &mut bytes),
+            Err(TRACE_STATUS_INVALID_SIZE)
+        );
+        assert_eq!(
+            service.commit_delivery(next, u64::MAX),
+            Err(TRACE_STATUS_INVALID_CAPABILITY)
+        );
+        assert_eq!(service.trace_ring().positions(0), (0, 24));
     }
 }

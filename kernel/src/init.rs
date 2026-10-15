@@ -300,6 +300,12 @@ pub fn run(writer: &trace_ring::TraceWriter, image: InitImage) {
     }
 }
 
+fn trusted_boot_caller() -> ipc_v0::CallerContext {
+    // SAFETY: these single-threaded boot fixtures execute in known kernel domain 0.
+    // No untrusted syscall/transport currently supplies execution identity.
+    unsafe { ipc_v0::CallerContext::for_trusted_kernel_fixture(0) }
+}
+
 fn do_ping_pong(writer: &trace_ring::TraceWriter) {
     let nonce = 0xD00D_F00D_u64;
     let mut env = Envelope::empty(PROTOCOL_PING, MSG_PING);
@@ -317,7 +323,7 @@ fn do_ping_pong(writer: &trace_ring::TraceWriter) {
         }
     };
     let reply = with_fresh_shmem_table(|shmem_table| {
-        ipc_v0::handle_envelope(writer, &table, shmem_table, &env)
+        ipc_v0::handle_envelope(&trusted_boot_caller(), writer, &table, shmem_table, &env)
     });
     if reply.msg_type == MSG_PONG {
         match read_payload::<Pong>(&reply) {
@@ -348,7 +354,13 @@ fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
         let mut bad_small = Envelope::empty(PROTOCOL_PING, MSG_PING);
         bad_small.handle = ipc_cap;
         bad_small.payload_len = 0;
-        let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_small);
+        let reply = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &bad_small,
+        );
         if reply.payload_len == 0 {
             kprintln!("init: ipc badlen small ok");
         } else {
@@ -358,7 +370,13 @@ fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
         let mut bad_large = Envelope::empty(PROTOCOL_PING, MSG_PING);
         bad_large.handle = ipc_cap;
         bad_large.payload_len = (bad_large.payload.len() as u32) + 1;
-        let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_large);
+        let reply = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &bad_large,
+        );
         if reply.payload_len == 0 {
             kprintln!("init: ipc badlen large ok");
         } else {
@@ -367,7 +385,13 @@ fn do_badlen_tests(writer: &trace_ring::TraceWriter) {
 
         let mut bad_proto = Envelope::empty(0xBEEF, MSG_PING);
         bad_proto.handle = ipc_cap;
-        let reply = ipc_v0::handle_envelope(writer, &table, shmem_table, &bad_proto);
+        let reply = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &bad_proto,
+        );
         if reply.payload_len == 0 {
             kprintln!("init: ipc unknown proto ok");
         } else {
@@ -631,7 +655,13 @@ fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
             return;
         }
 
-        let send_reply_env = ipc_v0::handle_envelope(writer, &table, shmem_table, &send_env);
+        let send_reply_env = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &send_env,
+        );
         if send_reply_env.msg_type != MSG_NET_V1_SEND_PACKET_REPLY {
             kprintln!("harness.net: packet_io failed reason=send_reply_type");
             return;
@@ -667,7 +697,13 @@ fn do_net_packet_io_test(writer: &trace_ring::TraceWriter) {
             return;
         }
 
-        let recv_reply_env = ipc_v0::handle_envelope(writer, &table, shmem_table, &recv_env);
+        let recv_reply_env = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &recv_env,
+        );
         if recv_reply_env.msg_type != MSG_NET_V1_RECEIVE_PACKET_REPLY {
             kprintln!("harness.net: packet_io failed reason=recv_reply_type");
             return;
@@ -762,7 +798,13 @@ fn do_block_io_test(writer: &trace_ring::TraceWriter) {
             return;
         }
 
-        let read_reply_env = ipc_v0::handle_envelope(writer, &table, shmem_table, &read_env);
+        let read_reply_env = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &read_env,
+        );
         if read_reply_env.msg_type != MSG_BLOCK_V1_READ_BLOCKS_REPLY {
             kprintln!("persistent_storage: block_io failed reason=read_reply_type");
             return;
@@ -812,7 +854,13 @@ fn do_block_io_test(writer: &trace_ring::TraceWriter) {
             return;
         }
 
-        let write_reply_env = ipc_v0::handle_envelope(writer, &table, shmem_table, &write_env);
+        let write_reply_env = ipc_v0::handle_envelope(
+            &trusted_boot_caller(),
+            writer,
+            &table,
+            shmem_table,
+            &write_env,
+        );
         if write_reply_env.msg_type != MSG_BLOCK_V1_WRITE_BLOCKS_REPLY {
             kprintln!("persistent_storage: block_io failed reason=write_reply_type");
             return;
@@ -1131,12 +1179,273 @@ fn sha256_compress(state: &mut [u32; 8], block: &[u8; 64]) {
     state[7] = state[7].wrapping_add(h);
 }
 
+// This service exists only for the single-threaded boot gate. Keep its bounded
+// ring storage in the loaded image rather than constructing it on the stack.
+#[cfg(all(feature = "test_protocols", not(test)))]
+static mut DELIVERY_TRACE_FIXTURE: crate::trace_service::TraceService =
+    crate::trace_service::TraceService::new();
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn run_trace_delivery_regression(writer: &trace_ring::TraceWriter) {
+    if trace_delivery_case(writer).unwrap_or(false) {
+        kprintln!("trace_delivery_review: bytes_and_commit_recovery PASS");
+    } else {
+        kprintln!("trace_delivery_review: bytes_and_commit_recovery FAIL");
+    }
+}
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn trace_delivery_case(writer: &trace_ring::TraceWriter) -> Option<bool> {
+    use kernel_api::generated::{
+        CommitTraceRead, CommitTraceReadReply, ReadTrace, ReadTraceInto, ReadTraceIntoReply,
+        ReadTraceReply, TRACE_DELIVERY_V3_PROTOCOL_ID,
+    };
+    use kernel_api::ipc::Envelope;
+    use kernel_api::wire::{read_payload, write_payload};
+    // These contexts name the trusted fixture principals independently of all
+    // request bytes. No authenticated userspace carrier is claimed by this test.
+    let caller = unsafe { ipc_v0::CallerContext::for_trusted_kernel_fixture(1) };
+    let mut caps = crate::cap_table::StaticCapTable::new();
+    let ipc = caps.allocate_for_domain(1).ok()?;
+    let service = unsafe { &mut DELIVERY_TRACE_FIXTURE };
+    service.init_kernel();
+    service.register_domain(1, "trace-reader").ok()?;
+    service.register_domain(2, "unrelated").ok()?;
+    let (_, trace) = service.create_trace_buffer(1, 4096).ok()?;
+    let (_, unrelated) = service.create_trace_buffer(2, 4096).ok()?;
+    service
+        .trace_ring_mut()
+        .emit(1, 0x1234, 0x1122_3344_5566_7788, 0x8877_6655_4433_2211);
+    service.trace_ring_mut().emit(2, 0x4321, 71, 72);
+    let regions = unsafe { &mut INIT_SHMEM_TABLE };
+    let (region, destination, physical) = regions
+        .create_region(
+            1,
+            4096,
+            shmem::REGION_FLAG_READABLE | shmem::REGION_FLAG_WRITABLE,
+            4096,
+        )
+        .ok()?;
+    unsafe {
+        core::ptr::write_bytes(physical as *mut u8, 0xCD, 4096);
+    }
+    let mut legacy = Envelope::empty(ipc_v0::PROTOCOL_TRACE_SERVICE_V1, ipc_v0::MSG_READ_TRACE);
+    legacy.handle = ipc;
+    write_payload(
+        &mut legacy,
+        &ReadTrace {
+            request_id: 1,
+            trace_cap: trace.pack(),
+            offset: 0,
+            length: 24,
+        },
+    )
+    .ok()?;
+    let reply = ipc_v0::handle_trace_service_envelope(&caller, writer, &caps, service, &legacy);
+    let reply = read_payload::<ReadTraceReply>(&reply).ok()?;
+    let legacy_preserved = reply.status != 0
+        && reply.data_len == 0
+        && service.get_trace_info(trace).ok()?.1.read_offset == 0;
+    let mut request = Envelope::empty(TRACE_DELIVERY_V3_PROTOCOL_ID, 1);
+    request.handle = ipc;
+    write_payload(
+        &mut request,
+        &ReadTraceInto {
+            request_id: 2,
+            trace_cap: trace.pack(),
+            destination_shm_cap: destination.pack(),
+            destination_offset: 8,
+            trace_offset: 0,
+            length: 24,
+            version: 3,
+            reserved: 0,
+        },
+    )
+    .ok()?;
+    let read =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &request);
+    let read = read_payload::<ReadTraceIntoReply>(&read).ok()?;
+    let bytes = unsafe { core::slice::from_raw_parts(physical as *const u8, 4096) };
+    let delivered = read.status == 0
+        && read.data_len == 24
+        && read.next_offset == 24
+        && read.lease_id != 0
+        && bytes[..8].iter().all(|byte| *byte == 0xCD)
+        && bytes[8..12] == 0x1234u32.to_le_bytes()
+        && bytes[12..16] == [0; 4]
+        && bytes[16..24] == 0x1122_3344_5566_7788u64.to_le_bytes()
+        && bytes[24..32] == 0x8877_6655_4433_2211u64.to_le_bytes()
+        && bytes[32..].iter().all(|byte| *byte == 0xCD)
+        && service.get_trace_info(trace).ok()?.1.read_offset == 0;
+    // Simulate losing the read reply: no commit was sent. A fresh read must
+    // deliver the same bytes and retire the previous pending lease safely.
+    let retried =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &request);
+    let retried = read_payload::<ReadTraceIntoReply>(&retried).ok()?;
+    let mut commit = Envelope::empty(TRACE_DELIVERY_V3_PROTOCOL_ID, 3);
+    commit.handle = ipc;
+    write_payload(
+        &mut commit,
+        &CommitTraceRead {
+            request_id: 3,
+            trace_cap: trace.pack(),
+            lease_id: read.lease_id,
+            version: 3,
+            reserved: 0,
+        },
+    )
+    .ok()?;
+    let stale =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &commit);
+    let stale = read_payload::<CommitTraceReadReply>(&stale).ok()?;
+    let retained = stale.status != 0 && service.get_trace_info(trace).ok()?.1.read_offset == 0;
+    write_payload(
+        &mut commit,
+        &CommitTraceRead {
+            request_id: 4,
+            trace_cap: trace.pack(),
+            lease_id: retried.lease_id,
+            version: 3,
+            reserved: 0,
+        },
+    )
+    .ok()?;
+    let ack =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &commit);
+    let ack = read_payload::<CommitTraceReadReply>(&ack).ok()?;
+    let duplicate =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &commit);
+    let duplicate = read_payload::<CommitTraceReadReply>(&duplicate).ok()?;
+    let committed = retried.status == 0
+        && retried.data_len == 24
+        && retried.lease_id != read.lease_id
+        && ack.status == 0
+        && ack.next_offset == 24
+        && duplicate.status == 0
+        && duplicate.next_offset == 24
+        && service.get_trace_info(trace).ok()?.1.read_offset == 24
+        && service.get_trace_info(unrelated).ok()?.1.read_offset == 0;
+    regions.close_region(1, region).ok()?;
+    Some(legacy_preserved && delivered && retained && committed)
+}
+
+/// Gate-only, inactive domain root: a rejected Shmem map must not unmap an
+/// existing foreign PTE. Test root/table frames remain held until this boot halts.
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn run_shmem_collision_regression() {
+    #[cfg(target_arch = "aarch64")]
+    use crate::arch::AArch64Mmu as TestMmu;
+    #[cfg(target_arch = "x86_64")]
+    use crate::arch::X86_64Mmu as TestMmu;
+    use crate::arch::{Mmu, VirtAddr};
+    use crate::mm::FrameAllocator;
+    let root = TestMmu.allocate_page_table().unwrap();
+    crate::mm::ADDRESS_SPACE_TABLE
+        .lock()
+        .as_mut()
+        .unwrap()
+        .set_root(2, root);
+    let sentinel = crate::mm::FRAME_ALLOCATOR
+        .lock()
+        .as_mut()
+        .unwrap()
+        .allocate()
+        .unwrap();
+    let va = unsafe { VirtAddr::new(0x8000_0000) };
+    unsafe {
+        core::ptr::write_bytes(sentinel.as_u64() as *mut u8, 0xB9, 4096);
+        TestMmu::map_pages(2, va, &[sentinel], shmem::RIGHTS_READ, 0).unwrap();
+    }
+    let table = unsafe { &mut INIT_SHMEM_TABLE };
+    let (region, cap, _) = table
+        .create_region(1, 4096, shmem::REGION_FLAG_READABLE, 4096)
+        .unwrap();
+    let offer = table
+        .offer_region(region, cap, 1, 2, shmem::RIGHTS_READ, 0)
+        .unwrap();
+    let free_before = crate::mm::FRAME_ALLOCATOR
+        .lock()
+        .as_ref()
+        .unwrap()
+        .available_frames();
+    let denied = table.accept_region(2, offer).is_err();
+    let unchanged = table.regions[(cap.index - 1) as usize].refcount == 0
+        && table.regions[(cap.index - 1) as usize].vaddr == 0
+        && crate::mm::FRAME_ALLOCATOR
+            .lock()
+            .as_ref()
+            .unwrap()
+            .available_frames()
+            == free_before;
+    // Independent collision probe: disappearance of the old PTE is observable
+    // even when its physical sentinel bytes happen to remain in RAM.
+    let preserved =
+        unsafe { TestMmu::map_pages(2, va, &[sentinel], shmem::RIGHTS_READ, 0).is_err() }
+            && unsafe {
+                core::slice::from_raw_parts(sentinel.as_u64() as *const u8, 4096)
+                    .iter()
+                    .all(|byte| *byte == 0xB9)
+            };
+    unsafe {
+        TestMmu::unmap_pages(2, va, 1).unwrap();
+    }
+    let recovered = match table.accept_region(2, offer) {
+        Ok(mapping) => {
+            table.unmap_region(2, mapping, 2).is_ok() && table.close_region(1, region).is_ok()
+        }
+        Err(_) => false,
+    };
+    crate::mm::FRAME_ALLOCATOR
+        .lock()
+        .as_mut()
+        .unwrap()
+        .deallocate(sentinel);
+    if denied && unchanged && preserved && recovered {
+        kprintln!("shmem_review: collision_preserves_existing_and_next_accept PASS");
+    } else {
+        kprintln!(
+            "shmem_review: collision_preserves_existing_and_next_accept FAIL denied={} state={} pte={} recovery={}",
+            denied,
+            unchanged,
+            preserved,
+            recovered
+        );
+    }
+}
+
 /// S8 Phase 4: Shared-memory data-plane integration test.
 ///
 /// Tests MMU programming and frame allocation by exercising the full shared-memory
 /// operations in a real kernel environment with actual page table manipulation.
 #[cfg(feature = "test_protocols")]
+fn fixture_map_region(
+    table: &mut shmem::ShmemRegionTable,
+    region: u64,
+    cap: kernel_api::cap::Handle,
+    owner: u64,
+    target: u64,
+    rights: u32,
+    cache: u32,
+) -> Result<u64, u32> {
+    // Trusted, single-threaded fixture explicitly performs each participant's
+    // decision. Production IPC obtains each identity from CallerContext.
+    let offer = table.offer_region(region, cap, owner, target, rights, cache)?;
+    table.accept_region(target, offer)
+}
+
+#[cfg(feature = "test_protocols")]
 fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
+    // Gate-only probes use isolated inactive roots and the real MMU backend.
+    #[cfg(all(target_arch = "x86_64", not(test)))]
+    unsafe {
+        crate::arch::X86_64Mmu::run_mapping_regressions();
+    }
+    #[cfg(all(target_arch = "aarch64", not(test)))]
+    unsafe {
+        crate::arch::AArch64Mmu::run_mapping_regressions();
+    }
+    #[cfg(not(test))]
+    run_shmem_collision_regression();
     // Domain 1 needs its own root: mapping an uninitialized domain must fail.
     // This fixture programs that root without installing it as the active CR3.
     use crate::arch::Mmu;
@@ -1177,7 +1486,7 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
         4096,
     ) {
         Ok((region_id, shm_cap, _)) => {
-            match table.map_region(region_id, shm_cap, 100, 0, shmem::RIGHTS_READ, 0) {
+            match fixture_map_region(table, region_id, shm_cap, 100, 1, shmem::RIGHTS_READ, 0) {
                 Ok(_) => {
                     let index = ((region_id >> 32) & 0xFFFF) as usize;
                     if table.regions[index - 1].refcount == 1 {
@@ -1212,8 +1521,10 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
         4096,
     ) {
         Ok((region_id, shm_cap, _)) => {
-            let result1 = table.map_region(region_id, shm_cap, 101, 0, shmem::RIGHTS_READ, 0);
-            let result2 = table.map_region(region_id, shm_cap, 101, 0, shmem::RIGHTS_READ, 0);
+            let result1 =
+                fixture_map_region(table, region_id, shm_cap, 101, 1, shmem::RIGHTS_READ, 0);
+            let result2 =
+                fixture_map_region(table, region_id, shm_cap, 101, 1, shmem::RIGHTS_READ, 0);
             if result1.is_ok() && result2.is_ok() {
                 let index = ((region_id >> 32) & 0xFFFF) as usize;
                 if table.regions[index - 1].refcount == 2 {
@@ -1238,7 +1549,7 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     total += 1;
     match table.create_region(102, 4096, shmem::REGION_FLAG_READABLE, 4096) {
         Ok((region_id, shm_cap, _)) => {
-            match table.map_region(region_id, shm_cap, 102, 1, shmem::RIGHTS_READ, 0) {
+            match fixture_map_region(table, region_id, shm_cap, 102, 1, shmem::RIGHTS_READ, 0) {
                 Ok(mapping_id) => match table.unmap_region(102, mapping_id, 1) {
                     Ok(_) => {
                         let index = ((region_id >> 32) & 0xFFFF) as usize;
@@ -1276,7 +1587,7 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     total += 1;
     match table.create_region(103, 4096, shmem::REGION_FLAG_READABLE, 4096) {
         Ok((region_id, shm_cap, _)) => {
-            match table.map_region(region_id, shm_cap, 103, 1, shmem::RIGHTS_READ, 0) {
+            match fixture_map_region(table, region_id, shm_cap, 103, 1, shmem::RIGHTS_READ, 0) {
                 Ok(mapping_id) => {
                     let result = table.close_region(103, region_id);
                     if result == Err(shmem::STATUS_REGION_IN_USE) {
@@ -1309,7 +1620,7 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     total += 1;
     match table.create_region(104, 4096, shmem::REGION_FLAG_READABLE, 4096) {
         Ok((region_id, shm_cap, _)) => {
-            match table.map_region(region_id, shm_cap, 104, 1, shmem::RIGHTS_READ, 0) {
+            match fixture_map_region(table, region_id, shm_cap, 104, 1, shmem::RIGHTS_READ, 0) {
                 Ok(mapping_id) => match table.unmap_region(104, mapping_id, 1) {
                     Ok(_) => {
                         let result = table.close_region(104, region_id);
@@ -1348,9 +1659,11 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     match table.create_region(105, 4096, shmem::REGION_FLAG_READABLE, 4096) {
         Ok((region_id, shm_cap, _)) => {
             // Request write rights on read-only region - should fail with INVALID_RIGHTS
-            let result1 = table.map_region(region_id, shm_cap, 105, 1, shmem::RIGHTS_WRITE, 0);
+            let result1 =
+                fixture_map_region(table, region_id, shm_cap, 105, 1, shmem::RIGHTS_WRITE, 0);
             // Request read rights - should succeed
-            let result2 = table.map_region(region_id, shm_cap, 105, 1, shmem::RIGHTS_READ, 0);
+            let result2 =
+                fixture_map_region(table, region_id, shm_cap, 105, 1, shmem::RIGHTS_READ, 0);
 
             if result1 == Err(shmem::STATUS_INVALID_RIGHTS) && result2.is_ok() {
                 kprintln!("shmem_test: map_region_checks_rights_against_flags PASS");
@@ -1379,7 +1692,8 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
         if let Ok((region_id, cap, _)) =
             table.create_region(106, 4096, shmem::REGION_FLAG_READABLE, 4096)
         {
-            if let Ok(mapping_id) = table.map_region(region_id, cap, 106, 1, shmem::RIGHTS_READ, 0)
+            if let Ok(mapping_id) =
+                fixture_map_region(table, region_id, cap, 106, 1, shmem::RIGHTS_READ, 0)
             {
                 let index = ((region_id >> 32) & 0xFFFF) as usize - 1;
                 let vaddr = unsafe { crate::arch::VirtAddr::new(table.regions[index].vaddr) };
@@ -1397,6 +1711,10 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
 
     // Summary
     kprintln!("shmem_test: {}/{} tests passed", passed, total);
+
+    #[cfg(not(test))]
+    run_trace_delivery_regression(writer);
+    kprintln!("shmem_test: COMPLETE");
 
     // Emit trace event for Foundry gate parsing
     trace_ring::emit(writer, 0x5348, passed as u64, total as u64); // "SH" - Shared Memory
