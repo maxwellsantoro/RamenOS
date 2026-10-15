@@ -1,6 +1,6 @@
 # RISKS
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-15
 **Status:** Active
 
 These risks are evaluated against the [Vision](VISION.md) of an everyday,
@@ -51,21 +51,25 @@ the asserted host/QEMU controls and retains the following integration risks:
 - Host Store revocation cannot retract paths or bytes already delivered or prevent
   same-UID filesystem access. Target Domain Manager integration remains unfinished.
 - Strict live-authority state is bounded at 1024 IDs per epoch; expiry/revocation
-  does not reclaim an ID. The implemented candidate adds explicit offline
+  does not reclaim an ID. The accepted successor adds explicit offline
   revoke-all rollover with fresh exclusive keys and 64 retired keys, never silent
   compaction. Capacity denial preserves revocation of existing grants. Uncertain
   durable updates fail closed and may require operator recovery.
 - POSIX default execution remains a trusted development path with best-effort
   rlimits; helper isolation controls do not establish default containment.
 
-## Updated-review foundation candidate
+## Accepted updated-review foundations
 
 The user selected foundation follow-ups before further process implementation.
-The updated-review P1/P2/P3 candidate adds explicit field codecs and UTF-8 checks,
+The accepted updated-review P1/P2/P3 packets add explicit field codecs and UTF-8 checks,
 fixed trace capacity metadata, retained Shmem outcomes and Store authority
-lifetime/epoch repairs. Assembled boundary checks and both-architecture S8 assertions
-pass locally; editor preservation and matching hosted qualification remain pending.
-PR #40/41 results qualify preceding source only. The
+lifetime/epoch repairs. Assembled suites, both-architecture S8 assertions, original
+task18/Reader93 and all affected editor consumers pass locally. PR #42's push, PR
+and post-merge runs each pass all nine jobs and 68 canonical records on their first
+attempt. PR #40/41 results qualify preceding source only. PR #43 changes timing
+fixtures; PR #44/#45 add bounded diagnostics and test recovery without changing
+production budgets or containment. Their separate qualification and failures are
+retained. The
 [acceptance record](docs/plans/updated-review-repairs-2026-10-14.md) owns the scope.
 
 Per-ID Store draining permits unrelated authority management during a held read;
@@ -81,6 +85,12 @@ These changes do not complete the authenticated process/trace carrier, full P0,
 real editor child, RUN0, target Store/storage, SMP page-table synchronization or
 physical qualification. POSIX remains a trusted host path with best-effort limits;
 GetBlob paths/bytes and same-UID filesystem access remain outside revocation.
+
+Cold Docker creation can consume most of the 2500 ms LT validation wall budget.
+The launcher fails closed and attempts cleanup; unconfirmed creation poisons the
+task and requires reconciliation. Partial stdout cannot grant commit authority. The transaction fixture now tests one explicit new validation
+after confirmed cleanup, retaining both outcomes. That fixture policy supplies no
+cold-start latency guarantee or automatic runtime retry.
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:

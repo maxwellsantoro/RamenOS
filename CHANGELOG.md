@@ -1,6 +1,22 @@
 # CHANGELOG
 
-## 2026-10-14 — updated-review foundation candidate
+## 2026-10-15 — hosted timeout recovery evidence
+
+- Retain bounded create/inspect and attach progress evidence without changing
+  execution budgets, containment, cleanup or public error redaction.
+- Explain the post-merge LT failure: cold Docker create consumed 2314 ms of the
+  remaining 2422 ms budget. Partial worker output remains unusable after timeout.
+- Extend the transaction fixture to require confirmed cleanup, unchanged state
+  and denied commit before exactly one fresh validation can recover. Preserve
+  both attempts and every later transaction/restart/revocation assertion. This
+  changes the fixture availability expectation; it does not fix Docker latency
+  or add a runtime retry. PR #45 also covers broker rejection after completed
+  execution when aggregate wall time includes cleanup. The final runtime merge
+  passes all nine post-merge jobs and 68 canonical records on its first attempt;
+  retained failures and source identities are recorded in
+  [the acceptance record](docs/plans/updated-review-repairs-2026-10-14.md).
+
+## 2026-10-14 — accepted updated-review foundations
 
 - Add explicit generated field codecs with initialized padding and restricted
   decoding; preserve valid UTF-8 when bounding domain names and expose checked
@@ -17,10 +33,20 @@
   1024 IDs per epoch, 64 retired keys and an externally maintained checkpoint pin.
   Preserve ordinary Store launch selection after adding the operator binary.
 - Extend existing gates and source registries without removing earlier assertions.
-  Focused host checks are preliminary; final assembled local/hosted qualification
-  and new both-architecture target checks remain pending. PR #40/41 qualify their
-  preceding source only. The user selected these foundations before process work;
-  process/RUN0/target/SMP, same-UID and external-operator limitations remain. See
+  Assembled host suites, both-architecture S8, original task18/Reader93 and all
+  affected editor consumers pass. S11/S12/S13 and org-governance pass locally.
+- Accept the six bounded findings through PR #42: runtime head `49ea1d4` and main
+  `b41c43a` have identical trees. Push, PR and
+  [post-merge CI](https://github.com/maxwellsantoro/RamenOS/actions/runs/38675734768)
+  each pass all nine jobs and 68 canonical records on their first attempt.
+  Preserve earlier compiler/fixture failures and the repaired AArch64 boot-stack
+  temporary in the evidence record. PR #40/41 qualify preceding source only.
+- An additional tooling run exposed PID-publication and boot-output fixture races;
+  separate test-only fixes pass all 149 Python/seven Rust tooling controls and
+  are recorded separately in PR #43. PR #44 adds bounded timeout evidence and
+  explicit test recovery, as recorded above; production budgets and containment
+  remain unchanged. Resume the existing P0/process sequence; process/RUN0/target/SMP,
+  same-UID and external-operator limits remain. See
   [the acceptance record](docs/plans/updated-review-repairs-2026-10-14.md).
 
 ## 2026-10-14 — comprehensive review enforcement repairs

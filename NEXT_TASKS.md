@@ -1,6 +1,6 @@
 # Next Tasks
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-15
 **Status:** Authoritative ready work and acceptance dependencies
 
 [Current Status](CURRENT_STATUS.md) records landed behavior; [Roadmap](ROADMAP.md)
@@ -8,22 +8,24 @@ connects checkpoints to [Vision](VISION.md). This queue owns dispatch order. Use
 [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for scope, resource reservations and
 handoff; do not copy this queue into instructions or skills.
 
-## Updated-review foundation integration
+## Accepted updated-review foundations
 
 The user selected the updated-review P1/P2/P3 foundation follow-ups before further
 editor-process implementation. Explicit wire/UTF-8 checks, truthful fixed trace
 capacity, retained Shmem outcomes, per-ID Store drains and offline authority epoch
-rotation are implemented candidates. These review packet names do not complete
+rotation are accepted through PR #42. These review packet names do not complete
 the process P1/P2/P3 sequence below. The
 [acceptance record](docs/plans/updated-review-repairs-2026-10-14.md) owns their
-assertions and remaining qualification.
+assertions and source-bound qualification.
 
-Finish fresh assembled local gates, both-architecture target checks and matching
-hosted qualification before accepting this predecessor. The assembled boundary
-gate and both-architecture S8 checks pass locally; editor preservation and matching
-hosted qualification remain pending.
-Preserve all previous editor consumers and reviewed source registries. PR #40/41
-qualify preceding source only; do not reuse their results for changed inputs.
+Assembled local suites, both-architecture S8 assertions, original task18/Reader93,
+all affected editor consumers and S11/S12/S13/org-governance pass. PR #42's push,
+PR and post-merge hosted runs each pass all nine jobs and 68 canonical records on
+the first attempt. Preserve that accepted predecessor, existing consumers and
+reviewed source registries while starting the existing process sequence. PR #40/41
+qualify preceding source only; PR #42 evidence likewise cannot qualify later
+changed inputs. PR #43 fixture repairs and PR #44/#45 timeout evidence/test recovery
+have separate qualification and failure history in the plan.
 
 The next runtime joins remain independently bounded: authenticated caller identity
 from process execution; SMP page-table exclusion and active userspace translation;
@@ -34,8 +36,8 @@ fixture success.
 
 ## Ready work front
 
-**Now:** qualify the implemented updated-review foundations, then resume the
-existing process assertion/contract sequence. Advance RUN0/input/storage
+**Now:** resume the existing full P0 assertion/contract sequence and its dependent
+process packets, preserving the qualified foundations. Advance RUN0/input/storage
 preparation independently within its ready dependencies.
 
 The first product checkpoint remains one keyboard-first human editing task that

@@ -1,8 +1,8 @@
 # Current Status
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-15
 **Status:** Active and authoritative for landed state
-**Current Slice:** Updated-review foundation follow-ups before UI1.1d process work
+**Current Slice:** UI1.1d P0/process sequence after qualified foundation follow-ups
 **Physical Lane:** S12.4 HIL appliance observation/actuation awaits setup
 **Software Lane:** SW0 foundations through A2.9; full A2 and comparison pending
 
@@ -193,13 +193,13 @@ The default POSIX path remains trusted host development with best-effort rlimits
 The real editor child, full P0, RUN0, target storage and physical graduation remain
 unfinished.
 
-### Updated-review successor — implemented candidate, qualification pending
+### Updated-review successor — accepted foundation repairs
 
-The updated-review P1/P2/P3 foundation packets are implemented in the current
-candidate. The user selected these follow-ups before further editor-process
+The updated-review P1/P2/P3 foundation packets are accepted through PR #42.
+The user selected these follow-ups before further editor-process
 implementation. These packet labels are separate from the process P1/P2/P3
 sequence. [The acceptance record](docs/plans/updated-review-repairs-2026-10-14.md)
-owns the bounded assertions and qualification state.
+owns the six bounded findings, assertions and qualification evidence.
 
 Explicit field codecs initialize padding and reject unsupported raw-copy decodes;
 domain names truncate only at UTF-8 boundaries and provide checked decoding.
@@ -220,11 +220,23 @@ and an exact external checkpoint pin. See the
 [operator contract](docs/STORE_AUTHORITY_EPOCH_V1.md); this is not hardware-backed
 rollback protection or online grant preservation.
 
-The assembled boundary gate, kernel/API/codegen suites and strict Clippy pass on
-macOS. Both x86_64/AArch64 S8 target runs pass all prior and new assertions after
-a bounded in-place boot-fixture reset removed an oversized AArch64 stack temporary.
-Affected editor consumers and final hosted qualification remain **pending**. PR #40
-and PR #41 qualification belongs to preceding source and cannot qualify this candidate.
+Assembled kernel/API/Store suites, strict Clippy, the extended boundary gate and
+all affected editor consumers pass locally, including original task18/Reader93
+and reliability13. Both x86_64/AArch64 S8 target runs pass all prior and new
+assertions after a bounded in-place reset removed an oversized AArch64 boot-stack
+temporary. S11/S12/S13 and org-governance pass locally.
+
+PR #42's reviewed runtime head `49ea1d4` and merged main `b41c43a` have the same
+tree. Its [push run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38674300567),
+[PR run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38674334354) and
+[post-merge run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38675734768)
+each passed all nine jobs and all 68 canonical records on the first attempt.
+PR #40/41 remain evidence for preceding source. An additional local tooling run
+exposed two fixture-readiness races; test-only repairs pass the complete suite of
+149 Python and seven Rust controls. PR #43 carries those test-only repairs;
+PR #44 adds bounded timeout evidence and an explicit test recovery scenario;
+PR #45 covers aggregate broker timeouts as well. Their separate qualification and retained failure history are tracked in the plan.
+Production budgets, containment and public error redaction remain unchanged.
 The authenticated process/trace carrier, full process P0 and real editor child,
 RUN0, target grants/storage, SMP page-table synchronization and physical graduation
 remain unfinished. Host paths/bytes and same-UID filesystem access are not revoked;
