@@ -207,9 +207,10 @@ This qualifies the assembled runtime tree `b9f918b5ac49c3822d9f8557b20efac9f183b
 on merged `ce61077`, including the corrected recovery fixture. Earlier failed
 attempts remain retained. No uncertain creation was accepted as recovery, no
 partial worker result was accepted after timeout, and no production deadline,
-authority check or containment setting was relaxed. Later prose qualification
-updates do not establish another runtime execution. The five runtime lanes may
-be skipped for prose-only changes while required policy/governance gates pass.
+authority check or containment setting was relaxed. The final Markdown update
+also changes `NEXT_TASKS.md`, an explicitly executable Foundry input. Its path
+classification therefore requires fresh full five-lane Foundry qualification,
+even though runtime source is unchanged; no lane waiver is requested.
 
 ## Limits and next dependency
 
