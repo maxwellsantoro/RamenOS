@@ -141,6 +141,9 @@ EOF
 # Start store service with trusted keys
 chmod 600 "$TEST_KEYS/trusted_keys"
 export RAMEN_STORE_TRUSTED_KEYS="$TEST_KEYS/trusted_keys"
+# Strict live authority has separate issuer trust. This public RFC8032 fixture
+# key provisions startup only; no grants or signing secrets are fabricated.
+export RAMEN_STORE_CAP_TRUSTED_KEYS="PUAXw+hDiVqStwqnTRt+vJyYLM8uxJaMwM1V8Sr0Zgw="
 unset RAMEN_STORE_DEV_MODE
 
 RAMEN_STORE_SOCKET="$S7_STORE_DIR/store_signed.sock" \

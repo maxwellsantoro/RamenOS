@@ -208,11 +208,19 @@ mod script {
             "rust",
         ),
         (
+            "kernel_api/src/generated/shmem_consent_v2.generated.rs",
+            "rust",
+        ),
+        (
             "kernel_api/src/generated/store_service_v1.generated.rs",
             "rust",
         ),
         (
             "kernel_api/src/generated/trace_service_v1.generated.rs",
+            "rust",
+        ),
+        (
+            "kernel_api/src/generated/trace_delivery_v3.generated.rs",
             "rust",
         ),
         (
