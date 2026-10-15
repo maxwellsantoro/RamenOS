@@ -4,7 +4,7 @@
 
 ### P0 preparation progress — 2026-10-15
 
-The preparation gate executes three genuine in-process setup controls and three
+The preparation gate executes nine genuine in-process setup controls and four
 test-owner policy controls, then requires actual compiler RED for four authored
 process API consumers. Constructor panic after successful Store setup exercises
 real writer cleanup. The separate borrower-panic control keeps the actual app
@@ -16,8 +16,16 @@ expired join admission and quarantines parent owners even if a consuming call
 unwinds after taking the child. Pure policy controls establish only that test
 owner behavior; the new prompt-NotReady consumer remains unexecuted. The gate is
 an additional hosted editor step with separate evidence, preserving the canonical
-task and CI inventories. Opaque Store initialization/reopen failure-owner staging,
-native fault/transport/publication controls, uncertain parent death and all thirty
+task and CI inventories. Opaque Store failure owners are now staged before
+assertions or unwind. Actual initialization failures retain their whole parent
+groups because no public close proof exists. Returned reopen failures preserve
+the original fence, ticket and receipt, with exact held journal-byte restoration
+used only as a trusted test repair before another genuine Save and durable reopen.
+Two initialization and two reopen Drop/policy cases intentionally quarantine
+their parents. One policy test deliberately loses a moved fence in a faulty test
+consumer; it does not prove Store-internal unwinding. The two-second deadline
+bounds quiescence/fence acquisition only, not synchronous reopen or retry IO.
+Native fault/transport/publication controls, uncertain parent death and all thirty
 families remain prerequisites. No dependent process handlers are admitted here.
 
 The wire, authority, bounds, API and assertion inventories are maintained in `docs/contracts/editor-process-v0.json`; exact signatures are in `docs/DESKTOP_EDITOR_PROCESS_API_V0.md`. Existing native Save/task contracts remain referenced without broadening their accepted evidence.

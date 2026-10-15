@@ -120,18 +120,25 @@ Both trace dispatch entrypoints bind creation to that capability's domain before
 allocating or resetting state. The comprehensive successor below adds caller-bound read/info/destroy checks;
 generic IPC handles still lack protocol-specific rights.
 
-P0 preparation has three genuine in-process controls: Read/reopen, post-prepare
-constructor panic with a permitted writer, and borrower panic through the real
-app Save chain followed by a fresh Save and unrelated app progress. Three separate
-parent-owner policy controls cover quarantine, release and an immutable cleanup
-deadline; these do not observe a native child. Four authored consumers target the frozen process API.
+P0 preparation has nine genuine in-process controls, including Read/reopen,
+constructor and Save-chain panic, actual initialization failures and retained
+reopen failure/recovery. Four separate parent-owner policy controls cover
+quarantine, release, an immutable child cleanup deadline and a deliberately
+faulty consuming reopen callback; these do not observe a native child or a
+Store-internal panic. Four authored consumers target the frozen process API.
 The process APIs remain absent: their actual compiler RED is preparation, never
 runtime acceptance or completion of the thirty assertion families. Consuming join
 must return promptly without unwinding and return the sole child on uncertainty.
 The preparation gate serializes recorder access and runs separately in hosted
-editor CI, retaining its setup, compiler and source snapshots. Opaque Store
-initialization/reopen failure-owner staging, private native negative controls and
-process-mode shared app Save ownership remain required before P1/P2 handlers.
+editor CI, retaining its setup, strict Clippy, compiler and source snapshots.
+Opaque Store failures are now staged before assertions/unwind. Reopen retains
+its real fence and original operation through a trusted fixture journal repair,
+then proves a new Save and durable reopen. Initialization has no public close
+proof, so its failure controls intentionally quarantine two parent groups; two
+reopen Drop/policy controls also retain their unproved owners. The original
+two-second quiescence deadline bounds fence acquisition, not synchronous reopen
+IO or a full retry lifetime. Private native negative controls and process-mode
+shared app Save ownership remain required before P1/P2 handlers.
 Source and validation scope are tracked in the follow-up
 review resolution. Those local results remain source-bound; hosted qualification
 must identify its matching revision.

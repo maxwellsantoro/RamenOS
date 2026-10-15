@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-10-15 — P0 opaque Store failure ownership
+
+- Stage complete constructor parents and the actual initialization failure before
+  assertions or unwind. Retain unknown failures rather than dropping the Store
+  owner and deleting its root; no public initialization close proof exists.
+- Stage reopen parents before quiescence and consuming calls, keep the original
+  fence on returned failure, and forbid fresh admission after a consuming call
+  unwinds without returning its owner. Preserve one fence-acquisition deadline.
+- Reproduce the prior root-deletion bug before implementation. Add actual
+  failure, panic, known epoch-exhaustion close and recovery controls, including
+  genuine original receipts, a fresh Save and durable reopen. Exact journal-byte
+  restoration and consuming callback fault injection are private test controls.
+- Extend preparation to thirteen controls plus strict Clippy and four retained
+  missing-process-API consumers. Four controls intentionally quarantine parents;
+  their passing assertions do not establish cleanup, Store-internal unwind
+  behavior, bounded reopen IO, native child execution or full P0 completion.
+
 ## 2026-10-15 — editor process P0 owner preparation
 
 - Install the genuine fixture cleanup guard before fallible post-Store setup.

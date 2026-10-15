@@ -828,6 +828,76 @@ struct RecordedQuiesceJoins {
     closed_after_incomplete: bool,
     pending: Vec<desktop::ProducerId>,
 }
+// Private test owners, installed before consuming Store calls. An absent token
+// during unwind is uncertainty, never permission to delete its parent root.
+struct ConstructionOwners {
+    fixture: Fixture,
+    witness: Option<desktop::RegistryWitness>,
+    enrollment: Option<desktop::NativeSaveEnrollment>,
+    failure: Option<store::NativeSaveInitFailure>,
+}
+struct ConstructionGuard(Option<Box<ConstructionOwners>>);
+impl Drop for ConstructionGuard {
+    fn drop(&mut self) {
+        if let Some(owners) = self.0.take() {
+            std::mem::forget(owners);
+            use std::io::Write;
+            let _ = std::io::stderr().write_all(
+                b"INCOMPLETE: retaining initialization owner/root; no opaque close proof\n",
+            );
+        }
+    }
+}
+pub struct FixtureInitFailure {
+    owners: ConstructionGuard,
+}
+impl FixtureInitFailure {
+    pub fn failure(&self) -> &store::NativeSaveInitFailure {
+        self.owners.0.as_ref().unwrap().failure.as_ref().unwrap()
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn root_path(&self) -> &Path {
+        self.owners
+            .0
+            .as_ref()
+            .unwrap()
+            .fixture
+            .root
+            .as_ref()
+            .unwrap()
+            .path()
+    }
+}
+struct ReopenParents {
+    root: tempfile::TempDir,
+    _prepared: Arc<store::PreparedNativeSaveStore>,
+    _desktop: desktop::HostDesktop,
+    _controller: Arc<desktop::FixtureController>,
+    quiesce_deadline: Instant,
+    fence: Option<store::QuiescedNativeSaveOwner>,
+    failure: Option<store::NativeSaveReopenFailure>,
+    next: Option<store::PreparedNativeSaveStore>,
+    consuming: bool,
+    archived: bool,
+    // Moved here on Fixture Drop before quarantine, preserving the complete
+    // private parent group rather than retaining only a diagnostic pathname.
+    drivers: Vec<volatile::Driver>,
+    desktop_pauses: Vec<Arc<desktop::NativeSavePause>>,
+    store_pauses: Vec<(Arc<store::PreparedNativeSaveStore>, Arc<store::PauseToken>)>,
+    quiesce_joins: Option<RecordedQuiesceJoins>,
+    recording: Option<recording::ScenarioRecorder>,
+}
+struct ReopenGuard(Option<Box<ReopenParents>>);
+impl Drop for ReopenGuard {
+    fn drop(&mut self) {
+        if let Some(owners) = self.0.take() {
+            std::mem::forget(owners);
+            use std::io::Write;
+            let _ = std::io::stderr()
+                .write_all(b"INCOMPLETE: retaining reopen owner/root; completion unproved\n");
+        }
+    }
+}
 pub struct Fixture {
     pub recording: std::cell::RefCell<Option<recording::ScenarioRecorder>>,
     pub core_ordinal: u32,
@@ -843,6 +913,7 @@ pub struct Fixture {
     pub initial: BTreeMap<PathBuf, Vec<u8>>,
     pub joined: BTreeSet<u64>,
     recorded_quiesce_joins: Option<RecordedQuiesceJoins>,
+    reopen_owners: Option<ReopenGuard>,
     pub desktop_pauses: Vec<Arc<desktop::NativeSavePause>>,
     pub store_pauses: Vec<(Arc<store::PreparedNativeSaveStore>, Arc<store::PauseToken>)>,
 }
@@ -1044,10 +1115,38 @@ impl Fixture {
         p: store::NativeSaveFixtureProfile,
         probe: impl FnOnce(&mut Self),
     ) -> Self {
+        match Self::try_configured(case, spec, n, (preview, instance), p, |_| {}, probe) {
+            Ok(fixture) => fixture,
+            Err(failure) => {
+                let status = failure.failure().status();
+                drop(failure); // quarantines the actual opaque owner before panic
+                panic!("actual Store initialization failed with retained owner: {status:?}");
+            }
+        }
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn try_recorded_profile_with_root_probe(
+        case: &Arc<recording::CaseRecorder>,
+        spec: recording::ScenarioSpec,
+        n: usize,
+        profile: store::NativeSaveFixtureProfile,
+        probe: impl FnOnce(&Path),
+    ) -> Result<Self, FixtureInitFailure> {
+        Self::try_configured(case, spec, n, (30000, 600000), profile, probe, |_| {})
+    }
+    fn try_configured(
+        case: &Arc<recording::CaseRecorder>,
+        spec: recording::ScenarioSpec,
+        n: usize,
+        ttl: (u64, u64),
+        p: store::NativeSaveFixtureProfile,
+        root_probe: impl FnOnce(&Path),
+        probe: impl FnOnce(&mut Self),
+    ) -> Result<Self, FixtureInitFailure> {
         // Acquire the fallible recorder before any live Store/root ownership.
         let recording = ok(case.scenario(spec));
         let (h, dc, witness, enrollment) = ok(desktop::HostDesktop::new_store_save(
-            volatile::config(preview, instance),
+            volatile::config(ttl.0, ttl.1),
         ));
         let mut drivers = Vec::new();
         for i in 0..n.min(2) {
@@ -1070,12 +1169,9 @@ impl Fixture {
         }
         let root = temporary();
         let path = root.path().join("owner");
-        let prepared = Arc::new(ok(store::StoreFixture::prepare_native_save(
-            &path, p, witness, enrollment,
-        )));
-        // No fallible inspection between successful Store preparation and this
-        // ownership guard. Every later panic must run Fixture's real cleanup.
-        let mut this = Self {
+        // Own the complete parent group before Store preparation, including
+        // returned failure owners and the uncertain consuming-call window.
+        let this = Self {
             recording: std::cell::RefCell::new(Some(recording)),
             core_ordinal: 0,
             snapshot_ordinal: std::cell::Cell::new(0),
@@ -1084,19 +1180,41 @@ impl Fixture {
             h,
             dc: Arc::new(dc),
             drivers,
-            prepared: Some(prepared),
+            prepared: None,
             root: Some(root),
             path,
             initial: BTreeMap::new(),
             joined: BTreeSet::new(),
             recorded_quiesce_joins: None,
+            reopen_owners: None,
             desktop_pauses: vec![],
             store_pauses: vec![],
         };
+        let mut owners = ConstructionGuard(Some(Box::new(ConstructionOwners {
+            fixture: this,
+            witness: Some(witness),
+            enrollment: Some(enrollment),
+            failure: None,
+        })));
+        let held = owners.0.as_mut().unwrap();
+        root_probe(held.fixture.root.as_ref().unwrap().path());
+        match store::StoreFixture::prepare_native_save(
+            &held.fixture.path,
+            p,
+            held.witness.take().unwrap(),
+            held.enrollment.take().unwrap(),
+        ) {
+            Ok(prepared) => held.fixture.prepared = Some(Arc::new(prepared)),
+            Err(failure) => {
+                held.failure = Some(failure);
+                return Err(FixtureInitFailure { owners });
+            }
+        }
+        let mut this = owners.0.take().unwrap().fixture;
         probe(&mut this);
         this.initial = files(&this.path);
         this.store_snapshot("initial", "source_checkpoint", None, None);
-        this
+        Ok(this)
     }
     pub fn prepared(&self) -> &store::PreparedNativeSaveStore {
         self.prepared.as_ref().unwrap()
@@ -1513,9 +1631,8 @@ impl Fixture {
         }
         result
     }
-    fn drain_recorded_quiesce_joins(&mut self) {
+    fn drain_recorded_quiesce_joins(&mut self, deadline: Instant) {
         assert!(self.recorded_quiesce_matches_current());
-        let deadline = Instant::now() + Duration::from_millis(2000);
         loop {
             self.join_all();
             if self.h.native_producer_counts().held == 0 {
@@ -1574,15 +1691,181 @@ impl Fixture {
         assert_eq!(files(&self.path), self.initial)
     }
     pub fn reopen(&mut self) {
+        if let Err(status) = self.try_reopen() {
+            panic!("actual Store reopen failed with retained owner: {status:?}");
+        }
+    }
+    fn stage_reopen_parents(&mut self) {
+        if self.reopen_owners.is_some() {
+            return;
+        }
+        // Clone shared parents before moving the actual TempDir. An empty
+        // owner slot during the consuming call must never authorize deletion.
+        let prepared = self.prepared.as_ref().unwrap().clone();
+        let desktop = self.h.clone();
+        let controller = self.dc.clone();
+        let root = self
+            .root
+            .take()
+            .expect("actual root before reopen admission");
+        self.reopen_owners = Some(ReopenGuard(Some(Box::new(ReopenParents {
+            root,
+            _prepared: prepared,
+            _desktop: desktop,
+            _controller: controller,
+            quiesce_deadline: Instant::now() + Duration::from_millis(2000),
+            fence: None,
+            failure: None,
+            next: None,
+            consuming: false,
+            archived: false,
+            drivers: vec![],
+            desktop_pauses: vec![],
+            store_pauses: vec![],
+            quiesce_joins: None,
+            recording: None,
+        }))));
+    }
+    fn staged_reopen(&self) -> &ReopenParents {
+        self.reopen_owners.as_ref().unwrap().0.as_ref().unwrap()
+    }
+    fn staged_reopen_mut(&mut self) -> &mut ReopenParents {
+        self.reopen_owners.as_mut().unwrap().0.as_mut().unwrap()
+    }
+    pub fn staged_reopen_failure(&self) -> Option<&store::NativeSaveReopenFailure> {
+        self.reopen_owners.as_ref()?.0.as_ref()?.failure.as_ref()
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn staged_reopen_snapshot(&self) -> Option<store::NativeSaveFenceSnapshot> {
+        let held = self.reopen_owners.as_ref()?.0.as_ref()?;
+        held.fence
+            .as_ref()
+            .or_else(|| held.failure.as_ref().map(|f| &f.owner))
+            .map(|owner| owner.fence_snapshot())
+    }
+    pub fn try_reopen(&mut self) -> Result<(), StoreStatus> {
+        self.try_reopen_with_probe(|_| {})
+    }
+    pub fn try_reopen_with_probe(
+        &mut self,
+        probe: impl FnOnce(&mut store::QuiescedNativeSaveOwner),
+    ) -> Result<(), StoreStatus> {
+        self.try_reopen_owned(probe, store::StoreFixture::reopen_native_save)
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn try_reopen_with_consumer_unwind(&mut self) -> Result<(), StoreStatus> {
+        // Test-owner policy control only: a deliberately faulty consumer drops
+        // the genuine moved fence then panics. This is not an injected panic
+        // in the Store implementation and supplies no replacement close proof.
+        self.try_reopen_owned(
+            |_| {},
+            |owner| {
+                drop(owner);
+                panic!("supported consuming reopen policy panic");
+            },
+        )
+    }
+    fn try_reopen_owned(
+        &mut self,
+        probe: impl FnOnce(&mut store::QuiescedNativeSaveOwner),
+        consumer: impl FnOnce(
+            store::QuiescedNativeSaveOwner,
+        )
+            -> Result<store::PreparedNativeSaveStore, store::NativeSaveReopenFailure>,
+    ) -> Result<(), StoreStatus> {
+        // Validate adoption capacity before consuming any opaque owner.
+        let next_ordinal = self
+            .core_ordinal
+            .checked_add(1)
+            .expect("actual Core ordinal");
+        assert!(next_ordinal < 4);
+        self.stage_reopen_parents();
+        if self.staged_reopen().consuming {
+            // A prior consuming call unwound without returning its owner. No
+            // second fence, fabricated absence or retry can repair that loss.
+            return Err(StoreStatus::Unknown);
+        }
+        if let Some(failure) = self.staged_reopen_mut().failure.take() {
+            self.staged_reopen_mut().fence = Some(failure.owner);
+        }
+        if self.staged_reopen().fence.is_none() {
+            let remaining = self
+                .staged_reopen()
+                .quiesce_deadline
+                .saturating_duration_since(Instant::now());
+            let remaining_ms = remaining.as_millis().min(2000) as u64;
+            if remaining_ms == 0 {
+                return Err(StoreStatus::Timeout);
+            }
+            self.acquire_reopen_fence()?;
+        }
+        let actual = self
+            .staged_reopen()
+            .fence
+            .as_ref()
+            .unwrap()
+            .fence_snapshot();
+        assert_eq!(actual.base.live_ownership_after_join, 0);
+        if !self.staged_reopen().archived {
+            self.archive_core(actual);
+            self.staged_reopen_mut().archived = true;
+        }
+        // Callback borrows the held real fence. Panic leaves that same owner
+        // available; it is distinct from an unwind after the consuming call.
+        probe(self.staged_reopen_mut().fence.as_mut().unwrap());
+        self.staged_reopen_mut().consuming = true;
+        let token = self.staged_reopen_mut().fence.take().unwrap();
+        match consumer(token) {
+            Ok(next) => self.staged_reopen_mut().next = Some(next),
+            Err(failure) => {
+                self.staged_reopen_mut().failure = Some(failure);
+                self.staged_reopen_mut().consuming = false;
+                return Err(self.staged_reopen_failure().unwrap().error.status);
+            }
+        }
+        // All fallible admission/recording is complete before releasing the
+        // parent group. Stage the actual successor before installing it.
+        assert!(self.recorded_quiesce_joins.is_none());
+        let next = self.staged_reopen_mut().next.take().unwrap();
+        self.prepared = Some(Arc::new(next));
+        self.core_ordinal = next_ordinal;
+        self.snapshot_ordinal.set(0);
+        let parents = self.reopen_owners.take().unwrap().0.take().unwrap();
+        self.root = Some(parents.root);
+        Ok(())
+    }
+    fn acquire_reopen_fence(&mut self) -> Result<(), StoreStatus> {
         let tracked = self.recorded_quiesce_matches_current();
         if tracked {
-            self.drain_recorded_quiesce_joins();
+            self.drain_recorded_quiesce_joins(self.staged_reopen().quiesce_deadline);
         } else {
             self.join_all();
         }
-        let token = ok(self.prepared().controller().quiesce_native_save(2000));
-        let actual = token.fence_snapshot();
-        assert_eq!(actual.base.live_ownership_after_join, 0);
+        let remaining = self
+            .staged_reopen()
+            .quiesce_deadline
+            .saturating_duration_since(Instant::now());
+        let timeout_ms = remaining.as_millis().min(2000) as u64;
+        if timeout_ms == 0 {
+            return Err(StoreStatus::Timeout);
+        }
+        // Parents are already guarded even if this borrowed API unwinds after
+        // closing admission. Only an actual returned token supplies the fence.
+        self.staged_reopen_mut().consuming = true;
+        match self.prepared().controller().quiesce_native_save(timeout_ms) {
+            Ok(token) => self.staged_reopen_mut().fence = Some(token),
+            Err(error) => {
+                self.staged_reopen_mut().consuming = false;
+                return Err(error.status);
+            }
+        }
+        self.staged_reopen_mut().consuming = false;
+        let actual = self
+            .staged_reopen()
+            .fence
+            .as_ref()
+            .unwrap()
+            .fence_snapshot();
         if tracked {
             // Coverage only: every row must already have an authentic recorded
             // proof. Never construct a caller observation from this snapshot.
@@ -1593,12 +1876,30 @@ impl Fixture {
                 );
             }
         }
-        self.archive_core(actual);
         if tracked {
             self.recorded_quiesce_joins = None;
         }
-        let reopened = ok(store::StoreFixture::reopen_native_save(token));
-        self.replace_prepared(reopened);
+        Ok(())
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn finish_staged_reopen_failure(mut self) {
+        let failure = self
+            .staged_reopen_failure()
+            .expect("actual returned reopen failure");
+        let snapshot = failure.owner.fence_snapshot();
+        // This finite control has a source-proven pre-attempt epoch rejection.
+        // Other errors can retain a private successor Core and must quarantine
+        // or retry their actual owner, never infer closure from base counts.
+        assert_eq!(failure.error.status, StoreStatus::Exhausted);
+        assert!(
+            snapshot
+                .base
+                .objects
+                .iter()
+                .any(|o| o.reserved_successor_epoch.is_none())
+        );
+        let failure = self.staged_reopen_mut().failure.take().unwrap();
+        self.finish_reopen_failure(failure);
     }
     fn release_owned_pauses(&self) {
         for p in &self.desktop_pauses {
@@ -1657,7 +1958,14 @@ impl Fixture {
         ));
     }
     pub fn finish_reopen_failure(mut self, failure: store::NativeSaveReopenFailure) {
+        // Existing finite corruption/MAX controls use their known pre-attempt
+        // failure close path. Stage its actual owner before any assertion or
+        // recording can unwind; this is not a general Store close API.
+        self.stage_reopen_parents();
+        assert!(self.staged_reopen().failure.is_none());
+        self.staged_reopen_mut().failure = Some(failure);
         assert_eq!(self.h.native_producer_counts().held, 0);
+        let failure = self.staged_reopen_failure().unwrap();
         let actual = failure.owner.fence_snapshot();
         self.store_snapshot(
             "final",
@@ -1668,14 +1976,15 @@ impl Fixture {
         let desktop = ok(self.dc.evidence());
         self.record(|r| r.desktop(&desktop));
         self.record(|r| r.producer_counts("final", &self.h.native_producer_counts()));
-        drop(failure);
         self.prepared.take();
-        let root = self.root.take().expect("actual owned failed-reopen root");
         let recorder = self
             .recording
             .borrow_mut()
             .take()
             .expect("owned failed-reopen recorder");
+        let mut parents = self.reopen_owners.take().unwrap().0.take().unwrap();
+        drop(parents.failure.take().unwrap());
+        let root = parents.root;
         ok(recorder.finish_native_save(root, 0, 0, &self.recorded_fences, true));
     }
 }
@@ -2696,6 +3005,17 @@ pub fn no_late_io(f: &Fixture, op: u64, before: &[(u64, u64)]) {
 
 impl Drop for Fixture {
     fn drop(&mut self) {
+        if let Some(guard) = &mut self.reopen_owners {
+            let held = guard.0.as_mut().unwrap();
+            held.drivers = std::mem::take(&mut self.drivers);
+            held.desktop_pauses = std::mem::take(&mut self.desktop_pauses);
+            held.store_pauses = std::mem::take(&mut self.store_pauses);
+            held.quiesce_joins = self.recorded_quiesce_joins.take();
+            held.recording = self.recording.get_mut().take();
+            // ReopenGuard quarantines the complete actual parent group even
+            // when a consuming call has emptied the opaque-token slot.
+            return;
+        }
         if self.root.is_none() {
             return;
         }

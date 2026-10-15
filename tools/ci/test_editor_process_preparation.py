@@ -164,8 +164,10 @@ class PreparationInventoryControls(unittest.TestCase):
         }], "commands": [{"exit_code": 0, "reaped": True, "group_stop_before_reap": True}]}
 
     def test_exact_executed_setup_inventory(self):
-        self.assertEqual(len(preparation.validate_setup(self.summary())), 6)
+        self.assertEqual(len(preparation.validate_setup(self.summary())), 13)
         self.assertEqual(len(preparation.AUTHORED_CASES), 4)
+        self.assertEqual(len(preparation.POLICY_CASES), 4)
+        self.assertTrue(preparation.POLICY_CASES < preparation.SETUP_CASES)
 
     def test_missing_or_foreign_executed_case_is_rejected(self):
         for field in ("selected", "passed"):
