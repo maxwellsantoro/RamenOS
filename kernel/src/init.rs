@@ -95,7 +95,7 @@ fn with_fresh_shmem_table<R>(f: impl FnOnce(&mut shmem::ShmemRegionTable) -> R) 
     // - No interrupts are active that could touch this data
     // - The table is re-initialized fresh for each call
     unsafe {
-        INIT_SHMEM_TABLE = shmem::ShmemRegionTable::new();
+        INIT_SHMEM_TABLE.reset_boot_fixture();
         f(&mut INIT_SHMEM_TABLE)
     }
 }
@@ -1433,6 +1433,407 @@ fn fixture_map_region(
     table.accept_region(target, offer)
 }
 
+// Gate-only typed consumers run on both architectures without activating roots.
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn updated_gate_env<T: kernel_api::wire::WirePayload>(
+    protocol: u32,
+    message: u32,
+    ipc: kernel_api::cap::Handle,
+    value: &T,
+) -> Option<kernel_api::ipc::Envelope> {
+    let mut env = kernel_api::ipc::Envelope::empty(protocol, message);
+    env.handle = ipc;
+    kernel_api::wire::write_payload(&mut env, value).ok()?;
+    Some(env)
+}
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn run_updated_wire_regression() {
+    let passed = (|| {
+        use kernel_api::generated::CreateTraceBufferReply;
+        let reply = CreateTraceBufferReply {
+            request_id: 0x0102_0304_0506_0708,
+            status: 0x1122_3344,
+            trace_cap: 0x2132_4354_6576_8798,
+        };
+        let env = updated_gate_env(9, 2, kernel_api::cap::Handle::INVALID, &reply)?;
+        let expected = [
+            8, 7, 6, 5, 4, 3, 2, 1, 68, 51, 34, 17, 0, 0, 0, 0, 152, 135, 118, 101, 84, 67, 50, 33,
+        ];
+        let decoded: CreateTraceBufferReply = kernel_api::wire::read_payload(&env).ok()?;
+        let mut domains = crate::domain_registry::DomainRegistry::new();
+        domains
+            .register(3, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaé")
+            .ok()?;
+        let name = domains.get(3)?;
+        let raw = crate::domain_registry::DomainInfo::new(4, [0xff; 32]);
+        Some(
+            env.payload_len == 24
+                && env.payload[..24] == expected
+                && env.payload[24..].iter().all(|byte| *byte == 0)
+                && decoded.trace_cap == reply.trace_cap
+                && decoded.status == reply.status
+                && name.try_name_str().ok()?.as_bytes() == b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                && raw.try_name_str().is_err()
+                && raw.name_str().is_empty(),
+        )
+    })()
+    .unwrap_or(false);
+    if passed {
+        kprintln!("wire_review: initialized_codec_and_utf8 PASS");
+    } else {
+        kprintln!("wire_review: initialized_codec_and_utf8 FAIL");
+    }
+}
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn run_trace_capacity_regression(writer: &trace_ring::TraceWriter) {
+    if trace_capacity_case(writer).unwrap_or(false) {
+        kprintln!("trace_capacity_review: truthful_retention_and_overflow PASS");
+    } else {
+        kprintln!("trace_capacity_review: truthful_retention_and_overflow FAIL");
+    }
+}
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn trace_capacity_case(writer: &trace_ring::TraceWriter) -> Option<bool> {
+    use kernel_api::generated::*;
+    use kernel_api::wire::read_payload;
+    // SAFETY: constants identify independently known trusted boot principals.
+    let caller = unsafe { ipc_v0::CallerContext::for_trusted_kernel_fixture(3) };
+    let mut caps = crate::cap_table::StaticCapTable::new();
+    let ipc = caps.allocate_for_domain(3).ok()?;
+    let service = unsafe { &mut DELIVERY_TRACE_FIXTURE };
+    service.register_domain(3, "fixed-trace").ok()?;
+    let create = updated_gate_env(
+        TRACE_CAPACITY_V4_PROTOCOL_ID,
+        1,
+        ipc,
+        &CreateFixedTraceBuffer {
+            request_id: 1,
+            domain_id: 3,
+            max_delivery_bytes: 1536,
+            reserved: 0,
+        },
+    )?;
+    let created = ipc_v0::handle_trace_capacity_envelope(&caller, &caps, service, &create);
+    let created: CreateFixedTraceBufferReply = read_payload(&created).ok()?;
+    if created.status != 0
+        || created.retention_events != 64
+        || created.retention_bytes != 1536
+        || created.max_delivery_bytes != 1536
+    {
+        return Some(false);
+    }
+    let trace = kernel_api::cap::Handle::unpack(created.trace_cap);
+    for tag in 1..=64 {
+        service
+            .trace_ring_mut()
+            .emit(3, tag, u64::from(tag), 0x1122);
+    }
+    let info = updated_gate_env(
+        TRACE_CAPACITY_V4_PROTOCOL_ID,
+        3,
+        ipc,
+        &GetFixedTraceInfo {
+            request_id: 2,
+            trace_cap: trace.pack(),
+        },
+    )?;
+    let full = ipc_v0::handle_trace_capacity_envelope(&caller, &caps, service, &info);
+    let full: GetFixedTraceInfoReply = read_payload(&full).ok()?;
+    if full.status != 0 || full.read_offset != 0 || full.write_offset != 1536 {
+        return Some(false);
+    }
+    let regions = unsafe { &mut INIT_SHMEM_TABLE };
+    let (region, destination, physical) = regions
+        .create_region(
+            3,
+            4096,
+            shmem::REGION_FLAG_READABLE | shmem::REGION_FLAG_WRITABLE,
+            4096,
+        )
+        .ok()?;
+    // SAFETY: held boot fixture frame is directly accessible and not mapped active.
+    unsafe {
+        core::ptr::write_bytes(physical as *mut u8, 0xcd, 4096);
+    }
+    let make_read = |offset| {
+        updated_gate_env(
+            TRACE_DELIVERY_V3_PROTOCOL_ID,
+            1,
+            ipc,
+            &ReadTraceInto {
+                request_id: 3,
+                trace_cap: trace.pack(),
+                destination_shm_cap: destination.pack(),
+                destination_offset: 8,
+                trace_offset: offset,
+                length: 1536,
+                version: 3,
+                reserved: 0,
+            },
+        )
+    };
+    let old_read = make_read(0)?;
+    let copied =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &old_read);
+    let copied: ReadTraceIntoReply = read_payload(&copied).ok()?;
+    let all_bytes = {
+        let bytes = unsafe { core::slice::from_raw_parts(physical as *const u8, 4096) };
+        (0..64usize).all(|index| {
+            let offset = 8 + index * 24;
+            bytes[offset..offset + 4] == (index as u32 + 1).to_le_bytes()
+                && bytes[offset + 4..offset + 8] == [0; 4]
+                && bytes[offset + 8..offset + 16] == (index as u64 + 1).to_le_bytes()
+                && bytes[offset + 16..offset + 24] == 0x1122u64.to_le_bytes()
+        }) && bytes[..8].iter().all(|b| *b == 0xcd)
+            && bytes[1544..].iter().all(|b| *b == 0xcd)
+    };
+    if copied.status != 0 || copied.data_len != 1536 || !all_bytes {
+        return Some(false);
+    }
+    service.trace_ring_mut().emit(3, 65, 65, 0x1122);
+    let commit_old = updated_gate_env(
+        TRACE_DELIVERY_V3_PROTOCOL_ID,
+        3,
+        ipc,
+        &CommitTraceRead {
+            request_id: 4,
+            trace_cap: trace.pack(),
+            lease_id: copied.lease_id,
+            version: 3,
+            reserved: 0,
+        },
+    )?;
+    let denied_commit = ipc_v0::handle_trace_delivery_envelope(
+        &caller,
+        writer,
+        &caps,
+        regions,
+        service,
+        &commit_old,
+    );
+    let denied_commit: CommitTraceReadReply = read_payload(&denied_commit).ok()?;
+    let denied_read =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &old_read);
+    let denied_read: ReadTraceIntoReply = read_payload(&denied_read).ok()?;
+    let preserved = {
+        let bytes = unsafe { core::slice::from_raw_parts(physical as *const u8, 4096) };
+        bytes[8..12] == 1u32.to_le_bytes()
+    };
+    let overflow = ipc_v0::handle_trace_capacity_envelope(&caller, &caps, service, &info);
+    let overflow: GetFixedTraceInfoReply = read_payload(&overflow).ok()?;
+    if denied_commit.status == 0
+        || denied_read.status == 0
+        || !preserved
+        || overflow.read_offset != 24
+        || overflow.write_offset != 1560
+    {
+        return Some(false);
+    }
+    let read = make_read(24)?;
+    let read =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &read);
+    let read: ReadTraceIntoReply = read_payload(&read).ok()?;
+    let resynced_bytes = {
+        let bytes = unsafe { core::slice::from_raw_parts(physical as *const u8, 4096) };
+        bytes[8..12] == 2u32.to_le_bytes() && bytes[1520..1524] == 65u32.to_le_bytes()
+    };
+    let commit = updated_gate_env(
+        TRACE_DELIVERY_V3_PROTOCOL_ID,
+        3,
+        ipc,
+        &CommitTraceRead {
+            request_id: 5,
+            trace_cap: trace.pack(),
+            lease_id: read.lease_id,
+            version: 3,
+            reserved: 0,
+        },
+    )?;
+    let committed =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &commit);
+    let committed: CommitTraceReadReply = read_payload(&committed).ok()?;
+    service.trace_ring_mut().emit(3, 66, 66, 0x1122);
+    let repeated =
+        ipc_v0::handle_trace_delivery_envelope(&caller, writer, &caps, regions, service, &commit);
+    let repeated: CommitTraceReadReply = read_payload(&repeated).ok()?;
+    let final_info = ipc_v0::handle_trace_capacity_envelope(&caller, &caps, service, &info);
+    let final_info: GetFixedTraceInfoReply = read_payload(&final_info).ok()?;
+    let okay = read.status == 0
+        && read.data_len == 1536
+        && resynced_bytes
+        && committed.status == 0
+        && committed.next_offset == 1560
+        && repeated.status == 0
+        && repeated.next_offset == 1560
+        && final_info.read_offset == 1560
+        && final_info.write_offset == 1584;
+    regions.close_region(3, region).ok()?;
+    Some(okay)
+}
+
+#[cfg(all(feature = "test_protocols", not(test)))]
+fn run_shmem_outcome_regression() {
+    let passed = (|| {
+        use kernel_api::generated::*;
+        use kernel_api::wire::read_payload;
+        // SAFETY: independently configured trusted owner/recipient principals.
+        let owner = unsafe { ipc_v0::CallerContext::for_trusted_kernel_fixture(3) };
+        let target = unsafe { ipc_v0::CallerContext::for_trusted_kernel_fixture(1) };
+        let mut caps = crate::cap_table::StaticCapTable::new();
+        let owner_ipc = caps.allocate_for_domain(3).ok()?;
+        let target_ipc = caps.allocate_for_domain(1).ok()?;
+        let regions = unsafe { &mut INIT_SHMEM_TABLE };
+        let (region, cap, _) = regions
+            .create_region(3, 4096, shmem::REGION_FLAG_READABLE, 4096)
+            .ok()?;
+        let offer = updated_gate_env(
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            1,
+            owner_ipc,
+            &OfferRegionTracked {
+                request_id: 1,
+                version: 3,
+                reserved: 0,
+                operation_key: 400,
+                region_id: region,
+                shm_cap: cap.pack(),
+                target_domain_id: 1,
+                rights: shmem::RIGHTS_READ,
+                cache_mode: 0,
+            },
+        )?;
+        // Deliberately discard the Offer reply. The key query must resolve it.
+        let _ = ipc_v0::handle_shmem_outcome_envelope(&owner, &caps, regions, &offer);
+        let query = updated_gate_env(
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            5,
+            owner_ipc,
+            &QueryOfferedRegion {
+                request_id: 2,
+                version: 3,
+                reserved: 0,
+                operation_key: 400,
+            },
+        )?;
+        let offered = ipc_v0::handle_shmem_outcome_envelope(&owner, &caps, regions, &query);
+        let offered: QueryOfferedRegionReply = read_payload(&offered).ok()?;
+        if offered.status != 0
+            || offered.offer_id == 0
+            || offered.state != shmem::MAPPING_OUTCOME_PENDING
+        {
+            return Some(false);
+        }
+        let accept = updated_gate_env(
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            3,
+            target_ipc,
+            &AcceptRegionTracked {
+                request_id: 3,
+                version: 3,
+                reserved: 0,
+                offer_id: offered.offer_id,
+            },
+        )?;
+        // Deliberately discard the first successful Accept reply too.
+        let _ = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &accept);
+        let query = updated_gate_env(
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            7,
+            target_ipc,
+            &QueryAcceptedRegion {
+                request_id: 4,
+                version: 3,
+                reserved: 0,
+                offer_id: offered.offer_id,
+            },
+        )?;
+        let outcome = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &query);
+        let outcome: QueryAcceptedRegionReply = read_payload(&outcome).ok()?;
+        let again = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &accept);
+        let again: AcceptRegionTrackedReply = read_payload(&again).ok()?;
+        let index = (cap.index - 1) as usize;
+        if outcome.status != 0
+            || outcome.state != shmem::MAPPING_OUTCOME_ACCEPTED
+            || outcome.mapping_id == 0
+            || again.mapping_id != outcome.mapping_id
+            || regions.regions[index].refcount != 1
+        {
+            return Some(false);
+        }
+        regions.unmap_region(1, outcome.mapping_id, 1).ok()?;
+        regions.close_region(3, region).ok()?;
+        let (next, next_cap, _) = regions
+            .create_region(3, 4096, shmem::REGION_FLAG_READABLE, 4096)
+            .ok()?;
+        let original = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &query);
+        let original: QueryAcceptedRegionReply = read_payload(&original).ok()?;
+        let repeated = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &accept);
+        let repeated: AcceptRegionTrackedReply = read_payload(&repeated).ok()?;
+        if original.mapping_id != outcome.mapping_id
+            || repeated.mapping_id != outcome.mapping_id
+            || original.state != shmem::MAPPING_OUTCOME_ACCEPTED
+            || regions.regions[index].refcount != 0
+        {
+            return Some(false);
+        }
+        for (caller, ipc) in [(&owner, owner_ipc), (&target, target_ipc)] {
+            let ack = updated_gate_env(
+                SHMEM_OUTCOME_V3_PROTOCOL_ID,
+                11,
+                ipc,
+                &AcknowledgeRegionOutcome {
+                    request_id: 5,
+                    version: 3,
+                    reserved: 0,
+                    offer_id: offered.offer_id,
+                },
+            )?;
+            let ack = ipc_v0::handle_shmem_outcome_envelope(caller, &caps, regions, &ack);
+            if read_payload::<AcknowledgeRegionOutcomeReply>(&ack)
+                .ok()?
+                .status
+                != 0
+            {
+                return Some(false);
+            }
+        }
+        let unavailable = ipc_v0::handle_shmem_outcome_envelope(&target, &caps, regions, &query);
+        if read_payload::<QueryAcceptedRegionReply>(&unavailable)
+            .ok()?
+            .status
+            != shmem::STATUS_MAPPING_NOT_FOUND
+        {
+            return Some(false);
+        }
+        // A fresh actual mapping at the reusable VA proves query/retry did not
+        // reinstall a PTE or increment a reference in the successor region.
+        let next_offer = regions
+            .offer_region_tracked(401, next, next_cap, 3, 1, shmem::RIGHTS_READ, 0)
+            .ok()?;
+        let mapped = regions.accept_region_tracked(1, next_offer.offer_id).ok()?;
+        let okay = mapped.state == shmem::MAPPING_OUTCOME_ACCEPTED
+            && regions.regions[(next_cap.index - 1) as usize].refcount == 1;
+        regions.unmap_region(1, mapped.mapping_id, 1).ok()?;
+        regions.close_region(3, next).ok()?;
+        regions
+            .acknowledge_region_outcome(3, next_offer.offer_id)
+            .ok()?;
+        regions
+            .acknowledge_region_outcome(1, next_offer.offer_id)
+            .ok()?;
+        Some(okay)
+    })()
+    .unwrap_or(false);
+    if passed {
+        kprintln!("shmem_outcome_review: original_accept_reconciliation PASS");
+    } else {
+        kprintln!("shmem_outcome_review: original_accept_reconciliation FAIL");
+    }
+}
+
 #[cfg(feature = "test_protocols")]
 fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     // Gate-only probes use isolated inactive roots and the real MMU backend.
@@ -1471,7 +1872,7 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     // - No interrupts are active that could touch this data
     // - The table is re-initialized fresh before use
     let table = unsafe {
-        INIT_SHMEM_TABLE = shmem::ShmemRegionTable::new();
+        INIT_SHMEM_TABLE.reset_boot_fixture();
         &mut INIT_SHMEM_TABLE
     };
     let mut passed = 0;
@@ -1713,7 +2114,12 @@ fn do_shmem_dataplane_test(writer: &trace_ring::TraceWriter) {
     kprintln!("shmem_test: {}/{} tests passed", passed, total);
 
     #[cfg(not(test))]
-    run_trace_delivery_regression(writer);
+    {
+        run_trace_delivery_regression(writer);
+        run_updated_wire_regression();
+        run_trace_capacity_regression(writer);
+        run_shmem_outcome_regression();
+    }
     kprintln!("shmem_test: COMPLETE");
 
     // Emit trace event for Foundry gate parsing

@@ -165,7 +165,7 @@ fn status(error: ContractError) -> u32 {
         _ => STATUS_INVALID,
     }
 }
-fn envelope<T: Copy>(ty: u32, value: T) -> Envelope {
+fn envelope<T: kernel_api::wire::WirePayload>(ty: u32, value: T) -> Envelope {
     let mut e = Envelope::empty(14, ty);
     write_payload(&mut e, &value).expect("IDL size gate");
     e

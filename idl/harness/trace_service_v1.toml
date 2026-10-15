@@ -10,6 +10,9 @@ protocol = 9
 # Nonzero READ is rejected without consuming events: this legacy reply cannot
 # deliver bytes. Native byte delivery uses trace_delivery_v3 with Shmem and Commit.
 
+# Deprecated legacy size is echoed as requested and does not configure storage.
+# Actual fixed retention is64 events/1536bytes. Use trace_capacity_v4 for truthful
+# retention/delivery metadata; v1 remains layout-compatible for existing peers.
 [message.create_trace_buffer]
 msg_type = 1
 fields = ["request_id:u64", "domain_id:u64", "size:u32"]

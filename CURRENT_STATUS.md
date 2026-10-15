@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-10-14
 **Status:** Active and authoritative for landed state
-**Current Slice:** UI1.1d real editor process boundary after qualified host repairs
+**Current Slice:** Updated-review foundation follow-ups before UI1.1d process work
 **Physical Lane:** S12.4 HIL appliance observation/actuation awaits setup
 **Software Lane:** SW0 foundations through A2.9; full A2 and comparison pending
 
@@ -192,6 +192,43 @@ revocation cannot retract delivered bytes or bypass same-UID filesystem access.
 The default POSIX path remains trusted host development with best-effort rlimits.
 The real editor child, full P0, RUN0, target storage and physical graduation remain
 unfinished.
+
+### Updated-review successor — implemented candidate, qualification pending
+
+The updated-review P1/P2/P3 foundation packets are implemented in the current
+candidate. The user selected these follow-ups before further editor-process
+implementation. These packet labels are separate from the process P1/P2/P3
+sequence. [The acceptance record](docs/plans/updated-review-repairs-2026-10-14.md)
+owns the bounded assertions and qualification state.
+
+Explicit field codecs initialize padding and reject unsupported raw-copy decodes;
+domain names truncate only at UTF-8 boundaries and provide checked decoding.
+Trace capacity v4 reports the actual 64-event/1536-byte retention independently
+of its 24..1536-byte whole-event delivery limit. Legacy v1 size metadata remains
+deprecated compatibility behavior. Shmem outcome v3 retains original offer and
+acceptance results through unmap, close and slot reuse without remapping. Its
+64 receipt slots reclaim only after joint terminal acknowledgement; canonical
+close validation preserves pending consent after malformed IDs.
+
+Ordinary host Store uses per-ID operation leases: revoke closes admission and
+joins every admitted operation for that ID while unrelated authority management
+can progress during held read IO. Actual FIFO-backed service consumers cover
+that ordering and health failure after admission. Publication holds authority
+health exclusion through durable commit. Offline revoke-all epoch rotation uses
+fresh exclusive keys, at most 1024 IDs per epoch, retirement history of at most 64 keys
+and an exact external checkpoint pin. See the
+[operator contract](docs/STORE_AUTHORITY_EPOCH_V1.md); this is not hardware-backed
+rollback protection or online grant preservation.
+
+The assembled boundary gate, kernel/API/codegen suites and strict Clippy pass on
+macOS. Both x86_64/AArch64 S8 target runs pass all prior and new assertions after
+a bounded in-place boot-fixture reset removed an oversized AArch64 stack temporary.
+Affected editor consumers and final hosted qualification remain **pending**. PR #40
+and PR #41 qualification belongs to preceding source and cannot qualify this candidate.
+The authenticated process/trace carrier, full process P0 and real editor child,
+RUN0, target grants/storage, SMP page-table synchronization and physical graduation
+remain unfinished. Host paths/bytes and same-UID filesystem access are not revoked;
+epoch safety depends on external operator pins and exclusive key provisioning.
 
 ## Foundry development and CI execution
 

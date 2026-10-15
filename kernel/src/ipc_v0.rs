@@ -478,7 +478,11 @@ fn handle_close_region(
     write_reply_or_error(PROTOCOL_SHMEM_CONTROL, MSG_CLOSE_REGION_REPLY, &reply)
 }
 
-fn write_reply_or_error<T: Copy>(protocol: u32, msg_type: u32, reply: &T) -> Envelope {
+fn write_reply_or_error<T: kernel_api::wire::WirePayload>(
+    protocol: u32,
+    msg_type: u32,
+    reply: &T,
+) -> Envelope {
     let mut out = Envelope::empty(protocol, msg_type);
     match write_payload(&mut out, reply) {
         Ok(()) => out,
@@ -763,6 +767,15 @@ pub(crate) fn handle_envelope(
     shmem_table: &mut shmem::ShmemRegionTable,
     env: &Envelope,
 ) -> Envelope {
+    if env.protocol == kernel_api::generated::SHMEM_OUTCOME_V3_PROTOCOL_ID {
+        return handle_shmem_outcome_envelope(caller, table, shmem_table, env);
+    }
+    if env.protocol == kernel_api::generated::TRACE_CAPACITY_V4_PROTOCOL_ID {
+        // SAFETY: this trusted IPC path serializes access to the kernel service.
+        return unsafe {
+            handle_trace_capacity_envelope(caller, table, &mut KERNEL_TRACE_SERVICE, env)
+        };
+    }
     if env.protocol == kernel_api::generated::SHMEM_CONSENT_V2_PROTOCOL_ID {
         return handle_region_consent(caller, table, shmem_table, env);
     }
@@ -824,6 +837,292 @@ pub(crate) fn handle_envelope(
         #[cfg(feature = "test_protocols")]
         kernel_api::generated::BLOCK_V1_PROTOCOL_ID => {
             crate::block_harness::handle_block_v1(caller.domain, writer, shmem_table, env)
+        }
+        _ => Envelope::empty(env.protocol, env.msg_type),
+    }
+}
+
+/// Fixed-capacity metadata control plane, with independently admitted identity.
+pub(crate) fn handle_trace_capacity_envelope(
+    caller: &CallerContext,
+    caps: &StaticCapTable,
+    service: &mut TraceService,
+    env: &Envelope,
+) -> Envelope {
+    use crate::trace_service::{TRACE_STATUS_INVALID_CAPABILITY, TRACE_STATUS_INVALID_SIZE};
+    use kernel_api::generated::trace_capacity_v4::*;
+    if env.protocol != TRACE_CAPACITY_V4_PROTOCOL_ID {
+        return Envelope::empty(env.protocol, env.msg_type);
+    }
+    let authorized = validate_handle(caller, caps, env);
+    match env.msg_type {
+        MSG_TRACE_CAPACITY_V4_CREATE_FIXED_TRACE_BUFFER => {
+            let mut reply = CreateFixedTraceBufferReply {
+                request_id: 0,
+                status: TRACE_STATUS_INVALID_SIZE,
+                retention_events: 0,
+                trace_cap: 0,
+                retention_bytes: 0,
+                max_delivery_bytes: 0,
+            };
+            if let Ok(req) = read_payload::<CreateFixedTraceBuffer>(env) {
+                reply.request_id = req.request_id;
+                reply.status = if !authorized || req.domain_id != caller.domain {
+                    TRACE_STATUS_INVALID_CAPABILITY
+                } else if req.reserved != 0 {
+                    TRACE_STATUS_INVALID_SIZE
+                } else {
+                    let (status, cap) = service
+                        .create_fixed_trace_buffer(caller.domain, req.max_delivery_bytes)
+                        .unwrap_or((TRACE_STATUS_INVALID_CAPABILITY, Handle::INVALID));
+                    // Creation returns the same live generation queried here.
+                    if status == 0 {
+                        if let Ok((0, info)) = service.get_fixed_trace_info(cap) {
+                            reply.trace_cap = cap.pack();
+                            reply.retention_events = info.retention_events;
+                            reply.retention_bytes = info.retention_bytes;
+                            reply.max_delivery_bytes = info.max_delivery_bytes;
+                        }
+                    }
+                    status
+                };
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_TRACE_CAPACITY_V4_CREATE_FIXED_TRACE_BUFFER_REPLY,
+                &reply,
+            )
+        }
+        MSG_TRACE_CAPACITY_V4_GET_FIXED_TRACE_INFO => {
+            let mut reply = GetFixedTraceInfoReply {
+                request_id: 0,
+                status: TRACE_STATUS_INVALID_SIZE,
+                retention_events: 0,
+                domain_id: 0,
+                retention_bytes: 0,
+                max_delivery_bytes: 0,
+                read_offset: 0,
+                write_offset: 0,
+            };
+            if let Ok(req) = read_payload::<GetFixedTraceInfo>(env) {
+                reply.request_id = req.request_id;
+                let source = Handle::unpack(req.trace_cap);
+                reply.status = if !authorized || service.cap_domain(source) != Some(caller.domain) {
+                    TRACE_STATUS_INVALID_CAPABILITY
+                } else {
+                    match service.get_fixed_trace_info(source) {
+                        Ok((status, info)) => {
+                            if status == 0 {
+                                reply.retention_events = info.retention_events;
+                                reply.domain_id = info.domain_id;
+                                reply.retention_bytes = info.retention_bytes;
+                                reply.max_delivery_bytes = info.max_delivery_bytes;
+                                reply.read_offset = info.read_offset;
+                                reply.write_offset = info.write_offset;
+                            }
+                            status
+                        }
+                        Err(()) => TRACE_STATUS_INVALID_CAPABILITY,
+                    }
+                };
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_TRACE_CAPACITY_V4_GET_FIXED_TRACE_INFO_REPLY,
+                &reply,
+            )
+        }
+        _ => Envelope::empty(env.protocol, env.msg_type),
+    }
+}
+
+/// Retained outcomes carry observations only; query paths never map resources.
+pub(crate) fn handle_shmem_outcome_envelope(
+    caller: &CallerContext,
+    caps: &StaticCapTable,
+    regions: &mut shmem::ShmemRegionTable,
+    env: &Envelope,
+) -> Envelope {
+    use kernel_api::generated::shmem_outcome_v3::*;
+    if env.protocol != SHMEM_OUTCOME_V3_PROTOCOL_ID {
+        return Envelope::empty(env.protocol, env.msg_type);
+    }
+    let authorized = validate_handle(caller, caps, env);
+    let header_status = |version: u32, reserved: u32| {
+        if !authorized {
+            shmem::STATUS_INVALID_CAPABILITY
+        } else if version != 3 || reserved != 0 {
+            shmem::STATUS_INVALID_SIZE
+        } else {
+            shmem::STATUS_OK
+        }
+    };
+    match env.msg_type {
+        MSG_SHMEM_OUTCOME_V3_OFFER_REGION_TRACKED => {
+            let mut reply = OfferRegionTrackedReply {
+                request_id: 0,
+                operation_key: 0,
+                offer_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                state: 0,
+            };
+            if let Ok(req) = read_payload::<OfferRegionTracked>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    match regions.offer_region_tracked(
+                        req.operation_key,
+                        req.region_id,
+                        Handle::unpack(req.shm_cap),
+                        caller.domain,
+                        req.target_domain_id,
+                        req.rights,
+                        req.cache_mode,
+                    ) {
+                        Ok(outcome) => {
+                            reply.operation_key = outcome.operation_key;
+                            reply.offer_id = outcome.offer_id;
+                            reply.state = outcome.state;
+                        }
+                        Err(status) => reply.status = status,
+                    }
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_OFFER_REGION_TRACKED_REPLY,
+                &reply,
+            )
+        }
+        MSG_SHMEM_OUTCOME_V3_ACCEPT_REGION_TRACKED => {
+            let mut reply = AcceptRegionTrackedReply {
+                request_id: 0,
+                offer_id: 0,
+                mapping_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                state: 0,
+            };
+            if let Ok(req) = read_payload::<AcceptRegionTracked>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    match regions.accept_region_tracked(caller.domain, req.offer_id) {
+                        Ok(outcome) => {
+                            reply.offer_id = outcome.offer_id;
+                            reply.mapping_id = outcome.mapping_id;
+                            reply.state = outcome.state;
+                        }
+                        Err(status) => reply.status = status,
+                    }
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_ACCEPT_REGION_TRACKED_REPLY,
+                &reply,
+            )
+        }
+        MSG_SHMEM_OUTCOME_V3_QUERY_OFFERED_REGION => {
+            let mut reply = QueryOfferedRegionReply {
+                request_id: 0,
+                operation_key: 0,
+                offer_id: 0,
+                mapping_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                state: 0,
+            };
+            if let Ok(req) = read_payload::<QueryOfferedRegion>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    match regions.query_offered_region(caller.domain, req.operation_key) {
+                        Ok(outcome) => {
+                            reply.operation_key = outcome.operation_key;
+                            reply.offer_id = outcome.offer_id;
+                            reply.mapping_id = outcome.mapping_id;
+                            reply.state = outcome.state;
+                        }
+                        Err(status) => reply.status = status,
+                    }
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_QUERY_OFFERED_REGION_REPLY,
+                &reply,
+            )
+        }
+        MSG_SHMEM_OUTCOME_V3_QUERY_ACCEPTED_REGION => {
+            let mut reply = QueryAcceptedRegionReply {
+                request_id: 0,
+                offer_id: 0,
+                mapping_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                state: 0,
+            };
+            if let Ok(req) = read_payload::<QueryAcceptedRegion>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    match regions.query_accepted_region(caller.domain, req.offer_id) {
+                        Ok(outcome) => {
+                            reply.offer_id = outcome.offer_id;
+                            reply.mapping_id = outcome.mapping_id;
+                            reply.state = outcome.state;
+                        }
+                        Err(status) => reply.status = status,
+                    }
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_QUERY_ACCEPTED_REGION_REPLY,
+                &reply,
+            )
+        }
+        MSG_SHMEM_OUTCOME_V3_CANCEL_TRACKED_OFFER => {
+            let mut reply = CancelTrackedOfferReply {
+                request_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                reserved: 0,
+            };
+            if let Ok(req) = read_payload::<CancelTrackedOffer>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    reply.status = regions
+                        .cancel_tracked_offer(caller.domain, req.offer_id)
+                        .err()
+                        .unwrap_or(shmem::STATUS_OK);
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_CANCEL_TRACKED_OFFER_REPLY,
+                &reply,
+            )
+        }
+        MSG_SHMEM_OUTCOME_V3_ACKNOWLEDGE_REGION_OUTCOME => {
+            let mut reply = AcknowledgeRegionOutcomeReply {
+                request_id: 0,
+                status: shmem::STATUS_INVALID_SIZE,
+                reserved: 0,
+            };
+            if let Ok(req) = read_payload::<AcknowledgeRegionOutcome>(env) {
+                reply.request_id = req.request_id;
+                reply.status = header_status(req.version, req.reserved);
+                if reply.status == 0 {
+                    reply.status = regions
+                        .acknowledge_region_outcome(caller.domain, req.offer_id)
+                        .err()
+                        .unwrap_or(shmem::STATUS_OK);
+                }
+            }
+            write_reply_or_error(
+                env.protocol,
+                MSG_SHMEM_OUTCOME_V3_ACKNOWLEDGE_REGION_OUTCOME_REPLY,
+                &reply,
+            )
         }
         _ => Envelope::empty(env.protocol, env.msg_type),
     }
@@ -3119,5 +3418,746 @@ mod review_trace_delivery {
         );
         assert_eq!(f.cursors(), (0, 24));
         assert_eq!(f.commit(&writer, pending.lease_id).status, 0);
+    }
+}
+
+#[cfg(test)]
+mod review_updated_wire_consumers {
+    use super::*;
+    use kernel_api::generated::*;
+
+    struct Fixture {
+        caps: StaticCapTable,
+        regions: std::boxed::Box<shmem::ShmemRegionTable>,
+        service: TraceService,
+        ipc: [Handle; 3],
+        stale: Handle,
+    }
+
+    impl Fixture {
+        fn new() -> Self {
+            crate::cap_table::reset_smp_state_for_test();
+            let mut caps = StaticCapTable::new();
+            let stale = caps.allocate_for_domain(0).unwrap();
+            caps.deallocate(stale).unwrap();
+            let ipc =
+                core::array::from_fn(|domain| caps.allocate_for_domain(domain as u64).unwrap());
+            let mut service = TraceService::new();
+            service.init_kernel();
+            service.register_domain(1, "other").unwrap();
+            Self {
+                caps,
+                regions: std::boxed::Box::new(shmem::ShmemRegionTable::new()),
+                service,
+                ipc,
+                stale,
+            }
+        }
+
+        fn request<T: kernel_api::wire::WirePayload>(
+            &self,
+            domain: usize,
+            protocol: u32,
+            msg: u32,
+            body: T,
+        ) -> Envelope {
+            let mut env = Envelope::empty(protocol, msg);
+            env.handle = self.ipc[domain];
+            write_payload(&mut env, &body).unwrap();
+            env
+        }
+
+        fn dispatch(
+            &mut self,
+            writer: &trace_ring::TraceWriter,
+            main: bool,
+            domain: u64,
+            env: &Envelope,
+        ) -> Envelope {
+            if main {
+                handle_envelope(
+                    &fixture_caller(domain),
+                    writer,
+                    &self.caps,
+                    &mut self.regions,
+                    env,
+                )
+            } else if env.protocol == TRACE_CAPACITY_V4_PROTOCOL_ID {
+                handle_trace_capacity_envelope(
+                    &fixture_caller(domain),
+                    &self.caps,
+                    &mut self.service,
+                    env,
+                )
+            } else {
+                handle_shmem_outcome_envelope(
+                    &fixture_caller(domain),
+                    &self.caps,
+                    &mut self.regions,
+                    env,
+                )
+            }
+        }
+    }
+
+    fn outcome_denial(reply: &Envelope) {
+        match reply.msg_type {
+            MSG_SHMEM_OUTCOME_V3_OFFER_REGION_TRACKED_REPLY => {
+                let r: OfferRegionTrackedReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!((r.operation_key, r.offer_id, r.state), (0, 0, 0));
+            }
+            MSG_SHMEM_OUTCOME_V3_ACCEPT_REGION_TRACKED_REPLY => {
+                let r: AcceptRegionTrackedReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!((r.offer_id, r.mapping_id, r.state), (0, 0, 0));
+            }
+            MSG_SHMEM_OUTCOME_V3_QUERY_OFFERED_REGION_REPLY => {
+                let r: QueryOfferedRegionReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!(
+                    (r.operation_key, r.offer_id, r.mapping_id, r.state),
+                    (0, 0, 0, 0)
+                );
+            }
+            MSG_SHMEM_OUTCOME_V3_QUERY_ACCEPTED_REGION_REPLY => {
+                let r: QueryAcceptedRegionReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!((r.offer_id, r.mapping_id, r.state), (0, 0, 0));
+            }
+            MSG_SHMEM_OUTCOME_V3_CANCEL_TRACKED_OFFER_REPLY => {
+                let r: CancelTrackedOfferReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!(r.reserved, 0);
+            }
+            MSG_SHMEM_OUTCOME_V3_ACKNOWLEDGE_REGION_OUTCOME_REPLY => {
+                let r: AcknowledgeRegionOutcomeReply = read_payload(reply).unwrap();
+                assert_ne!(r.status, 0);
+                assert_eq!(r.reserved, 0);
+            }
+            _ => panic!("missing typed denial"),
+        }
+        assert!(
+            reply.payload[reply.payload_len as usize..]
+                .iter()
+                .all(|byte| *byte == 0)
+        );
+    }
+
+    #[test]
+    fn fixed_trace_wire_direct_and_main_metadata_denials_then_live_success() {
+        let _guard = trace_ring::reset_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        for main in [false, true] {
+            let mut f = Fixture::new();
+            // SAFETY: the trace guard excludes all other global-service users.
+            unsafe {
+                KERNEL_TRACE_SERVICE = TraceService::new();
+                KERNEL_TRACE_SERVICE.init_kernel();
+            }
+            let request = f.request(
+                0,
+                TRACE_CAPACITY_V4_PROTOCOL_ID,
+                1,
+                CreateFixedTraceBuffer {
+                    request_id: 80,
+                    domain_id: 0,
+                    max_delivery_bytes: 24,
+                    reserved: 0,
+                },
+            );
+            for case in 0..7 {
+                let mut denied = request;
+                match case {
+                    0 => denied.handle = f.stale,
+                    1 => denied.handle = f.ipc[1],
+                    2 => denied.payload[8..16].copy_from_slice(&1u64.to_le_bytes()),
+                    3 => denied.payload[20..24].copy_from_slice(&1u32.to_le_bytes()),
+                    4 => denied.payload[16..20].copy_from_slice(&32u32.to_le_bytes()),
+                    5 => denied.payload_len -= 1,
+                    _ => denied.payload_len += 1,
+                }
+                let out = f.dispatch(&writer, main, 0, &denied);
+                let reply: CreateFixedTraceBufferReply = read_payload(&out).unwrap();
+                assert_ne!(reply.status, 0);
+                assert_eq!(
+                    (
+                        reply.trace_cap,
+                        reply.retention_events,
+                        reply.retention_bytes,
+                        reply.max_delivery_bytes
+                    ),
+                    (0, 0, 0, 0)
+                );
+            }
+            let created: CreateFixedTraceBufferReply =
+                read_payload(&f.dispatch(&writer, main, 0, &request)).unwrap();
+            assert_eq!(
+                (
+                    created.status,
+                    created.retention_events,
+                    created.retention_bytes,
+                    created.max_delivery_bytes
+                ),
+                (0, 64, 1536, 24)
+            );
+            let source = Handle::unpack(created.trace_cap);
+            if main {
+                unsafe {
+                    KERNEL_TRACE_SERVICE.trace_ring().emit(0, 7, 8, 9);
+                }
+            } else {
+                f.service.trace_ring().emit(0, 7, 8, 9);
+            }
+            let info = f.request(
+                0,
+                TRACE_CAPACITY_V4_PROTOCOL_ID,
+                3,
+                GetFixedTraceInfo {
+                    request_id: 81,
+                    trace_cap: created.trace_cap,
+                },
+            );
+            let mut foreign = info;
+            foreign.handle = f.ipc[1];
+            let denied: GetFixedTraceInfoReply =
+                read_payload(&f.dispatch(&writer, main, 1, &foreign)).unwrap();
+            assert_ne!(denied.status, 0);
+            assert_eq!(
+                (
+                    denied.domain_id,
+                    denied.retention_events,
+                    denied.retention_bytes,
+                    denied.max_delivery_bytes,
+                    denied.read_offset,
+                    denied.write_offset
+                ),
+                (0, 0, 0, 0, 0, 0)
+            );
+            if main {
+                unsafe {
+                    KERNEL_TRACE_SERVICE
+                        .cap_table_mut()
+                        .revoke_rights(source.index as usize, crate::trace_cap::TRACE_RIGHT_READ)
+                        .unwrap();
+                }
+            } else {
+                f.service
+                    .cap_table_mut()
+                    .revoke_rights(source.index as usize, crate::trace_cap::TRACE_RIGHT_READ)
+                    .unwrap();
+            }
+            let denied: GetFixedTraceInfoReply =
+                read_payload(&f.dispatch(&writer, main, 0, &info)).unwrap();
+            assert_eq!(
+                denied.status,
+                crate::trace_service::TRACE_STATUS_PERMISSION_DENIED
+            );
+            assert_eq!(
+                (
+                    denied.retention_events,
+                    denied.retention_bytes,
+                    denied.max_delivery_bytes,
+                    denied.read_offset,
+                    denied.write_offset
+                ),
+                (0, 0, 0, 0, 0)
+            );
+            if main {
+                unsafe {
+                    KERNEL_TRACE_SERVICE
+                        .cap_table_mut()
+                        .grant_rights(source.index as usize, crate::trace_cap::TRACE_RIGHT_READ)
+                        .unwrap();
+                }
+            } else {
+                f.service
+                    .cap_table_mut()
+                    .grant_rights(source.index as usize, crate::trace_cap::TRACE_RIGHT_READ)
+                    .unwrap();
+            }
+            let good: GetFixedTraceInfoReply =
+                read_payload(&f.dispatch(&writer, main, 0, &info)).unwrap();
+            assert_eq!(
+                (
+                    good.status,
+                    good.retention_events,
+                    good.retention_bytes,
+                    good.max_delivery_bytes,
+                    good.read_offset,
+                    good.write_offset
+                ),
+                (0, 64, 1536, 24, 0, 24)
+            );
+            let mut wrong = info;
+            wrong.protocol = SHMEM_OUTCOME_V3_PROTOCOL_ID;
+            let out =
+                handle_trace_capacity_envelope(&fixture_caller(0), &f.caps, &mut f.service, &wrong);
+            assert_eq!(out.payload_len, 0);
+        }
+    }
+
+    #[test]
+    fn tracked_outcome_main_wire_lost_replies_reconcile_retired_generation_without_remapping() {
+        let _guard = trace_ring::reset_for_test();
+        let _memory = crate::mm::test_support::setup();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let mut f = Fixture::new();
+        let (region, cap, _) = f
+            .regions
+            .create_region(0, 4096, shmem::REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        let offer = f.request(
+            0,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            1,
+            OfferRegionTracked {
+                request_id: 90,
+                version: 3,
+                reserved: 0,
+                operation_key: 91,
+                region_id: region,
+                shm_cap: cap.pack(),
+                target_domain_id: 1,
+                rights: shmem::RIGHTS_READ,
+                cache_mode: 0,
+            },
+        );
+        // The owner did not receive the original offer reply.
+        let _lost = f.dispatch(&writer, true, 0, &offer);
+        let query = f.request(
+            0,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            5,
+            QueryOfferedRegion {
+                request_id: 92,
+                version: 3,
+                reserved: 0,
+                operation_key: 91,
+            },
+        );
+        let pending: QueryOfferedRegionReply =
+            read_payload(&f.dispatch(&writer, true, 0, &query)).unwrap();
+        assert_eq!(
+            (pending.status, pending.state, pending.mapping_id),
+            (0, shmem::MAPPING_OUTCOME_PENDING, 0)
+        );
+        let accept = f.request(
+            1,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            3,
+            AcceptRegionTracked {
+                request_id: 93,
+                version: 3,
+                reserved: 0,
+                offer_id: pending.offer_id,
+            },
+        );
+        // The recipient did not receive the original accept reply.
+        let _lost = f.dispatch(&writer, true, 1, &accept);
+        let query_target = f.request(
+            1,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            7,
+            QueryAcceptedRegion {
+                request_id: 94,
+                version: 3,
+                reserved: 0,
+                offer_id: pending.offer_id,
+            },
+        );
+        let accepted: QueryAcceptedRegionReply =
+            read_payload(&f.dispatch(&writer, true, 1, &query_target)).unwrap();
+        assert_eq!(
+            (accepted.status, accepted.state, accepted.mapping_id),
+            (0, shmem::MAPPING_OUTCOME_ACCEPTED, region)
+        );
+        let repeated: AcceptRegionTrackedReply =
+            read_payload(&f.dispatch(&writer, true, 1, &accept)).unwrap();
+        assert_eq!((repeated.status, repeated.mapping_id), (0, region));
+        assert_eq!(f.regions.regions[(cap.index - 1) as usize].refcount, 1);
+        f.regions.unmap_region(1, region, 1).unwrap();
+        f.regions.close_region(0, region).unwrap();
+        let (next, next_cap, _) = f
+            .regions
+            .create_region(0, 4096, shmem::REGION_FLAG_READABLE, 4096)
+            .unwrap();
+        assert_eq!(next_cap.index, cap.index);
+        assert_ne!(next_cap.generation, cap.generation);
+        let original: AcceptRegionTrackedReply =
+            read_payload(&f.dispatch(&writer, true, 1, &accept)).unwrap();
+        assert_eq!(
+            (original.status, original.mapping_id, original.state),
+            (0, region, shmem::MAPPING_OUTCOME_ACCEPTED)
+        );
+        assert_eq!(f.regions.regions[(next_cap.index - 1) as usize].refcount, 0);
+        let ack = f.request(
+            0,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            11,
+            AcknowledgeRegionOutcome {
+                request_id: 95,
+                version: 3,
+                reserved: 0,
+                offer_id: pending.offer_id,
+            },
+        );
+        assert_eq!(
+            read_payload::<AcknowledgeRegionOutcomeReply>(&f.dispatch(&writer, true, 0, &ack))
+                .unwrap()
+                .status,
+            0
+        );
+        assert_eq!(
+            read_payload::<QueryAcceptedRegionReply>(&f.dispatch(&writer, true, 1, &query_target))
+                .unwrap()
+                .mapping_id,
+            region
+        );
+        let mut target_ack = ack;
+        target_ack.handle = f.ipc[1];
+        assert_eq!(
+            read_payload::<AcknowledgeRegionOutcomeReply>(&f.dispatch(
+                &writer,
+                true,
+                1,
+                &target_ack
+            ))
+            .unwrap()
+            .status,
+            0
+        );
+        outcome_denial(&f.dispatch(&writer, true, 1, &query_target));
+        let fresh = f.request(
+            0,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            1,
+            OfferRegionTracked {
+                request_id: 96,
+                version: 3,
+                reserved: 0,
+                operation_key: 91,
+                region_id: next,
+                shm_cap: next_cap.pack(),
+                target_domain_id: 2,
+                rights: shmem::RIGHTS_READ,
+                cache_mode: 0,
+            },
+        );
+        let fresh: OfferRegionTrackedReply =
+            read_payload(&f.dispatch(&writer, true, 0, &fresh)).unwrap();
+        assert_eq!(fresh.status, 0);
+        assert_ne!(fresh.offer_id, pending.offer_id);
+        let accept = f.request(
+            2,
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            3,
+            AcceptRegionTracked {
+                request_id: 97,
+                version: 3,
+                reserved: 0,
+                offer_id: fresh.offer_id,
+            },
+        );
+        assert_eq!(
+            read_payload::<AcceptRegionTrackedReply>(&f.dispatch(&writer, true, 2, &accept))
+                .unwrap()
+                .mapping_id,
+            next
+        );
+        f.regions.unmap_region(2, next, 2).unwrap();
+        f.regions.close_region(0, next).unwrap();
+    }
+
+    #[test]
+    fn tracked_outcome_all_wire_routes_deny_headers_roles_and_recover() {
+        let _guard = trace_ring::reset_for_test();
+        let _memory = crate::mm::test_support::setup();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        for main in [false, true] {
+            let mut f = Fixture::new();
+            let (region, cap, _) = f
+                .regions
+                .create_region(0, 4096, shmem::REGION_FLAG_READABLE, 4096)
+                .unwrap();
+            let offer = f.request(
+                0,
+                533,
+                1,
+                OfferRegionTracked {
+                    request_id: 100,
+                    version: 3,
+                    reserved: 0,
+                    operation_key: 101,
+                    region_id: region,
+                    shm_cap: cap.pack(),
+                    target_domain_id: 1,
+                    rights: shmem::RIGHTS_READ,
+                    cache_mode: 0,
+                },
+            );
+            let pending: OfferRegionTrackedReply =
+                read_payload(&f.dispatch(&writer, main, 0, &offer)).unwrap();
+            assert_eq!(pending.status, 0);
+            let routes = [
+                (0, offer),
+                (
+                    1,
+                    f.request(
+                        1,
+                        533,
+                        3,
+                        AcceptRegionTracked {
+                            request_id: 102,
+                            version: 3,
+                            reserved: 0,
+                            offer_id: pending.offer_id,
+                        },
+                    ),
+                ),
+                (
+                    0,
+                    f.request(
+                        0,
+                        533,
+                        5,
+                        QueryOfferedRegion {
+                            request_id: 103,
+                            version: 3,
+                            reserved: 0,
+                            operation_key: 101,
+                        },
+                    ),
+                ),
+                (
+                    1,
+                    f.request(
+                        1,
+                        533,
+                        7,
+                        QueryAcceptedRegion {
+                            request_id: 104,
+                            version: 3,
+                            reserved: 0,
+                            offer_id: pending.offer_id,
+                        },
+                    ),
+                ),
+                (
+                    0,
+                    f.request(
+                        0,
+                        533,
+                        9,
+                        CancelTrackedOffer {
+                            request_id: 105,
+                            version: 3,
+                            reserved: 0,
+                            offer_id: pending.offer_id,
+                        },
+                    ),
+                ),
+                (
+                    0,
+                    f.request(
+                        0,
+                        533,
+                        11,
+                        AcknowledgeRegionOutcome {
+                            request_id: 106,
+                            version: 3,
+                            reserved: 0,
+                            offer_id: pending.offer_id,
+                        },
+                    ),
+                ),
+            ];
+            for (domain, env) in &routes {
+                for case in 0..7 {
+                    let mut denied = *env;
+                    let caller = if case == 6 { 2 } else { *domain };
+                    match case {
+                        0 => denied.payload[8..12].copy_from_slice(&2u32.to_le_bytes()),
+                        1 => denied.payload[12..16].copy_from_slice(&1u32.to_le_bytes()),
+                        2 => denied.payload_len -= 1,
+                        3 => denied.payload_len += 1,
+                        4 => denied.handle = f.stale,
+                        5 => denied.handle = f.ipc[2],
+                        _ => denied.handle = f.ipc[2],
+                    }
+                    outcome_denial(&f.dispatch(&writer, main, caller, &denied));
+                    assert_eq!(f.regions.regions[(cap.index - 1) as usize].refcount, 0);
+                }
+            }
+            let mut changed = offer;
+            changed.payload[48..52].copy_from_slice(&shmem::RIGHTS_WRITE.to_le_bytes());
+            let reused: OfferRegionTrackedReply =
+                read_payload(&f.dispatch(&writer, main, 0, &changed)).unwrap();
+            assert_eq!(reused.status, shmem::STATUS_REQUEST_REUSE);
+            assert_eq!(
+                (reused.operation_key, reused.offer_id, reused.state),
+                (0, 0, 0)
+            );
+            let mut wrong_protocol = offer;
+            wrong_protocol.protocol = TRACE_CAPACITY_V4_PROTOCOL_ID;
+            assert_eq!(
+                handle_shmem_outcome_envelope(
+                    &fixture_caller(0),
+                    &f.caps,
+                    &mut f.regions,
+                    &wrong_protocol
+                )
+                .payload_len,
+                0
+            );
+            let pending_again: QueryOfferedRegionReply =
+                read_payload(&f.dispatch(&writer, main, 0, &routes[2].1)).unwrap();
+            assert_eq!(
+                (
+                    pending_again.status,
+                    pending_again.offer_id,
+                    pending_again.state
+                ),
+                (0, pending.offer_id, shmem::MAPPING_OUTCOME_PENDING)
+            );
+            let cancelled: CancelTrackedOfferReply =
+                read_payload(&f.dispatch(&writer, main, 0, &routes[4].1)).unwrap();
+            assert_eq!((cancelled.status, cancelled.reserved), (0, 0));
+            let closed: AcceptRegionTrackedReply =
+                read_payload(&f.dispatch(&writer, main, 1, &routes[1].1)).unwrap();
+            assert_eq!(
+                (closed.status, closed.state, closed.mapping_id),
+                (0, shmem::MAPPING_OUTCOME_CANCELLED, 0)
+            );
+            let owner_ack: AcknowledgeRegionOutcomeReply =
+                read_payload(&f.dispatch(&writer, main, 0, &routes[5].1)).unwrap();
+            assert_eq!(owner_ack.status, 0);
+            let mut target_ack = routes[5].1;
+            target_ack.handle = f.ipc[1];
+            assert_eq!(
+                read_payload::<AcknowledgeRegionOutcomeReply>(&f.dispatch(
+                    &writer,
+                    main,
+                    1,
+                    &target_ack
+                ))
+                .unwrap()
+                .status,
+                0
+            );
+            let good: OfferRegionTrackedReply =
+                read_payload(&f.dispatch(&writer, main, 0, &offer)).unwrap();
+            assert_eq!(good.status, 0);
+            let accepted = f.request(
+                1,
+                533,
+                3,
+                AcceptRegionTracked {
+                    request_id: 107,
+                    version: 3,
+                    reserved: 0,
+                    offer_id: good.offer_id,
+                },
+            );
+            assert_eq!(
+                read_payload::<AcceptRegionTrackedReply>(&f.dispatch(&writer, main, 1, &accepted))
+                    .unwrap()
+                    .mapping_id,
+                region
+            );
+            f.regions.unmap_region(1, region, 1).unwrap();
+            f.regions.close_region(0, region).unwrap();
+        }
+    }
+
+    #[test]
+    fn fixed_trace_main_entry_denies_foreign_ipc_with_initialized_typed_reply() {
+        crate::cap_table::reset_smp_state_for_test();
+        let _guard = trace_ring::reset_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let caps = StaticCapTable::new();
+        let mut regions = std::boxed::Box::new(shmem::ShmemRegionTable::new());
+        let mut req = Envelope::empty(
+            TRACE_CAPACITY_V4_PROTOCOL_ID,
+            MSG_TRACE_CAPACITY_V4_CREATE_FIXED_TRACE_BUFFER,
+        );
+        write_payload(
+            &mut req,
+            &CreateFixedTraceBuffer {
+                request_id: 71,
+                domain_id: 1,
+                max_delivery_bytes: 1536,
+                reserved: 0,
+            },
+        )
+        .unwrap();
+        let out = handle_envelope(&fixture_caller(1), &writer, &caps, &mut regions, &req);
+        let reply: CreateFixedTraceBufferReply = read_payload(&out).unwrap();
+        assert_eq!(
+            out.msg_type,
+            MSG_TRACE_CAPACITY_V4_CREATE_FIXED_TRACE_BUFFER_REPLY
+        );
+        assert_eq!(reply.request_id, 71);
+        assert_eq!(
+            reply.status,
+            crate::trace_service::TRACE_STATUS_INVALID_CAPABILITY
+        );
+        assert_eq!(
+            (
+                reply.trace_cap,
+                reply.retention_events,
+                reply.retention_bytes,
+                reply.max_delivery_bytes
+            ),
+            (0, 0, 0, 0)
+        );
+        assert!(
+            out.payload[out.payload_len as usize..]
+                .iter()
+                .all(|b| *b == 0)
+        );
+    }
+
+    #[test]
+    fn tracked_offer_main_entry_denies_foreign_ipc_without_observation_or_mutation() {
+        crate::cap_table::reset_smp_state_for_test();
+        let _guard = trace_ring::reset_for_test();
+        let writer = trace_ring::TraceWriter::claim().unwrap();
+        let caps = StaticCapTable::new();
+        let mut regions = std::boxed::Box::new(shmem::ShmemRegionTable::new());
+        let mut req = Envelope::empty(
+            SHMEM_OUTCOME_V3_PROTOCOL_ID,
+            MSG_SHMEM_OUTCOME_V3_OFFER_REGION_TRACKED,
+        );
+        write_payload(
+            &mut req,
+            &OfferRegionTracked {
+                request_id: 72,
+                version: 3,
+                reserved: 0,
+                operation_key: 91,
+                region_id: 1,
+                shm_cap: 1,
+                target_domain_id: 2,
+                rights: 1,
+                cache_mode: 0,
+            },
+        )
+        .unwrap();
+        let out = handle_envelope(&fixture_caller(1), &writer, &caps, &mut regions, &req);
+        let reply: OfferRegionTrackedReply = read_payload(&out).unwrap();
+        assert_eq!(
+            out.msg_type,
+            MSG_SHMEM_OUTCOME_V3_OFFER_REGION_TRACKED_REPLY
+        );
+        assert_eq!(reply.status, shmem::STATUS_INVALID_CAPABILITY);
+        assert_eq!(
+            (reply.operation_key, reply.offer_id, reply.state),
+            (0, 0, 0)
+        );
+        assert_eq!(
+            regions.query_offered_region(1, 91),
+            Err(shmem::STATUS_MAPPING_NOT_FOUND)
+        );
     }
 }

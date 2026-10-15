@@ -50,11 +50,19 @@ valid fixed native wire contract. There are no nested structs or signed native
 field types in the current generator. Use handles, fixed IDs, lengths, and offsets
 for data-plane objects; validate the referenced object and range at consumption.
 
-The generator emits `repr(C)` structs and protocol/message constants, not a
-per-field serialization codec. Current `kernel_api::wire` helpers copy the native
-struct representation into the bounded payload and check its size on reads.
-Review alignment/padding, initialized bytes, and supported target byte order; do
-not infer portable encoding from `repr(C)`. The outer bridge frame has an explicit
+The generator emits `repr(C)` structs, protocol/message constants and explicit
+field codecs through `kernel_api::impl_wire_payload!`. The wire helpers require
+`WirePayload`; there is no blanket `Copy` implementation. Encoding writes only
+integer/byte-array fields at their existing native offsets and zeroes implicit
+gaps and the envelope tail. Decoding constructs fields separately and ignores
+incoming implicit padding for compatibility with existing peers. It never creates
+a Rust value from arbitrary object-representation bytes.
+
+Payload lengths, field offsets and native byte order remain unchanged on the
+supported little-endian x86-64/AArch64 targets. This preserves the existing ABI;
+it does not define a cross-endian portable format. Booleans, enums, references,
+dynamic values and arbitrary `Copy` records are not native wire types. Explicit
+reserved fields retain their consumer-owned semantic validation. The outer bridge frame has an explicit
 encoding in `ipc_frame.rs`. Typed preflight, schema validation, capability checks,
 and referenced-object bounds remain consumer responsibilities.
 

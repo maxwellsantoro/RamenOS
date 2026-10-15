@@ -8,14 +8,22 @@ connects checkpoints to [Vision](VISION.md). This queue owns dispatch order. Use
 [Agentic Workflow](docs/AGENTIC_WORKFLOW.md) for scope, resource reservations and
 handoff; do not copy this queue into instructions or skills.
 
-## Comprehensive review integration
+## Updated-review foundation integration
 
-The D/C → A/F → B → G repair sequence is implemented with regression consumers;
-[the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) owns its
-contracts, denial/recovery obligations and validation scope. Preserve all existing
-editor consumers when accepting reviewed source-registry successors. Complete
-fresh assembled gates and matching hosted qualification before treating this
-revision as an accepted predecessor. Prior PR #39's CI does not qualify new source.
+The user selected the updated-review P1/P2/P3 foundation follow-ups before further
+editor-process implementation. Explicit wire/UTF-8 checks, truthful fixed trace
+capacity, retained Shmem outcomes, per-ID Store drains and offline authority epoch
+rotation are implemented candidates. These review packet names do not complete
+the process P1/P2/P3 sequence below. The
+[acceptance record](docs/plans/updated-review-repairs-2026-10-14.md) owns their
+assertions and remaining qualification.
+
+Finish fresh assembled local gates, both-architecture target checks and matching
+hosted qualification before accepting this predecessor. The assembled boundary
+gate and both-architecture S8 checks pass locally; editor preservation and matching
+hosted qualification remain pending.
+Preserve all previous editor consumers and reviewed source registries. PR #40/41
+qualify preceding source only; do not reuse their results for changed inputs.
 
 The next runtime joins remain independently bounded: authenticated caller identity
 from process execution; SMP page-table exclusion and active userspace translation;
@@ -26,7 +34,9 @@ fixture success.
 
 ## Ready work front
 
-**Now:** complete the real editor process after qualified host reliability repairs and the five-lane build/test successor (Linux56 and hosted checks passed); advance RUN0/input/storage preparation independently.
+**Now:** qualify the implemented updated-review foundations, then resume the
+existing process assertion/contract sequence. Advance RUN0/input/storage
+preparation independently within its ready dependencies.
 
 The first product checkpoint remains one keyboard-first human editing task that
 works without a model. Preserve its in-process control, then cross a real process

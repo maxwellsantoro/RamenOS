@@ -75,4 +75,22 @@ python3 tools/ci/selected_test_runner.py --package store_service \
 python3 tools/ci/selected_test_runner.py --package store_service \
   --filter review_staged_before_live_revoke \
   --output "$REVIEW_RUN/store-staged-revocation"
+# Updated review: explicit codecs, UTF-8, truthful retention, original outcomes
+# and operation-specific authority lifetimes. Discovery must stay nonempty.
+python3 tools/ci/selected_test_runner.py --package kernel_api \
+  --filter wire_codec_ --output "$REVIEW_RUN/generated-wire-codecs"
+python3 tools/ci/selected_test_runner.py --package kernel_api --test wire_codec \
+  --filter review_wire_ --output "$REVIEW_RUN/wire-padding-and-validity"
+# Unsupported bool/enum/reference/raw-Copy decodes are actual compile-fail docs.
+cargo test -p kernel_api --doc --quiet
+python3 tools/ci/selected_test_runner.py --package kernel \
+  --filter review_domain_name_ --filter review_fixed_capacity \
+  --filter review_mapping_outcomes --filter review_updated_wire_consumers \
+  --output "$REVIEW_RUN/updated-native-boundaries"
+python3 tools/ci/selected_test_runner.py --package store_service \
+  --filter live_authority::epoch_tests:: \
+  --filter live_lease_drains_same_id --filter admitted_read_rechecks_health \
+  --filter admitted_publication_excludes_management --filter panicking_lease_drop \
+  --filter development_active_id_capacity \
+  --output "$REVIEW_RUN/store-drain-and-epoch"
 echo "FOUNDRY_REVIEW_BOUNDARIES: PASS"

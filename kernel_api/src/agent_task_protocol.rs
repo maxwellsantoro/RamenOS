@@ -69,7 +69,7 @@ fn fields(valid: bool) -> Result<(), ProtocolError> {
     }
 }
 
-fn payload<T: Copy>(env: &Envelope) -> Result<T, ProtocolError> {
+fn payload<T: crate::wire::WirePayload>(env: &Envelope) -> Result<T, ProtocolError> {
     read_payload(env).map_err(|_| ProtocolError::Wire)
 }
 

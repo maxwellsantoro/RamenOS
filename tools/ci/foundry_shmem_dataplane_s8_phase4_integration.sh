@@ -261,7 +261,10 @@ for arch in x86_64 aarch64; do
     grep -Fq "mmu_review: COMPLETE 17/17" "$log"
     grep -Fq "shmem_review: collision_preserves_existing_and_next_accept PASS" "$log"
     grep -Fq "trace_delivery_review: bytes_and_commit_recovery PASS" "$log"
-    if grep -Eq '(mmu_review|shmem_review|shmem_test|trace_delivery_review):.*FAIL' "$log"; then
+    grep -Fq "wire_review: initialized_codec_and_utf8 PASS" "$log"
+    grep -Fq "trace_capacity_review: truthful_retention_and_overflow PASS" "$log"
+    grep -Fq "shmem_outcome_review: original_accept_reconciliation PASS" "$log"
+    if grep -Eq '(mmu_review|shmem_review|shmem_test|trace_delivery_review|wire_review|trace_capacity_review|shmem_outcome_review):.*FAIL' "$log"; then
         echo "FOUNDRY_SHMEM_DATAPLANE_S8_PHASE4_INTEGRATION: FAIL arch=$arch"
         exit 1
     fi

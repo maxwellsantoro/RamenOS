@@ -26,6 +26,8 @@ parts of that product, with implementation status and evidence recorded separate
 | Warm developer checks, complete CI lanes, compiler cache and timing | [Foundry execution profile](FOUNDRY_CI_OPTIMIZATION_V0.md) |
 | Linux editor process contract and API | [Process contract](contracts/editor-process-v0.json), [API](DESKTOP_EDITOR_PROCESS_API_V0.md), [plan](plans/editor-process-v0.md) |
 | October 14 follow-up review | [Resolution and evidence limits](plans/follow-up-review-resolution-2026-10-14.md) |
+| Updated-review foundation candidate | [Acceptance preparation and pending qualification](plans/updated-review-repairs-2026-10-14.md) |
+| Ordinary host Store authority retirement | [Offline revoke-all epochs and operator pins](STORE_AUTHORITY_EPOCH_V1.md) |
 | RUN0 source-derived entry/retention preparation | [Entry preparation](plans/run0-relocated-entry-preparation-v0.md) |
 | Planned agent-task experiment | [Agent Task Proof](plans/2026-09-16-agent-task-proof.md) |
 | Coordinator/sub-agent workflow and hook limits | [Agentic Workflow](AGENTIC_WORKFLOW.md) |
@@ -75,6 +77,7 @@ run does not impose a global stop on independent software work.
 - [Queue Item V0](QUEUE_ITEM_V0.md)
 - [Compat Capsule V0](COMPAT_CAPSULE_V0.md)
 - [Ring Buffer V0](RING_BUFFER_V0.md)
+- [Ordinary host Store authority epochs](STORE_AUTHORITY_EPOCH_V1.md)
 - [Multi-Domain Architecture](MULTI_DOMAIN.md)
 - [HIL Appliance Evidence V0](HIL_APPLIANCE_EVIDENCE_V0.md)
 The [Current Status gate table](../CURRENT_STATUS.md#sw0-runnable-evidence-not-a-completed-experiment)
@@ -199,3 +202,4 @@ requires Foundry for executable inputs. Ordinary prose and governed org packets
 retain their cheaper path; classification alone is not evidence of behavior.
 
 - [Comprehensive review repair successor](plans/comprehensive-review-repairs-2026-10-14.md) — caller, mapping, trace and ordinary Store enforcement contracts and remaining joins.
+- [Updated-review foundation successor](plans/updated-review-repairs-2026-10-14.md) — implemented codec, UTF-8, trace-capacity, Shmem-outcome and host Store lifetime/epoch candidate; final local/hosted and new target qualification pending.

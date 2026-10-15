@@ -232,7 +232,42 @@ fn render_rust(idl: &Idl, src_path: &Path) -> Result<String> {
             out.push_str(&format!("    pub {}: {},\n", field, rust_ty));
         }
         out.push_str("}\n\n");
+        out.push_str(&format!("crate::impl_wire_payload!({} {{\n", pascal(name)));
+        for f in &msg.fields {
+            let (field, ty) = f.split_once(':').context("validated field")?;
+            out.push_str(&format!(
+                "    {}: {},\n",
+                field,
+                map_ty_rust(ty).context("validated type")?
+            ));
+        }
+        out.push_str("});\n\n");
     }
+    // Exercise every generated field and every implicit gap, including messages
+    // that are too large for one envelope and are used by other bounded carriers.
+    out.push_str(&format!(
+        "#[cfg(test)]\n#[test]\nfn wire_codec_{}_all_fields_and_padding() {{\n",
+        source_const_prefix(src_path).to_lowercase()
+    ));
+    out.push_str("    use crate::wire::WirePayload;\n");
+    for (name, msg) in &idl.message {
+        let ty = pascal(name);
+        out.push_str(&format!("    {{\n        let input = [0xa5u8; core::mem::size_of::<{ty}>()];\n        let value = {ty}::decode(&input).unwrap();\n        let mut output = [0x5au8; core::mem::size_of::<{ty}>()];\n        value.encode(&mut output).unwrap();\n        let mut expected = [0u8; core::mem::size_of::<{ty}>()];\n"));
+        for f in &msg.fields {
+            let (field, field_ty) = f.split_once(':').context("validated field")?;
+            let rust_ty = map_ty_rust(field_ty).context("validated type")?;
+            out.push_str(&format!("        let offset = core::mem::offset_of!({ty}, {field});\n        expected[offset..offset + <{rust_ty} as WirePayload>::WIRE_SIZE].fill(0xa5);\n"));
+        }
+        out.push_str(&format!("        assert_eq!(output, expected, \"{ty} initialized bytes\");\n        let again = {ty}::decode(&output).unwrap();\n"));
+        for f in &msg.fields {
+            let (field, _) = f.split_once(':').context("validated field")?;
+            out.push_str(&format!(
+                "        assert_eq!(value.{field}, again.{field});\n"
+            ));
+        }
+        out.push_str("    }\n");
+    }
+    out.push_str("}\n");
     Ok(out)
 }
 

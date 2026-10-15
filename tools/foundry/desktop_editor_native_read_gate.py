@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('native_read_gate_primitives', hel
 h = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(h)
 REGISTRY = 'tools/foundry/editor_native_read_sources_v0.json'
-REGISTRY_SHA = '61cd6c5261b4c49941ab5d0154ef6333fa0c87298a5d35146b09973a13ba024b'
+REGISTRY_SHA = '3325c2c04e1b033d437351e48774d102c37ba697b662b8ba418924834ab3e171'
 CONTRACT_SHA = 'b28134e814f25b1b51ee1124509e971fed38b70c6682fe6d79a8baa13512f2bd'
 CASES = (
     'native_read_positive', 'native_read_identity_denials',

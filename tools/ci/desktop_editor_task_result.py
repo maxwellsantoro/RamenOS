@@ -39,7 +39,7 @@ SOURCE_COLLECTOR = 'tools/ci/native_save_task_sources.py'
 SOURCE_COLLECTOR_SHA = '3fa310f06ee74638944c6dfabd9d70ea2f817b825534f47081a3c45e6b4af671'
 # ROOT MUST FREEZE THESE AFTER INDEPENDENT ASSERTION/INVENTORY/READER REVIEW.
 REGISTRY_PATH = 'tools/ci/native_save_task_sources_v0.json'
-REGISTRY_SHA = 'd41f735f0105d573b38b00714cdd80739205bc2091ba59c6a309c9b69805006b'
+REGISTRY_SHA = '89e8d4191fce360e0b9274666116732cba8004804ea11532495022344badb5fc'
 ASSERTION_PINS = {'apps/artifact_editor/tests/native_task.rs': '2d6d616b416dbebe85e730ac44bcadd30142f20a359154225ce2b3ebb35fa447', 'apps/artifact_editor/tests/native_task_support/mod.rs': '0a4d62ef0a934b00e2b9b42878212ff82d2530225c91148941fd558c1d0e8228', 'apps/artifact_editor/tests/native_task_support/recording.rs': '69844fffb1b8b3bbb1d7fa9e4bbe2218c59e5e0adb99457383032bf749b848fd', 'apps/artifact_editor/tests/native_task_support/protected_goldens.rs': 'f99add25f2aa9b4bf37074fb7a2ae3fca5f78475775c7fe469f649d9dd438d6c'}
 RECORDING_CONTRACT_PATH = 'docs/contracts/editor-native-save-recording-v0.json'
 RECORDING_CONTRACT_SHA = 'c011d7ac19bf17ac6aa2fa941f16d6c6fbeac1ebd245eb1b7015d7f94d216bfe'

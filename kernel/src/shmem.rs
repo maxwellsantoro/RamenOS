@@ -90,6 +90,10 @@ pub const STATUS_INVALID_VA: u32 = 11;
 pub const STATUS_PERMISSION_DENIED: u32 = 12;
 /// NEW-004: Mapping not found for specified domain
 pub const STATUS_MAPPING_NOT_FOUND: u32 = 13;
+/// An existing operation key was reused with a different offer payload.
+pub const STATUS_REQUEST_REUSE: u32 = 14;
+/// A tracked request has an invalid operation key.
+pub const STATUS_INVALID_REQUEST: u32 = 15;
 
 /// V-005: ShmemRegion with explicit alignment for safe access
 /// repr(C) ensures predictable layout across architectures
@@ -300,6 +304,24 @@ impl DomainVaTracker {
 }
 
 const MAX_MAPPING_OFFERS: usize = 64;
+/// Retained original outcomes; both participants must acknowledge a terminal
+/// outcome before its slot and owner operation key become available again.
+pub const MAX_MAPPING_OUTCOMES: usize = 64;
+
+pub const MAPPING_OUTCOME_PENDING: u32 = 1;
+pub const MAPPING_OUTCOME_ACCEPTED: u32 = 2;
+pub const MAPPING_OUTCOME_CANCELLED: u32 = 3;
+pub const MAPPING_OUTCOME_CLOSED: u32 = 4;
+
+/// An original offer's outcome, not renewed mapping authority. Once terminal,
+/// state and mapping ID remain unchanged even after region close or slot reuse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MappingOutcome {
+    pub operation_key: u64,
+    pub offer_id: u64,
+    pub mapping_id: u64,
+    pub state: u32,
+}
 
 #[derive(Clone, Copy)]
 struct MappingOffer {
@@ -312,6 +334,14 @@ struct MappingOffer {
     cache_mode: u32,
 }
 
+#[derive(Clone, Copy)]
+struct MappingReceipt {
+    offer: MappingOffer,
+    outcome: MappingOutcome,
+    owner_acknowledged: bool,
+    target_acknowledged: bool,
+}
+
 /// Shared memory region table with generation counters and per-domain VA tracking.
 pub struct ShmemRegionTable {
     pub regions: [ShmemRegion; MAX_REGIONS], // Made public for testing
@@ -319,6 +349,7 @@ pub struct ShmemRegionTable {
     /// Index is domain_id (0-15), each domain has its own VA space
     va_trackers: [DomainVaTracker; crate::domain_registry::MAX_DOMAINS],
     offers: [Option<MappingOffer>; MAX_MAPPING_OFFERS],
+    outcomes: [Option<MappingReceipt>; MAX_MAPPING_OUTCOMES],
     // Zero retires offer issuance permanently; accepted/cancelled IDs never recur.
     next_offer_id: u64,
 }
@@ -329,8 +360,25 @@ impl ShmemRegionTable {
             regions: [ShmemRegion::new(); MAX_REGIONS],
             va_trackers: [DomainVaTracker::new(); crate::domain_registry::MAX_DOMAINS],
             offers: [None; MAX_MAPPING_OFFERS],
+            outcomes: [None; MAX_MAPPING_OUTCOMES],
             next_offer_id: 1,
         }
+    }
+
+    /// Reinitialize the single-threaded boot fixture without a table-sized stack
+    /// temporary. This is not a resource-release operation: the boot caller must
+    /// own the fixture exclusively and must not expose discarded mappings.
+    #[inline(never)]
+    pub(crate) fn reset_boot_fixture(&mut self) {
+        for region in &mut self.regions {
+            *region = ShmemRegion::new();
+        }
+        for tracker in &mut self.va_trackers {
+            *tracker = DomainVaTracker::new();
+        }
+        self.offers.fill(None);
+        self.outcomes.fill(None);
+        self.next_offer_id = 1;
     }
 
     /// NEW-002: Allocate a virtual address for a domain.
@@ -471,6 +519,168 @@ impl ShmemRegionTable {
         Err(STATUS_NO_MEMORY)
     }
 
+    /// Reserve a retained outcome before creating an offer. Exact retries use
+    /// the retained original payload and result, without consulting a possibly
+    /// closed or reused region. Caller identity must be independently admitted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn offer_region_tracked(
+        &mut self,
+        operation_key: u64,
+        region_id: u64,
+        cap: Handle,
+        caller: u64,
+        target: u64,
+        rights: u32,
+        cache_mode: u32,
+    ) -> Result<MappingOutcome, u32> {
+        if operation_key == 0 {
+            return Err(STATUS_INVALID_REQUEST);
+        }
+        if let Some(receipt) = self.outcomes.iter().flatten().find(|receipt| {
+            receipt.offer.owner == caller && receipt.outcome.operation_key == operation_key
+        }) {
+            let original = receipt.offer;
+            if original.region_id != region_id
+                || original.cap != cap
+                || original.target != target
+                || original.rights != rights
+                || original.cache_mode != cache_mode
+            {
+                return Err(STATUS_REQUEST_REUSE);
+            }
+            return Ok(receipt.outcome);
+        }
+
+        // Exclusive table access keeps this reserved slot available through the
+        // offer mutation; no fallible operation follows successful admission.
+        let reserved = self
+            .outcomes
+            .iter()
+            .position(Option::is_none)
+            .ok_or(STATUS_NO_MEMORY)?;
+        let offer_id = self.offer_region(region_id, cap, caller, target, rights, cache_mode)?;
+        let outcome = MappingOutcome {
+            operation_key,
+            offer_id,
+            mapping_id: 0,
+            state: MAPPING_OUTCOME_PENDING,
+        };
+        self.outcomes[reserved] = Some(MappingReceipt {
+            offer: MappingOffer {
+                id: offer_id,
+                region_id,
+                cap,
+                owner: caller,
+                target,
+                rights,
+                cache_mode,
+            },
+            outcome,
+            owner_acknowledged: false,
+            target_acknowledged: false,
+        });
+        Ok(outcome)
+    }
+
+    /// Reconcile only this owner's operation-key namespace. Queries never map
+    /// or validate an old region capability as current authority.
+    pub fn query_offered_region(
+        &self,
+        caller: u64,
+        operation_key: u64,
+    ) -> Result<MappingOutcome, u32> {
+        self.outcomes
+            .iter()
+            .flatten()
+            .find(|receipt| {
+                receipt.offer.owner == caller && receipt.outcome.operation_key == operation_key
+            })
+            .map(|receipt| receipt.outcome)
+            .ok_or(STATUS_MAPPING_NOT_FOUND)
+    }
+
+    fn outcome_index(&self, offer_id: u64) -> Result<usize, u32> {
+        self.outcomes
+            .iter()
+            .position(|entry| entry.is_some_and(|receipt| receipt.offer.id == offer_id))
+            .ok_or(STATUS_MAPPING_NOT_FOUND)
+    }
+
+    /// A recipient may inspect pending or terminal original outcomes, including
+    /// after the region has closed. Foreign callers receive no outcome fields.
+    pub fn query_accepted_region(&self, caller: u64, offer_id: u64) -> Result<MappingOutcome, u32> {
+        let receipt = self.outcomes[self.outcome_index(offer_id)?].unwrap();
+        if caller != receipt.offer.target {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        Ok(receipt.outcome)
+    }
+
+    /// Retry pending acceptance or return its original terminal result. Failed
+    /// mapping retains both the offer and receipt; successful retry never adds a
+    /// second reference, even after unmap, close or slot reuse.
+    pub fn accept_region_tracked(
+        &mut self,
+        caller: u64,
+        offer_id: u64,
+    ) -> Result<MappingOutcome, u32> {
+        let index = self.outcome_index(offer_id)?;
+        let outcome = self.query_accepted_region(caller, offer_id)?;
+        if outcome.state != MAPPING_OUTCOME_PENDING {
+            return Ok(outcome);
+        }
+        self.accept_region(caller, offer_id)?;
+        Ok(self.outcomes[index].unwrap().outcome)
+    }
+
+    /// Withdraw pending consent. Cancellation/closure retries are no-ops; an
+    /// accepted mapping must instead use the existing explicit unmap operation.
+    pub fn cancel_tracked_offer(&mut self, caller: u64, offer_id: u64) -> Result<(), u32> {
+        let receipt = self.outcomes[self.outcome_index(offer_id)?].unwrap();
+        if caller != receipt.offer.owner && caller != receipt.offer.target {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        match receipt.outcome.state {
+            MAPPING_OUTCOME_PENDING => self.cancel_region_offer(caller, offer_id),
+            MAPPING_OUTCOME_CANCELLED | MAPPING_OUTCOME_CLOSED => Ok(()),
+            _ => Err(STATUS_REGION_IN_USE),
+        }
+    }
+
+    /// A terminal original outcome remains queryable until both participants
+    /// acknowledge it. A self-targeted operation needs only one acknowledgement.
+    pub fn acknowledge_region_outcome(&mut self, caller: u64, offer_id: u64) -> Result<(), u32> {
+        let index = self.outcome_index(offer_id)?;
+        let receipt = self.outcomes[index].as_mut().unwrap();
+        if caller != receipt.offer.owner && caller != receipt.offer.target {
+            return Err(STATUS_PERMISSION_DENIED);
+        }
+        if receipt.outcome.state == MAPPING_OUTCOME_PENDING {
+            return Err(STATUS_REGION_IN_USE);
+        }
+        if caller == receipt.offer.owner {
+            receipt.owner_acknowledged = true;
+        }
+        if caller == receipt.offer.target {
+            receipt.target_acknowledged = true;
+        }
+        if receipt.owner_acknowledged && receipt.target_acknowledged {
+            self.outcomes[index] = None;
+        }
+        Ok(())
+    }
+
+    /// Update a pending tracked receipt through every legacy mutation path.
+    fn finish_mapping_outcome(&mut self, offer_id: u64, state: u32, mapping_id: u64) {
+        if let Ok(index) = self.outcome_index(offer_id) {
+            let receipt = self.outcomes[index].as_mut().unwrap();
+            if receipt.outcome.state == MAPPING_OUTCOME_PENDING {
+                receipt.outcome.state = state;
+                receipt.outcome.mapping_id = mapping_id;
+            }
+        }
+    }
+
     /// Owner offers exact current authority without changing any target PTEs.
     #[allow(clippy::too_many_arguments)]
     pub fn offer_region(
@@ -549,6 +759,7 @@ impl ShmemRegionTable {
             offer.cache_mode,
         )?;
         self.offers[index] = None;
+        self.finish_mapping_outcome(offer_id, MAPPING_OUTCOME_ACCEPTED, mapping);
         Ok(mapping)
     }
 
@@ -565,6 +776,7 @@ impl ShmemRegionTable {
             return Err(STATUS_PERMISSION_DENIED);
         }
         self.offers[index] = None;
+        self.finish_mapping_outcome(offer_id, MAPPING_OUTCOME_CANCELLED, 0);
         Ok(())
     }
 
@@ -849,7 +1061,9 @@ impl ShmemRegionTable {
     /// P1 fix: caller_domain_id is validated to ensure only the region owner
     /// can close the region. This prevents unauthorized close operations.
     pub fn close_region(&mut self, caller_domain_id: u64, region_id: u64) -> Result<(), u32> {
-        let index = ((region_id >> 32) & 0xFFFF) as usize;
+        // The entire high word is the slot index. Masking it would accept an
+        // alias that closes the slot but does not match its retained offers.
+        let index = (region_id >> 32) as usize;
         let generation = region_id & 0xFFFFFFFF; // V-004: Keep as u64
 
         if index == 0 || index > MAX_REGIONS {
@@ -893,6 +1107,13 @@ impl ShmemRegionTable {
         for offer in &mut self.offers {
             if offer.is_some_and(|pending| pending.region_id == region_id) {
                 *offer = None;
+            }
+        }
+        for receipt in self.outcomes.iter_mut().flatten() {
+            if receipt.offer.region_id == region_id
+                && receipt.outcome.state == MAPPING_OUTCOME_PENDING
+            {
+                receipt.outcome.state = MAPPING_OUTCOME_CLOSED;
             }
         }
 
@@ -2607,5 +2828,398 @@ mod review_target_consent {
         let mapping = table.accept_region(2, next_offer).unwrap();
         table.unmap_region(2, mapping, 2).unwrap();
         table.close_region(1, next).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod review_mapping_outcomes {
+    use super::*;
+
+    fn region(table: &mut ShmemRegionTable, owner: u64) -> (u64, Handle) {
+        let (id, cap, _) = table
+            .create_region(
+                owner,
+                4096,
+                REGION_FLAG_READABLE | REGION_FLAG_WRITABLE,
+                4096,
+            )
+            .unwrap();
+        (id, cap)
+    }
+
+    #[test]
+    fn review_outcome_noncanonical_close_preserves_pending_then_canonical_close_allows_next() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(60, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        for high_bits in [1u64 << 48, 0xffffu64 << 48] {
+            assert_eq!(
+                table.close_region(1, id | high_bits),
+                Err(STATUS_REGION_NOT_FOUND)
+            );
+            assert!(table.validate_cap(cap));
+            assert_eq!(table.query_offered_region(1, 60), Ok(pending));
+            assert_eq!(
+                table.query_accepted_region(2, pending.offer_id),
+                Ok(pending)
+            );
+            assert_eq!(table.offers.iter().flatten().count(), 1);
+            assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        }
+        table.close_region(1, id).unwrap();
+        let closed = table.query_offered_region(1, 60).unwrap();
+        assert_eq!(closed.state, MAPPING_OUTCOME_CLOSED);
+        assert_eq!(closed.mapping_id, 0);
+        assert_eq!(table.query_accepted_region(2, pending.offer_id), Ok(closed));
+        table
+            .acknowledge_region_outcome(1, pending.offer_id)
+            .unwrap();
+        table
+            .acknowledge_region_outcome(2, pending.offer_id)
+            .unwrap();
+        assert_eq!(
+            table.query_offered_region(1, 60),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        let (next_id, next_cap) = region(&mut table, 1);
+        let next = table
+            .offer_region_tracked(60, next_id, next_cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_ne!(next.offer_id, pending.offer_id);
+        let accepted = table.accept_region_tracked(2, next.offer_id).unwrap();
+        table.unmap_region(2, accepted.mapping_id, 2).unwrap();
+        table.close_region(1, next_id).unwrap();
+    }
+
+    #[test]
+    fn review_outcome_lost_offer_reply_reconciles_exact_request_and_rejects_key_changes() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(7, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_eq!(pending.operation_key, 7);
+        assert_eq!(pending.state, MAPPING_OUTCOME_PENDING);
+        assert_eq!(pending.mapping_id, 0);
+        assert_eq!(table.query_offered_region(1, 7).unwrap(), pending);
+        assert_eq!(
+            table.offer_region_tracked(7, id, cap, 1, 2, RIGHTS_READ, 0),
+            Ok(pending)
+        );
+        for (changed_id, changed_cap, target, rights, cache) in [
+            (id + 1, cap, 2, RIGHTS_READ, 0),
+            (id, Handle::INVALID, 2, RIGHTS_READ, 0),
+            (id, cap, 3, RIGHTS_READ, 0),
+            (id, cap, 2, RIGHTS_WRITE, 0),
+            (id, cap, 2, RIGHTS_READ, 1),
+        ] {
+            assert_eq!(
+                table.offer_region_tracked(7, changed_id, changed_cap, 1, target, rights, cache),
+                Err(STATUS_REQUEST_REUSE)
+            );
+        }
+        assert_eq!(
+            table.offer_region_tracked(0, id, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_INVALID_REQUEST)
+        );
+        assert_eq!(table.offers.iter().flatten().count(), 1);
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        let accepted = table.accept_region_tracked(2, pending.offer_id).unwrap();
+        assert_eq!(accepted.state, MAPPING_OUTCOME_ACCEPTED);
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 1);
+    }
+
+    #[test]
+    fn review_outcome_lost_accept_reply_survives_unmap_close_and_slot_reuse_without_remap() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let offered = table
+            .offer_region_tracked(10, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let original = table.accept_region_tracked(2, offered.offer_id).unwrap();
+        assert_eq!(original.state, MAPPING_OUTCOME_ACCEPTED);
+        assert_eq!(original.mapping_id, id);
+        assert_eq!(
+            table.accept_region_tracked(2, offered.offer_id),
+            Ok(original)
+        );
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 1);
+        table.unmap_region(2, original.mapping_id, 2).unwrap();
+        table.close_region(1, id).unwrap();
+        let (replacement, replacement_cap) = region(&mut table, 3);
+        assert_eq!(replacement_cap.index, cap.index);
+        assert_ne!(replacement_cap.generation, cap.generation);
+        assert_eq!(table.query_offered_region(1, 10), Ok(original));
+        assert_eq!(
+            table.query_accepted_region(2, offered.offer_id),
+            Ok(original)
+        );
+        assert_eq!(
+            table.accept_region_tracked(2, offered.offer_id),
+            Ok(original)
+        );
+        assert_eq!(
+            table.offer_region_tracked(10, id, cap, 1, 2, RIGHTS_READ, 0),
+            Ok(original)
+        );
+        assert_eq!(
+            table.regions[(replacement_cap.index - 1) as usize].refcount,
+            0
+        );
+        assert_eq!(table.regions[(replacement_cap.index - 1) as usize].vaddr, 0);
+        let next = table
+            .offer_region_tracked(11, replacement, replacement_cap, 3, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let next = table.accept_region_tracked(2, next.offer_id).unwrap();
+        table.unmap_region(2, next.mapping_id, 2).unwrap();
+        table.close_region(3, replacement).unwrap();
+    }
+
+    #[test]
+    fn review_outcome_foreign_queries_mutations_and_acknowledgements_preserve_both_owners() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(19, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_eq!(
+            table.query_offered_region(2, 19),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.query_accepted_region(1, pending.offer_id),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert_eq!(
+            table.accept_region_tracked(3, pending.offer_id),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert_eq!(
+            table.cancel_tracked_offer(3, pending.offer_id),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert_eq!(
+            table.acknowledge_region_outcome(3, pending.offer_id),
+            Err(STATUS_PERMISSION_DENIED)
+        );
+        assert_eq!(table.query_offered_region(1, 19), Ok(pending));
+        let (other_id, other_cap) = region(&mut table, 3);
+        let independent = table
+            .offer_region_tracked(19, other_id, other_cap, 3, 3, RIGHTS_READ, 0)
+            .unwrap();
+        assert_ne!(pending.offer_id, independent.offer_id);
+        let unrelated = table
+            .accept_region_tracked(3, independent.offer_id)
+            .unwrap();
+        table.unmap_region(3, unrelated.mapping_id, 3).unwrap();
+        table.close_region(3, other_id).unwrap();
+        let accepted = table.accept_region_tracked(2, pending.offer_id).unwrap();
+        assert_eq!(table.query_offered_region(1, 19), Ok(accepted));
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 1);
+    }
+
+    #[test]
+    fn review_outcome_failed_mapping_retains_original_offer_and_receipt_for_successful_retry() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(20, id, cap, 1, 5, RIGHTS_READ, 0)
+            .unwrap();
+        assert!(table.accept_region_tracked(5, pending.offer_id).is_err());
+        assert_eq!(table.query_offered_region(1, 20), Ok(pending));
+        assert_eq!(
+            table.query_accepted_region(5, pending.offer_id),
+            Ok(pending)
+        );
+        assert_eq!(
+            table.acknowledge_region_outcome(1, pending.offer_id),
+            Err(STATUS_REGION_IN_USE)
+        );
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        assert_eq!(table.va_trackers[5].allocated, 0);
+        crate::mm::ADDRESS_SPACE_TABLE
+            .lock()
+            .as_mut()
+            .unwrap()
+            .set_root(5, unsafe { crate::mm::PhysAddr::new(0xA000) });
+        let accepted = table.accept_region_tracked(5, pending.offer_id).unwrap();
+        assert_eq!(accepted.offer_id, pending.offer_id);
+        assert_eq!(accepted.state, MAPPING_OUTCOME_ACCEPTED);
+        table.unmap_region(5, accepted.mapping_id, 5).unwrap();
+        table.close_region(1, id).unwrap();
+    }
+
+    #[test]
+    fn review_outcome_legacy_accept_cancel_and_failed_close_preserve_original_terminal_states() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let accepted_offer = table
+            .offer_region_tracked(30, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let cancelled_offer = table
+            .offer_region_tracked(31, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let pending = table
+            .offer_region_tracked(32, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        let mapping = table.accept_region(2, accepted_offer.offer_id).unwrap();
+        let accepted = table
+            .query_accepted_region(2, accepted_offer.offer_id)
+            .unwrap();
+        assert_eq!(accepted.state, MAPPING_OUTCOME_ACCEPTED);
+        assert_eq!(accepted.mapping_id, mapping);
+        table
+            .cancel_region_offer(2, cancelled_offer.offer_id)
+            .unwrap();
+        let cancelled = table.query_offered_region(1, 31).unwrap();
+        assert_eq!(cancelled.state, MAPPING_OUTCOME_CANCELLED);
+        assert_eq!(cancelled.mapping_id, 0);
+        assert_eq!(table.close_region(1, id), Err(STATUS_REGION_IN_USE));
+        assert_eq!(table.query_offered_region(1, 32), Ok(pending));
+        assert_eq!(
+            table.cancel_tracked_offer(1, accepted_offer.offer_id),
+            Err(STATUS_REGION_IN_USE)
+        );
+        table.unmap_region(2, mapping, 2).unwrap();
+        table.close_region(1, id).unwrap();
+        assert_eq!(table.query_offered_region(1, 30), Ok(accepted));
+        assert_eq!(table.query_offered_region(1, 31), Ok(cancelled));
+        let closed = table.query_accepted_region(2, pending.offer_id).unwrap();
+        assert_eq!(closed.state, MAPPING_OUTCOME_CLOSED);
+        assert_eq!(closed.mapping_id, 0);
+        assert_eq!(table.accept_region_tracked(2, pending.offer_id), Ok(closed));
+        assert_eq!(
+            table.accept_region_tracked(2, cancelled_offer.offer_id),
+            Ok(cancelled)
+        );
+    }
+
+    #[test]
+    fn review_outcome_tracked_cancel_is_terminal_and_requires_both_acknowledgements_before_key_reuse()
+     {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(40, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        table.cancel_tracked_offer(2, pending.offer_id).unwrap();
+        let cancelled = table.query_offered_region(1, 40).unwrap();
+        assert_eq!(cancelled.state, MAPPING_OUTCOME_CANCELLED);
+        table.cancel_tracked_offer(1, pending.offer_id).unwrap();
+        assert_eq!(
+            table.offer_region_tracked(40, id, cap, 1, 2, RIGHTS_READ, 0),
+            Ok(cancelled)
+        );
+        table
+            .acknowledge_region_outcome(1, pending.offer_id)
+            .unwrap();
+        assert_eq!(table.query_offered_region(1, 40), Ok(cancelled));
+        table
+            .acknowledge_region_outcome(2, pending.offer_id)
+            .unwrap();
+        assert_eq!(
+            table.query_offered_region(1, 40),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.query_accepted_region(2, pending.offer_id),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        let fresh = table
+            .offer_region_tracked(40, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert_ne!(fresh.offer_id, pending.offer_id);
+        let accepted = table.accept_region_tracked(2, fresh.offer_id).unwrap();
+        table.unmap_region(2, accepted.mapping_id, 2).unwrap();
+        table.close_region(1, id).unwrap();
+    }
+
+    #[test]
+    fn review_outcome_capacity_retains_receipts_without_mutation_until_ack_then_next_operation() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let mut offers = [0; MAX_MAPPING_OUTCOMES];
+        for (index, offer) in offers.iter_mut().enumerate() {
+            let pending = table
+                .offer_region_tracked(index as u64 + 1, id, cap, 1, 2, RIGHTS_READ, 0)
+                .unwrap();
+            *offer = pending.offer_id;
+            table.cancel_tracked_offer(1, pending.offer_id).unwrap();
+        }
+        assert_eq!(table.offers.iter().flatten().count(), 0);
+        let next_offer_id = table.next_offer_id;
+        assert_eq!(
+            table.offer_region_tracked(100, id, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_NO_MEMORY)
+        );
+        assert_eq!(table.next_offer_id, next_offer_id);
+        assert_eq!(table.offers.iter().flatten().count(), 0);
+        assert_eq!(table.regions[(cap.index - 1) as usize].refcount, 0);
+        assert_eq!(table.regions[(cap.index - 1) as usize].vaddr, 0);
+        let unrelated = table.map_region(id, cap, 1, 1, RIGHTS_READ, 0).unwrap();
+        table.unmap_region(1, unrelated, 1).unwrap();
+        table.acknowledge_region_outcome(1, offers[0]).unwrap();
+        assert_eq!(
+            table.offer_region_tracked(100, id, cap, 1, 2, RIGHTS_READ, 0),
+            Err(STATUS_NO_MEMORY)
+        );
+        table.acknowledge_region_outcome(2, offers[0]).unwrap();
+        let next = table
+            .offer_region_tracked(100, id, cap, 1, 2, RIGHTS_READ, 0)
+            .unwrap();
+        assert!(!offers.contains(&next.offer_id));
+        let accepted = table.accept_region_tracked(2, next.offer_id).unwrap();
+        table.unmap_region(2, accepted.mapping_id, 2).unwrap();
+        table.close_region(1, id).unwrap();
+    }
+
+    #[test]
+    fn review_outcome_self_target_ack_retires_once_and_unknown_outcomes_remain_explicit() {
+        let _memory = crate::mm::test_support::setup();
+        let mut table = ShmemRegionTable::new();
+        let (id, cap) = region(&mut table, 1);
+        let pending = table
+            .offer_region_tracked(50, id, cap, 1, 1, RIGHTS_READ, 0)
+            .unwrap();
+        table.cancel_tracked_offer(1, pending.offer_id).unwrap();
+        table
+            .acknowledge_region_outcome(1, pending.offer_id)
+            .unwrap();
+        assert_eq!(
+            table.query_offered_region(1, 50),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.query_accepted_region(1, pending.offer_id),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.accept_region_tracked(1, pending.offer_id),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.cancel_tracked_offer(1, pending.offer_id),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        assert_eq!(
+            table.acknowledge_region_outcome(1, pending.offer_id),
+            Err(STATUS_MAPPING_NOT_FOUND)
+        );
+        let next = table
+            .offer_region_tracked(50, id, cap, 1, 1, RIGHTS_READ, 0)
+            .unwrap();
+        let accepted = table.accept_region_tracked(1, next.offer_id).unwrap();
+        table.unmap_region(1, accepted.mapping_id, 1).unwrap();
+        table.close_region(1, id).unwrap();
     }
 }

@@ -23,7 +23,7 @@ use store_service::agent_task::{
 fn invalid() -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, "task adapter protocol failure")
 }
-fn env<T: Copy>(ty: u32, req: T) -> io::Result<Envelope> {
+fn env<T: kernel_api::wire::WirePayload>(ty: u32, req: T) -> io::Result<Envelope> {
     let mut e = Envelope::empty(14, ty);
     write_payload(&mut e, &req).map_err(|_| invalid())?;
     Ok(e)

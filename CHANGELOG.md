@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 2026-10-14 — updated-review foundation candidate
+
+- Add explicit generated field codecs with initialized padding and restricted
+  decoding; preserve valid UTF-8 when bounding domain names and expose checked
+  decoding for malformed stored names.
+- Add trace capacity v4 metadata for fixed 64-event/1536-byte retention and a
+  separate whole-event delivery limit; retain deprecated legacy v1 size values.
+- Add Shmem outcome v3 owner-key and recipient queries, original acceptance
+  reconciliation after region retirement, joint acknowledgement of 64 bounded
+  receipts, and canonical close denial with successful recovery.
+- Replace global Store operation exclusion with per-ID leases and revoke drains;
+  preserve unrelated management during actual FIFO-held read IO, recheck health
+  after reads, and exclude uncertain management persistence during publication.
+- Add explicit offline revoke-all authority epochs with fresh exclusive keys,
+  1024 IDs per epoch, 64 retired keys and an externally maintained checkpoint pin.
+  Preserve ordinary Store launch selection after adding the operator binary.
+- Extend existing gates and source registries without removing earlier assertions.
+  Focused host checks are preliminary; final assembled local/hosted qualification
+  and new both-architecture target checks remain pending. PR #40/41 qualify their
+  preceding source only. The user selected these foundations before process work;
+  process/RUN0/target/SMP, same-UID and external-operator limitations remain. See
+  [the acceptance record](docs/plans/updated-review-repairs-2026-10-14.md).
+
 ## 2026-10-14 — comprehensive review enforcement repairs
 
 - Require strict signed descriptor publication with exact recovered metadata; retire

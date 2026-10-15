@@ -30,6 +30,25 @@ an unchanged-source successful retry. The source-bound local and hosted scope is
 in [the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md#qualification).
 These repairs add no production, target-isolation or release assurance.
 
+## Updated-review candidate and qualification boundary
+
+The current candidate implements explicit field codecs and checked UTF-8 names,
+truthful fixed trace capacity v4, retained Shmem outcomes v3 and per-ID Store
+operation drains. Queries reconcile original results without restoring mapping
+authority; 64 outcome slots require joint terminal acknowledgement. Actual
+FIFO-held host reads exercise unrelated authority progress and admission-to-reply
+health checks; publication excludes authority poisoning through durable commit.
+Offline revoke-all rotation permits a fresh 1024-ID epoch with exclusive keys,
+retirement history of at most 64 keys and an exact external checkpoint pin. The
+[operator contract](docs/STORE_AUTHORITY_EPOCH_V1.md) states the provisioning and
+rollback-anchor assumptions.
+
+The assembled boundary gate, host kernel/API/codegen checks, strict Clippy and
+both-architecture S8 assertions pass locally. Editor preservation and matching
+hosted qualification remain pending. PR #40/41 evidence qualifies preceding source
+only. [The acceptance record](docs/plans/updated-review-repairs-2026-10-14.md)
+tracks this successor before further process work.
+
 ## Summary
 
 Safety for humans and AI agents is a product goal in [VISION.md](VISION.md).
@@ -79,6 +98,15 @@ The detailed POSIX operating constraints remain in
   operations; GetBlob paths, previously delivered bytes and same-UID filesystem
   access cannot be retracted. Target Domain Manager policy/backend and native
   Store transport remain unfinished. Strict startup requires explicit issuer keys.
+  Offline epoch retirement depends on exclusive root/epoch keys and an exact pin
+  outside the Store root; it provides no hardware monotonicity. Replacing both
+  files and trusted operator configuration defeats that rollback anchor. Stuck
+  authority fsync/publication can still block management; per-ID drains do not
+  guarantee unrelated data progress through other shared locks.
+- **Retained observations and capacity:** fixed trace retention is 64 events,
+  independent of delivery limit; overflow requires explicit cursor resync. Shmem
+  outcome retention is 64 receipts and joint acknowledgement can impose capacity
+  backpressure. Neither query nor a completed receipt restores revoked resources.
 - **Static kernel limits:** fixed-size capability, shared-memory, and allocator
   structures can still produce controlled denial of service.
 - **Bootstrap memory:** a held firmware allocation bounds the active-firmware

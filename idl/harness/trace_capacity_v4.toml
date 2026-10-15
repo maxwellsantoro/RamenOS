@@ -1,0 +1,30 @@
+namespace = "trace.capacity"
+version = "4"
+protocol = 534
+
+# Fixed storage: 64 complete 24-byte events (1536 retention bytes), independent
+# of delivery limits. max_delivery_bytes must be 24..1536, divisible by24.
+# Lang: independently admitted caller-owned live IPC; Create may name only that
+# caller's registered domain. Info requires its live READ trace capability.
+# ObsContract: truthful retention and effective whole-event delivery limits,
+# actual per-domain cursors; foreign/malformed replies expose zero metadata.
+# Data delivery and cursor Commit remain trace.delivery v3 (protocol532).
+# This is additive; legacy v1 size retains its historical requested value and
+# is not evidence of actual retention. No process/transport authentication claim.
+# All reserved fields must be0. All replies initialize every payload byte.
+
+[message.create_fixed_trace_buffer]
+msg_type = 1
+fields = ["request_id:u64", "domain_id:u64", "max_delivery_bytes:u32", "reserved:u32"]
+
+[message.create_fixed_trace_buffer_reply]
+msg_type = 2
+fields = ["request_id:u64", "status:u32", "retention_events:u32", "trace_cap:u64", "retention_bytes:u32", "max_delivery_bytes:u32"]
+
+[message.get_fixed_trace_info]
+msg_type = 3
+fields = ["request_id:u64", "trace_cap:u64"]
+
+[message.get_fixed_trace_info_reply]
+msg_type = 4
+fields = ["request_id:u64", "status:u32", "retention_events:u32", "domain_id:u64", "retention_bytes:u32", "max_delivery_bytes:u32", "read_offset:u64", "write_offset:u64"]

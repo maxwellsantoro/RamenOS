@@ -440,11 +440,16 @@ fn payload_slice(env: &Envelope) -> &[u8] {
     &env.payload[..len]
 }
 
-fn write_payload_checked<T: Copy>(env: &mut Envelope, value: &T) -> Result<(), Box<dyn Error>> {
+fn write_payload_checked<T: kernel_api::wire::WirePayload>(
+    env: &mut Envelope,
+    value: &T,
+) -> Result<(), Box<dyn Error>> {
     write_payload(env, value).map_err(|e| format!("wire write error: {:?}", e).into())
 }
 
-fn read_payload_checked<T: Copy>(env: &Envelope) -> Result<T, Box<dyn Error>> {
+fn read_payload_checked<T: kernel_api::wire::WirePayload>(
+    env: &Envelope,
+) -> Result<T, Box<dyn Error>> {
     read_payload(env).map_err(|e| format!("wire read error: {:?}", e).into())
 }
 

@@ -3,6 +3,50 @@
 **Last Updated:** 2026-10-14
 **Status:** Active
 
+## 2026-10-14 — Explicit codecs, retained outcomes and finite authority epochs
+
+Native payload helpers require explicit safe field codecs, generated from IDL;
+`Copy` is not a serialization or Rust-validity guarantee. Preserve existing
+`repr(C)` offsets, payload lengths and native integer byte order on supported
+little-endian targets. Encode only fields, zero all gaps/tails, and ignore incoming
+implicit padding for legacy compatibility. Unsupported Rust types fail at compile
+time. Domain names truncate at a complete UTF-8 boundary within 31 bytes; checked
+accessors cover raw construction/mutation too. The compatibility string getter
+returns empty for malformed raw bytes, while a checked accessor reports corruption.
+
+Keep bounded fixed 64-event trace storage. Native protocol 534/v4 reports actual
+1536-byte retention separately from an explicit 24..1536 whole-event delivery
+limit. Legacy size admission/echo is deprecated and unchanged; do not silently
+reinterpret it as a truthful retention contract. Native v3 Shmem delivery/Commit
+remains the data path. Mock trace-client transport remains unfinished integration.
+
+Native protocol 533/v3 retains 64 owner-keyed Shmem offer/accept outcomes, reserving
+receipt capacity before mutation. Exact requests reconcile, altered key payloads
+deny, and queries/retries never remap or renew authority. Legacy accept/cancel/
+close update tracked receipts. Accepted/cancelled/closed outcomes survive region
+retirement until both participants acknowledge; a pending ACK denies. Explicit
+joint ACK permits bounded slot/key reuse. Domain identity is stable for this
+kernel-table lifetime; process-carrier and active/SMP translation remain separate.
+
+Ordinary Store read operations hold per-ID RAII leases rather than the global
+authority mutex through IO. Durable revoke closes admission and drains the same
+ID before ACK; retries join that drain while unrelated authority may progress.
+New concurrency requires final read-health validation and exclusion through
+actual publication, retaining global fail-closed storage uncertainty and panic
+behavior. Serialized persistence/publication and the domain registry remain
+availability limits; there is no general bounded-IO claim.
+
+Adopt an explicit offline revoke-all epoch rollover for the finite Store registry.
+Keep token/management v1 formats and separate publisher trust. Each epoch uses a
+fresh exclusive key, retires all prior keys, clears old authority only through a
+dual-signed exact-source transition and requires an externally pinned root/epoch/
+checkpoint floor. Existing artifacts persist; every client gets fresh authority.
+Historical keys are never reused, and cumulative history is bounded to 64. First
+legacy enrollment binds an operator-chosen nonzero root ID; root/key uniqueness
+across independently operated roots is an issuer/operator assumption, not locally
+enforced global knowledge. The external pin is the rollback anchor, not hardware
+monotonicity. See [the operating contract](docs/STORE_AUTHORITY_EPOCH_V1.md).
+
 ## 2026-10-14 — Make caller, delivery and publication ownership executable
 
 Keep the existing wire handle layout. Every producer issues only nonzero

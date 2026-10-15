@@ -689,13 +689,13 @@ fn handle_client_with_authority(
                 let status = if !allowed {
                     STATUS_PERMISSION_DENIED
                 } else {
-                    let mut live = authority
-                        .lock()
-                        .map_err(|_| anyhow::anyhow!("live authority mutex poisoned"))?;
-                    match live.apply(&request.command) {
+                    match LiveAuthority::apply_shared(authority, &request.command) {
                         Ok(()) => STATUS_OK,
                         Err(error) => {
                             eprintln!("store_service: authority update rejected: {error:#}");
+                            let live = authority
+                                .lock()
+                                .map_err(|_| anyhow::anyhow!("live authority mutex poisoned"))?;
                             if live.storage_uncertain() {
                                 STATUS_IO_ERROR
                             } else {
@@ -1176,6 +1176,7 @@ fn handle_get_manifest_with_authority(
 
     match result {
         Ok(reply) => {
+            let _health = cap.commit_guard()?;
             let status = OperationResult::from_status_code(reply.status);
             let reply_bytes = bincode::serialize(&reply).context("failed to serialize reply")?;
             Ok((
@@ -1344,6 +1345,7 @@ fn handle_get_blob_with_authority(
 
     match result {
         Ok(reply) => {
+            let _health = cap.commit_guard()?;
             let status = OperationResult::from_status_code(reply.status);
             let reply_bytes = bincode::serialize(&reply).context("failed to serialize reply")?;
             Ok((
@@ -1513,6 +1515,7 @@ fn handle_verify_artifact_with_authority(
 
     match result {
         Ok(reply) => {
+            let _health = cap.commit_guard()?;
             let status = OperationResult::from_status_code(reply.status);
             let reply_bytes = bincode::serialize(&reply).context("failed to serialize reply")?;
             Ok((
@@ -1788,6 +1791,10 @@ fn handle_ingest_publication_with_authority(
             }
         };
 
+        // Other IDs may be managed during preparation/read IO. Publication is
+        // the commit boundary: exclude uncertain management persistence until
+        // CAS ownership and projection publication have completed.
+        let _commit = cap.commit_guard()?;
         let publish_blob = |blob: &Path| staged.publish(blob);
         if signed.is_some() {
             // Exact metadata policy belongs after outstanding-intent recovery,
@@ -1964,6 +1971,7 @@ fn handle_query_projection_by_path_with_authority(
 
     match projection_index.query_by_path_for_domain(&path, cap.domain_id, domain_registry) {
         Ok(content_id) => {
+            let _health = cap.commit_guard()?;
             let reply = QueryProjectionByPathReply {
                 request_id,
                 status: STATUS_OK,
@@ -2051,6 +2059,7 @@ fn handle_query_projection_by_tag_with_authority(
 
     match projection_index.query_by_tag_for_domain(&tag, cap.domain_id, domain_registry) {
         Ok(content_ids) => {
+            let _health = cap.commit_guard()?;
             let reply = QueryProjectionByTagReply {
                 request_id,
                 status: STATUS_OK,
@@ -4152,7 +4161,7 @@ mod integration_tests {
         };
         let mut cap = StoreCapability::new(7, STORE_RIGHT_ALL, 7101);
         cap.signature = key.sign(&cap.signing_data()).to_bytes().to_vec();
-        authority.lock().unwrap().apply(&command(1, &cap)).unwrap();
+        LiveAuthority::apply_shared(&authority, &command(1, &cap)).unwrap();
         let source = root.join("source");
         let bytes = b"deterministic staged before revoke";
         fs::write(&source, bytes).unwrap();
@@ -4206,7 +4215,7 @@ mod integration_tests {
         // large-file race is needed: invoke the actual shared publication sink.
         let staged = ingest::StagedBlob::read_file(fs::File::open(&source).unwrap(), root).unwrap();
         let id = staged.content_id.clone();
-        authority.lock().unwrap().apply(&command(2, &cap)).unwrap();
+        LiveAuthority::apply_shared(&authority, &command(2, &cap)).unwrap();
         let mut registry = DomainArtifactRegistry::new(root).unwrap();
         let mut index = writable_projection_index(root);
         let before = serde_json::to_vec(index.index()).unwrap();
@@ -4245,7 +4254,7 @@ mod integration_tests {
         );
         cap.capability_id = 7102;
         cap.signature = key.sign(&cap.signing_data()).to_bytes().to_vec();
-        authority.lock().unwrap().apply(&command(1, &cap)).unwrap();
+        LiveAuthority::apply_shared(&authority, &command(1, &cap)).unwrap();
         request.capability_bytes = bincode::serialize(&cap).unwrap();
         let staged = ingest::StagedBlob::read_file(fs::File::open(source).unwrap(), root).unwrap();
         let (raw, _, _) = handle_ingest_publication_with_authority(

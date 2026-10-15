@@ -212,6 +212,10 @@ mod script {
             "rust",
         ),
         (
+            "kernel_api/src/generated/shmem_outcome_v3.generated.rs",
+            "rust",
+        ),
+        (
             "kernel_api/src/generated/store_service_v1.generated.rs",
             "rust",
         ),
@@ -221,6 +225,10 @@ mod script {
         ),
         (
             "kernel_api/src/generated/trace_delivery_v3.generated.rs",
+            "rust",
+        ),
+        (
+            "kernel_api/src/generated/trace_capacity_v4.generated.rs",
             "rust",
         ),
         (
