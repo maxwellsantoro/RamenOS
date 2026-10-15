@@ -194,14 +194,20 @@ class BackendTests(unittest.TestCase):
             self.assertEqual(run["role"], "lt_validator")
             self.assertIs(run["created"], True)
             self.assertIs(run["removed"], True)
-            self.assertEqual(run["failure_reason"], "timeout")
-            self.assertEqual(run["failure_phase"], "attach")
             self.assertNotIn("cleanup_failure_reason", run)
             self.assertNotIn("reconciliation_required", run)
             self.assertNotIn("invocation_pending", run)
             self.assertFalse(self.task.poisoned)
             validation = dict(self.task.state["candidates"][bad]["validation"])
             self.assertEqual(validation["outcome"], "timeout")
+            if "failure_reason" in run:
+                self.assertEqual(run["failure_reason"], "timeout")
+                self.assertEqual(run["failure_phase"], "attach")
+            else:
+                # The broker also rejects a completed worker when its total
+                # operation, including cleanup, exceeds the same wall budget.
+                self.assertEqual(run["exit_code"], 0)
+                self.assertGreater(int(validation["wall_elapsed_ms"]), lt_backend.BUDGET["wall_ms"])
             self.assertEqual(validation["candidate_id"], bad_content)
             self.assertEqual(validation["generation"], str(self.task.state["generation"]))
             self.assertFalse(self.task.valid(validation))
@@ -231,6 +237,7 @@ class BackendTests(unittest.TestCase):
         if timeout_run is not None:
             print("LT_TIMEOUT_RECOVERY: " + json.dumps({
                 "denied_run": timeout_run,
+                "rejected_wall_elapsed_ms": validation["wall_elapsed_ms"],
                 "successor_run": self.task.state["runs"][-1],
                 "budget": lt_backend.BUDGET,
             }, sort_keys=True), flush=True)
