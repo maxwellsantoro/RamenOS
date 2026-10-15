@@ -855,6 +855,7 @@ impl FixtureInitFailure {
     pub fn failure(&self) -> &store::NativeSaveInitFailure {
         self.owners.0.as_ref().unwrap().failure.as_ref().unwrap()
     }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
     pub fn root_path(&self) -> &Path {
         self.owners
             .0
@@ -1734,6 +1735,7 @@ impl Fixture {
     pub fn staged_reopen_failure(&self) -> Option<&store::NativeSaveReopenFailure> {
         self.reopen_owners.as_ref()?.0.as_ref()?.failure.as_ref()
     }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
     pub fn staged_reopen_snapshot(&self) -> Option<store::NativeSaveFenceSnapshot> {
         let held = self.reopen_owners.as_ref()?.0.as_ref()?;
         held.fence
@@ -1879,6 +1881,7 @@ impl Fixture {
         }
         Ok(())
     }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
     pub fn finish_staged_reopen_failure(mut self) {
         let failure = self
             .staged_reopen_failure()
