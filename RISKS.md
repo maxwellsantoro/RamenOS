@@ -24,10 +24,10 @@ target persistence and physical durability still need their own assertions.
 
 The October 14 follow-up review identified unchecked legacy allocator publication,
 active boot-services memory classified as usable, default-enabled test protocols,
-and trace creation without an owner-bound IPC capability. The local successor
-adds held bootstrap allocation, strict IPC/creator-domain admission, and denial
-and recovery assertions at those enforcing boundaries. Hosted qualification
-must identify the matching source revision. Existing RUN0.0 numeric
+and trace creation without an owner-bound IPC capability. PR #39 added held
+bootstrap allocation, strict IPC/creator-domain admission, and denial/recovery
+assertions; its post-merge qualification belongs to `23f37445`. PR #40's further
+caller and mapping repairs are qualified below. Existing RUN0.0 numeric
 admission does not establish firmware exit, retained-range collection or safe
 physical access. Typed messages, generation checks and `Lang`/`ObsContract`
 separation do not establish general isolation or covert-channel noninterference.
@@ -38,8 +38,10 @@ The successor repairs strict signed publication, wire-generation exhaustion,
 caller namespace checks, recipient mapping consent, collision-safe MMU updates,
 trace Shmem delivery/Commit and durable ordinary Store grant/revoke enforcement.
 [The repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md) records
-regression obligations and source-bound verification. These controls retain the
-following integration risks:
+regression obligations and source-bound verification. PR #40 merged as `b09e919`;
+its [post-merge CI](https://github.com/maxwellsantoro/RamenOS/actions/runs/38662942304)
+passed all nine jobs and 68 verified records on its first attempt. This qualifies
+the asserted host/QEMU controls and retains the following integration risks:
 
 - Execution identity still comes from trusted kernel fixtures; no authenticated
   untrusted syscall/process carrier exists, and generic IPC rights remain broad.

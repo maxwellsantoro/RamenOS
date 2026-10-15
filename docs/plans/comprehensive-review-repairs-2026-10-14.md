@@ -103,6 +103,52 @@ secrets, raw sensitive traces or private scan material in the public repository.
 Fresh affected consumer checks and matching hosted qualification must identify
 the assembled revision; preceding PR #39's all-green run is historical evidence.
 
+## Qualification
+
+PR #40 merged the reviewed source as
+`b09e919f66aef3acff0ee2e0d240dece3264e954`; its tree is identical to reviewed head
+`89f1ae3d8804c273608adbb42f1b3a3978e125e2`. Independent packet reviews preceded
+integration. Confirmed review findings about recovered metadata, rejected client
+transport ownership and second-startup recovery ordering were reproduced and
+repaired before final qualification. The PR author was `app/ramen-implementer`;
+separate A3 `maxwellsantoro` approved and merged the exact head through ordinary
+protected checks.
+
+- [Reviewed-head PR CI](https://github.com/maxwellsantoro/RamenOS/actions/runs/38660024555):
+  all nine jobs and 68 stage/preparation records passed on the first attempt.
+- [Matching head push CI](https://github.com/maxwellsantoro/RamenOS/actions/runs/38660020341):
+  all nine jobs passed after the agent lane's third attempt. Its two earlier LT
+  validation timeouts retained successful container removal. The unchanged total
+  validation budget is 2500 ms, including preparation and cleanup. No exact cause
+  within Docker/worker invocation is established. Source, assertions and deadlines
+  were unchanged across retries; successful lanes were not rerun unnecessarily.
+- [Post-merge main CI](https://github.com/maxwellsantoro/RamenOS/actions/runs/38662942304):
+  all nine jobs and 68 records passed on the first attempt. For each of the three
+  runs, the 68 successful qualification records match each lane's exact planned
+  commands and relative order, with PASS, exit/child return 0, confirmed reap and
+  no uncertain cleanup. Failed push attempts remain separate retained evidence.
+- The five hosted lanes cover the canonical 56 stages plus twelve preparation
+  records. The required QEMU umbrella now executes real MMU, Shmem collision and
+  trace-byte/Commit assertions on both architectures. The strict Linux preflight
+  wrapper was not repeated separately for this batch.
+- Fresh local assembled integration passed 85 required selected boundary assertion
+  executions and both-architecture QEMU fixtures. The ordinary Store package
+  passed 156 unit/integration/doctest cases and strict Clippy. Existing editor
+  consumers, including original18, Reader93, reliability13 and their codec/native
+  consumers, passed freshly; complete hosted editor checks also passed.
+- Initial CI found two integration defects: codegen's output inventory omitted
+  the two new interfaces, and S7's strict positive-startup fixture omitted its
+  separate capability-authority key. Both were repaired and rerun without
+  weakening their assertions. A late-observation helper fixture now waits for an
+  actual held terminal child before injecting observer delay; production timing
+  logic is unchanged. Other short-window macOS boot-observer fixtures still
+  failed locally. Those failures remain retained; Linux quality passed the full
+  tooling suite. Local macOS validation is not described as wholly green.
+
+The qualification record changes prose only. Runtime, executable queue/contracts,
+gate inputs, source-registry pins and accepted code remain bound to the revision
+above. Historical PR #39 evidence is not used to qualify these repairs.
+
 ## Boundaries that remain unfinished
 
 - **A / RUN0:** the caller context currently comes only from trusted boot/test

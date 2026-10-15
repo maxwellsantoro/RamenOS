@@ -22,10 +22,13 @@ runner configuration while separating node placement from domain identity.
 PR #38 and its post-merge main run qualify those named host/QEMU paths through
 five hosted lanes. The strict Linux56 wrapper remains bound to the preceding
 source and was not repeated for PR #38. The bootstrap/IPC follow-up merged through PR #39 and passed its matching
-post-merge run on `23f37445`. The comprehensive successor has separate
-source-bound validation in [the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md).
-These repairs add no
-production, target-isolation or release assurance.
+post-merge run on `23f37445`. PR #40's comprehensive repairs merged as `b09e919`;
+its [post-merge run](https://github.com/maxwellsantoro/RamenOS/actions/runs/38662942304)
+passed all nine jobs and 68 verified stage/preparation records on its first
+attempt. Reviewed-head push qualification retained two LT deadline failures before
+an unchanged-source successful retry. The source-bound local and hosted scope is
+in [the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md#qualification).
+These repairs add no production, target-isolation or release assurance.
 
 ## Summary
 
