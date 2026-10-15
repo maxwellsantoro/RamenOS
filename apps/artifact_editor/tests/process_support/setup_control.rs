@@ -4,9 +4,13 @@
 
 #[path = "cleanup_owners.rs"]
 mod cleanup_owners;
+#[path = "failure_control.rs"]
+mod failure_control;
 #[allow(dead_code)]
 #[path = "fixture.rs"]
 mod fixture;
+#[path = "reopen_drop_control.rs"]
+mod reopen_drop_control;
 #[allow(dead_code)]
 #[path = "../native_task_support/mod.rs"]
 mod support;

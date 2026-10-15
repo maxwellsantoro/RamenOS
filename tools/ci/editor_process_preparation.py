@@ -38,6 +38,16 @@ SETUP_CASES = {
     "process_preparation_constructor_panic_joins_before_root_cleanup",
     "process_preparation_genuine_read_and_owned_reopen",
     "process_preparation_save_pause_unwind_retains_original_writer",
+    "failure_control::process_preparation_init_validation_failure_retains_issuer",
+    "failure_control::process_preparation_init_create_root_failure_retains_core",
+    "failure_control::process_preparation_reopen_failure_panic_preserves_owner_then_recovers",
+    "failure_control::process_preparation_reopen_exhaustion_retry_retains_original_fence",
+    "failure_control::process_preparation_pre_reopen_probe_panic_retains_fence_then_recovers",
+    "failure_control::process_preparation_consuming_reopen_unwind_quarantines_without_retry",
+    "reopen_drop_control::process_preparation_failed_reopen_drop_retains_root",
+}
+POLICY_CASES = {case for case in SETUP_CASES if case.startswith("cleanup_owners::")} | {
+    "failure_control::process_preparation_consuming_reopen_unwind_quarantines_without_retry",
 }
 AUTHORED_CASES = {
     "process_p0_child_budget_has_closed_bounds",
@@ -220,7 +230,7 @@ def validate_setup(summary):
     require(target.get("name") == "process_setup_control" and target.get("kind") == "test",
             "unexpected setup harness")
     require(target.get("selected") == sorted(SETUP_CASES) and target.get("passed") == sorted(SETUP_CASES),
-            "setup must actually pass the exact six preparation cases")
+            "setup must actually pass the exact thirteen preparation cases")
     commands = summary.get("commands")
     require(isinstance(commands, list) and bool(commands), "missing setup command observations")
     for command in commands:
@@ -260,7 +270,11 @@ def execute(args):
     result = {"schema_version": 1, "status": "FAIL", "scope": "genuine-setup-and-missing-api-preparation",
               "runtime": False, "all30_complete": False, "setup_passed_count": 0,
               "authored_not_executed_count": len(AUTHORED_CASES),
-              "setup_scope": {"genuine_in_process_controls": 3, "parent_ownership_policy_controls": 3},
+              "setup_scope": {"genuine_in_process_controls": len(SETUP_CASES - POLICY_CASES),
+                              "parent_ownership_policy_controls": len(POLICY_CASES)},
+              "intentional_quarantines": {"initialization": 2, "reopen_drop": 1,
+                                          "test_consumer_unwind": 1},
+              "initialization_close_proved": False,
               "commands": [], "run_nonce": nonce,
               "recording": str(evidence), "source_registry": "dynamic-preparation-closure-not-runtime-admission"}
     previous_cwd = Path.cwd()
@@ -288,6 +302,13 @@ def execute(args):
                 and setup["group_stop_before_reap"] is True, "setup selection did not exit and reap successfully")
         result["setup_passed"] = validate_setup(json.loads((output / "setup/summary.json").read_text()))
         result["setup_passed_count"] = len(result["setup_passed"])
+        clippy = runner.run_owned([
+            "cargo", "clippy", "--locked", "-p", "artifact_editor", "--test", "process_setup_control",
+            "--features", "host_editor_process_setup_v0_dev", "--", "-D", "warnings",
+        ], output, "setup-clippy", work_seconds=600)
+        result["commands"].append(clippy)
+        require(clippy["exit_code"] == 0 and clippy["reaped"] is True
+                and clippy["group_stop_before_reap"] is True, "setup Clippy failed or cleanup uncertain")
         compile_result = runner.run_owned([
             "cargo", "test", "--locked", "-p", "artifact_editor", "--test", "process_task",
             "--features", "host_editor_process_v0_dev", "--no-run", "--message-format=json",
