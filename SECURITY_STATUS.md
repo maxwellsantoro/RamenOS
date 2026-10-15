@@ -1,6 +1,6 @@
 # Security Status
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-15
 **Status:** Pre-alpha; foundational remediation landed, architectural risk remains
 
 ## Host editor transition reliability
@@ -30,9 +30,9 @@ an unchanged-source successful retry. The source-bound local and hosted scope is
 in [the repair plan](docs/plans/comprehensive-review-repairs-2026-10-14.md#qualification).
 These repairs add no production, target-isolation or release assurance.
 
-## Updated-review candidate and qualification boundary
+## Accepted updated-review foundations
 
-The current candidate implements explicit field codecs and checked UTF-8 names,
+PR #42 implements and qualifies explicit field codecs and checked UTF-8 names,
 truthful fixed trace capacity v4, retained Shmem outcomes v3 and per-ID Store
 operation drains. Queries reconcile original results without restoring mapping
 authority; 64 outcome slots require joint terminal acknowledgement. Actual
@@ -43,11 +43,16 @@ retirement history of at most 64 keys and an exact external checkpoint pin. The
 [operator contract](docs/STORE_AUTHORITY_EPOCH_V1.md) states the provisioning and
 rollback-anchor assumptions.
 
-The assembled boundary gate, host kernel/API/codegen checks, strict Clippy and
-both-architecture S8 assertions pass locally. Editor preservation and matching
-hosted qualification remain pending. PR #40/41 evidence qualifies preceding source
-only. [The acceptance record](docs/plans/updated-review-repairs-2026-10-14.md)
-tracks this successor before further process work.
+The assembled boundary gate, host kernel/API/Store/codegen checks, strict Clippy,
+both-architecture S8 assertions and all affected editor consumers pass locally,
+including original task18/Reader93 and reliability13. S11/S12/S13 and governance
+pass. PR #42's push, PR and post-merge runs each pass all nine jobs and 68 canonical
+records on the first attempt, qualifying the six bounded findings on the reviewed
+runtime tree. PR #40/41 evidence qualifies preceding source only. PR #43 carries
+test-only timing repairs; PR #44/#45 add bounded timeout diagnostics and test recovery.
+Production budgets, containment and public error redaction remain unchanged. The
+[acceptance record](docs/plans/updated-review-repairs-2026-10-14.md) records exact
+source, retained failures and the remaining boundaries before process work.
 
 ## Summary
 
