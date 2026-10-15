@@ -172,14 +172,68 @@ class BackendTests(unittest.TestCase):
             self.call("commit_candidate", **fields)["status"], "validation_failed"
         )
         bad = self.stage(cap, b"{}")
+        previous_runs = len(self.task.state["runs"])
+        bad_content = self.task.state["candidates"][bad]["content_id"]
+        timeout_run = None
         r = self.call(
             "validate_candidate",
             task_cap=cap,
             candidate_cap=bad,
             validator_id=state["validator_id"],
         )
+        if r["status"] == "timeout":
+            # Cold Docker create has consumed >2.3 s of this unchanged 2.5 s
+            # budget on hosted runners. That is a real denied operation, never
+            # a valid result. Assert its recovery before one fresh request; do
+            # not replay a mutation, retry in the runtime, or reset its budget.
+            denied_request_id = r["request_id"]
+            self.assertIsNone(r["result"])
+            self.assertEqual(len(self.task.state["runs"]), previous_runs + 1)
+            run = self.task.state["runs"][-1]
+            timeout_run = run
+            self.assertEqual(run["role"], "lt_validator")
+            self.assertIs(run["created"], True)
+            self.assertIs(run["removed"], True)
+            self.assertEqual(run["failure_reason"], "timeout")
+            self.assertEqual(run["failure_phase"], "attach")
+            self.assertNotIn("cleanup_failure_reason", run)
+            self.assertNotIn("reconciliation_required", run)
+            self.assertNotIn("invocation_pending", run)
+            self.assertFalse(self.task.poisoned)
+            validation = dict(self.task.state["candidates"][bad]["validation"])
+            self.assertEqual(validation["outcome"], "timeout")
+            self.assertEqual(validation["candidate_id"], bad_content)
+            self.assertEqual(validation["generation"], str(self.task.state["generation"]))
+            self.assertFalse(self.task.valid(validation))
+            self.assertEqual(self.task.state["revision"], 0)
+            self.assertEqual(self.task.state["content_id"], state["content_id"])
+            self.assertEqual(self.task.load(validation["candidate_id"]), b"{}")
+            self.assertEqual(self.call("commit_candidate", **dict(fields, candidate_cap=bad))[
+                "status"], "validation_failed")
+            self.assertEqual(self.task.state["revision"], 0)
+            self.assertEqual(self.task.state["content_id"], state["content_id"])
+            self.assertEqual(self.task.load(bad_content), b"{}")
+            self.assertEqual(self.task.state["candidates"][bad]["validation"], validation)
+            self.assertEqual(self.task.state["receipts"], {})
+            self.assertEqual(lt_backend.BUDGET, {
+                "guest_ms": 1500, "wall_ms": 2500,
+                "host_call_ms": 1000, "max_diagnostics_bytes": 4096})
+            r = self.call(
+                "validate_candidate", task_cap=cap, candidate_cap=bad,
+                validator_id=state["validator_id"],
+            )
+            self.assertNotEqual(r["request_id"], denied_request_id)
+            self.assertEqual(len(self.task.state["runs"]), previous_runs + 2)
+            self.assertEqual(self.task.state["runs"][previous_runs], run)
+            self.assertNotEqual(self.task.state["runs"][-1]["name"], run["name"])
         self.assertEqual(r["status"], "ok", (r, self.task.state["runs"]))
         self.assertEqual(r["result"]["outcome"], "invalid")
+        if timeout_run is not None:
+            print("LT_TIMEOUT_RECOVERY: " + json.dumps({
+                "denied_run": timeout_run,
+                "successor_run": self.task.state["runs"][-1],
+                "budget": lt_backend.BUDGET,
+            }, sort_keys=True), flush=True)
         self.assertEqual(
             self.call(
                 "validate_candidate",
