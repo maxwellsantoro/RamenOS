@@ -486,7 +486,11 @@ fn write_scenario_trace(
     Ok(())
 }
 
-fn env_with_payload<T: Copy>(protocol: u32, msg_type: u32, value: &T) -> Result<Envelope, String> {
+fn env_with_payload<T: kernel_api::wire::WirePayload>(
+    protocol: u32,
+    msg_type: u32,
+    value: &T,
+) -> Result<Envelope, String> {
     let mut env = Envelope::empty(protocol, msg_type);
     write_payload(&mut env, value).map_err(|e| format!("payload write: {e:?}"))?;
     Ok(env)

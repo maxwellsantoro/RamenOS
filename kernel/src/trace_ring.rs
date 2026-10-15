@@ -16,6 +16,8 @@ use kernel_api::trace::Event;
 use crate::domain_registry::{DomainId, DomainRegistry, DomainRegistryError, MAX_DOMAINS};
 
 const RING_SIZE: usize = 64;
+pub(crate) const RETENTION_EVENTS: u32 = RING_SIZE as u32;
+pub(crate) const RETENTION_BYTES: u32 = (RING_SIZE * core::mem::size_of::<Event>()) as u32;
 
 /// Typed error type for trace ring operations.
 ///

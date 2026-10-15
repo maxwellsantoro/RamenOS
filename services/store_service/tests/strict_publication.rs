@@ -25,6 +25,7 @@ struct StrictStore {
     publisher: SigningKey,
     authority: SigningKey,
     control_capability: StoreCapability,
+    epoch_floor: Option<String>,
 }
 
 impl StrictStore {
@@ -45,6 +46,7 @@ impl StrictStore {
             publisher: SigningKey::from_bytes(&[61; 32]),
             authority,
             control_capability,
+            epoch_floor: None,
         };
         std::fs::create_dir(&this.root).unwrap();
         std::fs::write(
@@ -93,7 +95,8 @@ impl StrictStore {
 
     fn spawn_at(&self, socket: &Path, log_name: &str) -> Child {
         let log = std::fs::File::create(self.temp.path().join(log_name)).unwrap();
-        Command::new(env!("CARGO_BIN_EXE_store_service"))
+        let mut command = Command::new(env!("CARGO_BIN_EXE_store_service"));
+        command
             .env("RAMEN_STORE_SOCKET", socket)
             .env("RAMEN_STORE_ROOT", &self.root)
             .env(
@@ -113,9 +116,13 @@ impl StrictStore {
             .env_remove("RAMEN_STORE_ACCESS_POLICY")
             .env_remove("RAMEN_STORE_PROJECTION_INDEX")
             .stdout(Stdio::from(log.try_clone().unwrap()))
-            .stderr(Stdio::from(log))
-            .spawn()
-            .unwrap()
+            .stderr(Stdio::from(log));
+        if let Some(floor) = &self.epoch_floor {
+            command.env("RAMEN_STORE_AUTHORITY_EPOCH_FLOOR", floor);
+        } else {
+            command.env_remove("RAMEN_STORE_AUTHORITY_EPOCH_FLOOR");
+        }
+        command.spawn().unwrap()
     }
     fn assert_start_denies(&self) {
         let mut child = self.spawn_at(&self.temp.path().join("denied.sock"), "denied.log");
@@ -447,13 +454,23 @@ fn disk_state(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
 }
 
 fn assert_recovery(store: &StrictStore, client: &mut StoreClient, control: &str, bytes: &[u8]) {
-    assert_eq!(read(store, client, control), b"signed existing control");
+    assert_recovery_with_control(store, client, control, b"signed existing control", bytes);
+}
+
+fn assert_recovery_with_control(
+    store: &StrictStore,
+    client: &mut StoreClient,
+    control: &str,
+    expected_control: &[u8],
+    bytes: &[u8],
+) {
+    assert_eq!(read(store, client, control), expected_control);
     let source = store.temp.path().join("recovery-source");
     std::fs::write(&source, bytes).unwrap();
     let manifest = store.manifest(bytes);
     client.ingest_signed_artifact(&manifest, &source).unwrap();
     assert_eq!(read(store, client, &manifest.content_id), bytes);
-    assert_eq!(read(store, client, control), b"signed existing control");
+    assert_eq!(read(store, client, control), expected_control);
 }
 
 #[test]
@@ -642,6 +659,338 @@ fn cap_with_id(store: &StrictStore, id: u64) -> StoreCapability {
         .to_bytes()
         .to_vec();
     cap
+}
+
+#[test]
+fn review_strict_offline_epoch_cli_retires_old_authority_and_restarts_with_pinned_fresh_key() {
+    use sha2::{Digest, Sha256};
+    use store_service::live_authority::{
+        AUTHORITY_TRANSITION_VERSION, AuthorityEpochFloor, AuthorityTransition, LIVE_AUTHORITY_FILE,
+    };
+
+    fn rotate_cli(store: &StrictStore, proof: &Path) -> (std::process::ExitStatus, String, String) {
+        let stdout_path = store.temp.path().join("rotate.stdout");
+        let stderr_path = store.temp.path().join("rotate.stderr");
+        let mut command = Command::new(env!("CARGO_BIN_EXE_store_authority_rotate"));
+        command
+            .arg(&store.root)
+            .arg(proof)
+            .env(
+                "RAMEN_STORE_CAP_TRUSTED_KEYS",
+                STANDARD.encode(store.authority.verifying_key().as_bytes()),
+            )
+            .env_remove("RAMEN_STORE_DEV_MODE")
+            .stdout(Stdio::from(std::fs::File::create(&stdout_path).unwrap()))
+            .stderr(Stdio::from(std::fs::File::create(&stderr_path).unwrap()));
+        if let Some(floor) = &store.epoch_floor {
+            command.env("RAMEN_STORE_AUTHORITY_EPOCH_FLOOR", floor);
+        } else {
+            command.env_remove("RAMEN_STORE_AUTHORITY_EPOCH_FLOOR");
+        }
+        let mut child = command.spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("offline authority CLI did not finish before its deadline");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        for path in [&stdout_path, &stderr_path] {
+            assert!(std::fs::metadata(path).unwrap().len() <= 32768);
+        }
+        (
+            status,
+            std::fs::read_to_string(stdout_path).unwrap(),
+            std::fs::read_to_string(stderr_path).unwrap(),
+        )
+    }
+
+    let mut store = StrictStore::new();
+    let bytes = b"signed artifact survives revocation-all offline authority rollover";
+    let control = store.seed_control(bytes);
+    store.start();
+    let old_token = store.capability();
+    let old_grant = signed_authority_command(
+        &store,
+        1,
+        old_token.capability_id,
+        bincode::serialize(&old_token).unwrap(),
+    );
+    let old_revoke = signed_authority_command(&store, 2, old_token.capability_id, vec![]);
+    let new_key = SigningKey::from_bytes(&[89; 32]);
+    let source = std::fs::read(store.root.join(LIVE_AUTHORITY_FILE)).unwrap();
+    let mut transition = AuthorityTransition {
+        version: AUTHORITY_TRANSITION_VERSION,
+        root_id: Sha256::digest(store.root.as_os_str().as_encoded_bytes()).into(),
+        from_epoch: 0,
+        from_state_digest: Sha256::digest(&source).into(),
+        to_epoch: 1,
+        new_public_key: new_key.verifying_key().to_bytes(),
+        retired_public_keys: vec![store.authority.verifying_key().to_bytes()],
+        old_signature: vec![],
+        new_signature: vec![],
+    };
+    transition.old_signature = store
+        .authority
+        .sign(&transition.signing_bytes())
+        .to_bytes()
+        .to_vec();
+    transition.new_signature = new_key
+        .sign(&transition.signing_bytes())
+        .to_bytes()
+        .to_vec();
+    let proof_path = store.temp.path().join("public-transition.json");
+    std::fs::write(&proof_path, serde_json::to_vec(&transition).unwrap()).unwrap();
+    let (status, stdout, stderr) = rotate_cli(&store, &proof_path);
+    assert!(!status.success(), "live-owner rotation succeeded");
+    assert!(
+        stdout.is_empty(),
+        "rejected rotation printed a success floor"
+    );
+    assert!(
+        stderr.contains("live authority owner"),
+        "wrong live-owner denial: {stderr}"
+    );
+    assert_eq!(
+        std::fs::read(store.root.join(LIVE_AUTHORITY_FILE)).unwrap(),
+        source
+    );
+    assert_eq!(read(&store, &mut store.client(), &control), bytes);
+    store.stop();
+
+    let (status, stdout, stderr) = rotate_cli(&store, &proof_path);
+    assert!(status.success(), "offline rotation failed: {stderr}");
+    assert!(stderr.is_empty());
+    let floor = AuthorityEpochFloor::parse(stdout.trim_end_matches('\n')).unwrap();
+    assert_eq!(stdout, format!("{}\n", floor.encode()));
+    assert_eq!(floor.root_id, transition.root_id);
+    assert_eq!(floor.epoch, 1);
+    assert_eq!(
+        floor.checkpoint_digest,
+        transition.checkpoint_digest().unwrap()
+    );
+    store.assert_start_denies();
+    store.epoch_floor = Some(floor.encode());
+    store.assert_start_denies();
+
+    // Only the external fixture owns signing keys. The CLI receives public
+    // proof JSON and public source trust; it receives no private-key arguments.
+    store.authority = new_key;
+    store.control_capability.signature = store
+        .authority
+        .sign(&store.control_capability.signing_data())
+        .to_bytes()
+        .to_vec();
+    assert_eq!(
+        store.control_capability.capability_id,
+        old_token.capability_id
+    );
+    store.epoch_floor = None;
+    store.assert_start_denies();
+    store.epoch_floor = Some(floor.encode());
+    store.start();
+    assert_eq!(read(&store, &mut store.client(), &control), bytes);
+    let mut old_holder =
+        StoreClient::connect_with_capability(&store.socket, 7, Some(old_token)).unwrap();
+    assert!(old_holder.get_blob(&control).is_err());
+    let mut manager = StoreClient::connect(&store.socket).unwrap();
+    assert!(manager.apply_authority_update(&old_grant).is_err());
+    assert!(manager.apply_authority_update(&old_revoke).is_err());
+    assert_eq!(read(&store, &mut store.client(), &control), bytes);
+    store.stop();
+    store.start();
+    assert_eq!(read(&store, &mut store.client(), &control), bytes);
+    assert_recovery_with_control(
+        &store,
+        &mut store.client(),
+        &control,
+        bytes,
+        b"signed publication with fresh authority after pinned epoch restart",
+    );
+}
+
+#[test]
+fn review_strict_unrelated_revoke_completes_while_admitted_get_blob_io_is_held() {
+    use std::{
+        ffi::CString,
+        io::Write,
+        os::unix::{ffi::OsStrExt, fs::OpenOptionsExt},
+        sync::mpsc,
+    };
+
+    let mut store = StrictStore::new();
+    let bytes = b"held authenticated GetBlob control";
+    let control = store.seed_control(bytes);
+    store.start();
+    let other = cap_with_id(&store, 6501);
+    let mut manager = StoreClient::connect(&store.socket).unwrap();
+    manager
+        .apply_authority_update(&signed_authority_command(
+            &store,
+            1,
+            other.capability_id,
+            bincode::serialize(&other).unwrap(),
+        ))
+        .unwrap();
+
+    let id = artifact_store_schema::ContentId::parse(&control).unwrap();
+    let manifest_path = store.root.join(format!("{}.manifest.json", id.hash_hex()));
+    let manifest = std::fs::read(&manifest_path).unwrap();
+    std::fs::remove_file(&manifest_path).unwrap();
+    let fifo_path = CString::new(manifest_path.as_os_str().as_bytes()).unwrap();
+    // SAFETY: fifo_path is a live NUL-terminated pathname, and this fixture owns
+    // the private Store root. The ordinary service receives no test-only hook.
+    assert_eq!(unsafe { libc::mkfifo(fifo_path.as_ptr(), 0o600) }, 0);
+
+    let mut holder = store.client();
+    let read_id = control.clone();
+    let reader = std::thread::spawn(move || holder.get_blob(&read_id));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut writer = loop {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(&manifest_path)
+        {
+            Ok(writer) => break writer,
+            Err(error) if error.raw_os_error() == Some(libc::ENXIO) => {
+                assert!(
+                    Instant::now() < deadline,
+                    "GetBlob never entered manifest IO"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => panic!("FIFO writer failed: {error}"),
+        }
+    };
+    // A writer can open only after the server has entered the FIFO read. With
+    // no bytes and this writer still open, that admitted GetBlob cannot finish.
+    let revoke = signed_authority_command(&store, 2, other.capability_id, vec![]);
+    let (completed_tx, completed_rx) = mpsc::channel();
+    let revoker = std::thread::spawn(move || {
+        completed_tx
+            .send(manager.apply_authority_update(&revoke))
+            .unwrap();
+    });
+    let completed_while_held = completed_rx.recv_timeout(Duration::from_secs(2));
+    // Always release the real IO before checking the ordering assertion, so the
+    // negative control also cleans up its admitted request and management call.
+    writer.write_all(&manifest).unwrap();
+    drop(writer);
+    let reply = reader.join().unwrap().unwrap();
+    assert_eq!(std::fs::read(&reply.blob_path).unwrap(), bytes);
+    revoker.join().unwrap();
+    let outcome = completed_while_held.expect("unrelated revoke waited for held GetBlob IO");
+    outcome.unwrap();
+    std::fs::remove_file(&manifest_path).unwrap();
+    std::fs::write(&manifest_path, manifest).unwrap();
+
+    let mut revoked = StoreClient::connect_with_capability(&store.socket, 7, Some(other)).unwrap();
+    assert!(revoked.get_blob(&control).is_err());
+    assert_recovery_with_control(
+        &store,
+        &mut store.client(),
+        &control,
+        bytes,
+        b"successful signed publication after unrelated revoke and released IO",
+    );
+}
+
+#[test]
+fn review_strict_admitted_get_blob_denies_success_after_unrelated_authority_poison() {
+    use std::{
+        ffi::CString,
+        io::Write,
+        os::unix::{ffi::OsStrExt, fs::OpenOptionsExt, fs::symlink},
+        sync::mpsc,
+    };
+    use store_service::live_authority::LIVE_AUTHORITY_FILE;
+
+    let mut store = StrictStore::new();
+    let bytes = b"admitted read must not expose success after authority poison";
+    let control = store.seed_control(bytes);
+    store.start();
+    let id = artifact_store_schema::ContentId::parse(&control).unwrap();
+    let manifest_path = store.root.join(format!("{}.manifest.json", id.hash_hex()));
+    let manifest = std::fs::read(&manifest_path).unwrap();
+    std::fs::remove_file(&manifest_path).unwrap();
+    let fifo_path = CString::new(manifest_path.as_os_str().as_bytes()).unwrap();
+    // SAFETY: the private fixture owns this live NUL-terminated pathname.
+    assert_eq!(unsafe { libc::mkfifo(fifo_path.as_ptr(), 0o600) }, 0);
+    let mut holder = store.client();
+    let read_id = control.clone();
+    let reader = std::thread::spawn(move || holder.get_blob(&read_id));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut writer = loop {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(&manifest_path)
+        {
+            Ok(writer) => break writer,
+            Err(error) if error.raw_os_error() == Some(libc::ENXIO) => {
+                assert!(
+                    Instant::now() < deadline,
+                    "GetBlob never entered manifest IO"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => panic!("FIFO writer failed: {error}"),
+        }
+    };
+
+    // Induce a genuine rejected persistence path after admission. This fixture
+    // intentionally controls the same-UID files; it makes no isolation claim.
+    let state_path = store.root.join(LIVE_AUTHORITY_FILE);
+    let durable_state = std::fs::read(&state_path).unwrap();
+    let retained_state = store.temp.path().join("retained-authority-state");
+    std::fs::write(&retained_state, &durable_state).unwrap();
+    std::fs::remove_file(&state_path).unwrap();
+    symlink(&retained_state, &state_path).unwrap();
+    let revoke = signed_authority_command(&store, 2, 6502, vec![]);
+    let mut manager = StoreClient::connect(&store.socket).unwrap();
+    let (completed_tx, completed_rx) = mpsc::channel();
+    let update = std::thread::spawn(move || {
+        completed_tx
+            .send(manager.apply_authority_update(&revoke))
+            .unwrap();
+    });
+    let poisoned_while_held = completed_rx.recv_timeout(Duration::from_secs(2));
+    writer.write_all(&manifest).unwrap();
+    drop(writer);
+    let read_result = reader.join().unwrap();
+    update.join().unwrap();
+    assert!(
+        poisoned_while_held
+            .expect("authority failure waited for held read")
+            .is_err()
+    );
+    assert!(
+        read_result.is_err(),
+        "admitted GetBlob returned success after authority poison"
+    );
+    std::fs::remove_file(&manifest_path).unwrap();
+    std::fs::write(&manifest_path, manifest).unwrap();
+    assert!(store.client().get_blob(&control).is_err());
+
+    // The verified original database is restored only after the failed owner
+    // stops. No revocation is claimed for the rejected pre-rename mutation.
+    store.stop();
+    std::fs::remove_file(&state_path).unwrap();
+    std::fs::write(&state_path, durable_state).unwrap();
+    store.start();
+    assert_recovery_with_control(
+        &store,
+        &mut store.client(),
+        &control,
+        bytes,
+        b"successful publication after verified authority restart",
+    );
 }
 
 #[test]

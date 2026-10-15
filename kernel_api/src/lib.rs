@@ -976,7 +976,8 @@ pub mod mock;
 ///
 /// The wire module validates payload lengths and ensures that:
 /// - Payload length matches the serialized type size
-/// - Unused payload bytes are zeroed
+/// - Explicit field codecs initialize implicit padding and unused payload bytes
+/// - Only types implementing `wire::WirePayload` can be decoded
 /// - Buffer overflows are prevented
 ///
 /// # Example
@@ -1156,9 +1157,17 @@ pub mod generated {
     include!("generated/block_v1.generated.rs");
     include!("generated/shmem_control_v1.generated.rs");
     include!("generated/shmem_consent_v2.generated.rs");
+    pub mod shmem_outcome_v3 {
+        include!("generated/shmem_outcome_v3.generated.rs");
+    }
+    pub use shmem_outcome_v3::*;
     include!("generated/store_service_v1.generated.rs");
     include!("generated/trace_service_v1.generated.rs");
     include!("generated/trace_delivery_v3.generated.rs");
+    pub mod trace_capacity_v4 {
+        include!("generated/trace_capacity_v4.generated.rs");
+    }
+    pub use trace_capacity_v4::*;
 
     /// Semantic State Service (v1)
     /// Provides structured introspection of the operating system state.

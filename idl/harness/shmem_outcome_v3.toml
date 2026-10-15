@@ -1,0 +1,72 @@
+namespace = "shared_memory.outcome"
+version = "3"
+protocol = 533
+
+# Lang: live IPC bound to independent CallerContext. Owner offers exact region
+# generation/rights/cache/target; only target accepts. Queries use recorded
+# participant identity, not a stale region handle. Domain identity is stable
+# for this kernel table lifetime; an authenticated process carrier is unfinished.
+# ObsContract: original offer/accept outcome only, never new mapping authority.
+# Queries/reconciliation never map, restore rights, or consume another reference.
+# key must be nonzero and is scoped to owner; exact retries reconcile, altered
+# payload reusing a held key denies STATUS_REQUEST_REUSE=14. Invalid key=15.
+# Reserve one of64 receipt slots before mutation. Accepted/cancelled/closed
+# terminal outcomes survive unmap, region close and slot reuse until BOTH
+# participants acknowledge; self-target acknowledges both roles once. A pending
+# ACK denies. One participant ACK does not erase the other's observation.
+# Receipt capacity denies new work before offers/PTEs/reference counts change;
+# explicit joint terminal ACK permits key/slot reuse, never offer-ID reuse.
+# States: pending1, accepted2, cancelled3, closed4. Failed map stays pending.
+# Repeated tracked Accept returns original terminal outcome, without remapping.
+# Successful legacy v2 accept/cancel/close updates tracked outcome too. Legacy
+# v2 replay behavior stays unchanged. Unknown/acknowledged outcome returns13.
+# Cancel terminal cancelled/closed is idempotent; cancel accepted returns6.
+# All requests require version3 and reserved0; foreign queries reveal no fields.
+
+[message.offer_region_tracked]
+msg_type = 1
+fields = ["request_id:u64", "version:u32", "reserved:u32", "operation_key:u64", "region_id:u64", "shm_cap:u64", "target_domain_id:u64", "rights:u32", "cache_mode:u32"]
+
+[message.offer_region_tracked_reply]
+msg_type = 2
+fields = ["request_id:u64", "operation_key:u64", "offer_id:u64", "status:u32", "state:u32"]
+
+[message.accept_region_tracked]
+msg_type = 3
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.accept_region_tracked_reply]
+msg_type = 4
+fields = ["request_id:u64", "offer_id:u64", "mapping_id:u64", "status:u32", "state:u32"]
+
+[message.query_offered_region]
+msg_type = 5
+fields = ["request_id:u64", "version:u32", "reserved:u32", "operation_key:u64"]
+
+[message.query_offered_region_reply]
+msg_type = 6
+fields = ["request_id:u64", "operation_key:u64", "offer_id:u64", "mapping_id:u64", "status:u32", "state:u32"]
+
+[message.query_accepted_region]
+msg_type = 7
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.query_accepted_region_reply]
+msg_type = 8
+fields = ["request_id:u64", "offer_id:u64", "mapping_id:u64", "status:u32", "state:u32"]
+
+[message.cancel_tracked_offer]
+msg_type = 9
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.cancel_tracked_offer_reply]
+msg_type = 10
+fields = ["request_id:u64", "status:u32", "reserved:u32"]
+
+[message.acknowledge_region_outcome]
+msg_type = 11
+fields = ["request_id:u64", "version:u32", "reserved:u32", "offer_id:u64"]
+
+[message.acknowledge_region_outcome_reply]
+msg_type = 12
+fields = ["request_id:u64", "status:u32", "reserved:u32"]

@@ -50,11 +50,37 @@ the asserted host/QEMU controls and retains the following integration risks:
 - Trace client uses MockTransport by default; v3 needs a real authenticated carrier.
 - Host Store revocation cannot retract paths or bytes already delivered or prevent
   same-UID filesystem access. Target Domain Manager integration remains unfinished.
-- Strict live-authority state is bounded at 1024 permanently retired IDs; capacity
-  denial preserves space to revoke existing grants. Uncertain durable updates
-  fail closed and may require operator recovery after restart validation fails.
+- Strict live-authority state is bounded at 1024 IDs per epoch; expiry/revocation
+  does not reclaim an ID. The implemented candidate adds explicit offline
+  revoke-all rollover with fresh exclusive keys and 64 retired keys, never silent
+  compaction. Capacity denial preserves revocation of existing grants. Uncertain
+  durable updates fail closed and may require operator recovery.
 - POSIX default execution remains a trusted development path with best-effort
   rlimits; helper isolation controls do not establish default containment.
+
+## Updated-review foundation candidate
+
+The user selected foundation follow-ups before further process implementation.
+The updated-review P1/P2/P3 candidate adds explicit field codecs and UTF-8 checks,
+fixed trace capacity metadata, retained Shmem outcomes and Store authority
+lifetime/epoch repairs. Assembled boundary checks and both-architecture S8 assertions
+pass locally; editor preservation and matching hosted qualification remain pending.
+PR #40/41 results qualify preceding source only. The
+[acceptance record](docs/plans/updated-review-repairs-2026-10-14.md) owns the scope.
+
+Per-ID Store draining permits unrelated authority management during a held read;
+the actual FIFO fixture does not prove bounded IO or unrelated data progress
+through other locks. Publication and authority fsync still hold global exclusion.
+Offline epoch safety requires unique root identities, exclusive root/epoch keys
+and an exact externally retained checkpoint pin. It provides no hardware rollback
+anchor and discards all old grants. Fixed trace overflow requires resync; 64 held
+Shmem receipts can exhaust admission until both participants acknowledge terminal
+results. Queries never restore retired mappings.
+
+These changes do not complete the authenticated process/trace carrier, full P0,
+real editor child, RUN0, target Store/storage, SMP page-table synchronization or
+physical qualification. POSIX remains a trusted host path with best-effort limits;
+GetBlob paths/bytes and same-UID filesystem access remain outside revocation.
 
 ## R1: Compatibility gravity (Linux becomes the "real OS")
 Mitigation:

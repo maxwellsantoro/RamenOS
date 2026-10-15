@@ -6,7 +6,7 @@ use kernel_api::generated::agent_task_v1::*;
 use kernel_api::ipc::Envelope;
 use kernel_api::wire::{read_payload, write_payload};
 
-fn envelope<T: Copy>(msg_type: u32, payload: &T) -> Envelope {
+fn envelope<T: kernel_api::wire::WirePayload>(msg_type: u32, payload: &T) -> Envelope {
     let mut env = Envelope::empty(AGENT_TASK_V1_PROTOCOL_ID, msg_type);
     write_payload(&mut env, payload).unwrap();
     env

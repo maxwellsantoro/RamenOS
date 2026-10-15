@@ -44,7 +44,7 @@ fn fixture() -> TaskFixture {
         validator,
     }
 }
-fn req<T: Copy>(ty: u32, v: &T) -> Envelope {
+fn req<T: kernel_api::wire::WirePayload>(ty: u32, v: &T) -> Envelope {
     let mut e = Envelope::empty(14, ty);
     write_payload(&mut e, v).unwrap();
     e

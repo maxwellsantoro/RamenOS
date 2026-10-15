@@ -92,20 +92,21 @@ impl DomainInfo {
         }
     }
 
-    /// Get the domain name as a string slice (up to first null byte).
+    /// Get the domain name up to the first null byte.
     ///
-    /// # Safety
-    /// This function assumes the name bytes are valid UTF-8.
-    /// For kernel-generated names, this is guaranteed.
+    /// Malformed UTF-8 supplied through the public raw name returns an empty
+    /// string. Use [`Self::try_name_str`] to distinguish it from an empty name.
     pub fn name_str(&self) -> &str {
-        // Find the null terminator
-        let len = self.name.iter().position(|&b| b == 0).unwrap_or(32);
+        self.try_name_str().unwrap_or("")
+    }
 
-        // SAFETY: Kernel-generated names are valid UTF-8
-        unsafe {
-            let slice = &self.name[..len];
-            core::str::from_utf8_unchecked(slice)
-        }
+    /// Validate the raw name prefix up to the first null byte as UTF-8.
+    ///
+    /// Bytes after the first null are not part of the name. A valid full array
+    /// without a null terminator is also accepted.
+    pub fn try_name_str(&self) -> Result<&str, core::str::Utf8Error> {
+        let len = self.name.iter().position(|&b| b == 0).unwrap_or(32);
+        core::str::from_utf8(&self.name[..len])
     }
 }
 
@@ -149,7 +150,11 @@ impl DomainRegistry {
         // Convert name to fixed-size byte array
         let mut name_bytes = [0u8; 32];
         let name_bytes_slice = name.as_bytes();
-        let len = core::cmp::min(name_bytes_slice.len(), 31); // Leave room for null terminator
+        // Reserve the null terminator without splitting a UTF-8 character.
+        let mut len = core::cmp::min(name_bytes_slice.len(), 31);
+        while !name.is_char_boundary(len) {
+            len -= 1;
+        }
         name_bytes[..len].copy_from_slice(&name_bytes_slice[..len]);
 
         // Create and store domain info
@@ -324,5 +329,117 @@ mod tests {
         assert!(registry.is_registered(3));
         assert!(registry.is_registered(4));
         assert!(registry.is_registered(5));
+    }
+
+    #[test]
+    fn review_domain_name_multibyte_truncation_preserves_complete_characters() {
+        for character in ["é", "€", "🦀"] {
+            let mut bytes = [b'a'; 34];
+            let end = 30 + character.len();
+            bytes[30..end].copy_from_slice(character.as_bytes());
+            let name = core::str::from_utf8(&bytes[..end]).unwrap();
+            let mut registry = DomainRegistry::new();
+            registry.register(1, name).unwrap();
+            let info = registry.get(1).unwrap();
+            let stored = &info.name;
+            let len = stored.iter().position(|&byte| byte == 0).unwrap_or(32);
+            // Inspect bytes with the checked parser: the baseline getter would
+            // create an invalid &str for these inputs and must not be invoked.
+            assert_eq!(core::str::from_utf8(&stored[..len]).unwrap(), &name[..30]);
+            assert!(stored[30..].iter().all(|&byte| byte == 0));
+            assert_eq!(info.try_name_str().unwrap(), &name[..30]);
+            assert_eq!(info.name_str(), &name[..30]);
+        }
+    }
+
+    #[test]
+    fn review_domain_name_exact_multibyte_boundaries_remain_intact() {
+        for character in ["é", "€", "🦀"] {
+            let mut bytes = [b'a'; 32];
+            let start = 31 - character.len();
+            bytes[start..31].copy_from_slice(character.as_bytes());
+            let name = core::str::from_utf8(&bytes).unwrap();
+            let mut registry = DomainRegistry::new();
+            registry.register(1, name).unwrap();
+            let info = registry.get(1).unwrap();
+            assert_eq!(info.try_name_str().unwrap(), &name[..31]);
+            assert_eq!(info.name_str(), &name[..31]);
+            assert_eq!(info.name[31], 0);
+        }
+    }
+
+    #[test]
+    fn review_domain_name_raw_constructor_reports_invalid_utf8() {
+        for prefix in [&[0xff][..], &[b'a', 0x80][..], &[0xe2, 0x82][..]] {
+            let mut bytes = [0; 32];
+            bytes[..prefix.len()].copy_from_slice(prefix);
+            let info = DomainInfo::new(1, bytes);
+            assert!(core::str::from_utf8(&info.name[..prefix.len()]).is_err());
+            assert!(info.try_name_str().is_err());
+            assert_eq!(info.name_str(), "");
+        }
+    }
+
+    #[test]
+    fn review_domain_name_public_mutation_reports_invalid_utf8() {
+        let mut registry = DomainRegistry::new();
+        registry.register(1, "valid").unwrap();
+        let info = registry.get_mut(1).unwrap();
+        info.name[0] = 0xff;
+        assert!(core::str::from_utf8(&info.name[..5]).is_err());
+        assert!(info.try_name_str().is_err());
+        assert_eq!(info.name_str(), "");
+        info.name = [0; 32];
+        info.name[..8].copy_from_slice(b"repaired");
+        assert_eq!(info.try_name_str().unwrap(), "repaired");
+        assert_eq!(info.name_str(), "repaired");
+    }
+
+    #[test]
+    fn review_domain_name_first_null_ignores_invalid_tail_and_preserves_empty() {
+        let mut bytes = [0xff; 32];
+        bytes[..5].copy_from_slice(b"valid");
+        bytes[5] = 0;
+        let info = DomainInfo::new(1, bytes);
+        assert_eq!(info.try_name_str().unwrap(), "valid");
+        assert_eq!(info.name_str(), "valid");
+
+        bytes[0] = 0;
+        let empty = DomainInfo::new(2, bytes);
+        assert_eq!(empty.try_name_str().unwrap(), "");
+        assert_eq!(empty.name_str(), "");
+
+        let mut registry = DomainRegistry::new();
+        registry.register(1, "before\0after").unwrap();
+        assert_eq!(registry.get(1).unwrap().name_str(), "before");
+    }
+
+    #[test]
+    fn review_domain_name_full_raw_array_without_null_remains_valid() {
+        let info = DomainInfo::new(1, [b'a'; 32]);
+        assert_eq!(
+            info.try_name_str().unwrap(),
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert_eq!(info.name_str(), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    }
+
+    #[test]
+    fn review_domain_name_denial_preserves_next_registration() {
+        let mut registry = DomainRegistry::new();
+        registry.register(1, "original").unwrap();
+        assert_eq!(
+            registry.register(1, "replacement"),
+            Err(DomainRegistryError::DomainAlreadyRegistered { id: 1 })
+        );
+        assert_eq!(
+            registry.register(MAX_DOMAINS as u64, "out-of-range"),
+            Err(DomainRegistryError::InvalidDomainId {
+                id: MAX_DOMAINS as u64,
+            })
+        );
+        registry.register(2, "next-é").unwrap();
+        assert_eq!(registry.get(1).unwrap().name_str(), "original");
+        assert_eq!(registry.get(2).unwrap().name_str(), "next-é");
     }
 }

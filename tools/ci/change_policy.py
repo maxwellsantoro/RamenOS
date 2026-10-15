@@ -22,6 +22,7 @@ EXECUTABLE_DOCUMENTS = frozenset({
     'docs/FOUNDRY_CI_OPTIMIZATION_V0.md',
     'docs/HARDWARE_STRATEGY.md',
     'docs/HIL_APPLIANCE_EVIDENCE_V0.md',
+    'docs/STORE_AUTHORITY_EPOCH_V1.md',
     'docs/plans/2026-02-20-s11-driver-factory-mvp.md',
     'docs/plans/2026-06-17-s10-5-1-broker-kernel-bridge.md',
     'docs/plans/2026-06-17-s10-5-2-qemu-ipc-bridge.md',

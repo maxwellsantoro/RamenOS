@@ -6,7 +6,7 @@
 
 use crate::domain_registry::{DomainId, DomainRegistry, MAX_DOMAINS};
 use crate::trace_cap::{TRACE_RIGHT_ADMIN, TRACE_RIGHT_READ, TraceCapTable};
-use crate::trace_ring::DomainTraceRing;
+use crate::trace_ring::{DomainTraceRing, RETENTION_BYTES, RETENTION_EVENTS};
 use kernel_api::cap::Handle;
 use kernel_api::trace::Event;
 
@@ -25,11 +25,22 @@ pub const TRACE_STATUS_BUFFER_EXISTS: u32 = 7;
 pub struct TraceBufferInfo {
     /// Domain ID this buffer belongs to
     pub domain_id: DomainId,
-    /// Size of the trace buffer (in bytes)
+    /// Deprecated v1 requested size; not the ring's retention capacity.
     pub size: u32,
     /// Current read offset
     pub read_offset: u64,
     /// Current write offset
+    pub write_offset: u64,
+}
+
+/// Truthful fixed-ring metadata, separate from the deprecated v1 size field.
+#[derive(Debug, Clone, Copy)]
+pub struct FixedTraceBufferInfo {
+    pub domain_id: DomainId,
+    pub retention_events: u32,
+    pub retention_bytes: u32,
+    pub max_delivery_bytes: u32,
+    pub read_offset: u64,
     pub write_offset: u64,
 }
 
@@ -56,8 +67,10 @@ pub(crate) enum TraceDeliveryReceipt {
 struct TraceBuffer {
     /// Domain ID this buffer belongs to
     domain_id: DomainId,
-    /// Size of the buffer (in bytes)
+    /// Deprecated v1 requested size, retained for compatible legacy metadata.
     size: u32,
+    /// Effective whole-event delivery limit, independent of retention capacity.
+    max_delivery_bytes: u32,
     /// Whether this buffer is active
     active: bool,
     pending: Option<TraceReadLease>,
@@ -114,11 +127,13 @@ impl TraceService {
         self.domain_registry.register(id, name).map_err(|_| ())
     }
 
-    /// Create a new trace buffer for a domain
+    /// Create a trace stream using deprecated v1 size admission and metadata.
+    /// The actual ring always retains 64 events; use the fixed-capacity API for
+    /// truthful capacity metadata and an explicit whole-event delivery limit.
     ///
     /// # Arguments
     /// - `domain_id`: Domain ID to create buffer for
-    /// - `size`: Size of the buffer in bytes
+    /// - `size`: Legacy power-of-two size and delivery clamp
     ///
     /// # Returns
     /// - `Ok((status, trace_cap))` on success with status and capability handle
@@ -128,6 +143,26 @@ impl TraceService {
         &mut self,
         domain_id: DomainId,
         size: u32,
+    ) -> Result<(u32, Handle), ()> {
+        self.create_buffer(domain_id, size, false)
+    }
+
+    /// Create a fixed 64-event stream with an explicit whole-event delivery limit.
+    #[allow(clippy::result_unit_err)]
+    pub fn create_fixed_trace_buffer(
+        &mut self,
+        domain_id: DomainId,
+        max_delivery_bytes: u32,
+    ) -> Result<(u32, Handle), ()> {
+        self.create_buffer(domain_id, max_delivery_bytes, true)
+    }
+
+    /// Shared admission preserves v1's legacy size values and validation order.
+    fn create_buffer(
+        &mut self,
+        domain_id: DomainId,
+        size: u32,
+        fixed: bool,
     ) -> Result<(u32, Handle), ()> {
         // Validate domain ID
         if domain_id >= MAX_DOMAINS as DomainId {
@@ -145,10 +180,18 @@ impl TraceService {
             return Ok((TRACE_STATUS_BUFFER_EXISTS, Handle::INVALID));
         }
 
-        // Validate size (must be non-zero and power of two for ring buffer)
-        if size < core::mem::size_of::<Event>() as u32 || !size.is_power_of_two() {
+        // V1 size is deprecated metadata and a delivery clamp, not retention.
+        // The successor accepts only whole-event limits within actual capacity.
+        const EVENT_BYTES: u32 = core::mem::size_of::<Event>() as u32;
+        let valid = if fixed {
+            (EVENT_BYTES..=RETENTION_BYTES).contains(&size) && size.is_multiple_of(EVENT_BYTES)
+        } else {
+            size >= EVENT_BYTES && size.is_power_of_two()
+        };
+        if !valid {
             return Ok((TRACE_STATUS_INVALID_SIZE, Handle::INVALID));
         }
+        let max_delivery_bytes = size.min(RETENTION_BYTES) / EVENT_BYTES * EVENT_BYTES;
 
         // Allocate trace capability with READ rights
         let cap_index = self
@@ -162,6 +205,7 @@ impl TraceService {
         self.buffers[idx] = Some(TraceBuffer {
             domain_id,
             size,
+            max_delivery_bytes,
             active: true,
             pending: None,
             committed: None,
@@ -285,8 +329,11 @@ impl TraceService {
         {
             return Err(TRACE_STATUS_INVALID_SIZE);
         }
-        let size = self.buffers[domain as usize].as_ref().unwrap().size as usize;
-        let count = (length as usize).min(size) / EVENT_BYTES;
+        let limit = self.buffers[domain as usize]
+            .as_ref()
+            .unwrap()
+            .max_delivery_bytes as usize;
+        let count = (length as usize).min(limit) / EVENT_BYTES;
         let mut events = [Event {
             tag: 0,
             arg0: 0,
@@ -434,6 +481,8 @@ impl TraceService {
         // consuming data; zero-length requests are harmless at the current cursor.
         const EVENT_BYTES: usize = core::mem::size_of::<Event>();
         const _: [(); 24] = [(); EVENT_BYTES];
+        // Preserve v1's short-read rejection before applying the effective
+        // whole-event clamp shared with fixed-capacity streams.
         let read_len = (length as usize).min(out.len()).min(buffer.size as usize);
         if read_len > 0 && read_len < EVENT_BYTES {
             return Ok((TRACE_STATUS_INVALID_SIZE, 0));
@@ -446,7 +495,8 @@ impl TraceService {
             arg1: 0,
         }; 64]; // Max 64 events per read
 
-        let count = (read_len / EVENT_BYTES).min(events.len());
+        let count =
+            (read_len.min(buffer.max_delivery_bytes as usize) / EVENT_BYTES).min(events.len());
         let Some(event_count) = self
             .trace_ring
             .read_at(domain_id, offset, &mut events[..count])
@@ -561,6 +611,44 @@ impl TraceService {
         };
 
         Ok((TRACE_STATUS_OK, info))
+    }
+
+    /// Query actual retention and delivery limits for either stream version.
+    #[allow(clippy::result_unit_err)]
+    pub fn get_fixed_trace_info(
+        &mut self,
+        trace_cap: Handle,
+    ) -> Result<(u32, FixedTraceBufferInfo), ()> {
+        let empty = FixedTraceBufferInfo {
+            domain_id: 0,
+            retention_events: 0,
+            retention_bytes: 0,
+            max_delivery_bytes: 0,
+            read_offset: 0,
+            write_offset: 0,
+        };
+        let domain_id = match self.readable_domain(trace_cap) {
+            Ok(domain_id) => domain_id,
+            Err(status) => return Ok((status, empty)),
+        };
+        let Some(buffer) = self.buffers[domain_id as usize]
+            .as_ref()
+            .filter(|b| b.active)
+        else {
+            return Ok((TRACE_STATUS_BUFFER_NOT_FOUND, empty));
+        };
+        let (read_offset, write_offset) = self.trace_ring.positions(domain_id);
+        Ok((
+            TRACE_STATUS_OK,
+            FixedTraceBufferInfo {
+                domain_id,
+                retention_events: RETENTION_EVENTS,
+                retention_bytes: RETENTION_BYTES,
+                max_delivery_bytes: buffer.max_delivery_bytes,
+                read_offset,
+                write_offset,
+            },
+        ))
     }
 
     /// Get the trace capability table (for testing)
@@ -1177,5 +1265,247 @@ mod review_delivery_retirement {
             Err(TRACE_STATUS_INVALID_CAPABILITY)
         );
         assert_eq!(service.trace_ring().positions(0), (0, 24));
+    }
+}
+
+#[cfg(test)]
+mod review_fixed_capacity {
+    use super::*;
+
+    fn destination() -> Handle {
+        Handle {
+            kind: kernel_api::cap::HandleKind::Shmem,
+            index: 1,
+            generation: 1,
+        }
+    }
+
+    #[test]
+    fn review_fixed_trace_metadata_preserves_legacy_values_and_reports_actual_capacity() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        let (_, legacy) = service.create_trace_buffer(0, 4096).unwrap();
+        assert_eq!(service.get_trace_info(legacy).unwrap().1.size, 4096);
+        let (status, info) = service.get_fixed_trace_info(legacy).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        assert_eq!(
+            (
+                info.domain_id,
+                info.retention_events,
+                info.retention_bytes,
+                info.max_delivery_bytes
+            ),
+            (0, 64, 1536, 1536)
+        );
+        assert_eq!((info.read_offset, info.write_offset), (0, 0));
+        service.destroy_trace_buffer(legacy).unwrap();
+        let (status, fixed) = service.create_fixed_trace_buffer(0, 1536).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        assert_ne!(fixed, legacy);
+        let (_, info) = service.get_fixed_trace_info(fixed).unwrap();
+        assert_eq!(
+            (
+                info.retention_events,
+                info.retention_bytes,
+                info.max_delivery_bytes
+            ),
+            (64, 1536, 1536)
+        );
+        assert_eq!(
+            service.get_fixed_trace_info(legacy).unwrap().0,
+            TRACE_STATUS_INVALID_CAPABILITY
+        );
+        assert_eq!(
+            service.get_fixed_trace_info(fixed).unwrap().0,
+            TRACE_STATUS_OK
+        );
+    }
+
+    #[test]
+    fn review_fixed_trace_exact_retention_overflow_resync_and_receipt_retry() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        let (_, source) = service.create_fixed_trace_buffer(0, 1536).unwrap();
+        for tag in 0..64 {
+            service.trace_ring().emit(0, tag, tag as u64 + 100, 200);
+        }
+        let (_, info) = service.get_fixed_trace_info(source).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (0, 1536));
+        let mut all = [0xA5; 1536];
+        let pending = service
+            .prepare_delivery(source, destination(), 0, 0, 1536, &mut all)
+            .unwrap();
+        assert_eq!((pending.1, pending.2), (1536, 1536));
+        for (tag, bytes) in all.chunks_exact(24).enumerate() {
+            assert_eq!(
+                u32::from_le_bytes(bytes[..4].try_into().unwrap()),
+                tag as u32
+            );
+            assert_eq!(&bytes[4..8], &[0; 4]);
+            assert_eq!(
+                u64::from_le_bytes(bytes[8..16].try_into().unwrap()),
+                tag as u64 + 100
+            );
+        }
+        service.trace_ring().emit(0, 64, 164, 200);
+        let (_, info) = service.get_fixed_trace_info(source).unwrap();
+        assert_eq!((info.read_offset, info.write_offset), (24, 1560));
+        assert_eq!(
+            service.commit_delivery(source, pending.0),
+            Err(TRACE_STATUS_INVALID_OFFSET)
+        );
+        let before = all;
+        assert_eq!(
+            service.prepare_delivery(source, destination(), 0, 0, 1536, &mut all),
+            Err(TRACE_STATUS_INVALID_OFFSET)
+        );
+        assert_eq!(all, before);
+        let fresh = service
+            .prepare_delivery(source, destination(), 0, info.read_offset, 24, &mut all)
+            .unwrap();
+        assert_eq!(u32::from_le_bytes(all[..4].try_into().unwrap()), 1);
+        assert_eq!(service.commit_delivery(source, fresh.0), Ok(48));
+        service.trace_ring().emit(0, 65, 165, 200);
+        assert_eq!(service.commit_delivery(source, fresh.0), Ok(48));
+        assert_eq!(service.trace_ring().positions(0), (48, 1584));
+        let next = service
+            .prepare_delivery(source, destination(), 0, 48, 24, &mut all)
+            .unwrap();
+        assert_eq!(u32::from_le_bytes(all[..4].try_into().unwrap()), 2);
+        assert_eq!(service.commit_delivery(source, next.0), Ok(72));
+    }
+
+    #[test]
+    fn review_fixed_trace_short_delivery_retains_full_capacity_and_other_domain_progress() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        service.register_domain(1, "other").unwrap();
+        let (_, short) = service.create_fixed_trace_buffer(0, 24).unwrap();
+        let (_, other) = service.create_fixed_trace_buffer(1, 48).unwrap();
+        for tag in 0..64 {
+            service.trace_ring().emit(0, tag, 0, 0);
+        }
+        service.trace_ring().emit(1, 99, 0, 0);
+        let (_, info) = service.get_fixed_trace_info(short).unwrap();
+        assert_eq!(
+            (
+                info.retention_events,
+                info.retention_bytes,
+                info.max_delivery_bytes
+            ),
+            (64, 1536, 24)
+        );
+        assert_eq!((info.read_offset, info.write_offset), (0, 1536));
+        let mut out = [0xA5; 1536];
+        let pending = service
+            .prepare_delivery(short, destination(), 0, 0, 1536, &mut out)
+            .unwrap();
+        assert_eq!((pending.1, pending.2), (24, 24));
+        assert!(out[24..].iter().all(|byte| *byte == 0xA5));
+        assert_eq!(service.commit_delivery(short, pending.0), Ok(24));
+        assert_eq!(service.trace_ring().positions(1), (0, 24));
+        let next = service
+            .prepare_delivery(other, destination(), 0, 0, 48, &mut out)
+            .unwrap();
+        assert_eq!(next.2, 24);
+        assert_eq!(u32::from_le_bytes(out[..4].try_into().unwrap()), 99);
+        assert_eq!(service.commit_delivery(other, next.0), Ok(24));
+        assert_eq!(service.trace_ring().positions(0), (24, 1536));
+    }
+
+    #[test]
+    fn review_fixed_trace_invalid_limits_and_handles_preserve_next_operation() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        for limit in [0, 1, 23, 25, 32, 1535, 1537, 4096, u32::MAX] {
+            assert_eq!(
+                service.create_fixed_trace_buffer(0, limit).unwrap(),
+                (TRACE_STATUS_INVALID_SIZE, Handle::INVALID)
+            );
+            assert_eq!(service.trace_ring().positions(0), (0, 0));
+        }
+        let (status, source) = service.create_fixed_trace_buffer(0, 48).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        service.trace_ring().emit(0, 7, 8, 9);
+        assert_eq!(
+            service.create_fixed_trace_buffer(0, 24).unwrap(),
+            (TRACE_STATUS_BUFFER_EXISTS, Handle::INVALID)
+        );
+        assert_eq!(
+            service.get_fixed_trace_info(Handle::INVALID).unwrap().0,
+            TRACE_STATUS_INVALID_CAPABILITY
+        );
+        let mut stale = source;
+        stale.generation += 1;
+        assert_eq!(
+            service.get_fixed_trace_info(stale).unwrap().0,
+            TRACE_STATUS_INVALID_CAPABILITY
+        );
+        assert_eq!(service.trace_ring().positions(0), (0, 24));
+        let mut bytes = [0xA5; 48];
+        let delivered = service
+            .prepare_delivery(source, destination(), 0, 0, 48, &mut bytes)
+            .unwrap();
+        assert_eq!(service.commit_delivery(source, delivered.0), Ok(24));
+        assert_eq!(u32::from_le_bytes(bytes[..4].try_into().unwrap()), 7);
+        service.destroy_trace_buffer(source).unwrap();
+        let (status, next) = service.create_fixed_trace_buffer(0, 24).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        service.trace_ring().emit(0, 10, 11, 12);
+        assert_eq!(
+            service.commit_delivery(source, delivered.0),
+            Err(TRACE_STATUS_INVALID_CAPABILITY)
+        );
+        assert_eq!(
+            service.commit_delivery(next, delivered.0),
+            Err(TRACE_STATUS_INVALID_CAPABILITY)
+        );
+        let delivered = service
+            .prepare_delivery(next, destination(), 0, 0, 24, &mut bytes)
+            .unwrap();
+        assert_eq!(service.commit_delivery(next, delivered.0), Ok(24));
+        assert_eq!(u32::from_le_bytes(bytes[..4].try_into().unwrap()), 10);
+    }
+}
+
+#[cfg(test)]
+mod review_fixed_capacity_read_right {
+    use super::*;
+    #[test]
+    fn denied_info_exposes_no_metadata_then_restored_right_progresses() {
+        let mut service = TraceService::new();
+        service.init_kernel();
+        let (status, cap) = service.create_fixed_trace_buffer(0, 24).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        service
+            .cap_table_mut()
+            .revoke_rights(cap.index as usize, TRACE_RIGHT_READ)
+            .unwrap();
+        let (status, denied) = service.get_fixed_trace_info(cap).unwrap();
+        assert_eq!(status, TRACE_STATUS_PERMISSION_DENIED);
+        assert_eq!(
+            (
+                denied.retention_events,
+                denied.retention_bytes,
+                denied.max_delivery_bytes,
+                denied.read_offset,
+                denied.write_offset
+            ),
+            (0, 0, 0, 0, 0)
+        );
+        service
+            .cap_table_mut()
+            .grant_rights(cap.index as usize, TRACE_RIGHT_READ)
+            .unwrap();
+        let (status, info) = service.get_fixed_trace_info(cap).unwrap();
+        assert_eq!(status, TRACE_STATUS_OK);
+        assert_eq!(
+            (
+                info.retention_events,
+                info.retention_bytes,
+                info.max_delivery_bytes
+            ),
+            (64, 1536, 24)
+        );
     }
 }

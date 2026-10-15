@@ -33,6 +33,16 @@ unproved.
 
 Founded by [Maxwell Santoro](https://maxwellsantoro.com).
 
+## Enforced component boundaries
+
+Native [mapping consent](idl/harness/shmem_consent_v2.toml) and
+[trace delivery](idl/harness/trace_delivery_v3.toml) now have real x86-64/AArch64
+[QEMU regression coverage](tools/ci/foundry_shmem_dataplane_s8_phase4_integration.sh).
+The fixtures preserve occupied page-table entries and deliver actual trace bytes
+before cursor Commit. They program isolated, inactive roots; independently
+executing userspace remains the next boundary. [Current Status](CURRENT_STATUS.md)
+records the accepted source and the remaining process, transport and target joins.
+
 ## Run the human host task proof
 
 The scripted editor proof launches through a permission preview, reads a selected
