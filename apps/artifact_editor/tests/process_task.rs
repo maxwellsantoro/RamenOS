@@ -1,6 +1,6 @@
 //! P0 preparation, deliberately compile RED until the frozen process API exists.
 //! These genuine consumer assertions cover only the public happy path, alias
-//! fencing and budget construction. They do not implement all thirty families,
+//! fencing, budget construction and prompt consuming owner return. They do not implement all thirty families,
 //! the private negative-control fixture, common SaveChains, or a process gate.
 #![cfg(feature = "host_editor_process_v0_dev")]
 
@@ -161,6 +161,69 @@ fn spawn_owned(
             panic!("actual registered child launch failed; no runtime acceptance");
         }
     }
+}
+
+#[test]
+fn process_p0_consuming_join_returns_live_owner_without_waiting() {
+    let mut f = fixture::fixture(
+        "process_p0_consuming_join_returns_live_owner_without_waiting",
+        1,
+    );
+    let (launch, editor) = fixture::initialize(&mut f, 1);
+    let enrollment = match f.h.prepare_process_editor(editor) {
+        Ok(enrollment) => enrollment,
+        Err(failure) => {
+            let (_, editor) = failure.into_parts();
+            drop((editor, launch));
+            f.finish();
+            panic!("approved editor preparation failed");
+        }
+    };
+    let mut owner = spawn_owned(f, enrollment, launch);
+    let assertion = catch_unwind(AssertUnwindSafe(|| {
+        let (f, child) = owner.borrow();
+        until_publication(f, child, 1);
+        let before = ok(f.h.observe_process_child(child));
+        // No retire, expiry, or child fault has occurred. Repeated consuming
+        // calls must promptly return the same sole child, not a second waiter.
+        for _ in 0..3 {
+            owner.assert_live_join_not_ready();
+        }
+        let (f, child) = owner.borrow();
+        assert_eq!(
+            ok(f.h.observe_process_child(child)).process_id(),
+            before.process_id()
+        );
+        assert_eq!(
+            ok(f.h.observe_process_child(child)).birth_ticks(),
+            before.birth_ticks()
+        );
+        // Returned ownership must remain usable, not merely carry an ID.
+        event(f, child, 4, 1, 2);
+        event(f, child, 4, 2, 2);
+        ok(f.h.request_process_editor_frame(child, 2));
+        until_publication(f, child, 2);
+        assert_eq!(
+            ok(f.h.observe_process_editor(child, 2)).bytes,
+            b"note=old\na"
+        );
+        before
+    }));
+    let proof = match owner.finish(2) {
+        Ok(proof) => proof,
+        Err(retained) => {
+            drop(retained);
+            panic!("INCOMPLETE: consuming join did not return a provably reaped owner");
+        }
+    };
+    let before = match assertion {
+        Ok(before) => before,
+        Err(payload) => resume_unwind(payload),
+    };
+    assert!(proof.supervisor_joined());
+    assert_eq!(proof.process_id(), before.process_id());
+    assert_eq!(proof.birth_ticks(), before.birth_ticks());
+    assert_eq!(proof.executable_sha256(), before.executable_sha256());
 }
 
 #[test]

@@ -11,6 +11,10 @@ use store_service::editor_store as store;
 pub fn fixture(name: &'static str, sessions: usize) -> Fixture {
     let recording = recording::CaseRecorder::open(name)
         .unwrap_or_else(|error| panic!("actual process-preparation recorder setup: {error:?}"));
+    Fixture::recorded(&recording, preparation_spec(name), sessions)
+}
+
+pub fn preparation_spec(name: &'static str) -> recording::ScenarioSpec {
     // The shared genuine setup helpers record replay denials and producer
     // checkpoints in addition to the three lifecycle snapshots. Preserve that
     // complete source inventory; this case still claims preparation only.
@@ -22,7 +26,7 @@ pub fn fixture(name: &'static str, sessions: usize) -> Fixture {
     );
     spec.case = name;
     spec.requirements = &["process_preparation_only"];
-    Fixture::recorded(&recording, spec, sessions)
+    spec
 }
 
 /// Execute the actual authorized Read and copy its entire genuine lease before

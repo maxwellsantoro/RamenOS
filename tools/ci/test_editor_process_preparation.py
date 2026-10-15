@@ -156,6 +156,39 @@ class MissingApiPreparationControls(unittest.TestCase):
                 self.classify(complete_errors() + [failure_note(text)])
 
 
+class PreparationInventoryControls(unittest.TestCase):
+    def summary(self):
+        names = sorted(preparation.SETUP_CASES)
+        return {"status": "PASS", "package": "artifact_editor", "targets": [{
+            "name": "process_setup_control", "kind": "test", "selected": names, "passed": names,
+        }], "commands": [{"exit_code": 0, "reaped": True, "group_stop_before_reap": True}]}
+
+    def test_exact_executed_setup_inventory(self):
+        self.assertEqual(len(preparation.validate_setup(self.summary())), 6)
+        self.assertEqual(len(preparation.AUTHORED_CASES), 4)
+
+    def test_missing_or_foreign_executed_case_is_rejected(self):
+        for field in ("selected", "passed"):
+            for alter in (lambda names: names[:-1], lambda names: names + ["foreign"]):
+                summary = self.summary()
+                summary["targets"][0][field] = alter(summary["targets"][0][field])
+                with self.subTest(field=field), self.assertRaises(preparation.PreparationError):
+                    preparation.validate_setup(summary)
+
+    def test_uncertain_setup_exit_is_rejected(self):
+        for field, value in (("reaped", False), ("group_stop_before_reap", False), ("exit_code", 101)):
+            summary = self.summary()
+            summary["commands"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(preparation.PreparationError):
+                preparation.validate_setup(summary)
+
+    def test_hosted_preparation_and_evidence_are_separate_from_canonical_inventory(self):
+        workflow = (preparation.ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertIn("--directory out/editor-process-preparation/timings --label editor-process-preparation -- just foundry-editor-process-preparation-ui1-1d", workflow)
+        self.assertIn("name: editor-process-preparation-${{ github.run_id }}-${{ github.run_attempt }}", workflow)
+        self.assertIn("path: out/editor-process-preparation/", workflow)
+
+
 def failure_note(message):
     return {"reason": "compiler-message", "message": {
         "level": "failure-note", "code": None, "message": message, "spans": [], "children": [],
