@@ -56,7 +56,27 @@ class BootObservationTests(unittest.TestCase):
     def test_timeout_keeps_failure_serial_and_one_actual_reap(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            result = self.fixture(root, "import pathlib,sys,time; pathlib.Path(sys.argv[1]).write_text('firmware only'); time.sleep(10)", timeout=.05)
+            actual_spawn = boot.subprocess.Popen
+            serial = root / "serial.log"
+            def ready_spawn(*args, **kwargs):
+                process = actual_spawn(*args, **kwargs)
+                try:
+                    # This negative control tests retention of actual child
+                    # output. Make that precondition explicit without extending
+                    # the observer's original 50 ms marker deadline.
+                    deadline = time.monotonic() + 3
+                    while not serial.exists() or serial.read_text() != "firmware only":
+                        self.assertLess(time.monotonic(), deadline)
+                        self.assertIsNone(process.poll())
+                        time.sleep(.005)
+                    return process
+                except BaseException:
+                    process.kill()
+                    process.wait(timeout=5)
+                    raise
+            with mock.patch.object(boot.subprocess, 'Popen', ready_spawn):
+                result = self.fixture(root, "import pathlib,sys,time; pathlib.Path(sys.argv[1]).write_text('firmware only'); time.sleep(10)", timeout=.05)
+            self.assertEqual(result["deadline_seconds"], .05)
             self.assertFalse(result["success"])
             self.assertEqual(result["failure"], "marker-timeout")
             self.assertTrue(result["reaped"])

@@ -58,10 +58,14 @@ class StageTimerTests(unittest.TestCase):
 
     def test_interruption_reaps_owned_child_and_records_failure(self):
         with tempfile.TemporaryDirectory() as folder:
+            # Publish readiness only after the PID bytes are complete. Merely
+            # creating the final file races the parent's existence check.
             marker = Path(folder) / 'child'
             process = subprocess.Popen([sys.executable, str(TIMER), '--directory', folder,
                                         '--label', 'interrupted', '--', sys.executable, '-c',
-                                        f'import os,time; open({str(marker)!r}, "w").write(str(os.getpid())); time.sleep(30)'],
+                                        f'import os,time; from pathlib import Path; p=Path({str(marker)!r}); '
+                                        'staging=p.with_suffix(".pending"); staging.write_text(str(os.getpid())); '
+                                        'os.replace(staging,p); time.sleep(30)'],
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
                 deadline = time.monotonic() + 10
