@@ -1024,6 +1024,28 @@ impl Fixture {
         instance: u64,
         p: store::NativeSaveFixtureProfile,
     ) -> Self {
+        Self::configured_with_setup_probe(case, spec, n, preview, instance, p, |_| {})
+    }
+    #[cfg(feature = "host_editor_process_setup_v0_dev")]
+    pub fn recorded_with_setup_probe(
+        case: &Arc<recording::CaseRecorder>,
+        spec: recording::ScenarioSpec,
+        n: usize,
+        probe: impl FnOnce(&mut Self),
+    ) -> Self {
+        Self::configured_with_setup_probe(case, spec, n, 30000, 600000, profile(n), probe)
+    }
+    fn configured_with_setup_probe(
+        case: &Arc<recording::CaseRecorder>,
+        spec: recording::ScenarioSpec,
+        n: usize,
+        preview: u64,
+        instance: u64,
+        p: store::NativeSaveFixtureProfile,
+        probe: impl FnOnce(&mut Self),
+    ) -> Self {
+        // Acquire the fallible recorder before any live Store/root ownership.
+        let recording = ok(case.scenario(spec));
         let (h, dc, witness, enrollment) = ok(desktop::HostDesktop::new_store_save(
             volatile::config(preview, instance),
         ));
@@ -1051,9 +1073,10 @@ impl Fixture {
         let prepared = Arc::new(ok(store::StoreFixture::prepare_native_save(
             &path, p, witness, enrollment,
         )));
-        let initial = files(&path);
-        let this = Self {
-            recording: std::cell::RefCell::new(Some(ok(case.scenario(spec)))),
+        // No fallible inspection between successful Store preparation and this
+        // ownership guard. Every later panic must run Fixture's real cleanup.
+        let mut this = Self {
+            recording: std::cell::RefCell::new(Some(recording)),
             core_ordinal: 0,
             snapshot_ordinal: std::cell::Cell::new(0),
             recorded_fences: vec![],
@@ -1064,12 +1087,14 @@ impl Fixture {
             prepared: Some(prepared),
             root: Some(root),
             path,
-            initial,
+            initial: BTreeMap::new(),
             joined: BTreeSet::new(),
             recorded_quiesce_joins: None,
             desktop_pauses: vec![],
             store_pauses: vec![],
         };
+        probe(&mut this);
+        this.initial = files(&this.path);
         this.store_snapshot("initial", "source_checkpoint", None, None);
         this
     }

@@ -15,6 +15,7 @@
     "apps/artifact_editor/tests/native_task_support/protected_goldens.rs",
     "apps/artifact_editor/tests/native_task_support/recording.rs",
     "apps/artifact_editor/tests/process_support/child_owner.rs",
+    "apps/artifact_editor/tests/process_support/cleanup_owners.rs",
     "apps/artifact_editor/tests/process_support/fixture.rs",
     "apps/artifact_editor/tests/process_support/setup_control.rs",
     "apps/artifact_editor/tests/process_task.rs",

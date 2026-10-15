@@ -120,13 +120,19 @@ Both trace dispatch entrypoints bind creation to that capability's domain before
 allocating or resetting state. The comprehensive successor below adds caller-bound read/info/destroy checks;
 generic IPC handles still lack protocol-specific rights.
 
-P0 preparation adds two genuine in-process Read/reopen and permitted-writer
-pause/unwind controls, plus three authored consumers of the frozen process API.
+P0 preparation has three genuine in-process controls: Read/reopen, post-prepare
+constructor panic with a permitted writer, and borrower panic through the real
+app Save chain followed by a fresh Save and unrelated app progress. Three separate
+parent-owner policy controls cover quarantine, release and an immutable cleanup
+deadline; these do not observe a native child. Four authored consumers target the frozen process API.
 The process APIs remain absent: their actual compiler RED is preparation, never
 runtime acceptance or completion of the thirty assertion families. Consuming join
 must return promptly without unwinding and return the sole child on uncertainty.
-Private native negative controls and shared app Save ownership remain required
-before P1/P2 handlers. Source and validation scope are tracked in the follow-up
+The preparation gate serializes recorder access and runs separately in hosted
+editor CI, retaining its setup, compiler and source snapshots. Opaque Store
+initialization/reopen failure-owner staging, private native negative controls and
+process-mode shared app Save ownership remain required before P1/P2 handlers.
+Source and validation scope are tracked in the follow-up
 review resolution. Those local results remain source-bound; hosted qualification
 must identify its matching revision.
 

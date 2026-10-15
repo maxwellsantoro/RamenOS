@@ -244,6 +244,17 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-foundry-compile-v2-${{ hashFiles('rust-toolchain.toml') }}-
       - name: Run canonical editor lane (serialized)
         run: python3 tools/ci/ci_lanes.py lane editor
+      # Supplemental P0 preparation is deliberately separate from the frozen
+      # canonical task inventory and does not claim editor-process execution.
+      - name: Run editor process preparation controls
+        run: python3 tools/ci/stage_timer.py --directory out/editor-process-preparation/timings --label editor-process-preparation -- just foundry-editor-process-preparation-ui1-1d
+      - name: Retain editor process preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-process-preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/editor-process-preparation/
+          if-no-files-found: error
       - name: Retain actual editor stage timings
         if: always()
         uses: actions/upload-artifact@v4

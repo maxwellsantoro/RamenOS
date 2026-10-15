@@ -2,6 +2,24 @@
 
 2026-10-06. **FROZEN_CONTRACT_RUNTIME_NOT_IMPLEMENTED.** This contract specifies the next bounded successor to accepted UI1.1c. Executable gate-first assertion review and actual missing-API RED precede handlers; no process runtime acceptance follows from this document.
 
+### P0 preparation progress — 2026-10-15
+
+The preparation gate executes three genuine in-process setup controls and three
+test-owner policy controls, then requires actual compiler RED for four authored
+process API consumers. Constructor panic after successful Store setup exercises
+real writer cleanup. The separate borrower-panic control keeps the actual app
+and its private Save chain outside unwind, preserves its original operation and
+full receipt, and exercises a fresh Save, unrelated app and durable reopen.
+
+The test child owner retains its first cleanup deadline across returns, rejects
+expired join admission and quarantines parent owners even if a consuming call
+unwinds after taking the child. Pure policy controls establish only that test
+owner behavior; the new prompt-NotReady consumer remains unexecuted. The gate is
+an additional hosted editor step with separate evidence, preserving the canonical
+task and CI inventories. Opaque Store initialization/reopen failure-owner staging,
+native fault/transport/publication controls, uncertain parent death and all thirty
+families remain prerequisites. No dependent process handlers are admitted here.
+
 The wire, authority, bounds, API and assertion inventories are maintained in `docs/contracts/editor-process-v0.json`; exact signatures are in `docs/DESKTOP_EDITOR_PROCESS_API_V0.md`. Existing native Save/task contracts remain referenced without broadening their accepted evidence.
 
 ## Behavior and scope

@@ -32,6 +32,10 @@ ALLOWED_FILES = {
     "apps/artifact_editor/tests/process_support/child_owner.rs",
 }
 SETUP_CASES = {
+    "cleanup_owners::tests::process_preparation_cleanup_retry_preserves_deadline",
+    "cleanup_owners::tests::process_preparation_consuming_unwind_retains_parent_root",
+    "cleanup_owners::tests::process_preparation_joined_cleanup_releases_parent_root",
+    "process_preparation_constructor_panic_joins_before_root_cleanup",
     "process_preparation_genuine_read_and_owned_reopen",
     "process_preparation_save_pause_unwind_retains_original_writer",
 }
@@ -39,6 +43,7 @@ AUTHORED_CASES = {
     "process_p0_child_budget_has_closed_bounds",
     "process_p0_genuine_enrollment_fences_legacy_alias_and_repeated_read",
     "process_p0_genuine_child_edits_raster_and_single_use_ctrl_s_capture",
+    "process_p0_consuming_join_returns_live_owner_without_waiting",
 }
 EXTRAS = {
     "tools/ci/editor_process_preparation.py",
@@ -215,7 +220,7 @@ def validate_setup(summary):
     require(target.get("name") == "process_setup_control" and target.get("kind") == "test",
             "unexpected setup harness")
     require(target.get("selected") == sorted(SETUP_CASES) and target.get("passed") == sorted(SETUP_CASES),
-            "setup must actually pass the exact two preparation cases")
+            "setup must actually pass the exact six preparation cases")
     commands = summary.get("commands")
     require(isinstance(commands, list) and bool(commands), "missing setup command observations")
     for command in commands:
@@ -254,10 +259,15 @@ def execute(args):
     nonce = secrets.token_hex(16)
     result = {"schema_version": 1, "status": "FAIL", "scope": "genuine-setup-and-missing-api-preparation",
               "runtime": False, "all30_complete": False, "setup_passed_count": 0,
-              "authored_not_executed_count": 3, "commands": [], "run_nonce": nonce,
+              "authored_not_executed_count": len(AUTHORED_CASES),
+              "setup_scope": {"genuine_in_process_controls": 3, "parent_ownership_policy_controls": 3},
+              "commands": [], "run_nonce": nonce,
               "recording": str(evidence), "source_registry": "dynamic-preparation-closure-not-runtime-admission"}
     previous_cwd = Path.cwd()
-    env_names = {"RAMEN_NATIVE_TASK_EVIDENCE": str(evidence), "RAMEN_NATIVE_TASK_RUN_NONCE": nonce}
+    # Recorders reserve directories exclusively in one shared evidence root.
+    # Serialize this harness explicitly rather than relying on the caller's env.
+    env_names = {"RAMEN_NATIVE_TASK_EVIDENCE": str(evidence), "RAMEN_NATIVE_TASK_RUN_NONCE": nonce,
+                 "RUST_TEST_THREADS": "1"}
     previous_env = {key: os.environ.get(key) for key in env_names}
     try:
         os.chdir(ROOT)
@@ -291,7 +301,8 @@ def execute(args):
         result["missing_api"] = classify_missing_api((output / "missing-api.stdout").read_text(),
                                                       compile_result["exit_code"], ROOT)
         result["status"] = "PASS_PREPARATION_ONLY"
-        print(f"EDITOR_PROCESS_PREPARATION: PASS_PREPARATION_ONLY setup=2 authored_not_executed=3 "
+        print(f"EDITOR_PROCESS_PREPARATION: PASS_PREPARATION_ONLY setup={len(SETUP_CASES)} "
+              f"authored_not_executed={len(AUTHORED_CASES)} "
               f"all30_complete=false runtime=false output={output}")
     except BaseException as error:
         result["error"] = str(error)

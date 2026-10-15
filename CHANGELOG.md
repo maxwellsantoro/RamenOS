@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-10-15 — editor process P0 owner preparation
+
+- Install the genuine fixture cleanup guard before fallible post-Store setup.
+  Exercise constructor panic with a permitted writer, actual producer joins and
+  subsequent authorized Read.
+- Exercise borrower panic through the real application's private Save chain,
+  retaining the original operation and full receipt, then prove a fresh Save,
+  unrelated app progress and durable reopen.
+- Preserve the original two-second child-fixture cleanup deadline across owner
+  returns; deny expired retries before consuming join and retain parent owners
+  independently of the child slot during unwind.
+- Run six preparation controls and retain four missing-API consumer assertions,
+  including prompt live child owner return followed by editing. Add supplemental
+  hosted editor preparation without changing the canonical 56-stage inventory.
+  This is preparation only: all thirty process families, native wait uncertainty,
+  opaque Store failure owners and the authenticated child runtime remain open.
+
 ## 2026-10-15 — hosted timeout recovery evidence
 
 - Retain bounded create/inspect and attach progress evidence without changing

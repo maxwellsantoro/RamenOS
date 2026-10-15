@@ -15,6 +15,7 @@
     "apps/artifact_editor/tests/native_task_support/protected_goldens.rs",
     "apps/artifact_editor/tests/native_task_support/recording.rs",
     "apps/artifact_editor/tests/process_support/child_owner.rs",
+    "apps/artifact_editor/tests/process_support/cleanup_owners.rs",
     "apps/artifact_editor/tests/process_support/fixture.rs",
     "apps/artifact_editor/tests/process_support/setup_control.rs",
     "apps/artifact_editor/tests/process_task.rs",
@@ -249,7 +250,7 @@
   "assertion_sources": {
     "apps/artifact_editor/src/native_tests.rs": "691f25dd08fedb17742cda1310832c44dec63928c1720c4fdcbac11c7d3dc8ed",
     "apps/artifact_editor/tests/desktop_reliability.rs": "86e9a6d2d955101e13cc874d9e6ea3939e1c3bff5eb236b1ea1ab4730f924e33",
-    "apps/artifact_editor/tests/native_task_support/mod.rs": "0a4d62ef0a934b00e2b9b42878212ff82d2530225c91148941fd558c1d0e8228",
+    "apps/artifact_editor/tests/native_task_support/mod.rs": "6e1a2c71373bd8bf906ba9400d98217459e01a0c3b06a833918749fc46e1cee1",
     "apps/artifact_editor/tests/native_task_support/protected_goldens.rs": "f99add25f2aa9b4bf37074fb7a2ae3fca5f78475775c7fe469f649d9dd438d6c",
     "apps/artifact_editor/tests/native_task_support/recording.rs": "69844fffb1b8b3bbb1d7fa9e4bbe2218c59e5e0adb99457383032bf749b848fd",
     "services/desktop/tests/support/editor_host_assertions.rs": "6d0d0101dc8f65806b22a28fb98baa0d0c00003c9d334b23b41ecd32cfaa80df",

@@ -134,9 +134,16 @@ Root assigns exact paths and outputs at dispatch; proposed packet IDs are planni
 labels, not implemented recipes. A pure record, PID or source inclusion is not
 process execution, containment, target persistence or hardware evidence.
 
-The follow-up adds `just foundry-editor-process-preparation-ui1-1d`:
-two genuine in-process setup controls and three authored frozen-API consumers
-with explicit missing-API compiler RED. It does not complete P0. The remaining
+`just foundry-editor-process-preparation-ui1-1d` now separates three genuine
+in-process controls, three parent-owner cleanup policy controls and four authored
+frozen-API consumers with explicit missing-API compiler RED. The real app Save
+chain survives borrower panic, settles its original operation and performs a new
+Save; constructor cleanup covers a panic after successful Store preparation.
+Consuming cleanup retains its first deadline across retries and quarantines
+parent owners even if a faulty consuming call empties the child slot. The new
+nonblocking owner-return consumer remains unexecuted until the process API exists.
+Opaque Store initialization/reopen failure owners still need explicit staging.
+This does not complete P0. The remaining
 private assertion controls must exercise actual pre-exec/held-ELF barriers,
 authenticated malformed carrier/FD inputs, real map/seal/offer/cap+1 faults,
 native child fault/stall and sole-supervisor uncertainty, and uncertain parent
